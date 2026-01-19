@@ -30,6 +30,9 @@ interface PlanFeatures {
     neural2?: boolean;
     studio?: boolean;
     chirp3d?: boolean;
+    amazon_standard?: boolean;
+    amazon_neural?: boolean;
+    amazon_generative?: boolean;
   };
   sentence_patterns?: {
     enabled?: boolean;
@@ -103,6 +106,9 @@ export default function PackageDetailPage() {
       neural2: false,
       studio: false,
       chirp3d: false,
+      amazon_standard: false,
+      amazon_neural: false,
+      amazon_generative: false,
     },
     sentence_patterns: {
       enabled: false,
@@ -522,65 +528,113 @@ export default function PackageDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="standard"
-                    checked={planFeatures.voice_categories?.standard ?? true}
-                    onChange={(e) => handleVoiceCategoryChange('standard', e.target.checked)}
-                  />
-                  <Label htmlFor="standard" className="cursor-pointer">
-                    <i className="fas fa-volume-up mr-2 text-gray-600"></i>
-                    Standard
-                  </Label>
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">Google Ses Modelleri</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="standard"
+                        checked={planFeatures.voice_categories?.standard ?? true}
+                        onChange={(e) => handleVoiceCategoryChange('standard', e.target.checked)}
+                      />
+                      <Label htmlFor="standard" className="cursor-pointer">
+                        <i className="fas fa-volume-up mr-2 text-gray-600"></i>
+                        Standard
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="wavenet"
+                        checked={planFeatures.voice_categories?.wavenet ?? false}
+                        onChange={(e) => handleVoiceCategoryChange('wavenet', e.target.checked)}
+                      />
+                      <Label htmlFor="wavenet" className="cursor-pointer">
+                        <i className="fas fa-star mr-2 text-yellow-600"></i>
+                        WaveNet
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="neural2"
+                        checked={planFeatures.voice_categories?.neural2 ?? false}
+                        onChange={(e) => handleVoiceCategoryChange('neural2', e.target.checked)}
+                      />
+                      <Label htmlFor="neural2" className="cursor-pointer">
+                        <i className="fas fa-brain mr-2 text-purple-600"></i>
+                        Neural2
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="studio"
+                        checked={planFeatures.voice_categories?.studio ?? false}
+                        onChange={(e) => handleVoiceCategoryChange('studio', e.target.checked)}
+                      />
+                      <Label htmlFor="studio" className="cursor-pointer">
+                        <i className="fas fa-gem mr-2 text-primary"></i>
+                        Studio
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="chirp3d"
+                        checked={planFeatures.voice_categories?.chirp3d ?? false}
+                        onChange={(e) => handleVoiceCategoryChange('chirp3d', e.target.checked)}
+                      />
+                      <Label htmlFor="chirp3d" className="cursor-pointer">
+                        <i className="fas fa-diamond mr-2 text-orange-600"></i>
+                        Chirp3D
+                      </Label>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="wavenet"
-                    checked={planFeatures.voice_categories?.wavenet ?? false}
-                    onChange={(e) => handleVoiceCategoryChange('wavenet', e.target.checked)}
-                  />
-                  <Label htmlFor="wavenet" className="cursor-pointer">
-                    <i className="fas fa-star mr-2 text-yellow-600"></i>
-                    WaveNet
-                  </Label>
-                </div>
+                <Separator />
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="neural2"
-                    checked={planFeatures.voice_categories?.neural2 ?? false}
-                    onChange={(e) => handleVoiceCategoryChange('neural2', e.target.checked)}
-                  />
-                  <Label htmlFor="neural2" className="cursor-pointer">
-                    <i className="fas fa-brain mr-2 text-purple-600"></i>
-                    Neural2
-                  </Label>
-                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">Amazon Ses Modelleri</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="amazon_standard"
+                        checked={planFeatures.voice_categories?.amazon_standard ?? false}
+                        onChange={(e) => handleVoiceCategoryChange('amazon_standard', e.target.checked)}
+                      />
+                      <Label htmlFor="amazon_standard" className="cursor-pointer">
+                        <i className="fas fa-volume-down mr-2 text-blue-600"></i>
+                        Standard
+                      </Label>
+                    </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="studio"
-                    checked={planFeatures.voice_categories?.studio ?? false}
-                    onChange={(e) => handleVoiceCategoryChange('studio', e.target.checked)}
-                  />
-                  <Label htmlFor="studio" className="cursor-pointer">
-                    <i className="fas fa-gem mr-2 text-primary"></i>
-                    Studio
-                  </Label>
-                </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="amazon_neural"
+                        checked={planFeatures.voice_categories?.amazon_neural ?? false}
+                        onChange={(e) => handleVoiceCategoryChange('amazon_neural', e.target.checked)}
+                      />
+                      <Label htmlFor="amazon_neural" className="cursor-pointer">
+                        <i className="fas fa-microchip mr-2 text-indigo-600"></i>
+                        Neural
+                      </Label>
+                    </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="chirp3d"
-                    checked={planFeatures.voice_categories?.chirp3d ?? false}
-                    onChange={(e) => handleVoiceCategoryChange('chirp3d', e.target.checked)}
-                  />
-                  <Label htmlFor="chirp3d" className="cursor-pointer">
-                    <i className="fas fa-diamond mr-2 text-orange-600"></i>
-                    Chirp3D
-                  </Label>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="amazon_generative"
+                        checked={planFeatures.voice_categories?.amazon_generative ?? false}
+                        onChange={(e) => handleVoiceCategoryChange('amazon_generative', e.target.checked)}
+                      />
+                      <Label htmlFor="amazon_generative" className="cursor-pointer">
+                        <i className="fas fa-wand-magic-sparkles mr-2 text-purple-500"></i>
+                        Generative
+                      </Label>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

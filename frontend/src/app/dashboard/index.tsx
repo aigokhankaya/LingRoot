@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PackageInfo from '@/components/PackageInfo';
 import MembershipBadge from '@/components/user/MembershipBadge';
@@ -7,6 +7,7 @@ import UserProfile from '@/components/user/UserProfile';
 import { useAuth } from '@/lib/auth';
 import { useMembership } from '@/context/MembershipContext';
 import { useRouter } from 'next/navigation';
+import { AnalyticsHelper } from '@/utils/AnalyticsHelper';
 
 export default function Dashboard() {
   const { user, isAuthenticated } = useAuth();
@@ -23,6 +24,10 @@ export default function Dashboard() {
       router.push(`/login?next=${encodeURIComponent(next)}`);
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    AnalyticsHelper.logScreenView('Dashboard', 'DashboardScreen');
+  }, []);
 
   // Initialize tab from query (?tab=...) then hash, and keep in sync
   React.useEffect(() => {
@@ -97,15 +102,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => { 
-        setTab(v); 
-        if (typeof window !== 'undefined') { 
+      <Tabs value={tab} onValueChange={(v) => {
+        setTab(v);
+        if (typeof window !== 'undefined') {
           const url = new URL(window.location.href);
           url.searchParams.set('tab', v);
           // keep hash too for backward-compat
           url.hash = v;
           window.history.replaceState({}, '', url.toString());
-        } 
+        }
       }}>
         <TabsList className="mb-4">
           <TabsTrigger value="genel">Genel</TabsTrigger>

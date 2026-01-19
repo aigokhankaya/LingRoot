@@ -10,6 +10,8 @@ import { initializeGoogleAuth, signInWithGoogle } from '../src/lib/googleAuth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
 import { useTranslation } from '../src/lib/i18n';
+import { AnalyticsHelper } from '../src/utils/AnalyticsHelper';
+
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
@@ -32,7 +34,12 @@ const LoginPage: React.FC = () => {
     if (!nextRaw) return '';
     try { return decodeURIComponent(nextRaw); } catch { return nextRaw; }
   }, [nextRaw]);
+  /* Existing code */
   const debugTarget = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
+
+  useEffect(() => {
+    AnalyticsHelper.logScreenView('Login', 'LoginPage');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,13 +51,10 @@ const LoginPage: React.FC = () => {
     try {
       const result = await login(email, password, rememberMe);
       if (result.success) {
-        const target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
+        // Her zaman welcome sayfasına yönlendir
+        const target = '/welcome';
         try { sessionStorage.removeItem('postLoginNext'); } catch { }
-        if (target.includes('#')) {
-          window.location.assign(target);
-        } else {
-          router.replace(target);
-        }
+        router.replace(target);
       } else {
         setError(result.message || t('login_failed_generic'));
         setErrorCode(result.code || null);
@@ -91,13 +95,10 @@ const LoginPage: React.FC = () => {
       const result = await loginWithGoogle(credential, rememberMe);
 
       if (result.success) {
-        const target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
+        // Her zaman welcome sayfasına yönlendir
+        const target = '/welcome';
         try { sessionStorage.removeItem('postLoginNext'); } catch { }
-        if (target.includes('#')) {
-          window.location.assign(target);
-        } else {
-          router.replace(target);
-        }
+        router.replace(target);
       } else {
         setError(result.message || t('login_failed_generic'));
       }
@@ -110,6 +111,7 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+
       {debug && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-100 text-yellow-900 text-xs p-2 border-b border-yellow-300">
           <div className="max-w-3xl mx-auto">

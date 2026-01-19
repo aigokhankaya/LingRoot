@@ -26,6 +26,7 @@ import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures
 import AudioPlayer from '../components/AudioPlayer';
 import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
 import { COLORS } from '../theme/colors';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -114,6 +115,9 @@ const CreateScreen: React.FC = () => {
       // Ekrana her odaklanıldığında aktif job durumunu kontrol et
       checkActiveJob();
 
+      // Firebase Analytics: Screen View
+      AnalyticsHelper.logScreenView('Create', 'CreateScreen');
+
       // Topic Tree'den gelen hazır uzun metni sadece text modunda ve input boşken uygula
       if (
         nextMode === 'text' &&
@@ -175,10 +179,10 @@ const CreateScreen: React.FC = () => {
   // --- İçerik Süresi Seçenekleri ---
   // 1.5 dk, 5 dk, 10 dk, 15 dk seçenekleri (tüm modlar için ortak)
   const DURATION_OPTIONS = [
-    { value: 1.5, label: '1.5 dk', description: '~225\nkelime' },
+    { value: 2, label: '2 dk', description: '~300\nkelime' },
     { value: 5, label: '5 dk', description: '~750\nkelime' },
+    { value: 7, label: '7 dk', description: '~1050\nkelime' },
     { value: 10, label: '10 dk', description: '~1500\nkelime' },
-    { value: 15, label: '15 dk', description: '~2250\nkelime' },
   ];
 
   // --- Podcast Mode State ---
@@ -250,6 +254,7 @@ const CreateScreen: React.FC = () => {
       Alert.alert(t('common.info'), msg);
       return;
     }
+    AnalyticsHelper.logEvent('action_fetch_youtube_click_mobile', { url: youtubeUrl });
     if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
       Alert.alert(t('common.error'), 'Geçerli bir YouTube linki girin');
       return;
@@ -408,28 +413,58 @@ const CreateScreen: React.FC = () => {
     return 'american';
   };
 
-  // Backend kategori paramını doğrudan kullan (backend 'neural', 'neural2', 'wavenet', 'studio', 'chirp3d' bekliyor)
+  // Helper to determine if a voice matches a specific category (Provider agnostic)
+  const isVoiceInCategory = (voice: any, category: string, provider: string): boolean => {
+    const vName = (voice.name || '').toLowerCase();
+    const pVoice = voice.providerVoice || {};
+    const pName = (pVoice.name || '').toLowerCase();
+    const pEngine = (pVoice.engine || '').toLowerCase();
+    const quality = (voice.quality || '').toLowerCase();
+
+    if (provider === 'amazon' || provider === 'polly') {
+      if (category === 'standard') return quality === 'basic' || pEngine === 'standard';
+      if (category === 'neural') return quality === 'premium' || pEngine === 'neural';
+      if (category === 'generative') return quality === 'generative' || quality === 'ultra' || pEngine === 'generative';
+      return false;
+    } else {
+      // Google (default)
+      if (category === 'standard') return quality === 'basic' || vName.includes('standard') || pName.includes('standard');
+      // Wavenet is mostly deprecated/merged into Neural/Standard, but we map 'premium' to it for backward compat if tab exists
+      if (category === 'wavenet') return quality === 'premium' || vName.includes('wavenet') || pName.includes('wavenet');
+      if (category === 'neural2') return quality === 'premium' || vName.includes('neural2') || pName.includes('neural2');
+      if (category === 'studio') return quality === 'platinum' || vName.includes('studio') || pName.includes('studio');
+      if (category === 'chirp3d') return quality === 'gold' || quality === 'ultra' || vName.includes('chirp') || pName.includes('chirp');
+      return false;
+    }
+  };
+
+  // Backend kategori paramını doğrudan kullan
   const mapCategoryForBackend = (category?: string): string | undefined => {
-    if (!category || category === 'standard') return undefined;
-    // 'neural' kategorisini backend'e gönder (Amazon Polly Neural engine için)
+    if (!category || category === 'all') return undefined;
     return category;
   };
 
-  // Voice categories - Amazon Polly categories
-  const voiceCategories: VoiceCategory[] = [
-    { value: 'standard', label: 'Standard', icon: 'volume-up', badge: t('create.voice.badge.free') },
-    { value: 'neural', label: 'Neural', icon: 'star', badge: t('create.voice.badge.premium') },
-  ].filter(category => {
-    // Filter categories based on plan features
-    if (!planFeatures?.voice_categories) return true; // Show all if features not loaded
-
-    const categories = planFeatures.voice_categories;
-    switch (category.value) {
-      case 'standard': return categories.standard !== false;
-      case 'neural': return categories.wavenet === true || categories.neural2 === true; // Map Google categories to Polly Neural
-      default: return true;
+  // Dynamic Voice Categories based on Provider
+  const voiceCategories: VoiceCategory[] = React.useMemo(() => {
+    if (currentProvider === 'amazon' || currentProvider === 'polly') {
+      return [
+        { value: 'standard', label: 'Standard', icon: 'volume-up', badge: t('create.voice.badge.free') },
+        { value: 'neural', label: 'Neural', icon: 'star', badge: t('create.voice.badge.premium') },
+        { value: 'generative', label: 'Generative', icon: 'psychology', badge: 'Ultra' },
+      ];
+    } else {
+      // Google
+      return [
+        { value: 'standard', label: 'Standard', icon: 'volume-up', badge: t('create.voice.badge.free') },
+        { value: 'wavenet', label: 'WaveNet', icon: 'graphic-eq', badge: t('create.voice.badge.premium') },
+        { value: 'neural2', label: 'Neural2', icon: 'star', badge: 'Plus' },
+        { value: 'studio', label: 'Studio', icon: 'mic', badge: 'Pro' },
+        { value: 'chirp3d', label: 'Chirp', icon: 'surround-sound', badge: 'Ultra' },
+      ];
     }
-  });
+  }, [currentProvider, t]);
+
+
 
   // Voice filters
   const accentOptions = [
@@ -498,7 +533,7 @@ const CreateScreen: React.FC = () => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;
 
           // Kategori - Amazon Polly'nin 'engine' field'ını da kontrol et
-          let category = voice.category || voice.type || voice.voiceType || voice.engine;
+          let category = voice.quality || voice.category || voice.type || voice.voiceType || voice.engine;
           if (!category) {
             const voiceName = name || '';
             if (voiceName.includes('Chirp') || voiceName.toLowerCase().includes('chirp')) {
@@ -694,7 +729,10 @@ const CreateScreen: React.FC = () => {
     accent: string
   ) => {
     return voices
-      .filter(v => category === 'standard' || v.category === category)
+      .filter(v => {
+        // Use generic matcher since we have dynamic categories
+        return isVoiceInCategory(v, category, currentProvider);
+      })
       .filter(v => gender === 'all' || v.gender === gender)
       .filter(v => accent === 'all' || v.accent === accent);
   };
@@ -707,39 +745,48 @@ const CreateScreen: React.FC = () => {
 
     // First apply plan-based voice category filtering
     let voices = availableVoices;
-    console.log('🔍 [Mobile Voice Filter] Plan features:', planFeatures?.voice_categories);
+    console.log('🔍 [Mobile Voice Filter] --------------------------------------------------');
+    console.log('🔍 [Mobile Voice Filter] Current Provider:', currentProvider);
+    console.log('🔍 [Mobile Voice Filter] Plan features:', JSON.stringify(planFeatures?.voice_categories));
     console.log('🔍 [Mobile Voice Filter] Total voices before filter:', availableVoices.length);
+    if (availableVoices.length > 0) {
+      const sample = availableVoices[0];
+      console.log('🔍 [Mobile Voice Filter] Sample voice:', JSON.stringify({ name: sample.name, quality: sample.quality, category: sample.category, providerVoice: sample.providerVoice }));
+    }
 
     if (planFeatures?.voice_categories) {
       voices = availableVoices.filter(voice => {
-        const voiceName = voice.name.toLowerCase();
         const categories = planFeatures.voice_categories!;
+        const isAmazon = currentProvider === 'amazon' || currentProvider === 'polly';
 
-        // Check which category this voice belongs to and if it's enabled
-        const isWavenet = voiceName.includes('wavenet') && categories.wavenet;
-        const isNeural2 = voiceName.includes('neural2') && categories.neural2;
-        const isStudio = voiceName.includes('studio') && categories.studio;
-        const isChirp = voiceName.includes('chirp') && categories.chirp3d;
-        const isStandard = categories.standard &&
-          !voiceName.includes('wavenet') &&
-          !voiceName.includes('neural2') &&
-          !voiceName.includes('studio') &&
-          !voiceName.includes('chirp');
+        if (isAmazon) {
+          const isStandard = isVoiceInCategory(voice, 'standard', 'amazon') && categories.amazon_standard;
+          const isNeural = isVoiceInCategory(voice, 'neural', 'amazon') && categories.amazon_neural;
+          const isGenerative = isVoiceInCategory(voice, 'generative', 'amazon') && categories.amazon_generative;
+          return isStandard || isNeural || isGenerative;
+        } else {
+          // Google
+          const isStandard = isVoiceInCategory(voice, 'standard', 'google') && (categories.standard ?? true); // Default true if undefined
+          const isWavenet = isVoiceInCategory(voice, 'wavenet', 'google') && (categories.wavenet || categories.neural2); // Allow wavenet if neural2 is enabled (backward compat)
+          const isNeural2 = isVoiceInCategory(voice, 'neural2', 'google') && categories.neural2;
+          const isStudio = isVoiceInCategory(voice, 'studio', 'google') && categories.studio;
+          const isChirp = isVoiceInCategory(voice, 'chirp3d', 'google') && categories.chirp3d;
 
-        const shouldShow = isWavenet || isNeural2 || isStudio || isChirp || isStandard;
-
-        if (!shouldShow) {
-          console.log(`❌ [Mobile Voice Filter] Filtered out: ${voice.name}`);
+          const result = isStandard || isWavenet || isNeural2 || isStudio || isChirp;
+          if (!result && voices.length < 5) { // Log detailed failure for first few voices
+            // console.log(`❌ [Filter Fail] ${voice.name} | Q:${voice.quality} | S:${categories.standard}/${isStandard} W:${categories.wavenet}/${isWavenet} N:${categories.neural2}/${isNeural2}`);
+          }
+          return result;
         }
-
-        return shouldShow;
       });
       console.log('🔍 [Mobile Voice Filter] Voices after plan filter:', voices.length);
     }
 
     // Then apply local kategori/gender/aksan filtresi
     const result = filterVoices(voices, selectedVoiceCategory, selectedGender, selectedAccent);
+    console.log('🔍 [Mobile Voice Filter] Selected Category:', selectedVoiceCategory);
     console.log('🔍 [Mobile Voice Filter] Final voices after all filters:', result.length);
+    console.log('🔍 [Mobile Voice Filter] --------------------------------------------------');
     return result;
   };
 
@@ -837,6 +884,13 @@ const CreateScreen: React.FC = () => {
   }, [selectedAccent, selectedGender, selectedVoiceCategory]);
 
   const handleCreateAudio = async () => {
+    // Log analytics event
+    AnalyticsHelper.logEvent('action_generate_audio_click_mobile', {
+      content_type: mode,
+      level: selectedLevel,
+      voice: selectedVoice,
+      speaking_rate: speechRate
+    });
     if (isTtsJobLocked) {
       if (ttsJobMessage) {
         Alert.alert(t('common.info'), ttsJobMessage);
@@ -966,7 +1020,17 @@ const CreateScreen: React.FC = () => {
           gender: selectedGender as any,
           accent: selectedAccent as any,
           topic_id: topicIdForRequest,
+          engine: mapCategoryForBackend(selectedVoiceCategory),
         };
+
+        // Firebase Analytics: Content creation started
+        AnalyticsHelper.logEvent('content_creation_start', {
+          type: 'narration',
+          content_type: mode,
+          level: selectedLevel,
+          voice: selectedVoice,
+          text_length: textToProcess.length,
+        });
 
         console.log('🎯 [CREATE] Calling processTextToSpeechAsync...');
         const response = await apiService.processTextToSpeechAsync(request);
@@ -983,6 +1047,15 @@ const CreateScreen: React.FC = () => {
           setSuccessAlertEstimatedTime(response.estimatedTime || '2-5 minutes');
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
+
+          // Firebase Analytics: Content creation completed (async job started successfully)
+          AnalyticsHelper.logEvent('content_creation_complete', {
+            type: 'narration',
+            content_type: mode,
+            level: selectedLevel,
+            voice: selectedVoice,
+            status: 'async_started',
+          });
         } else {
           Alert.alert(t('common.error'), t('create.alerts.audioCreateFailed'));
         }
@@ -1035,6 +1108,13 @@ const CreateScreen: React.FC = () => {
   };
 
   const handleCreatePodcast = async () => {
+    // Podcast Log
+    AnalyticsHelper.logEvent('action_create_podcast_click_mobile', {
+      topic: podcastTopic,
+      level: selectedLevel,
+      duration: podcastDuration,
+    });
+
     if (!podcastTopic || podcastTopic.trim().length === 0) {
       Alert.alert(
         t('common.error'),
@@ -1052,6 +1132,15 @@ const CreateScreen: React.FC = () => {
 
     setIsCreatingPodcast(true);
     setPodcastError(null);
+
+    // Firebase Analytics: Podcast creation started
+    AnalyticsHelper.logEvent('content_creation_start', {
+      type: 'podcast',
+      topic: podcastTopic.trim(),
+      level: selectedLevel,
+      duration: podcastDuration,
+      tts_provider: podcastTtsProvider,
+    });
 
     try {
       // Google podcast: run async in background and notify when ready
@@ -1071,15 +1160,11 @@ const CreateScreen: React.FC = () => {
         });
 
         if (response?.success) {
-          const msg =
-            language === 'tr'
-              ? `Podcastiniz arka planda oluşturuluyor. ${response.estimatedTime || 'Birkaç dakika'} içinde bildirim alacaksınız.`
-              : `Your podcast is being created in the background. You'll receive a notification in ${response.estimatedTime || 'a few minutes'}.`;
-          setIsTtsJobLocked(true);
-          setIsCreatingVoice(true);
-          setTtsJobMessage(msg);
+          const estimated = response.estimatedTime || (language === 'tr' ? '2-5 dakika' : '2-5 minutes');
+          setSuccessAlertEstimatedTime(estimated);
           setPodcastTopic('');
-          Alert.alert(language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started', msg);
+          setShowSuccessAlert(true);
+          // setIsTtsJobLocked(true); // Don't lock immediately to allow modal interaction
           return;
         }
 
@@ -1208,6 +1293,16 @@ const CreateScreen: React.FC = () => {
 
       setCreatedTrack(newTrack);
       setShowPlayer(true);
+
+      // Firebase Analytics: Podcast creation completed
+      AnalyticsHelper.logEvent('content_creation_complete', {
+        type: 'podcast',
+        topic: podcastTopic.trim(),
+        level: selectedLevel,
+        duration: podcastDuration,
+        tts_provider: podcastTtsProvider,
+        status: 'completed',
+      });
     } catch (e: any) {
       const msg =
         e?.message ||
@@ -1791,7 +1886,10 @@ const CreateScreen: React.FC = () => {
                   styles.levelButton,
                   selectedLevel === level && styles.levelButtonActive,
                 ]}
-                onPress={() => setSelectedLevel(level)}
+                onPress={() => {
+                  setSelectedLevel(level);
+                  AnalyticsHelper.logEvent('interaction_setting_level_mobile', { level });
+                }}
               >
                 <Text
                   style={[
@@ -1840,7 +1938,7 @@ const CreateScreen: React.FC = () => {
 
             {/* Voice Categories */}
             <View style={styles.voiceCategoryContainer}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
                 {voiceCategories.map((category) => (
                   <TouchableOpacity
                     key={category.value}
@@ -1876,7 +1974,7 @@ const CreateScreen: React.FC = () => {
                     </View>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </View>
 
             {/* Voice Filters */}
@@ -1891,7 +1989,10 @@ const CreateScreen: React.FC = () => {
                         styles.filterButton,
                         selectedAccent === accent.value && styles.filterButtonActive,
                       ]}
-                      onPress={() => setSelectedAccent(accent.value)}
+                      onPress={() => {
+                        setSelectedAccent(accent.value);
+                        AnalyticsHelper.logEvent('interaction_setting_accent_mobile', { accent: accent.value });
+                      }}
                     >
                       <Text style={[
                         styles.filterButtonText,
@@ -1914,7 +2015,10 @@ const CreateScreen: React.FC = () => {
                         styles.filterButton,
                         selectedGender === gender.value && styles.filterButtonActive,
                       ]}
-                      onPress={() => setSelectedGender(gender.value)}
+                      onPress={() => {
+                        setSelectedGender(gender.value);
+                        AnalyticsHelper.logEvent('interaction_setting_gender_mobile', { gender: gender.value });
+                      }}
                     >
                       <Text style={[
                         styles.filterButtonText,
@@ -1948,9 +2052,7 @@ const CreateScreen: React.FC = () => {
               <Icon name="record-voice-over" size={24} color={COLORS.primary} />
               <View style={styles.voiceSelectionInfo}>
                 <Text style={styles.voiceSelectionText}>
-                  {selectedVoice
-                    ? getVoiceDisplayName(selectedVoice, language, selectedVoice)
-                    : t('create.voice.selectPrompt')}
+                  {selectedVoice ? `${getVoiceDisplayName(selectedVoice, language)} (${selectedVoice})` : t('create.voice.selectPrompt')}
                 </Text>
                 <Text style={styles.voiceSelectionSubtext}>
                   {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
@@ -1999,7 +2101,7 @@ const CreateScreen: React.FC = () => {
                       >
                         <View style={styles.voiceItemInfo}>
                           <Text style={styles.voiceItemName}>
-                            {getVoiceDisplayName(item.name, language, item.name)}
+                            {`${getVoiceDisplayName(item.name, language, item.name)} (${item.name})`}
                           </Text>
                           <Text style={styles.voiceItemDescription}>
                             {(item.accent === 'american' && t('create.voice.accents.american')) ||
@@ -2416,14 +2518,14 @@ const styles = StyleSheet.create({
   levelSelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 12,
+    gap: 10,
     marginBottom: 16,
+    justifyContent: 'center',
   },
   levelButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: '30%',
+    paddingVertical: 14,
+    borderRadius: 16,
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2581,13 +2683,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   voiceCategoryButton: {
+    width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderRadius: 16,
     backgroundColor: '#f0f0f0',
-    marginRight: 8,
     borderWidth: 1,
     borderColor: '#ddd',
   },

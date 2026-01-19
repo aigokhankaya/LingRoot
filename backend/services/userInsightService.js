@@ -267,6 +267,115 @@ class UserInsightService {
     }
 
     /**
+     * 🔄 Content rating'den otomatik insight çıkar
+     * Rating ve feedback'e göre kullanıcı tercihlerini öğren
+     * 
+     * @param {string} userId 
+     * @param {string} contentId 
+     * @param {number} rating - 1 (beğendi) veya -1 (beğenmedi)
+     * @param {string} feedbackType - optional: too_easy, too_hard, boring, etc.
+     */
+    async processContentRating(userId, contentId, rating, feedbackType = null) {
+        try {
+            // 1. İçerik bilgilerini al
+            const contentResult = await db.query(
+                `SELECT input, input_type, level FROM contenthistory WHERE id = $1`,
+                [contentId]
+            );
+
+            if (contentResult.rows.length === 0) {
+                logger.debug(`[UserInsightService] Content not found: ${contentId}`);
+                return;
+            }
+
+            const { input: topic, input_type, level } = contentResult.rows[0];
+
+            if (!topic || topic.length < 3) {
+                return;
+            }
+
+            // 2. Rating'e göre insight oluştur
+            if (rating === 1) {
+                // Beğendi → ilgi alanı olarak kaydet
+                await this.storeInsight(userId, 'like', topic, 80);
+
+                // Seviye uyumu için not al
+                if (level) {
+                    await this.storeInsight(
+                        userId,
+                        'preference',
+                        `${level} seviyesinde içerik tercih ediyor`,
+                        70
+                    );
+                }
+
+                // Format tercihi
+                if (input_type) {
+                    await this.storeInsight(
+                        userId,
+                        'preference',
+                        `${input_type} formatını seviyor`,
+                        65
+                    );
+                }
+
+                logger.info(`[UserInsightService] Positive rating processed: topic="${topic}", level=${level}`);
+
+            } else if (rating === -1) {
+                // Beğenmedi → neden?
+                if (feedbackType === 'too_hard') {
+                    await this.storeInsight(
+                        userId,
+                        'preference',
+                        `${level} seviyesi zor geliyor`,
+                        85
+                    );
+                    logger.info(`[UserInsightService] User finds ${level} too hard`);
+
+                } else if (feedbackType === 'too_easy') {
+                    await this.storeInsight(
+                        userId,
+                        'preference',
+                        `${level} seviyesi kolay geliyor`,
+                        85
+                    );
+                    logger.info(`[UserInsightService] User finds ${level} too easy`);
+
+                } else if (feedbackType === 'boring') {
+                    await this.storeInsight(userId, 'dislike', topic, 75);
+                    logger.info(`[UserInsightService] User finds "${topic}" boring`);
+
+                } else if (feedbackType === 'too_long') {
+                    await this.storeInsight(
+                        userId,
+                        'preference',
+                        'Kısa içerikler tercih ediyor',
+                        70
+                    );
+                    logger.info(`[UserInsightService] User prefers shorter content`);
+
+                } else if (feedbackType === 'too_short') {
+                    await this.storeInsight(
+                        userId,
+                        'preference',
+                        'Uzun içerikler tercih ediyor',
+                        70
+                    );
+                    logger.info(`[UserInsightService] User prefers longer content`);
+
+                } else {
+                    // Genel beğenmeme
+                    await this.storeInsight(userId, 'dislike', topic, 65);
+                    logger.info(`[UserInsightService] User dislikes "${topic}"`);
+                }
+            }
+
+        } catch (error) {
+            logger.error('[UserInsightService] processContentRating error:', error);
+        }
+    }
+
+    /**
      * 🎯 AKILLI ÖNERİ SİSTEMİ
      * Konu derinliğini hesapla (kullanıcı bir konuda ne kadar içerik tüketti)
      */

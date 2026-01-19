@@ -1,8 +1,8 @@
 # Database Schema Overview
 
-**Last Updated:** December 2025  
+**Last Updated:** January 2026  
 **Database:** PostgreSQL (Supabase)  
-**Migrations:** 54 files in `/backend/migrations/`
+**Migrations:** 84 files in `/backend/migrations/`
 
 ## Entity Relationship Diagram
 
@@ -254,7 +254,7 @@ User's processed content history.
 CREATE TABLE content_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    content_type VARCHAR(50) NOT NULL,         -- text, youtube, web, file, book
+    content_type VARCHAR(50) NOT NULL,         -- text, youtube, web, file, book, podcast
     original_text TEXT,
     adapted_text TEXT,
     translated_text TEXT,
@@ -269,6 +269,7 @@ CREATE TABLE content_history (
     source_url TEXT,
     chapter_id INTEGER,
     is_favorite BOOLEAN DEFAULT FALSE,
+    processing_duration_ms INTEGER,            -- Time taken to generate audio (milliseconds)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -1,6 +1,6 @@
 PROJECT_MEMORY.md
 Project Name: Lingroot
-Last Updated: 2025-12-04
+Last Updated: 2026-01-11
 Current Phase: Phase 2 – Intelligent Content Generation
 Active Context: CEFR-based content engine, prompt governance, audio pipeline stability, mobile/web harmonization.
 
@@ -86,6 +86,18 @@ Folder Structure Standard:
    /mfa-worker
    /models
    /utils
+/docs
+   /architecture
+   /codebase
+   /api
+   /database
+   /prompts
+   /marketing       # Instagram, Launch Plan, Ads Strategy
+   /gamification    # Gamification documentation  
+   /integrations    # Apple IAP, Google Play, Stripe docs
+   /testing         # Test documentation
+   /templates
+   /ui
 /prompts
    /tts
    /translation
@@ -115,6 +127,17 @@ Cloudflare Tunnel → Backend Only
 MFA alignment hesaplamalarında tahmini formüller yazma.
 Mobil ve Web API’larını birbirinden ayırma; tek şema üzerinden kullan.
 Kullanıcı ile iletişim dili (cevaplar, raporlar, açıklamalar) kesinlikle TÜRKÇE olmalıdır. İngilizce sadece kod içinde ve loglarda kullanılabilir.
+NO AGENTIC MODE: `task_boundary` tool'unu kullanma, artifact oluşturma, planlama moduna girme. Doğrudan kod değişikliğine odaklan.
+NO BROWSER AUTOMATION: `browser_subagent` aracını kullanma. Tarayıcıda test gerekiyorsa kullanıcıdan manuel test yapmasını iste.
+DB OPERATIONS MANUEL: Supabase veritabanı işlemleri (tablo/kolon ekleme, güncelleme) ASLA otomatik yapılmaz ve Supabase’e doğrudan bağlanılmaz. AI sadece SQL migration dosyasını hazırlar ve kullanıcıya "Bu SQL'i Supabase SQL Editor'de çalıştırın" talimatı verir.
+AUTO-EXECUTE TERMINAL: Terminal komutları (npm, git, fs işlemleri) için kullanıcı onayı beklenmez. `SafeToAutoRun: true` parametresi varsayılan olarak kabul edilir. Sadece yıkıcı (silme, resetleme) işlemlerde onay istenir.
+DOCUMENT VERSIONING: Oluşturulan veya güncellenen her doküman dosyasında (*.md) başlık satırının hemen altında şu format kullanılır:
+  ```
+  > **Oluşturulma:** YYYY-MM-DD | **Güncelleme:** YYYY-MM-DD | **Versiyon:** X.Y
+  ```
+  - İlk oluşturmada Oluşturulma ve Güncelleme tarihi aynıdır, Versiyon 1.0'dır.
+  - Her güncellemede Güncelleme tarihi ve Versiyon numarası artırılır (minor: 1.1, 1.2... major: 2.0).
+CODE-FIRST DOCUMENTATION: Dokümantasyon yazmadan ÖNCE ilgili kaynak kodları okunmalıdır. Varsayım yaparak veya hafızadan doküman yazılmaz. Gerçek kod yapısı, fonksiyon isimleri, parametreler ve iş akışları kaynak dosyalardan doğrulanmalıdır.
 
 [5. PROGRESS & ROADMAP]
 ✓ Phase 1 — Foundation
@@ -128,19 +151,36 @@ Prompt governance structure
 CEFR adaptation accuracy
 ✅ Liro Assistant architecture (v2.0 - User Profiling + Persona Learning)
 ✅ User Insight System (Likes/Dislikes/Habits/Goals extraction)
+✅ Smart Feedback Loop (Adaptive level & content suggestion)
 Multi-level content generation
 Video pipeline (Veo3 integration)
 Full audio synchronization improvement (MFA 2.0)
-Phase 3 — Experience Layer
+Phase 3 — Experience Layer (ACTIVE)
 Web player full redesign
 Mobile UI polish
+✅ SRS (Spaced Repetition) System (SM-2 Algorithm + word_reviews)
 Topic recommendation engine
 Learning analytics dashboard
-Phase 4 — Scaling
-GPU workers autoscaling (Hetzner)
-Hybrid serverless architecture
-Cloudflare R2 migration (full)
-Global CDN optimization
+Phase 4 — Topic Mastery & Detailed Feedback
+✅ user_topic_mastery tablosu (Migration 057)
+✅ Topic bazlı detaylı progress tracking
+✅ Phase 5 — Visual Progression & Stability
+✅ Visualized Progression (MasteryProgressCard, StreakCelebration)
+✅ Self-Healing Services (retryUtils.js - Retry, CircuitBreaker, GracefulDegradation)
+✅ Phase 6 — Scaling & Embedding
+✅ User Insight Embedding (Migration 058 + pgvector)
+✅ Benzer kullanıcı önerileri (cosine similarity)
+✅ AI-powered recommendations API
+✅ Phase 7 — Marketing & Launch Preparation
+✅ Instagram content strategy (100 posts pack)
+✅ Paid ads strategy (Google, Meta, TikTok)
+✅ Launch execution guide
+✅ Marketing analytics integration
+
+[NEW ARCHITECTURE]
+Gamified Onboarding & Progression Strategy
+See: docs/architecture/gamification-strategy.md
+Implements "Hero's Journey" onboarding, Quest-based roadmap, SRS vocabulary system, and Gamified quizzes.
 
 [6. DECISION LOG & ANTI-PATTERNS]
 [2025-11] MFA Kullanımı
@@ -177,6 +217,49 @@ Sözler okunabilir olmalı (numbers → words)
 prompts/{category}/v1/
 prompts/{category}/v2/
 Output diffs Supabase’de tutulur
+
+7.4. Advanced Prompt Engineering Rules
+Bu kurallar tüm LingRoot promptlarında uygulanmalıdır.
+
+7.4.1. Persona + Expertise Context (Kimlik Yükleme)
+Promptlara sadece rol değil, uzmanlık geçmişi de yükle:
+- ❌ YANLIŞ: "You are a language expert"
+- ✅ DOĞRU: "You are a CEFR-certified language methodologist with 15 years of ESL teaching experience, specialized in second language acquisition (SLA) and pedagogical content adaptation."
+- Her CEFR seviyesi için uygun uzmanlık profili tanımla.
+- Liro Assistant için tutarlı bir kişilik ve iletişim tarzı belirle.
+
+7.4.2. Reference Context (Few-shot Prompting)
+AI'ya örnek göstererek kalite standardını belirle:
+- Her CEFR seviyesi için 2-3 "altın standart" input/output örneği sağla.
+- Örnekler, istenen stilin, tonun ve karmaşıklığın somut gösterimi olmalı.
+- Format: "Referans Örnek 1: [Input] → [Beklenen Output]"
+
+7.4.3. Constraint Context (Sınırlama ve Bariyerler)
+Ne yapılacağı kadar, ne yapıLMAYACAĞI da belirtilmeli:
+- Prohibited patterns açıkça listele.
+- Örnek: "Pasif cümle kurma", "Teknik jargon kullanma", "Cevabı X kelime ile sınırla"
+- Bu bariyerler hallucination'ı önler ve yaratıcılığı doğru kanala yönlendirir.
+
+7.4.4. Audience Context (Hedef Kitle Tanımı)
+İçeriği kimin tüketeceği bağlamın parçasıdır:
+- PROJECT_MEMORY'deki persona tanımlarını promptlara enjekte et:
+  - "Meraklı Entelektüel" → Öğrenme merakı yüksek, zaman kısıtlı
+  - "Meşgul Profesyonel" → İş odaklı, verimlilik öncelikli
+  - "Kitap Sevler" → Derinlik ve zenginlik arayan
+- Kullanıcının CEFR seviyesi + persona kombinasyonu içerik tonunu belirler.
+
+7.4.5. Chain-of-Thought Context (Düşünme Silsilesi)
+Karmaşık görevlerde AI'dan adım adım analiz iste:
+- CEFR dönüşümlerinde: "Önce cümle uzunluklarını analiz et → Zor kelimeleri listele → Gramer yapılarını değerlendir → Alternatifler öner → Çıktı oluştur"
+- Topic önerilerinde: "Kullanıcı profilini analiz et → İlgi alanlarını eşleştir → Uygun zorluk seviyesi belirle → Öneri listesi oluştur"
+- CoT, modelin işlem kapasitesini optimize eder ve tutarlı sonuçlar üretir.
+
+7.4.6. Output Format Context (Çıktı Mimarisi)
+Çıktı formatını tesadüfe bırakma:
+- Yapısal çıktılar için JSON Schema tanımla.
+- Tablo, liste, paragraf formatlarını açıkça belirt.
+- Örnek: "Çıktıyı JSON objesi olarak ver: {text: string, difficulty_score: number, key_vocabulary: string[]}"
+- Format tutarlılığı, downstream işlemleri (TTS, MFA) kolaylaştırır.
 
 [8. AUDIO PIPELINE MEMORY]
 8.1. Zorunlu Akış

@@ -19,6 +19,7 @@ import OutputSection from '../src/components/OutputSection';
 import { ProfileDropdownMenu } from '../src/components/shared/ProfileDropdownMenu';
 import { useTranslation } from '../src/lib/i18n';
 import BookTab from '../src/components/BookTab/BookTab';
+import AppHeader from '../src/components/AppHeader';
 
 interface ContentHistoryItem {
   id: string;
@@ -309,7 +310,7 @@ const Dashboard = () => {
       loadBookHistory();
     }
 
-    if (tab === 'reading-history') {
+    if (tab === 'reading-history' || tab === 'podcasts') {
       fetchContentHistory();
     }
 
@@ -431,50 +432,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background fadeIn">
       {/* Top Navigation Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="w-full px-4">
-          <div className="flex justify-between items-center h-16">
-            {/* Left: Logo & Navigation */}
-            <div className="flex items-center space-x-6">
-              <Link href="/">
-                <div className="flex items-center space-x-3 flex-shrink-0">
-                  <img
-                    src="/lingroot-icon.svg"
-                    alt="LingRoot Logo"
-                    className="w-10 h-10 md:w-12 md:h-12"
-                  />
-                  <BrandWordmark className="hidden sm:inline-block text-lg sm:text-xl md:text-2xl" />
-                </div>
-              </Link>
-              <Link href="/welcome">
-                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
-                  <i className="fas fa-home mr-2"></i>
-                  {t('dashboard_nav_home')}
-                </button>
-              </Link>
-              <Link href="/welcome">
-                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
-                  <i className="fas fa-headphones mr-2"></i>
-                  {t('dashboard_nav_listen')}
-                </button>
-              </Link>
-            </div>
-
-            {/* Right: Profile Menu */}
-            <div className="flex items-center space-x-4">
-              {isAuthenticated && (
-                <ProfileDropdownMenu
-                  align="end"
-                  side="bottom"
-                  avatarSize="md"
-                  showUserInfo={true}
-                  showChevron={true}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <AppHeader />
 
       {/* Profile Header */}
       <div className="relative w-full h-[160px] md:h-[190px] overflow-hidden mb-8 slideUp">
@@ -1124,11 +1082,144 @@ const Dashboard = () => {
             </TabsContent>
 
             <TabsContent value="podcasts" className="mt-0">
-              <div className="text-center py-8">
-                <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
-                <h3 className="text-lg font-medium text-gray-700">{t('podcasts_title')}</h3>
-                <p className="text-sm text-gray-500">{t('podcasts_description')}</p>
-              </div>
+              <Card className="border border-border shadow-lg rounded-2xl bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
+                        <i className="fas fa-podcast"></i>
+                      </div>
+                      <h2 className="text-2xl font-bold text-primary tracking-tight">{t('podcasts_title')}</h2>
+                    </div>
+                    <Button
+                      onClick={fetchContentHistory}
+                      variant="outline"
+                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      disabled={loadingHistory}
+                    >
+                      {loadingHistory ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                          {t('reading_history_refresh_loading')}
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-refresh mr-2"></i>
+                          {t('reading_history_refresh_button')}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {loadingHistory ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                    </div>
+                  ) : contentHistory.filter(item => (item.input_type || '').toLowerCase() === 'podcast').length > 0 ? (
+                    <div className="space-y-4">
+                      {contentHistory
+                        .filter(item => (item.input_type || '').toLowerCase() === 'podcast')
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                          >
+                            <div
+                              className="p-3 md:p-3 cursor-pointer hover:bg-primary/5 transition-colors"
+                              onClick={() => {
+                                setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
+                              }}
+                            >
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1 text-xs">
+                                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                      <i className="fas fa-podcast mr-1"></i>
+                                      {t('podcast')}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                      {item.level || 'N/A'}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(item.created_at).toLocaleDateString()}
+                                    </span>
+                                    {item.detected_mood && item.detected_mood !== 'Neutral' && (
+                                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                        <i className="fas fa-theater-masks mr-1"></i>
+                                        {item.detected_mood}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="mb-2">
+                                    <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{item.input || t('podcasts_title')}</h4>
+                                    <p className="text-sm text-gray-700 line-clamp-2">
+                                      {item.adapted_text || item.translated_text || ''}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-xs text-gray-500">
+                                    {expandedHistoryItem === item.id ? t('reading_history_collapse') : t('reading_history_open_player')}
+                                  </div>
+                                  <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
+                                </div>
+                              </div>
+                            </div>
+
+                            {expandedHistoryItem === item.id && (
+                              <div className="border-t border-gray-100 bg-gray-50 p-4">
+                                <div className="space-y-4">
+                                  {item.mp3_url && (
+                                    <div className="bg-white rounded-lg p-3 shadow-sm border">
+                                      <OutputSection
+                                        audioResult={{
+                                          message: item.adapted_text || item.input || '',
+                                          mp3_url: item.mp3_url,
+                                          vtt_url: item.mp3_url?.replace('.mp3', '.vtt'),
+                                          level: item.level || '',
+                                          adapted_text: item.adapted_text || '',
+                                          translated_text: item.translated_text || item.input || '',
+                                          topic: item.input || 'Podcast',
+                                          timepoints: Array.isArray(item.timepoints)
+                                            ? item.timepoints
+                                            : item.timepoints
+                                              ? JSON.parse(item.timepoints as any)
+                                              : [],
+                                          words: Array.isArray(item.words)
+                                            ? item.words
+                                            : item.words
+                                              ? JSON.parse(item.words as any)
+                                              : (item.adapted_text || '').split(/\s+/).filter((w: string) => w.length > 0),
+                                        }}
+                                        isLoggedIn={isAuthenticated}
+                                      />
+                                    </div>
+                                  )}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setExpandedHistoryItem(null)}
+                                  >
+                                    <i className="fas fa-times mr-2"></i>
+                                    {t('reading_history_close')}
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 mb-4">
+                        <i className="fas fa-podcast text-4xl"></i>
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-500 mb-2">{t('podcasts_title')}</h3>
+                      <p className="text-gray-400">{t('podcasts_description')}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="pdf" className="mt-0">

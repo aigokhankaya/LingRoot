@@ -4,6 +4,7 @@ import {
   Skia,
   Paragraph,
   RoundedRect,
+  Path,
   useFont,
 } from '@shopify/react-native-skia';
 import {
@@ -14,6 +15,7 @@ import {
   GestureResponderEvent,
   Text,
   Modal,
+  Platform,
 } from 'react-native';
 import { useSharedValue, useDerivedValue } from 'react-native-reanimated';
 
@@ -39,15 +41,32 @@ interface SkiaWordHighlightProps {
   onWordPositionChange?: (info: { index: number; top: number; bottom: number; height: number }) => void;
   patternData?: Array<{
     pattern: string;
-    pattern_tr: string;
-    example_sentence: string;
-    example_sentence_tr: string;
+    type?: string;
+    translation?: string;        // Backend: translation (was pattern_tr)
+    example_text?: string;       // Backend: example_text (was example_sentence)
+    example_translation?: string; // Backend: example_translation (was example_sentence_tr)
+    // Keep old field names for backward compatibility
+    pattern_tr?: string;
+    example_sentence?: string;
+    example_sentence_tr?: string;
   }>; // Full pattern data with translations
   showPatterns?: boolean; // Whether to show pattern highlighting
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ACCENT_COLOR = 'rgba(248, 177, 59, 1)';
+
+// Helper to clean a word for comparison (Global Scope - Aggressive Mode)
+const cleanWord = (w: string) => {
+  try {
+    // Keep only Letters and Numbers. Remove everything else (apostrophes, quotes, etc.)
+    // "Don't" -> "dont", "“Don’t" -> "dont"
+    return w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  } catch (e) {
+    // Fallback if Hermes/JS engine doesn't support unicode properties
+    return w.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+};
 
 export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   words,
@@ -68,56 +87,92 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   if (showPatterns && patternData.length > 0) {
     console.log(`🎨 [SkiaWordHighlight] Pattern data:`, patternData.map(p => p.pattern));
   }
-  
+
   // State for pattern popup
   const [selectedPattern, setSelectedPattern] = useState<typeof patternData[0] | null>(null);
-  
+
   // Calculate pattern phrase ranges (startIndex, endIndex)
   const patternRanges = useMemo(() => {
     if (!showPatterns || patternData.length === 0) return [];
-    
+    // Debug: Log word count and pattern count
+    console.log(`🔍 [SkiaWordHighlight] Words count: ${words.length}, Extract: ${words.slice(0, 5).join(', ')}`);
+    console.log(`🔍 [SkiaWordHighlight] Pattern count: ${patternData.length}`);
+
     const ranges: Array<{ startIndex: number; endIndex: number; patternData: typeof patternData[0] }> = [];
-    
+
     // Check each pattern
     for (const pData of patternData) {
-      const phrase = pData.pattern;
-      const phraseWords = phrase.split(/\s+/);
+      if (!pData.pattern) continue;
+
+      const phraseWords = pData.pattern.toLowerCase().split(/\s+/).map(w => cleanWord(w));
       const phraseLength = phraseWords.length;
-      
+
+      // console.log(`   Checking Pattern: "${pData.pattern}" (Cleaned: "${phraseWords.join(' ')}")`);
+
       // Scan through words to find matches
       for (let startIdx = 0; startIdx <= words.length - phraseLength; startIdx++) {
         const candidateWords = words.slice(startIdx, startIdx + phraseLength);
-        const candidatePhrase = candidateWords.map(w => w.toLowerCase().replace(/[.,!?;:]/g, '')).join(' ');
-        
-        if (candidatePhrase === phrase) {
+        const candidatePhrase = candidateWords.map(w => cleanWord(w)).join(' ');
+        const targetPhrase = phraseWords.join(' ');
+
+        if (candidatePhrase === targetPhrase) {
           ranges.push({
             startIndex: startIdx,
             endIndex: startIdx + phraseLength - 1,
             patternData: pData
           });
-          console.log(`🎯 [SkiaWordHighlight] Found pattern "${phrase}" at indices ${startIdx}-${startIdx + phraseLength - 1}`);
+          console.log(`✅ [SkiaWordHighlight] MATCH: "${pData.pattern}" at ${startIdx}-${startIdx + phraseLength - 1}`);
+        } else if (targetPhrase.includes('eggs') && candidatePhrase.includes('eggs')) {
+          // Debug partial matches for "eggs" pattern
+          console.log(`⚠️ [SkiaWordHighlight] MISMATCH: Target="${targetPhrase}" vs Cand="${candidatePhrase}"`);
         }
       }
     }
-    
-    return ranges;
+
+    // Filter overlapping patterns - keep only the longest one
+    const sortedRanges = [...ranges].sort((a, b) => {
+      const lenA = a.endIndex - a.startIndex;
+      const lenB = b.endIndex - b.startIndex;
+      return lenB - lenA; // Longer first
+    });
+
+    // Debug sorted ranges
+    console.log(`🔍 [SkiaWordHighlight] Sorted Ranges:`, sortedRanges.map(r => `${r.patternData.pattern} (${r.startIndex}-${r.endIndex})`));
+
+    const filteredRanges = sortedRanges.filter((range, idx, arr) => {
+      for (let i = 0; i < idx; i++) {
+        const longer = arr[i];
+        const overlaps = range.startIndex <= longer.endIndex && range.endIndex >= longer.startIndex;
+        if (overlaps) {
+          console.log(`⚠️ [SkiaWordHighlight] Filtered OUT: "${range.patternData.pattern}" because overlaps with "${longer.patternData.pattern}"`);
+          return false;
+        }
+      }
+      return true;
+    });
+
+    console.log(`✅ [SkiaWordHighlight] Final Filtered Ranges:`, filteredRanges.map(r => `${r.patternData.pattern} (${r.startIndex}-${r.endIndex})`));
+
+    return filteredRanges;
   }, [words, showPatterns, patternData]);
-  
+
+
+
   // Helper: Check if a word at index is part of a pattern phrase
   const isWordInPattern = useCallback((wordIndex: number): boolean => {
-    return patternRanges.some(range => 
+    return patternRanges.some(range =>
       wordIndex >= range.startIndex && wordIndex <= range.endIndex
     );
   }, [patternRanges]);
-  
+
   // Helper: Get pattern data for a word index
   const getPatternForWord = useCallback((wordIndex: number) => {
-    const range = patternRanges.find(r => 
+    const range = patternRanges.find(r =>
       wordIndex >= r.startIndex && wordIndex <= r.endIndex
     );
     return range?.patternData || null;
   }, [patternRanges]);
-  
+
   // Handle pattern click
   const handlePatternClick = useCallback((wordIndex: number) => {
     const pattern = getPatternForWord(wordIndex);
@@ -126,15 +181,15 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
       setSelectedPattern(pattern);
     }
   }, [getPatternForWord]);
-  
+
   // Skia Paragraph API - Zero Reflow Architecture
   const INTERNAL_PADDING = 8; // Kenarlardan 8px boşluk
   const [isFontReady, setIsFontReady] = useState(false);
   const fallbackLayouts = useRef<Map<number, { top: number; bottom: number; height: number }>>(new Map());
-  
+
   // Shared value for current word (60fps updates without rerender)
   const currentWordShared = useSharedValue(currentWordIndex);
-  
+
   useEffect(() => {
     currentWordShared.value = currentWordIndex;
   }, [currentWordIndex]);
@@ -170,18 +225,18 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     if (!font) {
       return null;
     }
-    
+
     // Add extra spaces between words ONLY (not between letters)
     const textContent = words.join('  '); // 2 spaces for word spacing
-    
+
     // Debug: Log first 200 chars
     console.log(`[TEXT CONTENT] First 200 chars: "${textContent.substring(0, 200)}"`);
     console.log(`[TEXT CONTENT] Total length: ${textContent.length}, Words count: ${words.length}`);
-    
+
     // Combine all styles for Make() - Use strutStyle for guaranteed line height
     const heightMult = lineHeight / fontSize;
     console.log(`🔧 [Word] lineHeight: ${lineHeight}, fontSize: ${fontSize}, heightMultiplier: ${heightMult}`);
-    
+
     const combinedStyle = {
       textAlign: 3, // 0=left, 1=right, 2=center, 3=justify
       strutStyle: {
@@ -196,29 +251,29 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
         font: font,
       },
     };
-    
+
     const builder = Skia.ParagraphBuilder.Make(combinedStyle);
     builder.addText(textContent);
-    
+
     const para = builder.build();
     para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
     console.log(`✅ [Word Paragraph] containerWidth: ${containerWidth}`);
     console.log(`✅ [Word Paragraph] heightMultiplier: ${heightMult} | TOTAL HEIGHT: ${para.getHeight()}px`);
     return para;
-  }, [words, fontSize, containerWidth, font,lineHeight]);
-  
+  }, [words, fontSize, containerWidth, font, lineHeight]);
+
   // Create white paragraph for highlighted word
   const whiteParagraph = useMemo(() => {
     // Wait for font to load
     if (!font) {
       return null;
     }
-    
+
     const textContent = words.join('  '); // 2 spaces for word spacing
-    
+
     // Combine all styles for Make() - Use strutStyle for guaranteed line height
     const heightMult = lineHeight / fontSize;
-    
+
     const combinedStyle = {
       textAlign: 3, // 0=left, 1=right, 2=center, 3=justify
       strutStyle: {
@@ -233,44 +288,44 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
         font: font,
       },
     };
-    
+
     const builder = Skia.ParagraphBuilder.Make(combinedStyle);
     builder.addText(textContent);
-    
+
     const para = builder.build();
     para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
     console.log(`lineHeight: ${lineHeight} | PARAGRAPH HEIGHT: ${para.getHeight()}`);
     console.log(`[Paragraph] L: ${lineHeight} F: ${fontSize} | H: ${para.getHeight()}`);
-    
+
     return para;
-  }, [words, fontSize, containerWidth, font,lineHeight]);
-  
+  }, [words, fontSize, containerWidth, font, lineHeight]);
+
   // STEP 2: Calculate Word Boundaries SYNCHRONOUSLY (NO ASYNC!)
-  
+
   const wordBoundaries = useMemo(() => {
     if (!paragraph) return [];
-    
+
     const boundaries: WordBoundary[] = [];
     let charIndex = 0;
-    
+
     // Find "Furthermore" index first
     const furthermoreIdx = words.findIndex(w => w.toLowerCase().includes('furthermore'));
-    
+
     words.forEach((word, index) => {
       const startIndex = charIndex;
       const endIndex = charIndex + word.length;
-      
+
       // Debug: Log around "Furthermore" (5 before, 5 after)
       if (furthermoreIdx !== -1 && index >= furthermoreIdx - 5 && index <= furthermoreIdx + 5) {
         console.log(`[WORD ${index}] "${word}" | start: ${startIndex}, end: ${endIndex}, charIndex will be: ${endIndex + (index < words.length - 1 ? 2 : 0)}`);
       }
-      
+
       // Get SYNCHRONOUS metrics from Paragraph
       const rects = paragraph.getRectsForRange(startIndex, endIndex);
-      
+
       if (rects.length > 0) {
         const rect = rects[0];
-        
+
         boundaries.push({
           x: rect.x + INTERNAL_PADDING, // Paragraph x=INTERNAL_PADDING'den başlıyor
           y: rect.y,
@@ -281,13 +336,20 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
       } else {
         console.warn(`[WORD ${index}] "${word}" | NO RECTS FOUND! start: ${startIndex}, end: ${endIndex}`);
       }
-      
+
       // Add 2 spaces only if not the last word
-      charIndex = endIndex + (index < words.length - 1 ? 2 : 0); 
+      charIndex = endIndex + (index < words.length - 1 ? 2 : 0);
     });
-    
+
     return boundaries;
   }, [paragraph, words]);
+
+  // Debug: Log word boundaries
+  useEffect(() => {
+    if (wordBoundaries.length > 0) {
+      console.log(`📏 [SkiaWordHighlight] Word Boundaries (First 3):`, wordBoundaries.slice(0, 3).map(b => `[${b.index}] x:${b.x.toFixed(1)} w:${b.width.toFixed(1)}`));
+    }
+  }, [wordBoundaries]);
 
   useEffect(() => {
     if (!onWordPositionChange) return;
@@ -307,22 +369,22 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   // Calculate total height and chunk configuration
   const { totalHeight, chunks } = useMemo(() => {
     if (!paragraph) return { totalHeight: 200, chunks: [] };
-    
+
     const fullHeight = paragraph.getHeight() + 20;
-    
+
     // Metal applies 3x scale on some devices, so we need to account for that
     // Max Metal texture: 16384px, with 3x scale = 5461px logical pixels
     // Use 3000px to be extra safe and avoid crashes with very long texts
     const CHUNK_HEIGHT = 3000; // Conservative chunk size to prevent crashes
-    
+
     // Calculate number of chunks needed
     const numChunks = Math.ceil(fullHeight / CHUNK_HEIGHT);
-    
+
     // Only log for very large texts (more than 4 chunks)
     if (numChunks > 4) {
       console.log(`📦 [Skia] Large text (${fullHeight}px) split into ${numChunks} chunks`);
     }
-    
+
     // Create chunk definitions
     const chunkList = Array.from({ length: numChunks }, (_, i) => ({
       index: i,
@@ -330,38 +392,38 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
       endY: Math.min((i + 1) * CHUNK_HEIGHT, fullHeight),
       height: Math.min(CHUNK_HEIGHT, fullHeight - i * CHUNK_HEIGHT),
     }));
-    
+
     return { totalHeight: fullHeight, chunks: chunkList };
   }, [paragraph]);
-  
+
   // Handle touch for word selection - needs chunk context
   const createTouchHandler = (chunk: { startY: number; endY: number; index: number }) => (event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
-    
+
     // Get boundaries for THIS chunk only
     const chunkBoundaries = wordBoundaries.filter(
       (boundary) => boundary.y >= chunk.startY && boundary.y < chunk.endY
     );
-    
+
     // Y coordinate is relative to chunk, so just use locationY directly
     const relativeY = locationY;
-    
+
     console.log(`👆 [TOUCH START] Chunk ${chunk.index}, localY: ${locationY.toFixed(1)}, chunkStart: ${chunk.startY}, chunkBoundaries: ${chunkBoundaries.length}`);
-    
+
     // Find word in THIS chunk's boundaries
     const touchedWord = chunkBoundaries.find(
       (boundary) => {
         const boundaryRelativeY = boundary.y - chunk.startY;
         return locationX >= boundary.x &&
-               locationX <= boundary.x + boundary.width &&
-               relativeY >= boundaryRelativeY &&
-               relativeY <= boundaryRelativeY + boundary.height;
+          locationX <= boundary.x + boundary.width &&
+          relativeY >= boundaryRelativeY &&
+          relativeY <= boundaryRelativeY + boundary.height;
       }
     );
-    
+
     if (touchedWord) {
       console.log(`🎯 [TOUCH] Word "${words[touchedWord.index]}" at index ${touchedWord.index}, localY: ${locationY.toFixed(1)}, boundary.y: ${touchedWord.y}, relativeY: ${(touchedWord.y - chunk.startY).toFixed(1)}`);
-      
+
       // Check if this word is part of a pattern
       const pattern = getPatternForWord(touchedWord.index);
       if (pattern) {
@@ -375,9 +437,10 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
       console.log(`❌ [TOUCH] No word found at X: ${locationX.toFixed(1)}, localY: ${locationY.toFixed(1)}`);
     }
   };
-  
+
   // Handle long press for vocabulary add – mirror chunk-relative logic from createTouchHandler
   const createLongPressHandler = (chunk: { startY: number; endY: number; index: number }) => (event: GestureResponderEvent) => {
+    console.log(`🔵 [SkiaWordHighlight onLongPress] TRIGGERED! Chunk: ${chunk.index}`);
     const { locationX, locationY } = event.nativeEvent;
 
     // Use the same chunk-relative boundaries as normal taps
@@ -393,6 +456,8 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
         relativeY <= boundaryRelativeY + boundary.height
       );
     });
+
+    console.log(`🔵 [SkiaWordHighlight] touchedWord: ${touchedWord ? words[touchedWord.index] : 'null'}, onWordLongPress exists: ${!!onWordLongPress}`);
 
     if (touchedWord && onWordLongPress) {
       onWordLongPress(words[touchedWord.index], touchedWord.index);
@@ -449,9 +514,10 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
 
   return (
     <View style={styles.container}>
+
       {chunks.map((chunk) => {
         const chunkBoundaries = getChunkWordBoundaries(chunk);
-        
+
         return (
           <View key={chunk.index} style={{ height: chunk.height }}>
             <TouchableOpacity
@@ -461,44 +527,58 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
               delayLongPress={500}
             >
               <Canvas style={{ width: containerWidth, height: chunk.height }}>
-                {/* Pattern phrase highlights - render first (lowest priority) */}
+                {/* Pattern phrase highlights - render as STROKE (border) */}
                 {patternRanges.map((range, rangeIdx) => {
                   // Get boundaries for all words in this phrase
-                  const phraseBoundaries = chunkBoundaries.filter(b => 
+                  const phraseBoundaries = chunkBoundaries.filter(b =>
                     b.index >= range.startIndex && b.index <= range.endIndex
                   );
-                  
+
                   if (phraseBoundaries.length === 0) return null;
-                  
+
                   // Calculate bounding box for entire phrase
                   const firstBoundary = phraseBoundaries[0];
                   const lastBoundary = phraseBoundaries[phraseBoundaries.length - 1];
-                  
+
                   const paddingX = 4;
                   const paddingY = 3;
                   const relativeY = firstBoundary.y - chunk.startY;
-                  
+                  const cornerRadius = 6;
+
                   // Check if phrase spans multiple lines
                   const isSameLine = firstBoundary.y === lastBoundary.y;
-                  
+
+                  // Create a rounded rect path for stroke
+                  const createStrokePath = (x: number, y: number, w: number, h: number, r: number) => {
+                    const path = Skia.Path.Make();
+                    path.addRRect({
+                      rect: { x, y, width: w, height: h },
+                      rx: r,
+                      ry: r
+                    });
+                    return path;
+                  };
+
                   if (isSameLine) {
-                    // Single line: one rectangle
-                    const phraseX = firstBoundary.x;
-                    const phraseWidth = (lastBoundary.x + lastBoundary.width) - firstBoundary.x;
-                    
+                    // Single line: one rectangle stroke
+                    const phraseX = Math.max(0, firstBoundary.x - paddingX);
+                    const phraseWidth = (lastBoundary.x + lastBoundary.width) - firstBoundary.x + (paddingX * 2);
+                    const rectY = relativeY - paddingY;
+                    const rectHeight = firstBoundary.height + (paddingY * 2);
+
+                    const strokePath = createStrokePath(phraseX, rectY, phraseWidth, rectHeight, cornerRadius);
+
                     return (
-                      <RoundedRect
-                        key={`pattern-${rangeIdx}`}
-                        x={Math.max(0, phraseX - paddingX)}
-                        y={relativeY - paddingY}
-                        width={phraseWidth + (paddingX * 2)}
-                        height={firstBoundary.height + (paddingY * 2)}
-                        r={6}
-                        color="rgba(255, 215, 0, 0.4)"
+                      <Path
+                        key={`pattern-stroke-${rangeIdx}`}
+                        path={strokePath}
+                        style="stroke"
+                        strokeWidth={2}
+                        color={ACCENT_COLOR}
                       />
                     );
                   } else {
-                    // Multi-line: draw rectangle for each line segment
+                    // Multi-line: draw stroke for each line segment
                     const lineGroups = new Map<number, typeof phraseBoundaries>();
                     phraseBoundaries.forEach(b => {
                       if (!lineGroups.has(b.y)) {
@@ -506,44 +586,49 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                       }
                       lineGroups.get(b.y)!.push(b);
                     });
-                    
+
                     return Array.from(lineGroups.entries()).map(([lineY, lineBoundaries], lineIdx) => {
                       const first = lineBoundaries[0];
                       const last = lineBoundaries[lineBoundaries.length - 1];
                       const lineRelativeY = lineY - chunk.startY;
                       const lineWidth = (last.x + last.width) - first.x;
-                      
+
+                      const strokeX = Math.max(0, first.x - paddingX);
+                      const strokeY = lineRelativeY - paddingY;
+                      const strokeWidth = lineWidth + (paddingX * 2);
+                      const strokeHeight = first.height + (paddingY * 2);
+
+                      const strokePath = createStrokePath(strokeX, strokeY, strokeWidth, strokeHeight, cornerRadius);
+
                       return (
-                        <RoundedRect
-                          key={`pattern-${rangeIdx}-line-${lineIdx}`}
-                          x={Math.max(0, first.x - paddingX)}
-                          y={lineRelativeY - paddingY}
-                          width={lineWidth + (paddingX * 2)}
-                          height={first.height + (paddingY * 2)}
-                          r={6}
-                          color="rgba(255, 215, 0, 0.4)"
+                        <Path
+                          key={`pattern-stroke-${rangeIdx}-line-${lineIdx}`}
+                          path={strokePath}
+                          style="stroke"
+                          strokeWidth={2}
+                          color={ACCENT_COLOR}
                         />
                       );
                     });
                   }
                 })}
-                
+
                 {/* Word highlights - render on top (current word & selected words) */}
                 {chunkBoundaries.map((boundary) => {
                   const word = words[boundary.index];
                   const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
                   const isHighlighted = boundary.index === currentWordIndex;
                   const isSelected = selectedWords.has(cleanWord);
-                  
+
                   // Skip pattern words - they're already drawn above
                   if (!isHighlighted && !isSelected) return null;
-                  
+
                   // Priority: current word (accent orange) > selected word (gold)
                   const color = isHighlighted ? ACCENT_COLOR : '#FFD700';
                   const paddingX = 4;
                   const paddingY = 3;
                   const relativeY = boundary.y - chunk.startY;
-                  
+
                   return (
                     <RoundedRect
                       key={`highlight-${boundary.index}`}
@@ -556,7 +641,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                     />
                   );
                 })}
-                
+
                 {/* STEP 3: Static Black Paragraph - clipped to chunk */}
                 {paragraph && (
                   <Paragraph
@@ -566,16 +651,16 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                     width={containerWidth - INTERNAL_PADDING * 2}
                   />
                 )}
-                
+
                 {/* White Paragraph (only visible on highlighted word in this chunk) */}
                 {currentWordIndex >= 0 && currentWordIndex < wordBoundaries.length && whiteParagraph && (() => {
                   const highlightedBoundary = wordBoundaries[currentWordIndex];
-                  const isInChunk = highlightedBoundary && 
-                    highlightedBoundary.y >= chunk.startY && 
+                  const isInChunk = highlightedBoundary &&
+                    highlightedBoundary.y >= chunk.startY &&
                     highlightedBoundary.y < chunk.endY;
-                  
+
                   if (!isInChunk) return null;
-                  
+
                   const paddingX = 4;
                   const paddingY = 3;
                   const rectX = Math.max(0, highlightedBoundary.x - paddingX);
@@ -586,7 +671,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                   const relativeY = highlightedBoundary.y - chunk.startY;
                   const rectY = relativeY - paddingY;
                   const rectHeight = highlightedBoundary.height + (paddingY * 2);
-                  
+
                   return (
                     <Paragraph
                       paragraph={whiteParagraph}
@@ -607,56 +692,88 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           </View>
         );
       })}
-      
-      {/* Pattern Popup Modal */}
+
+      {/* Pattern Popup Modal - New Design with gradient header */}
       <Modal
         visible={selectedPattern !== null}
         transparent
         animationType="fade"
         onRequestClose={() => setSelectedPattern(null)}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={popupStyles.overlay}
           activeOpacity={1}
           onPress={() => setSelectedPattern(null)}
         >
           <View style={popupStyles.popup}>
             <TouchableOpacity activeOpacity={1}>
-              {/* Header with pattern */}
-              <View style={popupStyles.header}>
-                <Text style={popupStyles.patternText}>{selectedPattern?.pattern}</Text>
+              {/* Gradient Header - Only pattern text */}
+              <View style={popupStyles.gradientHeader}>
+                <View style={popupStyles.headerContent}>
+                  <View style={popupStyles.headerIconContainer}>
+                    <Text style={popupStyles.headerIcon}>📚</Text>
+                  </View>
+                  <Text style={popupStyles.patternText}>{selectedPattern?.pattern}</Text>
+                </View>
                 <TouchableOpacity onPress={() => setSelectedPattern(null)} style={popupStyles.closeButtonContainer}>
                   <Text style={popupStyles.closeButton}>✕</Text>
                 </TouchableOpacity>
               </View>
-              
+
               <View style={popupStyles.content}>
-                {/* Anlamı - Yellow card */}
+                {/* Type Badge - Like web version */}
+                <View style={popupStyles.typeBadge}>
+                  <Text style={popupStyles.typeBadgeText}>
+                    {selectedPattern?.type?.toUpperCase() || 'PATTERN'}
+                  </Text>
+                </View>
+
+                {/* Çeviri - Amber card */}
                 <View style={[popupStyles.card, popupStyles.meaningCard]}>
                   <View style={popupStyles.cardHeader}>
                     <Text style={popupStyles.cardIcon}>🇹🇷</Text>
-                    <Text style={popupStyles.cardTitle}>Anlamı</Text>
-                  </View>
-                  <Text style={popupStyles.cardValue}>{selectedPattern?.pattern_tr || '-'}</Text>
-                </View>
-                
-                {/* Örnek Cümle - Blue card */}
-                <View style={[popupStyles.card, popupStyles.exampleCard]}>
-                  <View style={popupStyles.cardHeader}>
-                    <Text style={popupStyles.cardIcon}>🇬🇧</Text>
-                    <Text style={popupStyles.cardTitle}>Örnek Cümle</Text>
-                  </View>
-                  <Text style={popupStyles.cardValue}>{selectedPattern?.example_sentence || '-'}</Text>
-                </View>
-                
-                {/* Örnek Cümle Çeviri - Green card */}
-                <View style={[popupStyles.card, popupStyles.translationCard]}>
-                  <View style={popupStyles.cardHeader}>
-                    <Text style={popupStyles.cardIcon}>💬</Text>
                     <Text style={popupStyles.cardTitle}>Çeviri</Text>
                   </View>
-                  <Text style={popupStyles.cardValue}>{selectedPattern?.example_sentence_tr || '-'}</Text>
+                  <Text style={popupStyles.cardValue}>
+                    {selectedPattern?.translation || selectedPattern?.pattern_tr || 'Çeviri mevcut değil'}
+                  </Text>
                 </View>
+
+                {/* Örnek Cümle - Blue card */}
+                {(selectedPattern?.example_text || selectedPattern?.example_sentence) && (
+                  <View style={[popupStyles.card, popupStyles.exampleCard]}>
+                    <View style={popupStyles.cardHeader}>
+                      <Text style={popupStyles.cardIcon}>🇬🇧</Text>
+                      <Text style={popupStyles.cardTitle}>Örnek Cümle</Text>
+                    </View>
+                    <Text style={popupStyles.cardValueItalic}>
+                      "{selectedPattern?.example_text || selectedPattern?.example_sentence}"
+                    </Text>
+                  </View>
+                )}
+
+                {/* Örnek Çevirisi - Green card */}
+                {(selectedPattern?.example_translation || selectedPattern?.example_sentence_tr) && (
+                  <View style={[popupStyles.card, popupStyles.translationCard]}>
+                    <View style={popupStyles.cardHeader}>
+                      <Text style={popupStyles.cardIcon}>💬</Text>
+                      <Text style={popupStyles.cardTitle}>Örnek Çevirisi</Text>
+                    </View>
+                    <Text style={popupStyles.cardValue}>
+                      "{selectedPattern?.example_translation || selectedPattern?.example_sentence_tr}"
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Close Button */}
+              <View style={popupStyles.footer}>
+                <TouchableOpacity
+                  style={popupStyles.closeBtn}
+                  onPress={() => setSelectedPattern(null)}
+                >
+                  <Text style={popupStyles.closeBtnText}>Kapat</Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           </View>
@@ -745,22 +862,22 @@ const popupStyles = StyleSheet.create({
     borderBottomColor: '#e2e8f0',
   },
   patternText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#fff',  // White for gradient header
     flex: 1,
   },
   closeButtonContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e2e8f0',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButton: {
     fontSize: 18,
-    color: '#64748b',
+    color: '#fff',
     fontWeight: '600',
   },
   content: {
@@ -803,5 +920,69 @@ const popupStyles = StyleSheet.create({
     color: '#1f2937',
     lineHeight: 20,
     fontWeight: '400',
+  },
+  cardValueItalic: {
+    fontSize: 14,
+    color: '#1f2937',
+    lineHeight: 20,
+    fontWeight: '400',
+    fontStyle: 'italic',
+  },
+  gradientHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 20,
+    backgroundColor: '#F8B13B', // Orange accent color
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  headerContent: {
+    flex: 1,
+    marginRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  headerIcon: {
+    fontSize: 20,
+  },
+  typeBadge: {
+    backgroundColor: '#ffedd5',  // Light orange for content section
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#c2410c',  // Orange-700 for content
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  footer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  closeBtn: {
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#475569',
   },
 });

@@ -63,6 +63,7 @@ interface NewSyncedTextPlayerProps {
   onPlay?: () => void;
   onActiveSegmentChange?: (segmentIndex: number) => void;
   onWordChange?: (wordIndex: number, isPlaying: boolean) => void;
+  onComplete?: () => void;
   hideText?: boolean;
   uiVariant?: 'card' | 'bare';
 }
@@ -91,6 +92,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   onPlay,
   onActiveSegmentChange,
   onWordChange,
+  onComplete,
   hideText = false,
   uiVariant = 'card'
 }: NewSyncedTextPlayerProps) {
@@ -112,7 +114,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   } = useWordSync({
     audioUrl,
     timepoints,
-    originalText
+    originalText,
+    onEnded: onComplete
   });
 
 
@@ -524,8 +527,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
               <span
                 key={index}
                 className={`inline-block cursor-pointer transition-all duration-200 mx-1 px-2 py-1 rounded ${isCurrentWord
-                    ? 'bg-yellow-300 text-yellow-900 font-semibold shadow-md scale-105'
-                    : 'text-gray-800 hover:bg-gray-100'
+                  ? 'bg-yellow-300 text-yellow-900 font-semibold shadow-md scale-105'
+                  : 'text-gray-800 hover:bg-gray-100'
                   }`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -553,8 +556,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
               <span
                 key={sentenceIndex}
                 className={`inline-block mx-1 my-1 transition-all duration-200 font-normal ${isCurrentSentence
-                    ? 'bg-primary/10 text-primary px-3 py-2 rounded-lg shadow-lg border-2 border-primary/40'
-                    : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
+                  ? 'bg-primary/10 text-primary px-3 py-2 rounded-lg shadow-lg border-2 border-primary/40'
+                  : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
                   }`}
                 title={`Cümle ${sentenceIndex + 1}`}
                 style={{
@@ -690,8 +693,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         <span
           key={`word-${index}`}
           className={`inline-block cursor-pointer transition-all duration-75 hover:text-primary font-normal ${isCurrentWord
-              ? 'bg-yellow-300 text-yellow-900 rounded-md shadow-md scale-105'
-              : 'text-gray-800'
+            ? 'bg-yellow-300 text-yellow-900 rounded-md shadow-md scale-105'
+            : 'text-gray-800'
             }`}
           onClick={(e) => {
             e.stopPropagation();
@@ -849,35 +852,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
               <option value={2.0}>2.0x</option>
             </select>
 
-            {/* Pattern Toggle Button */}
-            {level && (
-              <button
-                onClick={() => {
-                  if (!showPatterns && patterns.length === 0) {
-                    loadPatterns();
-                  }
-                  setShowPatterns(!showPatterns);
-                }}
-                disabled={loadingPatterns}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${showPatterns
-                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                  }`}
-                title="Günlük kullanım kalıplarını göster"
-              >
-                {loadingPatterns ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Yükleniyor...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>✨</span>
-                    <span>Patterns</span>
-                  </>
-                )}
-              </button>
-            )}
+            {/* Pattern Toggle Button - REMOVED */}
+            {/* Patterns are now automatically shown in OutputSection */}
           </div>
 
           {/* Progress Bar */}

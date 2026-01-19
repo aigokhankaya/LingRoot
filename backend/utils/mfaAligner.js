@@ -18,6 +18,74 @@ class MFAAligner {
     this.useDocker = true; // Always use Docker with local models
     this.modelsReady = false;
     this._dictionaryWordSet = null;
+
+    // Circuit breaker for remote MFA service
+    // Prevents repeated failed requests when service is down
+    this._remoteCircuitBreaker = {
+      failures: 0,
+      lastFailureTime: null,
+      isOpen: false,
+      // Config: 3 failures in a row opens the circuit for 5 minutes
+      maxFailures: 3,
+      resetTimeMs: 5 * 60 * 1000 // 5 minutes
+    };
+  }
+
+  /**
+   * Check if circuit breaker allows remote MFA requests
+   * @returns {boolean} true if requests should be attempted
+   */
+  isRemoteMFAAllowed() {
+    const cb = this._remoteCircuitBreaker;
+
+    // If circuit is open, check if reset time has passed
+    if (cb.isOpen && cb.lastFailureTime) {
+      const timeSinceFailure = Date.now() - cb.lastFailureTime;
+      if (timeSinceFailure >= cb.resetTimeMs) {
+        // Reset circuit breaker - allow one attempt (half-open state)
+        logger.info(`🔄 [MFA Circuit Breaker] Reset after ${Math.round(timeSinceFailure / 1000)}s - allowing remote MFA attempt`);
+        cb.isOpen = false;
+        cb.failures = 0;
+        return true;
+      }
+      // Circuit still open
+      const remainingMs = cb.resetTimeMs - timeSinceFailure;
+      logger.debug(`⏸️ [MFA Circuit Breaker] Still open - ${Math.round(remainingMs / 1000)}s until reset`);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Record a remote MFA failure for circuit breaker
+   * @param {string} errorType - Type of error (e.g., '502', '503', 'timeout')
+   */
+  recordRemoteMFAFailure(errorType) {
+    const cb = this._remoteCircuitBreaker;
+    cb.failures++;
+    cb.lastFailureTime = Date.now();
+
+    if (cb.failures >= cb.maxFailures) {
+      cb.isOpen = true;
+      const resetMinutes = Math.round(cb.resetTimeMs / 60000);
+      logger.warn(`🔴 [MFA Circuit Breaker] OPEN - ${cb.failures} consecutive failures (${errorType}). Skipping remote MFA for ${resetMinutes} minutes.`);
+    } else {
+      logger.info(`⚠️ [MFA Circuit Breaker] Failure ${cb.failures}/${cb.maxFailures} (${errorType})`);
+    }
+  }
+
+  /**
+   * Record a remote MFA success - resets circuit breaker
+   */
+  recordRemoteMFASuccess() {
+    const cb = this._remoteCircuitBreaker;
+    if (cb.failures > 0 || cb.isOpen) {
+      logger.info(`🟢 [MFA Circuit Breaker] Remote MFA success - resetting circuit breaker`);
+    }
+    cb.failures = 0;
+    cb.isOpen = false;
+    cb.lastFailureTime = null;
   }
 
   async getDictionaryWordSet() {
@@ -61,13 +129,13 @@ class MFAAligner {
       const rawId = typeof debug === 'string' ? debug : (debug.id || debug.requestId || debug.tag);
       const debugId = rawId
         ? String(rawId)
-            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-            .replace(/\s+/g, '_')
-            .slice(0, 120)
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_')
+          .slice(0, 120)
         : null;
       if (!debugId) return;
       const logsDir = path.join(__dirname, '../logs');
-      await fs.mkdir(logsDir, { recursive: true }).catch(() => {});
+      await fs.mkdir(logsDir, { recursive: true }).catch(() => { });
       const debugPath = path.join(logsDir, `mfa_${debugId}.jsonl`);
       const line = JSON.stringify({
         ts: new Date().toISOString(),
@@ -101,7 +169,7 @@ class MFAAligner {
       const fs = require('fs');
       const dictExists = fs.existsSync(this.localModelPaths.dictFile);
       const acousticExists = fs.existsSync(path.join(this.localModelPaths.acousticDir, 'final.mdl'));
-      
+
       if (dictExists && acousticExists) {
         logger.info('✅ MFA acoustic model already available: english');
         logger.info('✅ MFA dictionary already available: english.dict');
@@ -190,7 +258,7 @@ class MFAAligner {
 
   async prepareDictionary(corpusDir) {
     const dictPath = path.join(corpusDir, 'english.dict');
-    
+
     try {
       // Copy the local english.dict to corpus directory
       await fs.copyFile(this.localModelPaths.dictFile, dictPath);
@@ -215,7 +283,7 @@ class MFAAligner {
     if (beam != null) extraArgs.push(`--beam ${Number(beam)}`);
     if (retryBeam != null) extraArgs.push(`--retry_beam ${Number(retryBeam)}`);
 
-    const command = `docker run --rm ` +
+    const command = `docker run --rm --user root ` +
       `-v "${dockerCorpusDir}:/corpus" ` +
       `-v "${dockerOutputDir}:/output" ` +
       `-v "${dockerDictDir}:/dict" ` +
@@ -233,45 +301,151 @@ class MFAAligner {
       dockerAcousticDir,
       alignOptions: { beam, retryBeam, singleSpeaker },
     });
-    
-    try {
-      const { stdout, stderr } = await execAsync(command, { maxBuffer: 50 * 1024 * 1024, timeout: 300000 });
-      const truncate = (s, max = 20000) => {
-        if (s == null) return s;
-        const str = String(s);
-        if (str.length <= max) return str;
-        return str.slice(0, max) + `... (truncated, total=${str.length})`;
-      };
-      await this.writeDebugLine(debug, {
-        stage: 'local-align-output',
-        stdout: truncate(stdout),
-        stderr: truncate(stderr),
+
+    // Use spawn for real-time progress logging
+    const { spawn } = require('child_process');
+
+    return new Promise((resolve, reject) => {
+      const startTime = Date.now();
+      let stdout = '';
+      let stderr = '';
+
+      // MFA adımlarını takip etmek için
+      const mfaSteps = [
+        'Setting up corpus',
+        'Loading corpus',
+        'Initializing multiprocessing',
+        'Normalizing text',
+        'Generating MFCCs',
+        'Calculating CMVN',
+        'Generating final features',
+        'Creating corpus split',
+        'Compiling training graphs',
+        'Performing first-pass alignment',
+        'Generating alignments',
+        'Collecting phone and word alignments',
+        'Analyzing alignment quality',
+        'Exporting alignment TextGrids'
+      ];
+      let currentStep = 0;
+
+      const child = spawn('cmd', ['/c', command], {
+        shell: true,
+        windowsHide: true
       });
-      if (stderr) logger.warn('MFA stderr:', stderr);
-      logger.info('✅ MFA alignment completed');
-      return outputDir;
-    } catch (error) {
-      const truncate = (s, max = 20000) => {
-        if (s == null) return s;
-        const str = String(s);
-        if (str.length <= max) return str;
-        return str.slice(0, max) + `... (truncated, total=${str.length})`;
-      };
-      await this.writeDebugLine(debug, {
-        stage: 'local-align-exec-error',
-        errorMessage: error?.message || String(error),
-        stdout: truncate(error?.stdout),
-        stderr: truncate(error?.stderr),
+
+      // this referansını event handler'larda kullanmak için kaydet
+      const self = this;
+
+      child.stdout.on('data', (data) => {
+        const text = data.toString();
+        stdout += text;
+        // Alt-progress bar'ları loglama - sadece adım bazlı ilerleme yeterli
       });
-      const msg = error?.message || String(error);
-      const isNoAlignments = msg.includes('NoAlignmentsError') || msg.includes('There were no successful alignments');
-      if (isNoAlignments) {
-        logger.warn(`⚠️ MFA alignment attempt produced no alignments (will retry if configured): ${msg}`);
-      } else {
-        logger.error('❌ MFA alignment failed:', msg);
-      }
-      throw error;
-    }
+
+      child.stderr.on('data', (data) => {
+        const text = data.toString();
+        stderr += text;
+
+        // MFA INFO/WARNING/ERROR mesajlarını parse et
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          // MFA adımını tespit et
+          for (let i = currentStep; i < mfaSteps.length; i++) {
+            if (trimmed.toLowerCase().includes(mfaSteps[i].toLowerCase())) {
+              currentStep = i + 1;
+              const stepPercent = Math.round((currentStep / mfaSteps.length) * 100);
+              const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+              logger.info(`📍 MFA Step ${currentStep}/${mfaSteps.length} (${stepPercent}%): ${mfaSteps[i]} [${elapsed}s]`);
+              // Log dosyasına da yaz
+              self.writeDebugLine(debug, {
+                stage: 'mfa-step',
+                stepNumber: currentStep,
+                totalSteps: mfaSteps.length,
+                stepPercent,
+                stepName: mfaSteps[i],
+                elapsedSeconds: parseFloat(elapsed),
+              }).catch(() => { });
+              break;
+            }
+          }
+
+          // ERROR mesajlarını özel olarak logla
+          if (trimmed.includes('ERROR')) {
+            logger.error(`❌ MFA: ${trimmed}`);
+            // Error'ları da log dosyasına yaz
+            self.writeDebugLine(debug, {
+              stage: 'mfa-error-line',
+              errorLine: trimmed,
+              elapsedSeconds: parseFloat(((Date.now() - startTime) / 1000).toFixed(1)),
+            }).catch(() => { });
+          }
+        }
+      });
+
+      child.on('error', (err) => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        logger.error(`❌ MFA process error after ${elapsed}s:`, err.message);
+        reject(err);
+      });
+
+      child.on('close', async (code) => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        const truncate = (s, max = 20000) => {
+          if (s == null) return s;
+          const str = String(s);
+          if (str.length <= max) return str;
+          return str.slice(0, max) + `... (truncated, total=${str.length})`;
+        };
+
+        if (code === 0) {
+          await this.writeDebugLine(debug, {
+            stage: 'local-align-output',
+            stdout: truncate(stdout),
+            stderr: truncate(stderr),
+            elapsedSeconds: parseFloat(elapsed),
+          });
+          logger.info(`✅ MFA alignment completed in ${elapsed}s`);
+          resolve(outputDir);
+        } else {
+          const errorMsg = `MFA alignment failed with exit code ${code}`;
+          const fullError = new Error(`Command failed: ${command}\n${stderr}`);
+          fullError.stdout = stdout;
+          fullError.stderr = stderr;
+          fullError.code = code;
+
+          await this.writeDebugLine(debug, {
+            stage: 'local-align-exec-error',
+            errorMessage: errorMsg,
+            stdout: truncate(stdout),
+            stderr: truncate(stderr),
+            exitCode: code,
+            elapsedSeconds: parseFloat(elapsed),
+          });
+
+          const isNoAlignments = stderr.includes('NoAlignmentsError') || stderr.includes('There were no successful alignments');
+          if (isNoAlignments) {
+            logger.warn(`⚠️ MFA alignment attempt produced no alignments after ${elapsed}s (will retry if configured)`);
+          } else {
+            logger.error(`❌ MFA alignment failed after ${elapsed}s with exit code ${code}`);
+          }
+          reject(fullError);
+        }
+      });
+
+      // 5 dakika timeout
+      setTimeout(() => {
+        child.kill('SIGTERM');
+        const timeoutErr = new Error(`MFA alignment timed out after 300 seconds`);
+        timeoutErr.stdout = stdout;
+        timeoutErr.stderr = stderr;
+        reject(timeoutErr);
+      }, 300000);
+    });
   }
 
   async parseTextGrid(textGridPath) {
@@ -279,13 +453,13 @@ class MFAAligner {
       const content = await fs.readFile(textGridPath, 'utf-8');
       const words = [];
       const lines = content.split('\n');
-      
+
       let inWords = false;
       let start = null, end = null, text = null;
-      
+
       for (const line of lines) {
         const trimmed = line.trim();
-        
+
         if (trimmed.includes('name = "words"')) {
           inWords = true;
           continue;
@@ -294,12 +468,12 @@ class MFAAligner {
           inWords = false;
           continue;
         }
-        
+
         if (inWords) {
           const xminMatch = trimmed.match(/xmin = ([\d.]+)/);
           const xmaxMatch = trimmed.match(/xmax = ([\d.]+)/);
           const textMatch = trimmed.match(/text = "([^"]+)"/);
-          
+
           if (xminMatch) start = parseFloat(xminMatch[1]);
           if (xmaxMatch) end = parseFloat(xmaxMatch[1]);
           if (textMatch) {
@@ -315,7 +489,7 @@ class MFAAligner {
           }
         }
       }
-      
+
       logger.info(`✅ Parsed ${words.length} words from TextGrid`);
       return words;
     } catch (error) {
@@ -358,33 +532,55 @@ class MFAAligner {
       shouldUseStrongFirstPass,
     });
 
+    const mfaStartTime = Date.now(); // Track total MFA duration
+
     if (useRemoteMFA) {
-      try {
-        const result = await this.generateWordTimestampsRemote(audioPath, transcriptText, locale, { debug, cleanedTranscript });
-        await this.writeDebugLine(debug, {
-          stage: 'done',
-          mode: 'remote',
-          resultType: Array.isArray(result) ? 'array' : typeof result,
-          resultCount: Array.isArray(result) ? result.length : null,
-          sample: Array.isArray(result) && result.length > 0 ? result[0] : null,
-        });
-        return result;
-      } catch (remoteErr) {
-        const msg = remoteErr?.message || String(remoteErr);
-        const shouldFallbackToLocal = msg.includes('HTTP 524') || msg.includes('status code 524') || msg.includes('timeout') || msg.includes('Remote MFA not available');
-        await this.writeDebugLine(debug, {
-          stage: 'remote-fallback-to-local',
-          reason: shouldFallbackToLocal ? 'remote_error' : 'remote_error_no_fallback',
-          errorMessage: msg,
-        });
-        if (!allowRemoteFallbackToLocal || !shouldFallbackToLocal) {
-          throw remoteErr;
+      // Check circuit breaker before attempting remote MFA
+      if (!this.isRemoteMFAAllowed()) {
+        logger.info(`⏭️ [MFA] Skipping remote MFA - circuit breaker is open`);
+        // Fall through to local MFA processing
+      } else {
+        try {
+          const result = await this.generateWordTimestampsRemote(audioPath, transcriptText, locale, { debug, cleanedTranscript });
+          this.recordRemoteMFASuccess(); // Reset circuit breaker on success
+          await this.writeDebugLine(debug, {
+            stage: 'done',
+            mode: 'remote',
+            resultType: Array.isArray(result) ? 'array' : typeof result,
+            resultCount: Array.isArray(result) ? result.length : null,
+            sample: Array.isArray(result) && result.length > 0 ? result[0] : null,
+            TOTAL_DURATION_MS: Date.now() - mfaStartTime,
+          });
+          return result;
+        } catch (remoteErr) {
+          const msg = remoteErr?.message || String(remoteErr);
+
+          // Extract error code for circuit breaker tracking
+          const errorCodeMatch = msg.match(/(?:HTTP\s*)?(\d{3})/i);
+          const errorCode = errorCodeMatch ? errorCodeMatch[1] : 'unknown';
+
+          // Record failure for circuit breaker (502, 503, 524, timeout errors)
+          const isServiceError = msg.includes('502') || msg.includes('503') || msg.includes('524') || msg.includes('timeout');
+          if (isServiceError) {
+            this.recordRemoteMFAFailure(errorCode);
+          }
+
+          const shouldFallbackToLocal = msg.includes('HTTP 524') || msg.includes('status code 524') || msg.includes('status code 502') || msg.includes('status code 503') || msg.includes('timeout') || msg.includes('Remote MFA not available');
+          await this.writeDebugLine(debug, {
+            stage: 'remote-fallback-to-local',
+            reason: shouldFallbackToLocal ? 'remote_error' : 'remote_error_no_fallback',
+            errorMessage: msg,
+            errorCode,
+          });
+          if (!allowRemoteFallbackToLocal || !shouldFallbackToLocal) {
+            throw remoteErr;
+          }
+          logger.warn(`[MFA] Remote MFA failed (${msg}). Falling back to local MFA...`);
+          // Continue into local MFA processing below
         }
-        logger.warn(`[MFA] Remote MFA failed (${msg}). Falling back to local MFA...`);
-        // Continue into local MFA processing below
       }
     }
-    
+
     // Local MFA processing
     let corpusDir = null, outputDir = null;
     try {
@@ -402,13 +598,17 @@ class MFAAligner {
         models: this.localModelPaths,
       });
 
+      // Uzun metinler için (>=120 kelime) doğrudan agresif beam ayarlarıyla başla
+      // Bu, düşük beam ile başarısız olacak denemeleri atlayarak 3-5 dakika tasarruf sağlar
+      const initialAlignOptions = shouldUseStrongFirstPass
+        ? { beam: 1000, retryBeam: 4000, singleSpeaker: true }
+        : { singleSpeaker: true };
+
       try {
-        const initialAlignOptions = shouldUseStrongFirstPass
-          ? { singleSpeaker: true }
-          : {};
         await this.writeDebugLine(debug, {
           stage: 'local-align-initial-options',
           initialAlignOptions,
+          shouldUseStrongFirstPass,
         });
         await this.align(corpusDir, dictPath, outputDir, debug, initialAlignOptions);
       } catch (alignErr) {
@@ -416,75 +616,105 @@ class MFAAligner {
         const shouldRetry = msg.includes('NoAlignmentsError') || msg.includes('There were no successful alignments');
 
         if (shouldRetry) {
-          const firstRetryOptions = shouldUseStrongFirstPass
-            ? { beam: 100, retryBeam: 400, singleSpeaker: true }
-            : { beam: 100, retryBeam: 400, singleSpeaker: true };
-          await this.writeDebugLine(debug, {
-            stage: 'local-align-retry',
-            reason: 'NoAlignmentsError',
-            retryWith: firstRetryOptions,
-          });
-
-          try {
-            await this.align(corpusDir, dictPath, outputDir, debug, firstRetryOptions);
-          } catch (retryErr) {
-            const retryMsg = retryErr?.message || String(retryErr);
-            const shouldRetryMore = retryMsg.includes('NoAlignmentsError') || retryMsg.includes('There were no successful alignments');
-            if (shouldRetryMore) {
-              await this.writeDebugLine(debug, {
-                stage: 'local-align-retry',
-                reason: 'NoAlignmentsError',
-                retryWith: { beam: 1000, retryBeam: 4000, singleSpeaker: true },
-              });
-              try {
-                await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
-              } catch (retry2Err) {
-                const retry2Msg = retry2Err?.message || String(retry2Err);
-                const shouldTryOovFilter = retry2Msg.includes('NoAlignmentsError') || retry2Msg.includes('There were no successful alignments');
-                if (shouldTryOovFilter) {
-                  const filteredTranscript = await this.filterTranscriptToDictionary(transcriptText);
-                  await this.writeDebugLine(debug, {
-                    stage: 'local-align-retry',
-                    reason: 'oov_filter',
-                    originalTokenCount: cleanedTranscript.split(/\s+/).filter(Boolean).length,
-                    filteredTokenCount: filteredTranscript.split(/\s+/).filter(Boolean).length,
-                  });
-                  try {
-                    const transcriptPath = path.join(corpusDir, 'audio.txt');
-                    const filteredTokens = filteredTranscript.split(/\s+/).filter(Boolean);
-                    const chunked = [];
-                    for (let i = 0; i < filteredTokens.length; i += 18) {
-                      chunked.push(filteredTokens.slice(i, i + 18).join(' '));
-                    }
-                    await fs.writeFile(transcriptPath, chunked.join(os.EOL), 'utf-8');
-                    await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
-                  } catch (oovErr) {
-                    await this.writeDebugLine(debug, {
-                      stage: 'local-align-error',
-                      errorMessage: oovErr?.message || String(oovErr),
-                      stdout: oovErr?.stdout,
-                      stderr: oovErr?.stderr,
-                    });
-                    throw oovErr;
-                  }
-                } else {
-                  await this.writeDebugLine(debug, {
-                    stage: 'local-align-error',
-                    errorMessage: retry2Msg,
-                    stdout: retry2Err?.stdout,
-                    stderr: retry2Err?.stderr,
-                  });
-                  throw retry2Err;
-                }
+          // Eğer zaten yüksek beam ile başladıysak (shouldUseStrongFirstPass), 
+          // ara denemeleri atla ve doğrudan OOV filtrelemeye geç
+          if (shouldUseStrongFirstPass) {
+            // Doğrudan OOV (sözlük dışı kelime) filtreleme stratejisine geç
+            const filteredTranscript = await this.filterTranscriptToDictionary(transcriptText);
+            await this.writeDebugLine(debug, {
+              stage: 'local-align-retry',
+              reason: 'oov_filter_direct',
+              originalTokenCount: cleanedTranscript.split(/\s+/).filter(Boolean).length,
+              filteredTokenCount: filteredTranscript.split(/\s+/).filter(Boolean).length,
+            });
+            try {
+              const transcriptPath = path.join(corpusDir, 'audio.txt');
+              const filteredTokens = filteredTranscript.split(/\s+/).filter(Boolean);
+              const chunked = [];
+              for (let i = 0; i < filteredTokens.length; i += 18) {
+                chunked.push(filteredTokens.slice(i, i + 18).join(' '));
               }
-            } else {
+              await fs.writeFile(transcriptPath, chunked.join(os.EOL), 'utf-8');
+              await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
+            } catch (oovErr) {
               await this.writeDebugLine(debug, {
                 stage: 'local-align-error',
-                errorMessage: retryMsg,
-                stdout: retryErr?.stdout,
-                stderr: retryErr?.stderr,
+                errorMessage: oovErr?.message || String(oovErr),
+                stdout: oovErr?.stdout,
+                stderr: oovErr?.stderr,
               });
-              throw retryErr;
+              throw oovErr;
+            }
+          } else {
+            // Kısa metinler için: önce beam 100, sonra beam 1000, sonra OOV filtre
+            const firstRetryOptions = { beam: 100, retryBeam: 400, singleSpeaker: true };
+            await this.writeDebugLine(debug, {
+              stage: 'local-align-retry',
+              reason: 'NoAlignmentsError',
+              retryWith: firstRetryOptions,
+            });
+
+            try {
+              await this.align(corpusDir, dictPath, outputDir, debug, firstRetryOptions);
+            } catch (retryErr) {
+              const retryMsg = retryErr?.message || String(retryErr);
+              const shouldRetryMore = retryMsg.includes('NoAlignmentsError') || retryMsg.includes('There were no successful alignments');
+              if (shouldRetryMore) {
+                await this.writeDebugLine(debug, {
+                  stage: 'local-align-retry',
+                  reason: 'NoAlignmentsError',
+                  retryWith: { beam: 1000, retryBeam: 4000, singleSpeaker: true },
+                });
+                try {
+                  await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
+                } catch (retry2Err) {
+                  const retry2Msg = retry2Err?.message || String(retry2Err);
+                  const shouldTryOovFilter = retry2Msg.includes('NoAlignmentsError') || retry2Msg.includes('There were no successful alignments');
+                  if (shouldTryOovFilter) {
+                    const filteredTranscript = await this.filterTranscriptToDictionary(transcriptText);
+                    await this.writeDebugLine(debug, {
+                      stage: 'local-align-retry',
+                      reason: 'oov_filter',
+                      originalTokenCount: cleanedTranscript.split(/\s+/).filter(Boolean).length,
+                      filteredTokenCount: filteredTranscript.split(/\s+/).filter(Boolean).length,
+                    });
+                    try {
+                      const transcriptPath = path.join(corpusDir, 'audio.txt');
+                      const filteredTokens = filteredTranscript.split(/\s+/).filter(Boolean);
+                      const chunked = [];
+                      for (let i = 0; i < filteredTokens.length; i += 18) {
+                        chunked.push(filteredTokens.slice(i, i + 18).join(' '));
+                      }
+                      await fs.writeFile(transcriptPath, chunked.join(os.EOL), 'utf-8');
+                      await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
+                    } catch (oovErr) {
+                      await this.writeDebugLine(debug, {
+                        stage: 'local-align-error',
+                        errorMessage: oovErr?.message || String(oovErr),
+                        stdout: oovErr?.stdout,
+                        stderr: oovErr?.stderr,
+                      });
+                      throw oovErr;
+                    }
+                  } else {
+                    await this.writeDebugLine(debug, {
+                      stage: 'local-align-error',
+                      errorMessage: retry2Msg,
+                      stdout: retry2Err?.stdout,
+                      stderr: retry2Err?.stderr,
+                    });
+                    throw retry2Err;
+                  }
+                }
+              } else {
+                await this.writeDebugLine(debug, {
+                  stage: 'local-align-error',
+                  errorMessage: retryMsg,
+                  stdout: retryErr?.stdout,
+                  stderr: retryErr?.stderr,
+                });
+                throw retryErr;
+              }
             }
           }
         } else {
@@ -506,6 +736,7 @@ class MFAAligner {
         resultType: Array.isArray(parsed) ? 'array' : typeof parsed,
         resultCount: Array.isArray(parsed) ? parsed.length : null,
         sample: Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null,
+        TOTAL_DURATION_MS: Date.now() - mfaStartTime,
       });
       return parsed;
     } catch (error) {
@@ -517,8 +748,8 @@ class MFAAligner {
       logger.error('MFA pipeline failed:', error);
       throw error;
     } finally {
-      if (corpusDir) await fs.rm(corpusDir, { recursive: true, force: true }).catch(() => {});
-      if (outputDir) await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
+      if (corpusDir) await fs.rm(corpusDir, { recursive: true, force: true }).catch(() => { });
+      if (outputDir) await fs.rm(outputDir, { recursive: true, force: true }).catch(() => { });
     }
   }
 
@@ -541,12 +772,12 @@ class MFAAligner {
       const cleanedTranscript = cleanedTranscriptFromCaller != null
         ? cleanedTranscriptFromCaller
         : this.cleanTranscript(transcriptText);
-      
+
       // Send original MP3 to remote MFA - server handles conversion
       // This avoids sending large WAV files over the network
       const audioBuffer = await fs.readFile(audioPath);
       const isWav = audioPath.endsWith('.wav');
-      
+
       await this.writeDebugLine(debug, {
         stage: 'remote-request',
         mfaServiceUrl: mfaServiceUrl,
@@ -557,9 +788,9 @@ class MFAAligner {
         cleanedTranscript,
         locale,
       });
-      
+
       logger.info(`🌐 [Remote MFA] Audio buffer size: ${audioBuffer.length} bytes, Format: ${isWav ? 'WAV' : 'MP3'}, Transcript length: ${cleanedTranscript.length} chars`);
-      
+
       // Create form data
       const formData = new FormData();
       formData.append('audio', audioBuffer, {
@@ -568,14 +799,14 @@ class MFAAligner {
       });
       formData.append('transcript', cleanedTranscript);
       formData.append('locale', locale);
-      
+
       // Send request to remote MFA service
       const rawId = typeof debug === 'string' ? debug : (debug?.id || debug?.requestId || debug?.tag);
       const safeId = rawId
         ? String(rawId)
-            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-            .replace(/\s+/g, '_')
-            .slice(0, 120)
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_')
+          .slice(0, 120)
         : null;
 
       const useAsync = String(process.env.MFA_REMOTE_ASYNC || 'false').toLowerCase() === 'true';
@@ -585,7 +816,8 @@ class MFAAligner {
             ...formData.getHeaders(),
             ...(safeId ? { 'x-mfa-debug-id': safeId } : {}),
           },
-          timeout: Number(process.env.MFA_REMOTE_TIMEOUT_MS || 300000),
+          // 15 minutes timeout for synchronous requests
+          timeout: Number(process.env.MFA_REMOTE_TIMEOUT_MS || 900000),
           maxContentLength: 50 * 1024 * 1024, // 50MB
           maxBodyLength: 50 * 1024 * 1024
         });
@@ -595,11 +827,11 @@ class MFAAligner {
           status: response?.status,
           responseData: response?.data,
         });
-        
+
         if (!response.data.success) {
           throw new Error(response.data.error || 'Remote MFA alignment failed');
         }
-        
+
         logger.info(`✅ Remote MFA alignment completed: ${response.data.wordCount} words`);
         return response.data.timepoints;
       }
@@ -626,7 +858,7 @@ class MFAAligner {
 
       const jobId = String(submitResp.data.jobId);
       const pollIntervalMs = Number(process.env.MFA_REMOTE_ASYNC_POLL_INTERVAL_MS || 1500);
-      const overallTimeoutMs = Number(process.env.MFA_REMOTE_ASYNC_TIMEOUT_MS || process.env.MFA_REMOTE_TIMEOUT_MS || 300000);
+      const overallTimeoutMs = Number(process.env.MFA_REMOTE_ASYNC_TIMEOUT_MS || process.env.MFA_REMOTE_TIMEOUT_MS || 1500000); // 25 mins default
       const startedAt = Date.now();
 
       while (Date.now() - startedAt < overallTimeoutMs) {
@@ -665,7 +897,7 @@ class MFAAligner {
       }
 
       throw new Error(`Remote MFA async job timeout after ${overallTimeoutMs}ms`);
-      
+
     } catch (error) {
       const errorDetail = error.response?.data?.error || error.response?.data?.message || error.message;
       const statusCode = error.response?.status || 'N/A';
@@ -676,7 +908,8 @@ class MFAAligner {
         responseData: error.response?.data,
         stack: error?.stack,
       });
-      logger.error(`❌ Remote MFA alignment failed: [HTTP ${statusCode}] ${errorDetail}`);
+      // Use warn to indicate fallback possibility
+      logger.warn(`⚠️ Remote MFA alignment failed (trying local fallback if enabled): [HTTP ${statusCode}] ${errorDetail}`);
       if (error.response?.data) {
         logger.debug(`Remote MFA error response: ${JSON.stringify(error.response.data)}`);
       }

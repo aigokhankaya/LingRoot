@@ -52,6 +52,9 @@ const iyzicoRoutes = require("./routes/iyzicoRoutes"); // iyzico credit card pay
 const stripeRoutes = require("./routes/stripeRoutes"); // Stripe credit card payments
 const libraryRoutes = require("./routes/libraryRoutes"); // Unified Library (Book/PDF/Progress)
 const notificationRoutes = require("./routes/notificationRoutes"); // User notifications
+const gamificationRoutes = require("./routes/gamificationRoutes"); // 🎮 Gamification & Onboarding
+const assessmentRoutes = require("./routes/assessmentRoutes"); // 🎯 Vocabulary Placement Test
+const apiCostsRoutes = require("./routes/apiCostsRoutes"); // API Costs Analytics (Admin)
 
 // Initialize Express app
 const app = express();
@@ -141,10 +144,12 @@ if (!fs.existsSync(uploadDir)) {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/content", contentRoutes);
+app.use("/api/content", require("./routes/contentRatingRoutes")); // Content rating & feedback
 app.use(contentRoutes); // legacy fallback
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/subscriptions", subscriptionRoutes); // Support both singular and plural
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin", apiCostsRoutes); // API Costs Analytics
 app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
 app.use("/api/topic-detail", topicDetailRoutes);
@@ -155,6 +160,10 @@ app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
+app.use("/api/srs", require("./routes/srsRoutes")); // 🧠 SRS (Spaced Repetition) routes eklendi
+app.use("/api/topic-mastery", require("./routes/topicMasteryRoutes")); // 🎯 Topic Mastery routes
+app.use("/api/health", require("./routes/healthRoutes")); // 🏥 Health check & monitoring
+app.use("/api/recommendations", require("./routes/recommendationsRoutes")); // 🎯 AI-powered recommendations
 app.use("/api/chat", chatRoutes); // Chat routes (admin-user support)
 app.use("/api/support-chat", supportChatRoutes); // Support Chat routes (separate from LIRO)
 app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Liro assistant)
@@ -168,6 +177,7 @@ app.use("/api/external-services", externalServicesRoutes); // External services 
 app.use("/api/podcast", podcastRoutes); // Podcast upload and management
 app.use("/api/config", configRoutes); // Config routes (environment, etc.)
 app.use("/api/patterns", patternRoutes); // Daily usage patterns
+app.use('/api/translations', require('./routes/translationRoutes')); // Multi-provider translation lab
 app.use("/api/mfa", mfaRoutes); // MFA alignment routes
 app.use("/api/topic-hierarchy", topicHierarchyRoutes); // Topic Hierarchy (multi-level content tree)
 app.use("/api/documents", documentRoutes); // Document/PDF workflow
@@ -176,6 +186,8 @@ app.use("/api/library", libraryRoutes); // Unified Library System
 app.use("/api/iyzico", iyzicoRoutes); // iyzico credit card payments
 app.use("/api/stripe", stripeRoutes); // Stripe credit card payments
 app.use("/api/notifications", notificationRoutes); // User notifications
+app.use("/api/gamification", gamificationRoutes); // 🎮 Gamification, XP, Levels, Onboarding
+app.use("/api/assessment", assessmentRoutes); // 🎯 Vocabulary Placement Test
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {

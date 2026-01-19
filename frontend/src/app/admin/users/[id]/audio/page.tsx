@@ -98,7 +98,7 @@ export default function UserAudioHistoryPage() {
 
   const handleDelete = async () => {
     if (selectedIds.size === 0) return;
-    
+
     if (!confirm(`${selectedIds.size} ses kaydını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve storage'dan da silinecektir.`)) {
       return;
     }
@@ -123,8 +123,8 @@ export default function UserAudioHistoryPage() {
     if (sortField !== field) {
       return <span className="ml-1 text-gray-400">⇅</span>;
     }
-    return sortDirection === 'asc' ? 
-      <span className="ml-1 text-indigo-600">↑</span> : 
+    return sortDirection === 'asc' ?
+      <span className="ml-1 text-indigo-600">↑</span> :
       <span className="ml-1 text-indigo-600">↓</span>;
   };
 
@@ -217,6 +217,9 @@ export default function UserAudioHistoryPage() {
                   <th className="px-3 py-2 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600" onClick={() => handleSort('total_cost_usd')}>
                     Toplam $ <SortIcon field="total_cost_usd" />
                   </th>
+                  <th className="px-3 py-2 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600" onClick={() => handleSort('processing_duration_ms')}>
+                    İşlem Süresi <SortIcon field="processing_duration_ms" />
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -254,11 +257,16 @@ export default function UserAudioHistoryPage() {
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-200">{row.tts_category || '—'}</td>
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-200">{row.tts_cost_usd?.toFixed?.(4) ?? '0.0000'}</td>
                     <td className="px-3 py-2 font-semibold text-gray-900 dark:text-gray-100">{row.total_cost_usd?.toFixed?.(4) ?? '0.0000'}</td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-200">
+                      {row.processing_duration_ms ? (
+                        `${Math.floor(row.processing_duration_ms / 60000)} dk ${Math.floor((row.processing_duration_ms % 60000) / 1000)} sn`
+                      ) : '—'}
+                    </td>
                   </tr>
                 ))}
                 {data.length === 0 && (
                   <tr>
-                    <td colSpan={17} className="px-3 py-6 text-center text-gray-500">Kayıt bulunamadı.</td>
+                    <td colSpan={18} className="px-3 py-6 text-center text-gray-500">Kayıt bulunamadı.</td>
                   </tr>
                 )}
               </tbody>

@@ -1148,7 +1148,7 @@ export const apiService = {
       // Push token kaydı başarısız olursa uygulamayı bozmayalım
       try {
         console.error('Error registering device token:', error);
-      } catch {}
+      } catch { }
       return false;
     }
   },
@@ -1330,6 +1330,9 @@ export interface PlanFeatures {
     neural2?: boolean;
     studio?: boolean;
     chirp3d?: boolean;
+    amazon_standard?: boolean;
+    amazon_neural?: boolean;
+    amazon_generative?: boolean;
   };
   sentence_patterns?: {
     enabled?: boolean;
@@ -1379,7 +1382,10 @@ export const getDefaultPlanFeatures = (): UserPlanFeatures => {
         wavenet: false,
         neural2: false,
         studio: false,
-        chirp3d: false
+        chirp3d: false,
+        amazon_standard: false,
+        amazon_neural: false,
+        amazon_generative: false,
       },
       sentence_patterns: {
         enabled: false,

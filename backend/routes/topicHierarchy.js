@@ -64,4 +64,25 @@ router.post(
   topicHierarchyController.createContentFromTopic
 );
 
+// Dinleme pozisyonunu kaydet
+router.post(
+  '/topics/save-progress',
+  authenticate,
+  topicHierarchyController.saveListeningProgress
+);
+
+// Yarıda kalan dinlemeleri getir
+router.get(
+  '/topics/incomplete',
+  authenticate,
+  topicHierarchyController.getIncompleteListenings
+);
+
+// Belirli bir içeriğin dinleme durumunu getir
+router.get(
+  '/topics/progress/:mp3_url',
+  authenticate,
+  topicHierarchyController.getListeningProgress
+);
+
 module.exports = router;

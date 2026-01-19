@@ -49,6 +49,26 @@ export default function ChatPage() {
   }>({ isOpen: false, type: null, topic: '' });
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Sidebar toggle state - ChatGPT style
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Load sidebar state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('liro_sidebar_collapsed');
+    if (savedState !== null) {
+      setIsSidebarCollapsed(savedState === 'true');
+    }
+  }, []);
+
+  // Toggle sidebar and save to localStorage
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const newState = !prev;
+      localStorage.setItem('liro_sidebar_collapsed', String(newState));
+      return newState;
+    });
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Butonların aktif/pasif durumu
@@ -464,6 +484,8 @@ export default function ChatPage() {
           onNewChat={handleNewChat}
           isLoading={false}
           onRefreshConversations={fetchConversations}
+          isCollapsed={isSidebarCollapsed}
+          onToggle={toggleSidebar}
         />
 
         {/* Main Chat Area */}
@@ -585,8 +607,9 @@ export default function ChatPage() {
           {/* Input Area */}
           <ChatInput
             onSend={sendMessage}
-            disabled={isTyping}
+            isProcessing={isTyping}
             placeholder="Mesajınızı yazın... (örn: 'B1 seviyesinde spor hakkında bir metin oluştur')"
+            autoFocus={true}
           />
         </main>
       </div>

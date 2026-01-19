@@ -4,6 +4,7 @@ import { arTranslations } from './translations/ar';
 
 // Dil seçenekleri
 export type Locale = 'tr' | 'en' | 'de' | 'fr' | 'es' | 'pt' | 'hi' | 'id' | 'ar';
+export const locales: Locale[] = ['tr', 'en', 'de', 'fr', 'es', 'pt', 'hi', 'id', 'ar'];
 
 // RTL (sağdan sola) diller
 export const rtlLocales: Locale[] = ['ar'];
@@ -228,12 +229,19 @@ export const translations: Translations = {
     topics_node_status_listened: 'Dinlendi',
     topics_node_status_audio_ready: 'Ses hazır',
     topics_node_status_no_audio: 'Ses yok',
+    topics_node_status_completed: 'Tamamlandı',
+    topics_node_status_in_progress: 'Yarım Kaldı',
+    topics_node_status_ready: 'Dinlenmeye Hazır',
+    topics_node_status_ready_simple: 'Hazır',
+    topics_node_progress_percentage: '%{percentage} - Yarım Kaldı',
+    topics_node_progress_percentage_only: '%{percentage}',
     topics_node_button_audio_creating: 'İçeriğiniz Hazırlanıyor...',
     topics_node_button_listen: 'Dinle',
     topics_node_button_create_audio: 'Ses Oluştur',
     topics_node_button_suggest_subtopic: 'Alt Konu Öner',
     topics_node_button_add_manual: 'Manuel Ekle',
     topics_node_button_delete: 'Sil',
+    topics_node_button_show_subtopics: 'Alt Konuları Göster',
     topics_node_delete_title: 'Konuyu silmek istiyor musun?',
     topics_node_delete_description_main:
       'konusunu ve tüm alt konularını kalıcı olarak sileceksin.',
@@ -247,8 +255,9 @@ export const translations: Translations = {
     topics_subtopic_modal_count_custom_label: 'Veya kendi sayını gir',
     topics_subtopic_modal_language_label: 'Alt konu dili',
     topics_subtopic_modal_angle_label: 'Açı/Açıklama',
+    topics_subtopic_modal_placeholder_angle: 'Boş bırakın = farklı kategoriler | Bir odak girin = tüm alt konular o odakta (örn: tarih, ekonomi)',
     topics_subtopic_modal_info:
-      'AI, bu ana konu için seçtiğiniz sayıda eğitici ve gerçek alt konu önerecek. Eğer bir açı / açıklama girersen, alt konuları o bakış açısına göre detaylandırmaya çalışır.',
+      '⚠️ Açı/Açıklama alanı boş bırakılırsa farklı kategorilerde (tarih, kültür, ekonomi vb.) çeşitli alt konular üretilir. Bir açı girilirse (örn: \"tarih\") TÜM alt konular bu odakta olacaktır.',
     topics_subtopic_modal_submit_loading: 'Oluşturuluyor...',
     topics_subtopic_modal_submit_button: 'Oluştur',
     topics_manual_modal_title: 'Manuel Alt Konu Ekle',
@@ -1030,6 +1039,7 @@ export const translations: Translations = {
     welcome_login_button: 'Giriş Yap',
     welcome_nav_home: 'Ana Sayfa',
     welcome_nav_reading_history: 'Okuma Geçmişim',
+    welcome_nav_progress: 'İlerlemem',
     welcome_hero_title: 'Liro ile Kişiselleştirilmiş İngilizce Öğrenimi',
     welcome_hero_desc: 'Her seviyeye uygun kişiselleştirilmiş İngilizce içerik oluşturun ve ses dönüşümleriyle öğrenme deneyiminizi geliştirin.',
     welcome_hero_button: 'Hemen Başlayın',
@@ -1129,6 +1139,7 @@ export const translations: Translations = {
     welcome_podcast_topic_placeholder: 'Podcast için bir konu girin (Örn: The history of the Internet)...',
     welcome_podcast_duration_label: 'Podcast Süresi:',
     welcome_podcast_duration_tolerance: 'Oluşturulacak podcast\'in yaklaşık süresi (±%15 tolerans)',
+    welcome_podcast_level_hint: 'Podcast diyalogu için İngilizce seviyesini seçin',
     welcome_podcast_style_label: 'Konuşma Stili:',
     welcome_podcast_voice_label: 'Ses Seçimi:',
     welcome_podcast_host_voice_label: 'Host Sesi:',
@@ -1959,6 +1970,7 @@ export const translations: Translations = {
     topics_node_button_suggest_subtopic: 'Suggest Subtopics',
     topics_node_button_add_manual: 'Add Manually',
     topics_node_button_delete: 'Delete',
+    topics_node_button_show_subtopics: 'Show Subtopics',
     topics_node_delete_title: 'Do you want to delete this topic?',
     topics_node_delete_description_main:
       'topic and all of its subtopics will be permanently deleted.',
@@ -1973,7 +1985,7 @@ export const translations: Translations = {
     topics_subtopic_modal_language_label: 'Subtopic language',
     topics_subtopic_modal_angle_label: 'Angle/Description',
     topics_subtopic_modal_info:
-      'AI will suggest the selected number of educational and realistic subtopics for this main topic. If you enter an angle/description, it will try to shape the subtopics according to that perspective.',
+      '⚠️ If the angle field is left empty, subtopics will be generated from different categories (history, culture, economy, etc.). If you enter an angle (e.g., \"history\"), ALL subtopics will focus on that topic.',
     topics_subtopic_modal_submit_loading: 'Generating...',
     topics_subtopic_modal_submit_button: 'Generate',
     topics_manual_modal_title: 'Add Subtopic Manually',
@@ -2772,6 +2784,7 @@ export const translations: Translations = {
     welcome_login_button: 'Log In',
     welcome_nav_home: 'Home',
     welcome_nav_reading_history: 'Reading History',
+    welcome_nav_progress: 'My Progress',
     welcome_hero_title: 'Personalized English Learning with Liro',
     welcome_hero_desc: 'Create personalized English content suitable for every level and enhance your learning experience with audio conversions.',
     welcome_hero_button: 'Get Started Now',
@@ -2870,6 +2883,7 @@ export const translations: Translations = {
     welcome_podcast_topic_placeholder: 'Enter a topic for your podcast (e.g., The history of the Internet)...',
     welcome_podcast_duration_label: 'Podcast Duration:',
     welcome_podcast_duration_tolerance: 'Approximate duration of the podcast to be created (±15% tolerance)',
+    welcome_podcast_level_hint: 'Select the English level for the podcast dialogue',
     welcome_podcast_style_label: 'Speaking Style:',
     welcome_podcast_voice_label: 'Voice Selection:',
     welcome_podcast_host_voice_label: 'Host Voice:',
@@ -3945,6 +3959,7 @@ export const translations: Translations = {
     welcome_login_button: 'Anmelden',
     welcome_nav_home: 'Startseite',
     welcome_nav_reading_history: 'Hörverlauf',
+    welcome_nav_progress: 'Mein Fortschritt',
     welcome_hero_title: 'Personalisierte Englischlernplattform mit Liro',
     welcome_hero_desc:
       'Erstellen Sie personalisierte englische Inhalte für jedes Niveau und verbessern Sie Ihr Lernerlebnis mit Audio.',
@@ -4033,6 +4048,7 @@ export const translations: Translations = {
     topics_node_button_suggest_subtopic: 'Unterthemen vorschlagen',
     topics_node_button_add_manual: 'Manuell hinzufügen',
     topics_node_button_delete: 'Löschen',
+    topics_node_button_show_subtopics: 'Unterthemen anzeigen',
     topics_node_delete_title: 'Möchtest du dieses Thema löschen?',
     topics_node_delete_description_main:
       'wird zusammen mit allen Unterthemen dauerhaft gelöscht.',
@@ -4585,11 +4601,20 @@ export const getTranslation = (localeOverride?: Locale) => {
   // getCurrentLanguage is designed to be server-safe
   const currentLocale = localeOverride || getCurrentLanguage();
 
-  const t = (key: string): string => {
+  const t = (key: string, params?: Record<string, string | number>): string => {
     const normalizedKey = key.replace(/__+/g, '_');
-    const value = translations[currentLocale]?.[key] || translations[currentLocale]?.[normalizedKey] || key;
+    let value = translations[currentLocale]?.[key] || translations[currentLocale]?.[normalizedKey] || key;
     // Ensure we always return a string, not an array or object
-    return typeof value === 'string' ? value : String(value);
+    value = typeof value === 'string' ? value : String(value);
+
+    // Params replacement (e.g. %{name})
+    if (params) {
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        value = value.replace(new RegExp(`%\\{${paramKey}\\}`, 'g'), String(paramValue));
+      });
+    }
+
+    return value;
   };
 
   return { t, currentLocale };

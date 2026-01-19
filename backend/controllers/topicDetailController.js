@@ -5,7 +5,7 @@ let openai = null;
 if (process.env.OPENAI_API_KEY) {
   try {
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  } catch {}
+  } catch { }
 }
 const { logRequestStep } = require('../utils/requestLogger');
 const { v4: uuidv4 } = require('uuid');
@@ -15,12 +15,12 @@ const { supabase } = require('../config/db');
 exports.getTopicDetailSuggestions = async (req, res) => {
   const { topic, level } = req.body;
   const requestId = req.headers['x-request-id'] || uuidv4();
-  
+
   if (!topic) {
     logRequestStep(requestId, 'topic-detail-suggest:error', { error: 'No topic provided.' });
     return res.status(400).json({ success: false, message: "Lütfen bir konu belirtin." });
   }
-  
+
   try {
     // Prompt dosyasını oku
     const promptFile = 'topic_detail_suggestions.txt';
@@ -28,16 +28,16 @@ exports.getTopicDetailSuggestions = async (req, res) => {
     console.log(`🎯 [TOPIC DETAIL CONTROLLER] Using prompt file: ${promptFile} for topic: "${topic}" level: ${level || 'A1'}`);
     logger.info(`🎯 Topic Detail Controller - Selected prompt file: ${promptFile} for topic: "${topic}" level: ${level || 'A1'}`);
     let promptTemplate = fs.readFileSync(promptPath, 'utf8');
-    
+
     // Placeholder'ları değiştir
     const prompt = promptTemplate
       .replace('{{topic}}', topic)
       .replace('{{level}}', level || 'A1')
       .replace('{{input_language}}', 'Türkçe'); // Varsayılan olarak Türkçe
-    
+
     logger.info(`Topic detail suggestions request - Topic: "${topic}", Level: ${level || 'A1'}`);
     logRequestStep(requestId, 'topic-detail-suggest:start', { topic, level, prompt });
-    
+
     // OpenAI API'ye istek gönder
     logger.debug(`Sending OpenAI request for topic: ${topic}`);
     if (!openai) {
@@ -51,32 +51,32 @@ exports.getTopicDetailSuggestions = async (req, res) => {
       ],
       temperature: 0.7,
     });
-    
+
     logger.debug(`Received OpenAI response: ${JSON.stringify({
       model: completion.model,
       usage: completion.usage,
       finish_reason: completion.choices[0]?.finish_reason,
     })}`);
-    
+
     const text = completion.choices[0]?.message?.content?.trim() || "";
-    
+
     // Yanıt uzunluğunu logla
     logger.info(`OpenAI response length: ${text.length} characters`);
     logger.debug(`Full OpenAI response text: ${text}`);
-    
+
     if (!text || text.length < 10) {
       logger.error(`OpenAI returned invalid or too short response: "${text}"`);
       throw new Error("OpenAI API yanıtı boş veya çok kısa");
     }
-    
+
     // Önerileri ayıkla - geliştirilen regex
     // 1-5 arası numaraları ve sonrasındaki içeriği ayrı öneri olarak algıla
     let suggestions = [];
-    
+
     // İlk olarak standart numaralı liste formatını deneyelim
     const numberedListRegex = /\d+\.\s+(.+?)(?=\n\d+\.|\n*$)/gs;
     const matches = [...text.matchAll(numberedListRegex)];
-    
+
     if (matches.length >= 3) {
       // Yeterli sayıda öneri bulundu
       suggestions = matches.map(match => match[1].trim());
@@ -90,7 +90,7 @@ exports.getTopicDetailSuggestions = async (req, res) => {
       });
       logger.info(`Extracted ${suggestions.length} suggestions using line splitting`);
     }
-    
+
     // En az 3 öneri yoksa sabit öneriler gönderelim
     if (suggestions.length < 3) {
       logger.warn(`Too few suggestions (${suggestions.length}), using default suggestions for topic: ${topic}`);
@@ -103,35 +103,56 @@ exports.getTopicDetailSuggestions = async (req, res) => {
       ];
       logger.info(`Applied ${suggestions.length} default suggestions`);
     }
-    
-    logRequestStep(requestId, 'topic-detail-suggest:end', { 
+
+    logRequestStep(requestId, 'topic-detail-suggest:end', {
       topic,
       level: level || 'A1',
       suggestionCount: suggestions.length,
       firstSuggestion: suggestions[0] || 'none'
     });
-    
-    res.json({ 
-      success: true, 
+
+    // Log cost to api_costs table
+    try {
+      const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+      const usage = completion.usage;
+      if (usage && req.user?.id) {
+        const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');
+        await logApiCost({
+          userId: req.user.id,
+          feature: 'topic_detail_suggestions',
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          inputQuantity: costInfo.promptTokens,
+          outputQuantity: costInfo.completionTokens,
+          costUsd: costInfo.totalCostUsd,
+          metadata: { topic, level: level || 'A1' },
+        });
+      }
+    } catch (costErr) {
+      logger.warn(`[${requestId}] Failed to log topic detail cost:`, costErr?.message);
+    }
+
+    res.json({
+      success: true,
       suggestions,
-      data: { 
+      data: {
         topic,
         level: level || 'A1',
         suggestions
       }
     });
   } catch (err) {
-    logger.error(`Topic detail suggestions error: ${err.message}`, { 
-      topic, 
+    logger.error(`Topic detail suggestions error: ${err.message}`, {
+      topic,
       level,
       stack: err.stack
     });
-    
+
     logRequestStep(requestId, 'topic-detail-suggest:error', { error: err.message });
-    res.status(500).json({ 
-      success: false, 
-      message: "Konu önerileri oluşturulurken bir hata oluştu.", 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      message: "Konu önerileri oluşturulurken bir hata oluştu.",
+      error: err.message
     });
   }
 };
@@ -139,20 +160,20 @@ exports.getTopicDetailSuggestions = async (req, res) => {
 exports.getGeneratedSuggestions = async (req, res) => {
   try {
     console.log('🎯 Generated suggestions istendi');
-    
+
     // Supabase'den generated_suggestions tablosunu sorgula
     const { data, error } = await supabase
       .from('generated_suggestions')
       .select('title, summary, interest_keyword')
       .order('title', { ascending: true });
-    
+
     if (error) {
       console.error('Supabase hatası:', error);
       throw error;
     }
-    
+
     console.log(`✅ ${data.length} adet konu başlığı bulundu`);
-    
+
     res.json({
       success: true,
       data: {

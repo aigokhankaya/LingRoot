@@ -1,0 +1,32 @@
+ROLE:
+You write intermediate-level educational texts for CEFR B1 English learners.
+
+TASK:
+Write an informative narration about the topic in ENGLISH at B1 level.
+
+INPUT:
+Topic: "{{topic}}"
+Level: B1
+
+RULES FOR B1 ENGLISH:
+- Language: ENGLISH only.
+- Length: 900–1200 words.
+- Vocabulary: A1–B1 (common words plus some less common vocabulary).
+- Use simple present, simple past, and limited future tense.
+- Sentences: 8–15 words.
+- Avoid overly abstract academic terms.
+- Paragraphs: 4–6 sentences.
+- Tone: clearly explanatory, not academic.
+
+🚫 ANTI-REPETITION RULES:
+- Do NOT start consecutive sentences with the same word.
+- Use pronouns and varied sentence starters (However, Therefore, Additionally, In fact).
+- Each paragraph must introduce NEW information or perspective.
+- Avoid generic statements; be specific with examples and details.
+
+📌 TOPIC FOCUS:
+- 70% of content must be SPECIFIC to the given topic.
+- Include concrete examples, comparisons, or real-world applications.
+
+OUTPUT:
+Only plain English paragraphs.

@@ -7,19 +7,20 @@ const { v4: uuidv4 } = require('uuid');
 const { processTextPipeline } = require('../utils/pipeline');
 const { getNewsForTopic } = require('../utils/newsService');
 const { extractFromWebLink } = require('../utils/inputExtractor');
+const gamificationService = require('../services/gamificationService');
 
- function tryParseJson(value) {
-   if (value == null) return value;
-   if (typeof value !== 'string') return value;
-   const trimmed = value.trim();
-   if (!trimmed) return value;
-   if (!(trimmed.startsWith('[') || trimmed.startsWith('{'))) return value;
-   try {
-     return JSON.parse(trimmed);
-   } catch {
-     return value;
-   }
- }
+function tryParseJson(value) {
+  if (value == null) return value;
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  if (!(trimmed.startsWith('[') || trimmed.startsWith('{'))) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
 
 // Supabase yapılandırması
 const supabaseBucket = process.env.SUPABASE_BUCKET || "lingroot-audio";
@@ -421,7 +422,7 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words, dialogue_segments, detected_mood } = req.body;
+    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words, dialogue_segments, detected_mood, processing_duration_ms } = req.body;
     const user_id = req.user?.id;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, {
       input_type,
@@ -545,14 +546,14 @@ exports.submitContent = async (req, res) => {
 
       const resolvedTranslatedText = (input_type === 'podcast')
         ? (() => {
-            if (existingTranslated && looksLikeDialogueTranscript(existingTranslated) && !looksLikeDialogueTranscript(incomingTranslated)) {
-              return existingTranslated;
-            }
-            if (!incomingTranslated && existingTranslated) {
-              return existingTranslated;
-            }
-            return incomingTranslated;
-          })()
+          if (existingTranslated && looksLikeDialogueTranscript(existingTranslated) && !looksLikeDialogueTranscript(incomingTranslated)) {
+            return existingTranslated;
+          }
+          if (!incomingTranslated && existingTranslated) {
+            return existingTranslated;
+          }
+          return incomingTranslated;
+        })()
         : incomingTranslated;
 
       const resolvedAdaptedText = (input_type === 'podcast')
@@ -569,6 +570,11 @@ exports.submitContent = async (req, res) => {
         updated_at: now,
         detected_mood: detected_mood || null,
       };
+
+      // Processing duration tracking (if provided)
+      if (typeof processing_duration_ms === 'number' && processing_duration_ms > 0) {
+        updatePayload.processing_duration_ms = Math.round(processing_duration_ms);
+      }
 
       // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa g fcncelle
       // contenthistory.words/timepoints kolonlar31 TEXT oldu1fu i e7in JSON string olarak sakla
@@ -604,6 +610,11 @@ exports.submitContent = async (req, res) => {
         updated_at: now,
         detected_mood: detected_mood || null,
       };
+
+      // Processing duration tracking (if provided)
+      if (typeof processing_duration_ms === 'number' && processing_duration_ms > 0) {
+        insertPayload.processing_duration_ms = Math.round(processing_duration_ms);
+      }
 
       // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa JSON string olarak sakla
       if (Array.isArray(timepoints) && timepoints.length > 0) {
@@ -673,6 +684,24 @@ exports.submitContent = async (req, res) => {
       }
     } catch (limitErr) {
       logger.error('[USAGE LIMIT] post-save limit check failed:', limitErr);
+    }
+
+    // Award XP for content creation (only for new content, not updates)
+    if (!existingId && validUserId) {
+      try {
+        await gamificationService.addXP(
+          validUserId,
+          gamificationService.xpRewards.CONTENT_COMPLETE || 100,
+          'content_creation',
+          data[0]?.id,
+          'Yeni içerik oluşturuldu'
+        );
+        // Update daily quest progress
+        await gamificationService.updateDailyQuestProgress(validUserId, 'create_content', 1);
+        logger.info(`[Gamification] Awarded content creation XP to user ${validUserId}`);
+      } catch (xpErr) {
+        logger.warn('[Gamification] Content creation XP award failed:', xpErr.message);
+      }
     }
 
     // Başarılı yanıt
@@ -817,3 +846,271 @@ exports.createContent = async (req, res) => {
   }
 };
 
+/**
+ * PUT /api/content/:id/progress
+ * Update listening progress for a content item
+ */
+exports.updateProgress = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { position, duration } = req.body;
+    const userId = req.user.id;
+
+    if (position === undefined || position === null) {
+      return res.status(400).json({ success: false, message: 'Position is required' });
+    }
+
+    // Get current state
+    const { data: existing, error: fetchError } = await supabase
+      .from('contenthistory')
+      .select('id, is_completed, duration')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ success: false, message: 'İçerik bulunamadı' });
+    }
+
+    // Check if completing (position >= 90% of duration)
+    const contentDuration = duration || existing.duration || 0;
+    const completionThreshold = contentDuration * 0.9;
+    const isCompleting = !existing.is_completed && position >= completionThreshold && contentDuration > 0;
+
+    const updatePayload = {
+      last_position: Math.floor(position),
+      updated_at: new Date().toISOString()
+    };
+
+    if (duration && !existing.duration) {
+      updatePayload.duration = Math.floor(duration);
+    }
+
+    if (isCompleting) {
+      updatePayload.is_completed = true;
+      updatePayload.completed_at = new Date().toISOString();
+    }
+
+    const { error: updateError } = await supabase
+      .from('contenthistory')
+      .update(updatePayload)
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (updateError) {
+      logger.error('[ContentProgress] Update failed:', updateError);
+      return res.status(500).json({ success: false, message: 'Güncelleme başarısız' });
+    }
+
+    // Award XP on completion
+    let xpResult = null;
+    if (isCompleting) {
+      try {
+        xpResult = await gamificationService.addXP(
+          userId,
+          gamificationService.xpRewards.CONTENT_LISTEN_PER_MINUTE ? Math.floor(contentDuration / 60) * gamificationService.xpRewards.CONTENT_LISTEN_PER_MINUTE : 50,
+          'content_listening',
+          id,
+          'İçerik dinleme tamamlandı'
+        );
+        await gamificationService.updateDailyQuestProgress(userId, 'listen_content', 1);
+        logger.info(`[Gamification] Awarded listening completion XP to user ${userId}`);
+      } catch (xpErr) {
+        logger.warn('[Gamification] Listening XP award failed:', xpErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      position: updatePayload.last_position,
+      isCompleted: isCompleting || existing.is_completed,
+      xpEarned: xpResult?.xpAdded || 0
+    });
+  } catch (error) {
+    logger.error('[ContentProgress] Error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /api/content/in-progress
+ * Get unfinished content for resume functionality
+ */
+exports.getInProgress = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data, error } = await supabase
+      .from('contenthistory')
+      .select('id, input, input_type, level, mp3_url, last_position, duration, created_at, updated_at')
+      .eq('user_id', userId)
+      .eq('is_completed', false)
+      .gt('last_position', 0)
+      .order('updated_at', { ascending: false })
+      .limit(5);
+
+    if (error) {
+      logger.error('[InProgress] Fetch error:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
+    return res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (error) {
+    logger.error('[InProgress] Error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /api/content/:id/quiz
+ * Generate a quiz based on content vocabulary
+ */
+exports.generateQuiz = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Get content with words
+    const { data: content, error } = await supabase
+      .from('contenthistory')
+      .select('id, words, adapted_text')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !content) {
+      return res.status(404).json({ success: false, message: 'İçerik bulunamadı' });
+    }
+
+    let words = [];
+    if (content.words) {
+      try {
+        words = typeof content.words === 'string' ? JSON.parse(content.words) : content.words;
+      } catch (e) {
+        words = [];
+      }
+    }
+
+    if (!Array.isArray(words) || words.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bu içerikte yeterli kelime yok. En az 3 kelime gerekli.'
+      });
+    }
+
+    // Generate quiz questions (max 5)
+    const shuffled = [...words].sort(() => Math.random() - 0.5).slice(0, 5);
+    const questions = shuffled.map((word, index) => {
+      // Get 3 wrong answers from other words
+      const otherWords = words.filter(w => w.word !== word.word);
+      const wrongAnswers = otherWords
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3)
+        .map(w => w.definition || w.meaning || 'Bilinmiyor');
+
+      const options = [...wrongAnswers, word.definition || word.meaning || 'Tanım yok']
+        .sort(() => Math.random() - 0.5);
+
+      return {
+        id: index + 1,
+        word: word.word,
+        options,
+        correctAnswer: word.definition || word.meaning || 'Tanım yok'
+      };
+    });
+
+    return res.json({
+      success: true,
+      contentId: id,
+      totalQuestions: questions.length,
+      questions
+    });
+  } catch (error) {
+    logger.error('[GenerateQuiz] Error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/content/:id/quiz/submit
+ * Submit quiz answers and award XP
+ */
+exports.submitQuiz = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { answers } = req.body; // [{questionId, selectedAnswer}]
+    const userId = req.user.id;
+
+    if (!answers || !Array.isArray(answers)) {
+      return res.status(400).json({ success: false, message: 'Answers array required' });
+    }
+
+    // Get the quiz again to verify answers
+    const { data: content, error } = await supabase
+      .from('contenthistory')
+      .select('words')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !content) {
+      return res.status(404).json({ success: false, message: 'İçerik bulunamadı' });
+    }
+
+    let words = [];
+    try {
+      words = typeof content.words === 'string' ? JSON.parse(content.words) : content.words;
+    } catch (e) {
+      words = [];
+    }
+
+    // Simple scoring - count correct answers
+    let correctCount = 0;
+    const results = answers.map(ans => {
+      const word = words.find(w => w.word === ans.word);
+      const isCorrect = word && (ans.selectedAnswer === word.definition || ans.selectedAnswer === word.meaning);
+      if (isCorrect) correctCount++;
+      return { ...ans, isCorrect };
+    });
+
+    const totalQuestions = answers.length;
+    const score = Math.round((correctCount / totalQuestions) * 100);
+    const passed = score >= 60;
+
+    // Award XP
+    let xpResult = null;
+    try {
+      const xpAmount = passed
+        ? (score === 100 ? gamificationService.xpRewards.QUIZ_PERFECT_SCORE : gamificationService.xpRewards.QUIZ_COMPLETE)
+        : Math.floor(gamificationService.xpRewards.QUIZ_COMPLETE / 2);
+
+      xpResult = await gamificationService.addXP(
+        userId,
+        xpAmount,
+        'content_quiz',
+        id,
+        `Quiz tamamlandı: ${score}%`
+      );
+
+      await gamificationService.updateDailyQuestProgress(userId, 'complete_quiz', 1);
+    } catch (xpErr) {
+      logger.warn('[QuizSubmit] XP award failed:', xpErr.message);
+    }
+
+    return res.json({
+      success: true,
+      score,
+      correctCount,
+      totalQuestions,
+      passed,
+      xpEarned: xpResult?.xpAdded || 0,
+      results
+    });
+  } catch (error) {
+    logger.error('[QuizSubmit] Error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

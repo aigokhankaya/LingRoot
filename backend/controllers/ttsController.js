@@ -11,6 +11,7 @@ const { translateAndAdaptToCEFR } = require("../utils/translateAndAdapt");
 const { synthesizeWithGoogle, listGoogleVoices, getVoiceGender } = require("../utils/googleTTS");
 const { synthesizeWithAzure, listAzureVoices, isAzureTTSAvailable } = require("../utils/azureTTS");
 const { synthesizeWithPolly, listPollyVoices, isPollyAvailable } = require("../utils/amazonPolly");
+const { synthesizeWithOpenAI, listOpenAIVoices, isOpenAITTSAvailable } = require("../utils/openaiTTS");
 const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
 const { analyzeAndAdjustTimings } = require('../utils/audioAnalyzer');
@@ -27,6 +28,48 @@ const directorAgentService = require('../services/directorAgentService');
 // Store references to temp files so they can be accessed via API
 const tempAudioFiles = new Map();
 const tempVttFiles = new Map();
+
+// Concurrent TTS request limiter per user
+// Prevents resource exhaustion when user clicks multiple topics rapidly
+const activeTtsRequests = new Map(); // userId -> count
+const MAX_CONCURRENT_TTS_PER_USER = 2;
+
+/**
+ * Check and increment active TTS request count for user
+ * @param {string} userId - User ID
+ * @returns {{ allowed: boolean, current: number, max: number }}
+ */
+const acquireTtsSlot = (userId) => {
+  if (!userId) return { allowed: true, current: 0, max: MAX_CONCURRENT_TTS_PER_USER };
+
+  const current = activeTtsRequests.get(userId) || 0;
+  if (current >= MAX_CONCURRENT_TTS_PER_USER) {
+    return { allowed: false, current, max: MAX_CONCURRENT_TTS_PER_USER };
+  }
+
+  activeTtsRequests.set(userId, current + 1);
+  logger.info(`🔒 [TTS Limiter] User ${userId} acquired slot ${current + 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
+  return { allowed: true, current: current + 1, max: MAX_CONCURRENT_TTS_PER_USER };
+};
+
+/**
+ * Release TTS slot for user
+ * @param {string} userId - User ID
+ */
+const releaseTtsSlot = (userId) => {
+  if (!userId) return;
+
+  const current = activeTtsRequests.get(userId) || 0;
+  if (current > 0) {
+    activeTtsRequests.set(userId, current - 1);
+    logger.info(`🔓 [TTS Limiter] User ${userId} released slot, now ${current - 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
+  }
+
+  // Cleanup if no active requests
+  if (current <= 1) {
+    activeTtsRequests.delete(userId);
+  }
+};
 
 // Helper function to create VTT file from text
 const createVTTFile = (text, duration = 30) => {
@@ -212,6 +255,21 @@ const processTtsRequest = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
   logger.info(`[${requestId}] Received TTS request.`);
+
+  // Get user ID for rate limiting
+  const userId = req.user?.id || null;
+
+  // Check concurrent TTS limit per user
+  const slotCheck = acquireTtsSlot(userId);
+  if (!slotCheck.allowed) {
+    logger.warn(`[${requestId}] ⚠️ User ${userId} exceeded concurrent TTS limit (${slotCheck.current}/${slotCheck.max})`);
+    return res.status(429).json({
+      success: false,
+      message: `Çok fazla eşzamanlı ses oluşturma isteği. Lütfen mevcut işlemlerin tamamlanmasını bekleyin. (${slotCheck.current}/${slotCheck.max} aktif)`,
+      retryAfter: 30 // Suggest retry after 30 seconds
+    });
+  }
+
   // CRITICAL DEBUG: Log raw request essentials (sanitized)
   try {
     const logBody = {
@@ -775,6 +833,30 @@ const processTtsRequest = async (req, res) => {
       logger.info(`[${requestId}] no_tts flag detected. Skipping TTS synthesis, returning text only.`);
       logRequestStep(requestId, 'tts:skipped', { reason: 'no_tts flag set' });
 
+      // Log OpenAI cost for content generation (preview mode)
+      try {
+        const userId = req.user?.id;
+        if (userId && openaiUsage && openaiUsage.total_tokens > 0) {
+          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          // Determine model from breakdown or default
+          const model = usageBreakdown.length > 0 ? usageBreakdown[0].model : 'gpt-4o-mini';
+          const costInfo = calculateOpenAiCost(openaiUsage, model);
+          await logApiCost({
+            userId,
+            feature: 'content_preview',
+            provider: 'openai',
+            model: model,
+            inputQuantity: openaiUsage.prompt_tokens || 0,
+            outputQuantity: openaiUsage.completion_tokens || 0,
+            costUsd: costInfo.totalCostUsd,
+            metadata: { level, input_type: inputType },
+          });
+          logger.info(`[${requestId}] 💰 Preview content cost logged: $${costInfo.totalCostUsd.toFixed(6)}`);
+        }
+      } catch (costErr) {
+        logger.warn(`[${requestId}] Failed to log preview cost:`, costErr?.message);
+      }
+
       return res.json({
         success: true,
         message: "Text generation complete. TTS synthesis skipped.",
@@ -830,46 +912,76 @@ const processTtsRequest = async (req, res) => {
 
     // --- Get and validate voice BEFORE chunking ---
     const requestedVoice = req.body.voice || req.body.voiceName;
+    const requestedEngine = req.body.engine; // Capture engine preference (e.g. generative)
 
     let selectedVoice;
     let lingrootVoiceId = null;
-    let pollyEngine = null;
+    let pollyEngine = requestedEngine || null;
     const ttsProvider = await getTtsProvider();
 
+    // --- CUSTOM LOGGING FOR CREATE CONTENT ---
+    try {
+      const logVoiceName = requestedVoice || 'default';
+      const logApiName = ttsProvider;
+      // rawText is extracted earlier in the function
+      const logFirst25 = rawText ? rawText.substring(0, 25).replace(/\n/g, ' ') : (req.body.input ? String(req.body.input).substring(0, 25) : '');
+
+      const logEntry = `VOICE_NAME=${logVoiceName}\nAPI_NAME=${logApiName}\nFIRST_25=${logFirst25}\n\n`;
+      fs.appendFileSync(path.join(__dirname, '../logs/create_content.log'), logEntry);
+      logger.info(`[${requestId}] 📝 Logged creation request to logs/create_content.log`);
+    } catch (logErr) {
+      logger.warn(`[${requestId}] ⚠️ Failed to log to logs/create_content.log: ${logErr.message}`);
+    }
+
     if (!requestedVoice) {
-      // DIRECTOR MODE VOICE SELECTION
-      if (req.directorAnalysis) {
-        if (ttsProvider === 'azure') {
-          // Azure offers specific styles. Guy is good for general storytelling.
-          // Davis is also good. 
-          selectedVoice = 'en-US-GuyNeural';
-          logger.info(`[${requestId}] 🎬 Director Mode: Selected Azure Storytelling Voice (${selectedVoice})`);
-        } else if (ttsProvider === 'google') {
-          // Google Studio voices are better for long form
-          selectedVoice = 'en-US-Studio-M';
-          logger.info(`[${requestId}] 🎬 Director Mode: Selected Google Studio Voice (${selectedVoice})`);
-        } else if (ttsProvider === 'openai') {
-          selectedVoice = 'onyx';
-          logger.info(`[${requestId}] 🎬 Director Mode: Selected OpenAI Voice (${selectedVoice})`);
-        } else {
-          // Fallback or Polly
-          selectedVoice = 'Joanna'; // Polly standard
-          logger.info(`[${requestId}] 🎬 Director Mode: Selected Fallback Voice (${selectedVoice})`);
+      // 1. Check if Book has a persistent voice setting for this level
+      let bookVoiceSetting = null;
+      let bookData = null;
+
+      try {
+        const { data: book } = await supabase
+          .from('books')
+          .select('id, title, subjects, voice_settings')
+          .eq('id', bookId)
+          .single();
+
+        if (book) {
+          bookData = book;
+          const settings = book.voice_settings || {};
+          // Check specific level first, then fallback to 'default' or any existing
+          bookVoiceSetting = settings[level] || settings['default'];
         }
+      } catch (err) {
+        logger.warn(`[${requestId}] Failed to fetch book voice settings: ${err.message}`);
+      }
+
+      if (bookVoiceSetting && bookVoiceSetting.voice_id) {
+        selectedVoice = bookVoiceSetting.voice_id;
+        logger.info(`[${requestId}] 📖 Using persisted book voice for ${level}: ${selectedVoice} (${bookVoiceSetting.style})`);
+      } else if (bookData && req.directorAnalysis) {
+        // 2. No setting exists -> Ask Director to Cast and Save
+        logger.info(`[${requestId}] 🎬 Director Mode: Casting new voice for book "${bookData.title}" (${level})...`);
+        const newSetting = await DirectorAgentService.suggestAndSaveBookVoice(bookData, level, bookData.voice_settings);
+        selectedVoice = newSetting.voice_id;
       } else {
-        // No voice requested: pick default Lingroot voice, then map to provider
-        lingrootVoiceId = getDefaultLingrootVoiceId(languageCode);
-        const mapped = mapLingrootToProviderVoice(lingrootVoiceId, ttsProvider);
-        if (mapped && mapped.name) {
-          selectedVoice = mapped.name;
-          languageCode = mapped.languageCode || languageCode;
-          if (mapped.engine) {
-            pollyEngine = mapped.engine;
-          }
-          logger.info(`[${requestId}] 🎯 No voice requested, using default Lingroot voice ${lingrootVoiceId} -> ${ttsProvider}:${selectedVoice}`);
+        // 3. Fallback to old logic (Director dynamic or Lingroot mapping)
+        if (req.directorAnalysis) {
+          if (ttsProvider === 'openai') selectedVoice = 'onyx'; // Old hardcoded fallback
+          else selectedVoice = 'Joanna';
+          logger.info(`[${requestId}] 🎬 Director Mode: Dynamic fallback voice (${selectedVoice})`);
         } else {
-          selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
-          logger.info(`[${requestId}] 🎯 No voice requested, Lingroot mapping missing, using provider default for ${ttsProvider}: ${selectedVoice}`);
+          // ... existing Lingroot mapping logic ...
+          lingrootVoiceId = getDefaultLingrootVoiceId(languageCode);
+          const mapped = mapLingrootToProviderVoice(lingrootVoiceId, ttsProvider);
+          if (mapped && mapped.name) {
+            selectedVoice = mapped.name;
+            languageCode = mapped.languageCode || languageCode;
+            if (mapped.engine) pollyEngine = mapped.engine;
+            logger.info(`[${requestId}] 🎯 No voice requested, using default Lingroot voice: ${selectedVoice}`);
+          } else {
+            selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
+            logger.info(`[${requestId}] 🎯 No voice requested, using provider default: ${selectedVoice}`);
+          }
         }
       }
     } else {
@@ -1169,12 +1281,29 @@ const processTtsRequest = async (req, res) => {
             languageCode: languageCode,
             speakingRate: speakingRate
           });
+        } else if (ttsProvider === 'openai' && isOpenAITTSAvailable()) {
+          logger.info(`[${requestId}] Using OpenAI TTS for chunk ${i + 1}`);
+          // Get OpenAI voice config from Lingroot mapping
+          const openaiVoiceConfig = lingrootVoiceId
+            ? mapLingrootToProviderVoice(lingrootVoiceId, 'openai')
+            : null;
+          const openaiVoice = openaiVoiceConfig?.name || selectedVoice || 'nova';
+          const openaiModel = openaiVoiceConfig?.model || 'tts-1';
+
+          ttsResult = await synthesizeWithOpenAI({
+            text: chunk,
+            voice: openaiVoice,
+            model: openaiModel,
+            speed: speakingRate
+          });
         } else {
           // Default to Google TTS
           if (ttsProvider === 'azure') {
             logger.warn(`[${requestId}] Azure TTS not available, falling back to Google TTS`);
           } else if (ttsProvider === 'polly' || ttsProvider === 'amazon') {
             logger.warn(`[${requestId}] Amazon Polly not available, falling back to Google TTS`);
+          } else if (ttsProvider === 'openai') {
+            logger.warn(`[${requestId}] OpenAI TTS not available, falling back to Google TTS`);
           }
           logger.info(`[${requestId}] Using Google TTS for chunk ${i + 1}`);
           ttsResult = await synthesizeWithGoogle({
@@ -1212,6 +1341,12 @@ const processTtsRequest = async (req, res) => {
           else if (selectedVoice?.includes('Wavenet') || selectedVoice?.includes('Neural2')) ttsCategory = 'Premium';
           else if (selectedVoice?.includes('Chirp') || selectedVoice?.includes('Journey')) ttsCategory = 'Gold';
           else if (selectedVoice?.includes('Studio')) ttsCategory = 'Platinum';
+        } else if (ttsProvider === 'openai') {
+          // OpenAI TTS pricing: tts-1 = standard, tts-1-hd = HD
+          // NOTE: HD model disabled for now - always use standard
+          // const openaiModel = req.body.openaiModel || 'tts-1';
+          // ttsCategory = openaiModel === 'tts-1-hd' ? 'openai-hd' : 'openai-standard';
+          ttsCategory = 'openai-standard';
         }
 
         // Clean ve original words'leri topla
@@ -1356,11 +1491,11 @@ const processTtsRequest = async (req, res) => {
           {
             debug: mfaDebugEnabled
               ? {
-                  id: `text_${requestId}_${uniqueId}`,
-                  source: 'ttsController',
-                  requestId,
-                  uniqueId,
-                }
+                id: `text_${requestId}_${uniqueId}`,
+                source: 'ttsController',
+                requestId,
+                uniqueId,
+              }
               : null,
           }
         );
@@ -1570,7 +1705,7 @@ const processTtsRequest = async (req, res) => {
       }
       if (userId) {
         // Calculate costs
-        const { calculateOpenAiCost, calculateTtsCost } = require('../utils/costTracker');
+        const { calculateOpenAiCost, calculateTtsCost, logApiCost } = require('../utils/costTracker');
         // Sum costs per model using detailed breakdown if available; fallback to total with default model
         let openaiCost = { totalCostUsd: 0 };
         if (usageBreakdown.length > 0) {
@@ -1692,6 +1827,39 @@ const processTtsRequest = async (req, res) => {
         } catch (counterErr) {
           logger.warn(`[${requestId}] Failed to update Free Trial counter:`, counterErr?.message);
         }
+
+        // Log costs to api_costs table
+        try {
+          // Log OpenAI cost (if any)
+          if (openaiCost.totalCostUsd > 0) {
+            await logApiCost({
+              userId,
+              feature: 'standard_tts_openai',
+              provider: 'openai',
+              model: 'gpt-4o',
+              inputQuantity: openaiUsage.prompt_tokens || 0,
+              outputQuantity: openaiUsage.completion_tokens || 0,
+              costUsd: openaiCost.totalCostUsd,
+              metadata: { entry_source: normalizedEntrySource, level },
+            });
+          }
+          // Log TTS cost
+          if (ttsCostUsd > 0) {
+            const ttsProviderName = (ttsProvider === 'polly' || ttsProvider === 'amazon') ? 'aws_polly' : 'google_tts';
+            await logApiCost({
+              userId,
+              feature: 'standard_tts',
+              provider: ttsProviderName,
+              model: selectedVoice,
+              inputQuantity: ttsCharactersTotal,
+              outputQuantity: 0,
+              costUsd: ttsCostUsd,
+              metadata: { duration_seconds: audioDurationSeconds, entry_source: normalizedEntrySource },
+            });
+          }
+        } catch (costLogErr) {
+          logger.warn(`[${requestId}] Failed to log api_costs:`, costLogErr?.message);
+        }
       } else {
         logger.warn(`[${requestId}] ⚠️ No user ID found, skipping contenthistory save`);
         logger.warn(`[${requestId}] 🔍 Auth header: ${authHeader ? 'present' : 'missing'}`);
@@ -1810,6 +1978,10 @@ const processTtsRequest = async (req, res) => {
   } finally {
     // --- Final Step: Ensure Temporary File Cleanup ---
     logger.info(`[${requestId}] Performing final cleanup.`);
+
+    // Release TTS slot for this user
+    releaseTtsSlot(userId);
+
     // Do NOT clean up temp file that we need for API access
     // cleanupTempFile(tempFilePath);
 
@@ -2171,6 +2343,8 @@ const getFilteredVoices = async (req, res) => {
         voices = voices.filter(v => v.quality === 'gold');
       } else if (c === 'studio' || c === 'platinum') {
         voices = voices.filter(v => v.quality === 'platinum');
+      } else if (c === 'generative' || c === 'ultra') {
+        voices = voices.filter(v => v.quality === 'generative' || v.quality === 'ultra');
       }
     }
 

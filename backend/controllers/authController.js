@@ -1133,6 +1133,60 @@ exports.changePassword = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/auth/update-level
+ * Update user's content level and vocabulary level
+ */
+exports.updateLevel = async (req, res) => {
+  try {
+    const { contentLevel, vocabularyLevel } = req.body;
+    const userId = req.user.id;
+
+    const validLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+    if (contentLevel && !validLevels.includes(contentLevel)) {
+      return res.status(400).json({ success: false, message: "Geçersiz içerik seviyesi" });
+    }
+
+    if (vocabularyLevel && !validLevels.includes(vocabularyLevel)) {
+      return res.status(400).json({ success: false, message: "Geçersiz kelime seviyesi" });
+    }
+
+    const updateData = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (contentLevel) {
+      updateData.default_level = contentLevel;
+    }
+
+    if (vocabularyLevel) {
+      updateData.cefr_level = vocabularyLevel;
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq("id", userId);
+
+    if (error) {
+      logger.error('[UPDATE_LEVEL] Database error:', error);
+      return res.status(500).json({ success: false, message: "Seviyeler güncellenemedi" });
+    }
+
+    logger.info(`[UPDATE_LEVEL] User ${userId} levels updated: content=${contentLevel}, vocabulary=${vocabularyLevel}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Seviyeler başarıyla güncellendi",
+      data: { contentLevel, vocabularyLevel }
+    });
+  } catch (error) {
+    logger.error("Update level error", error);
+    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
+};
+
 exports.logout = async (req, res) => {
   try {
     return res.status(200).json({ success: true, message: "Çıkış yapıldı" });

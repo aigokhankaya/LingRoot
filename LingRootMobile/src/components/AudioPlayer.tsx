@@ -28,6 +28,7 @@ import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
 import { useCustomAlert } from '../contexts/AlertContext';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -63,9 +64,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence' | 'pattern'>(initialHighlightMode); // Use mode from Library
-  const [showPatterns, setShowPatterns] = useState(false); // Toggle pattern highlighting
+  const [showPatterns, setShowPatterns] = useState(true); // Toggle pattern highlighting - Default true
   const [patterns, setPatterns] = useState<Array<{
     pattern: string;
+    type?: string;
+    translation?: string;        // Backend field name
+    example_text?: string;       // Backend field name
+    example_translation?: string; // Backend field name
+    level?: string;
+    // Keep old field names for backward compatibility
     meaning?: string;
     pattern_tr?: string;
     example_sentence?: string;
@@ -73,46 +80,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }>>([]);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
 
-  // Debug: Log showPatterns changes
-  useEffect(() => {
-    console.log(`🎨 [AudioPlayer] showPatterns changed to: ${showPatterns}`);
-    if (showPatterns && patterns.length === 0) {
-      loadPatterns();
-    }
-  }, [showPatterns]);
 
-  // Load patterns from backend
-  const loadPatterns = async () => {
-    if (loadingPatterns || !textToHighlight || !track.level) return;
-
-    try {
-      setLoadingPatterns(true);
-      console.log(`🔍 [AudioPlayer] Loading patterns for level: ${track.level}`);
-
-      const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
-      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
-
-      const response = await fetch(`${apiUrl}/api/patterns/find`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: textToHighlight, level: track.level })
-      });
-
-      const data = await response.json();
-      console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
-
-      if (data.success && data.patterns) {
-        setPatterns(data.patterns);
-      }
-    } catch (error) {
-      console.error('❌ [AudioPlayer] Error loading patterns:', error);
-    } finally {
-      setLoadingPatterns(false);
-    }
-  };
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
@@ -284,7 +252,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
 
     const textToHighlight = getTextForHighlight();
-    const wordsArray = words.length > 0 ? words : textToHighlight.split(' ');
+    const wordsArray = words.length > 0 ? words : textToHighlight.split(/\s+/).filter(w => w.length > 0);
     const sentences = textToHighlight.split(/[.!?]+/).filter(s => s.trim().length > 0);
 
     // Debug: Check array lengths
@@ -301,6 +269,46 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [track.adapted_text, track.translated_text, track.title, words]);
 
   const { textToHighlight, wordsArray, sentences } = textData;
+
+  // Auto-load patterns when content matches
+  useEffect(() => {
+    // Always reload patterns when article changes
+    if (track.level && textToHighlight && !loadingPatterns) {
+      loadPatterns();
+    }
+  }, [track.level, textToHighlight]);
+
+  // Load patterns from backend
+  const loadPatterns = async () => {
+    if (loadingPatterns || !textToHighlight || !track.level) return;
+
+    try {
+      setLoadingPatterns(true);
+
+      const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
+      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
+
+      const response = await fetch(`${apiUrl}/api/patterns/find`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: textToHighlight, level: track.level })
+      });
+
+      const data = await response.json();
+      console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
+
+      if (data.success && data.patterns) {
+        setPatterns(data.patterns);
+      }
+    } catch (error) {
+      console.error('❌ [AudioPlayer] Error loading patterns:', error);
+    } finally {
+      setLoadingPatterns(false);
+    }
+  };
 
   const isPodcastTranscript = useMemo(() => {
     if (track.input_type === 'podcast') return true;
@@ -543,6 +551,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     // Only load if visible - prevent duplicate loads
     if (visible) {
       loadAudio();
+
+      // Log content view
+      if (track.id) {
+        AnalyticsHelper.logEvent('content_view', {
+          content_id: track.id,
+          content_title: track.title,
+          content_type: track.input_type || 'unknown',
+          cefr_level: track.level || 'unknown'
+        });
+      }
+
       // Reset elapsed time when new track loads
       setElapsedTime(0);
       accumulatedTimeRef.current = 0;
@@ -697,6 +716,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (status.isLoaded) {
       if (!pauseRequestedRef.current) {
         setPosition(status.positionMillis || 0);
+
+        // Log Play/Pause transitions
+        if (status.isPlaying !== isPlaying) {
+          if (status.isPlaying) {
+            AnalyticsHelper.logEvent('audio_play_start', {
+              content_id: track.id,
+              audio_url: track.url,
+              duration: duration / 1000 // seconds
+            });
+          }
+        }
+
         setIsPlaying(status.isPlaying);
         lastStatusPositionMsRef.current = status.positionMillis || 0;
         lastStatusTsRef.current = Date.now();
@@ -710,6 +741,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (!pauseRequestedRef.current && status.isPlaying) {
         setCurrentTrack(track);
       } else if (status.didJustFinish) {
+        // Log completion
+        AnalyticsHelper.logEvent('audio_play_complete', {
+          content_id: track.id,
+          duration_listened: duration / 1000
+        });
+
         // Only clear when audio actually finished, not when paused
         setCurrentTrack(null);
       }
@@ -1360,26 +1397,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       // Hata durumunda normal seçenekli diyaloğa devam et
     }
 
-    // CASE 2 & 3: Kullanıcı için kelime kaydı yoksa - web ile aynı mantıkta kısa bir onay sor
-    showAlert(
-      language === 'tr' ? 'Kelime Ekle' : 'Add Word',
-      language === 'tr'
-        ? `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`
-        : `Do you want to add "${cleanWord}" to your vocabulary list?`,
-      [
-        {
-          text: language === 'tr' ? 'İptal' : 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: language === 'tr' ? 'Kelimeyi Ekle' : 'Add Word',
-          style: 'default',
-          onPress: () => handleAddWordToVocabulary(cleanWord, wordIndex),
-        },
-      ],
-      'add-circle-outline',
-      '#14B8A6'
-    );
+    // CASE 2 & 3: Kullanıcı için kelime kaydı yoksa - confirm popup ile onay al
+    // showAlert yerine wordPopup state kullanarak Modal içinde göster
+    setWordPopup({
+      mode: 'confirm',
+      word: cleanWord,
+      data: { wordIndex },
+    });
   }, [language, handleAddWordToVocabulary, loadPronunciation]);
 
   const formatTime = (milliseconds: number) => {
@@ -1463,9 +1487,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     const data = patterns.map(p => ({
       pattern: p.pattern.toLowerCase().trim(),
-      pattern_tr: p.pattern_tr || '',
-      example_sentence: p.example_sentence || '',
-      example_sentence_tr: p.example_sentence_tr || ''
+      type: p.type || 'pattern',
+      // Use new backend field names, fallback to old names for backward compatibility
+      translation: p.translation || p.pattern_tr || '',
+      example_text: p.example_text || p.example_sentence || '',
+      example_translation: p.example_translation || p.example_sentence_tr || '',
+      level: p.level || ''
     }));
 
     console.log(`🎨 [AudioPlayer] Total pattern data: ${data.length}`);
@@ -1701,39 +1728,33 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
-          {isTestEnvironment && (
-            <View style={styles.centerBadge}>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log(`🔄 [AudioPlayer] Toggling patterns: ${showPatterns} -> ${!showPatterns}, pageIndex: ${pageIndex}`);
-                  setShowPatterns(!showPatterns);
-                }}
-                style={[styles.patternToggle, showPatterns && styles.patternToggleActive]}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Icon name="highlight" size={18} color={showPatterns ? '#FFF' : '#666'} />
-                <Text style={[styles.patternToggleText, showPatterns && styles.patternToggleTextActive]}>
-                  Patterns
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {isPodcastTranscript ? (
-            <TouchableOpacity
-              style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
-              onPress={() => setShowOriginal(prev => !prev)}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
-                Show Original Text
-              </Text>
+
+          {/* Show Original Text toggle - works for both podcast and text content */}
+          <TouchableOpacity
+            style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
+            onPress={() => {
+              // Toggle showOriginal state
+              setShowOriginal(prev => !prev);
+              // Also scroll to the original text page
+              if (!showOriginal) {
+                horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+                setPageIndex(1);
+              } else {
+                horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+                setPageIndex(0);
+              }
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
+              {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
+            </Text>
+            {isPodcastTranscript && (
               <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
                 <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
               </View>
-            </TouchableOpacity>
-          ) : (
-            <View />
-          )}
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Extra floating close button to guarantee tappable area */}
@@ -2007,6 +2028,21 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               }}
             >
               <View style={styles.wordPopupCard}>
+                {/* Header with close button */}
+                <View style={styles.wordPopupHeader}>
+                  <View style={styles.wordPopupIconContainer}>
+                    <Icon name={wordPopup.mode === 'info' ? 'menu-book' : 'add-circle'} size={24} color={COLORS.primary} />
+                  </View>
+                  <TouchableOpacity
+                    style={styles.wordPopupCloseButton}
+                    onPress={() => setWordPopup(null)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Icon name="close" size={20} color={COLORS.slate400} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Word Title */}
                 <Text style={styles.wordPopupLabel}>
                   {language === 'tr' ? 'Seçilen kelime' : 'Selected word'}
                 </Text>
@@ -2016,65 +2052,105 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
                 {wordPopup.mode === 'info' ? (
                   <>
-                    <Text style={styles.wordPopupLine}>
-                      <Text style={styles.wordPopupLineLabel}>
-                        {language === 'tr' ? 'Anlam: ' : 'Meaning: '}
+                    {/* Definition Card */}
+                    <View style={styles.wordPopupInfoCard}>
+                      <View style={styles.wordPopupInfoRow}>
+                        <View style={styles.wordPopupInfoIconBg}>
+                          <Icon name="translate" size={16} color={COLORS.primary} />
+                        </View>
+                        <View style={styles.wordPopupInfoContent}>
+                          <Text style={styles.wordPopupInfoLabel}>
+                            {language === 'tr' ? 'Anlam' : 'Meaning'}
+                          </Text>
+                          <Text style={styles.wordPopupInfoValue}>
+                            {wordPopup.data?.definition || '-'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Level Badge */}
+                    <View style={styles.wordPopupLevelRow}>
+                      <View style={styles.wordPopupInfoIconBg}>
+                        <Icon name="school" size={16} color={COLORS.brandOrange} />
+                      </View>
+                      <Text style={styles.wordPopupInfoLabel}>
+                        {language === 'tr' ? 'Seviye' : 'Level'}
                       </Text>
-                      <Text>{wordPopup.data?.definition || '-'}</Text>
-                    </Text>
-                    <Text style={styles.wordPopupLine}>
-                      <Text style={styles.wordPopupLineLabel}>
-                        {language === 'tr' ? 'Seviye: ' : 'Level: '}
+                      <View style={styles.wordPopupLevelBadge}>
+                        <Text style={styles.wordPopupLevelText}>
+                          {(wordPopup.data?.level || '').toUpperCase() || '-'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Example Section */}
+                    {wordPopup.data?.example_sentence && (
+                      <View style={styles.wordPopupExampleCard}>
+                        <View style={styles.wordPopupExampleHeader}>
+                          <Icon name="format-quote" size={18} color={COLORS.brandIndigo} />
+                          <Text style={styles.wordPopupExampleTitle}>
+                            {language === 'tr' ? 'Örnek Cümle' : 'Example Sentence'}
+                          </Text>
+                        </View>
+                        <Text style={styles.wordPopupExampleText}>
+                          {wordPopup.data?.example_sentence}
+                        </Text>
+                        {wordPopup.data?.example_sentence_turkish && (
+                          <Text style={styles.wordPopupExampleTranslation}>
+                            {wordPopup.data?.example_sentence_turkish}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Close button for info mode */}
+                    <TouchableOpacity
+                      style={styles.wordPopupDoneButton}
+                      onPress={() => setWordPopup(null)}
+                    >
+                      <Text style={styles.wordPopupDoneText}>
+                        {language === 'tr' ? 'Tamam' : 'Done'}
                       </Text>
-                      <Text>{(wordPopup.data?.level || '').toUpperCase() || '-'}</Text>
-                    </Text>
-                    <Text style={styles.wordPopupLine}>
-                      <Text style={styles.wordPopupLineLabel}>
-                        {language === 'tr' ? 'Örnek: ' : 'Example: '}
-                      </Text>
-                      <Text>{wordPopup.data?.example_sentence || '-'}</Text>
-                    </Text>
-                    <Text style={styles.wordPopupLine}>
-                      <Text style={styles.wordPopupLineLabel}>
-                        {language === 'tr' ? 'Türkçe Örnek: ' : 'Turkish Example: '}
-                      </Text>
-                      <Text>{wordPopup.data?.example_sentence_turkish || '-'}</Text>
-                    </Text>
+                    </TouchableOpacity>
                   </>
                 ) : (
                   <>
-                    <Text style={[styles.wordPopupLine, { marginBottom: 8 }]}>
-                      {language === 'tr'
-                        ? `"${wordPopup.word}" kelimesini kelime listenize eklemek istiyor musunuz?`
-                        : `Do you want to add "${wordPopup.word}" to your vocabulary list?`}
-                    </Text>
-                  </>
-                )}
+                    {/* Confirm mode content */}
+                    <View style={styles.wordPopupConfirmContent}>
+                      <Icon name="help-outline" size={48} color={COLORS.primary} style={{ marginBottom: 12 }} />
+                      <Text style={styles.wordPopupConfirmMessage}>
+                        {language === 'tr'
+                          ? `Bu kelimeyi kelime listenize eklemek istiyor musunuz?`
+                          : `Do you want to add this word to your vocabulary list?`}
+                      </Text>
+                    </View>
 
-                {wordPopup.mode === 'confirm' && (
-                  <View style={styles.wordPopupActionsRow}>
-                    <TouchableOpacity
-                      style={[styles.wordPopupActionButton, styles.wordPopupCancelButton]}
-                      onPress={() => {
-                        setWordPopup(null);
-                      }}
-                    >
-                      <Text style={styles.wordPopupCancelText}>
-                        {language === 'tr' ? 'İptal' : 'Cancel'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.wordPopupActionButton, styles.wordPopupConfirmButton]}
-                      onPress={() => {
-                        handleAddWordToVocabulary(wordPopup.word, 0);
-                        setWordPopup(null);
-                      }}
-                    >
-                      <Text style={styles.wordPopupConfirmText}>
-                        {language === 'tr' ? 'Kelimeyi Ekle' : 'Add Word'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                    <View style={styles.wordPopupActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.wordPopupActionButton, styles.wordPopupCancelButton]}
+                        onPress={() => {
+                          setWordPopup(null);
+                        }}
+                      >
+                        <Text style={styles.wordPopupCancelText}>
+                          {language === 'tr' ? 'İptal' : 'Cancel'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.wordPopupActionButton, styles.wordPopupConfirmButton]}
+                        onPress={() => {
+                          handleAddWordToVocabulary(wordPopup.word, wordPopup.data?.wordIndex || 0);
+                          setWordPopup(null);
+                        }}
+                      >
+                        <Icon name="add" size={18} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        <Text style={styles.wordPopupConfirmText}>
+                          {language === 'tr' ? 'Ekle' : 'Add'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
                 )}
               </View>
             </TouchableOpacity>
@@ -2143,6 +2219,8 @@ const styles = StyleSheet.create({
   },
   wordPopupConfirmButton: {
     backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   wordPopupCancelText: {
     fontSize: 13,
@@ -2150,9 +2228,143 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   wordPopupConfirmText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: '600',
+  },
+  // New modern popup styles
+  wordPopupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  wordPopupIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${COLORS.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wordPopupCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.slate100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wordPopupInfoCard: {
+    backgroundColor: COLORS.surfaceCard,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  wordPopupInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  wordPopupInfoIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: `${COLORS.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  wordPopupInfoContent: {
+    flex: 1,
+  },
+  wordPopupInfoLabel: {
+    fontSize: 12,
+    color: COLORS.slate500,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  wordPopupInfoValue: {
+    fontSize: 16,
+    color: COLORS.slate800,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  wordPopupLevelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  wordPopupLevelBadge: {
+    backgroundColor: `${COLORS.brandOrange}20`,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginLeft: 8,
+  },
+  wordPopupLevelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.brandOrange,
+  },
+  wordPopupExampleCard: {
+    backgroundColor: `${COLORS.brandIndigo}08`,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.brandIndigo,
+  },
+  wordPopupExampleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  wordPopupExampleTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.brandIndigo,
+    marginLeft: 8,
+  },
+  wordPopupExampleText: {
+    fontSize: 15,
+    color: COLORS.slate700,
+    fontStyle: 'italic',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  wordPopupExampleTranslation: {
+    fontSize: 14,
+    color: COLORS.slate500,
+    lineHeight: 20,
+  },
+  wordPopupDoneButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  wordPopupDoneText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  wordPopupConfirmContent: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  wordPopupConfirmMessage: {
+    fontSize: 15,
+    color: COLORS.slate600,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   header: {
     flexDirection: 'row',

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
-import { useTranslation } from '../../lib/i18n';
+import { useTranslation, locales } from '../../lib/i18n';
 
 interface SubtopicModalProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [count, setCount] = useState(5);
-  const [language, setLanguage] = useState('Turkish');
+  const [language, setLanguage] = useState('tr');
   const [angle, setAngle] = useState('');
 
   if (!isOpen) return null;
@@ -32,11 +32,17 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={() => !isLoading && onClose()}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <i className="fas fa-robot mr-2 text-primary"></i>
+            <i className="fas fa-robot me-2 text-primary"></i>
             {t('topics_subtopic_modal_title')}
           </h3>
           <button
@@ -67,11 +73,10 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
                   key={num}
                   onClick={() => setCount(num)}
                   disabled={isLoading}
-                  className={`py-2 px-4 rounded-lg border-2 transition-all ${
-                    count === num
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-primary/50'
-                  }`}
+                  className={`py-2 px-4 rounded-lg border-2 transition-all ${count === num
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-primary/50'
+                    }`}
                 >
                   {num}
                 </button>
@@ -106,8 +111,11 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
               disabled={isLoading}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             >
-              <option value="Turkish">{t('language_tr')}</option>
-              <option value="English">{t('language_en')}</option>
+              {locales.map((locale) => (
+                <option key={locale} value={locale}>
+                  {t(`language_${locale}`) || locale.toUpperCase()}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -120,6 +128,8 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
               value={angle}
               onChange={(e) => setAngle(e.target.value)}
               disabled={isLoading}
+              placeholder={t('topics_subtopic_modal_placeholder_angle')}
+              rows={2}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
@@ -127,7 +137,7 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
           {/* Bilgilendirme */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <p className="text-xs text-gray-700">
-              <i className="fas fa-info-circle mr-1 text-yellow-600"></i>
+              <i className="fas fa-info-circle me-1 text-yellow-600"></i>
               {t('topics_subtopic_modal_info')}
             </p>
           </div>
@@ -150,12 +160,12 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
           >
             {isLoading ? (
               <>
-                <i className="fas fa-spinner fa-spin mr-2"></i>
+                <i className="fas fa-spinner fa-spin me-2"></i>
                 {t('topics_subtopic_modal_submit_loading')}
               </>
             ) : (
               <>
-                <i className="fas fa-magic mr-2"></i>
+                <i className="fas fa-magic me-2"></i>
                 {t('topics_subtopic_modal_submit_button')}
               </>
             )}

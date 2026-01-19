@@ -1,6 +1,6 @@
 # API Services (Backend)
 
-**Last Updated:** December 2025  
+**Last Updated:** January 2026  
 **Location:** `/backend`
 
 ## Overview
@@ -26,7 +26,7 @@ backend/
 ├── server.js               # Entry point (10KB)
 ├── config/
 │   └── database.js         # DB configuration
-├── controllers/            # 31 controllers
+├── controllers/            # 42 controllers
 │   ├── authController.js          # (53KB) Auth operations
 │   ├── ttsController.js           # (109KB) TTS processing
 │   ├── aiChatController.js        # (28KB) Liro assistant
@@ -55,7 +55,7 @@ backend/
 │   ├── azureTTS.js
 │   ├── amazonPolly.js
 │   └── ...
-├── prompts/                # 49 AI prompts
+├── prompts/                # 75+ AI prompts
 ├── migrations/             # 54 SQL migrations
 ├── models/                 # Data models
 ├── scripts/                # Utility scripts
@@ -142,6 +142,33 @@ Input → Extract → Translate → CEFR Adapt → Clean → TTS → Merge → U
 | `verifyApplePurchase` | POST /iap/verify-apple | Verify Apple receipt |
 | `verifyGooglePurchase` | POST /iap/verify-google | Verify Google purchase |
 
+### SRS Controller (`controllers/srsController.js`)
+
+**Size:** 9KB | **Endpoints:** 4+
+
+| Function | Endpoint | Description |
+|----------|----------|-------------|
+| `getDueWords` | GET /srs/due | Get words due for review |
+| `submitReview` | POST /srs/review | Submit review result (SM-2) |
+| `addWord` | POST /srs/words | Add new word manually |
+| `getStats` | GET /srs/stats | Get SRS statistics |
+
+### Additional Controllers (New in January 2026)
+
+| Controller | Endpoints | Responsibility |
+|------------|-----------|----------------|
+| `accountDeletionController.js` | 2+ | GDPR-compliant account deletion |
+| `assessmentController.js` | 4+ | CEFR level assessment tests |
+| `contentRatingController.js` | 3+ | User content ratings & feedback |
+| `externalServicesController.js` | 5+ | Third-party service configuration |
+| `googlePlayNotificationsController.js` | 3+ | Google Play RTDN webhooks |
+| `appleNotificationsController.js` | 3+ | Apple App Store Server Notifications |
+| `patternController.js` | 4+ | Daily usage pattern tracking |
+| `topicDetailController.js` | 3+ | Topic detail & metadata |
+| `topicMasteryController.js` | 4+ | Topic mastery progress tracking |
+| `topicSuggestController.js` | 3+ | Smart topic suggestions |
+| `userEmbeddingController.js` | 4+ | User embeddings for recommendations |
+
 ## Utilities
 
 ### TTS Services
@@ -159,7 +186,31 @@ Input → Extract → Translate → CEFR Adapt → Clean → TTS → Merge → U
 | `openaiClient.js` | 9KB | OpenAI API wrapper |
 | `cefrAdapter.js` | 6KB | CEFR level adaptation |
 | `translateAndAdapt.js` | 18KB | Translation + adaptation |
-| `liroPromptGenerator.js` | 16KB | Liro system prompts |
+| `liroPromptGenerator.js` | 17KB | Liro system prompts |
+| `userProfileAnalyzer.js` | 21KB | 13-dimension user profiling |
+| `contentQualityValidator.js` | 5KB | Post-generation quality checks |
+| `crossTopicDuplicateChecker.js` | 6KB | Sibling subtopic overlap detection |
+
+### User Intelligence Services
+
+| Service | Size | Purpose |
+|---------|------|---------|
+| `userInsightService.js` | 36KB | Extracts user preferences from conversations |
+| `feedbackLoopService.js` | 8KB | Adaptive level recommendations based on feedback |
+| `srsService.js` | 8KB | Spaced Repetition (SM-2) Algorithm |
+| `topicMasteryService.js` | 8KB | Topic-based progress and mastery tracking |
+| `userEmbeddingService.js` | 10KB | OpenAI embeddings for user similarity & recommendations |
+
+**FeedbackLoopService Functions:**
+- `calculateOptimalLevel(userId)` - Compute optimal CEFR level from ratings/completion
+- `getPreferredContentType(userId)` - Analyze preferred content formats
+- `getPreferredContentLength(userId)` - Analyze preferred content duration
+- `generateAdaptiveContext(userId)` - Generate Liro context with all preferences
+
+**UserInsightService Functions:**
+- `extractInsights(userId, conversationId, messages)` - AI-powered insight extraction
+- `processContentRating(userId, contentId, rating, feedbackType)` - Learn from ratings
+- `generateSmartSuggestions(userId)` - Topic-depth based recommendations
 
 ### Content Processing
 

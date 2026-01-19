@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { saveInterfaceLanguage } from '../src/lib/api';
 import { useTranslation, useLanguage } from '../src/lib/i18n';
-import { 
-  FaUser, FaLock, FaBell, FaGlobe, FaVolumeUp, FaEye, 
+import {
+  FaUser, FaLock, FaBell, FaGlobe, FaVolumeUp, FaEye,
   FaShieldAlt, FaCreditCard, FaSave, FaArrowLeft, FaCog,
   FaEnvelope, FaPhone, FaCamera, FaKey, FaInfoCircle, FaLanguage, FaHeadphones
 } from 'react-icons/fa';
+import AppHeader from '../src/components/AppHeader';
 
 
 export default function Settings() {
@@ -18,7 +19,7 @@ export default function Settings() {
   const { changeLanguage } = useLanguage();
   const [activeSection, setActiveSection] = useState('profile');
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{type: 'success'|'error', text: string}|null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // States
   const [firstName, setFirstName] = useState('');
@@ -28,14 +29,15 @@ export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [interfaceLanguage, setInterfaceLanguage] = useState<'tr'|'en'|'de'|'ar'>('tr');
+  const [interfaceLanguage, setInterfaceLanguage] = useState<'tr' | 'en' | 'de' | 'ar'>('tr');
   const [nativeLanguage, setNativeLanguage] = useState('tr-TR');
-  const [defaultLevel, setDefaultLevel] = useState<'A1'|'A2'|'B1'|'B2'|'C1'|'C2'>('B1');
+  const [defaultLevel, setDefaultLevel] = useState<'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('B1');
+  const [vocabularyLevel, setVocabularyLevel] = useState<'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('B1');
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [autoPlay, setAutoPlay] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
-  const [theme, setTheme] = useState<'light'|'dark'|'system'>('system');
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
 
   useEffect(() => {
     if (user) {
@@ -49,7 +51,7 @@ export default function Settings() {
     if (!router.isReady) return;
     const sectionFromQuery = router.query.section;
     if (typeof sectionFromQuery === 'string') {
-      const allowedSections = ['profile','password','language','content','audio','notifications','appearance','privacy','subscription'];
+      const allowedSections = ['profile', 'password', 'language', 'content', 'audio', 'notifications', 'appearance', 'privacy', 'subscription'];
       if (allowedSections.includes(sectionFromQuery)) {
         setActiveSection(sectionFromQuery);
       }
@@ -71,6 +73,7 @@ export default function Settings() {
       }
       setNativeLanguage(localStorage.getItem('lingroot_locale') || 'tr-TR');
       setDefaultLevel((localStorage.getItem('lingroot_defaultLevel') as any) || 'B1');
+      setVocabularyLevel((localStorage.getItem('lingroot_vocabularyLevel') as any) || 'B1');
       setPlaybackSpeed(parseFloat(localStorage.getItem('lingroot_playbackSpeed') || '1.0'));
       setAutoPlay(localStorage.getItem('lingroot_autoPlay') === 'true');
       setTheme((localStorage.getItem('lingroot_theme') as any) || 'system');
@@ -91,7 +94,7 @@ export default function Settings() {
           break;
         case 'password':
           if (newPassword !== confirmPassword) {
-            setMessage({type: 'error', text: t('passwords_do_not_match')});
+            setMessage({ type: 'error', text: t('passwords_do_not_match') });
             setSaving(false);
             return;
           }
@@ -105,6 +108,21 @@ export default function Settings() {
           break;
         case 'content':
           localStorage.setItem('lingroot_defaultLevel', defaultLevel);
+          localStorage.setItem('lingroot_vocabularyLevel', vocabularyLevel);
+          // Also save to backend
+          try {
+            const token = localStorage.getItem('lingroot_token');
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/auth/update-level`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ contentLevel: defaultLevel, vocabularyLevel })
+            });
+          } catch (err) {
+            console.error('Failed to save levels to backend:', err);
+          }
           break;
         case 'audio':
           localStorage.setItem('lingroot_playbackSpeed', playbackSpeed.toString());
@@ -114,10 +132,10 @@ export default function Settings() {
           localStorage.setItem('lingroot_theme', theme);
           break;
       }
-      setMessage({type: 'success', text: t('settings_saved_success')});
+      setMessage({ type: 'success', text: t('settings_saved_success') });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({type: 'error', text: t('settings_saved_error')});
+      setMessage({ type: 'error', text: t('settings_saved_error') });
     } finally {
       setSaving(false);
     }
@@ -159,30 +177,7 @@ export default function Settings() {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <Link href="/profile" className="text-gray-600 hover:text-gray-900">
-                <FaArrowLeft className="text-xl" />
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <FaCog className="mr-3 text-primary" />
-                {t('settings_title')}
-              </h1>
-            </div>
-            <button
-              onClick={() => {
-                logout();
-                router.push('/');
-              }}
-              className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
-            >
-              {t('logout')}
-            </button>
-          </div>
-        </div>
-      </div>
+      <AppHeader />
 
       {/* Message */}
       {message && (
@@ -204,9 +199,8 @@ export default function Settings() {
                   <button
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left ${
-                      activeSection === section.id ? 'bg-primary/5 text-primary font-semibold' : 'text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left ${activeSection === section.id ? 'bg-primary/5 text-primary font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
                   >
                     {section.icon}
                     <span>{section.label}</span>
@@ -219,13 +213,13 @@ export default function Settings() {
           {/* Content */}
           <div className="lg:col-span-3">
             <div className="bg-white rounded-xl shadow-sm p-8">
-              
+
               {activeSection === 'profile' && (
                 <div className="space-y-6">
                   <h2 className="text-2xl font-bold mb-6">{t('settings_profile_title')}</h2>
                   <div className="flex items-center space-x-6 mb-8">
                     <div className="w-24 h-24 bg-gradient-to-br from-primary to-primary/60 rounded-full flex items-center justify-center text-primary-foreground text-3xl font-bold">
-                      {displayName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
+                      {displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
                     <button className="px-4 py-2 bg-primary/5 text-primary rounded-lg hover:bg-primary/10">
                       <FaCamera className="inline mr-2" />{t('settings_change_photo_button')}
@@ -243,11 +237,11 @@ export default function Settings() {
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder={t('lastName_placeholder')} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaEnvelope className="inline mr-2"/>{t('email')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaEnvelope className="inline mr-2" />{t('email')}</label>
                       <input type="email" value={email} disabled className="w-full px-4 py-2 border rounded-lg bg-gray-50" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaPhone className="inline mr-2"/>{t('phoneNumber')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaPhone className="inline mr-2" />{t('phoneNumber')}</label>
                       <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="+90 5xx xxx xx xx" />
                     </div>
@@ -255,7 +249,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('profile')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
+                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -266,7 +260,7 @@ export default function Settings() {
                   <h2 className="text-2xl font-bold mb-6">{t('settings_password_title')}</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaKey className="inline mr-2"/>{t('settings_current_password_label')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaKey className="inline mr-2" />{t('settings_current_password_label')}</label>
                       <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="••••••••" />
                     </div>
@@ -284,7 +278,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('password')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_update_password_button')}
+                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_update_password_button')}
                     </button>
                   </div>
                 </div>
@@ -295,8 +289,8 @@ export default function Settings() {
                   <h2 className="text-2xl font-bold mb-6">{t('settings_language_title')}</h2>
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaGlobe className="inline mr-2"/>{t('settings_interface_language_label')}</label>
-                      <select value={interfaceLanguage} onChange={(e) => setInterfaceLanguage(e.target.value as 'tr'|'en'|'de'|'ar')}
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaGlobe className="inline mr-2" />{t('settings_interface_language_label')}</label>
+                      <select value={interfaceLanguage} onChange={(e) => setInterfaceLanguage(e.target.value as 'tr' | 'en' | 'de' | 'ar')}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr">{t('language_tr')}</option>
                         <option value="en">{t('language_en')}</option>
@@ -305,7 +299,7 @@ export default function Settings() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaHeadphones className="inline mr-2"/>{t('settings_native_language_label')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaHeadphones className="inline mr-2" />{t('settings_native_language_label')}</label>
                       <select value={nativeLanguage} onChange={(e) => setNativeLanguage(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr-TR">Türkçe (TR)</option>
@@ -317,7 +311,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('language')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
+                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -326,21 +320,48 @@ export default function Settings() {
               {activeSection === 'content' && (
                 <div className="space-y-6">
                   <h2 className="text-2xl font-bold mb-6">{t('settings_content_title')}</h2>
+
+                  {/* Content Level */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2"><FaLanguage className="inline mr-2"/>{t('settings_default_level_label')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FaLanguage className="inline mr-2" />İçerik Seviyesi
+                    </label>
+                    <p className="text-xs text-gray-500 mb-3">Oluşturulan içeriklerin zorluk seviyesi</p>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                      {(['A1','A2','B1','B2','C1','C2'] as const).map((level) => (
+                      {(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const).map((level) => (
                         <button key={level} onClick={() => setDefaultLevel(level)}
-                          className={`px-4 py-3 rounded-lg font-semibold ${
-                            defaultLevel === level ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}>{level}</button>
+                          className={`px-4 py-3 rounded-lg font-semibold ${defaultLevel === level ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}>{level}</button>
                       ))}
                     </div>
                   </div>
+
+                  {/* Vocabulary Level */}
+                  <div className="pt-4 border-t">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <span className="inline-block w-5 h-5 mr-2 text-purple-600">📚</span>Kelime Seviyesi
+                    </label>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Kelime kartları ve quiz'lerdeki hedef seviyeniz
+                      <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
+                        Seviye Testi sonucu
+                      </span>
+                    </p>
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                      {(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const).map((level) => (
+                        <button key={level} onClick={() => setVocabularyLevel(level)}
+                          className={`px-4 py-3 rounded-lg font-semibold ${vocabularyLevel === level
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}>{level}</button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('content')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
+                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -352,7 +373,7 @@ export default function Settings() {
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">{t('settings_playback_speed_label')} {playbackSpeed}x</label>
-                      <input type="range" min="0.5" max="2.0" step="0.1" value={playbackSpeed} 
+                      <input type="range" min="0.5" max="2.0" step="0.1" value={playbackSpeed}
                         onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
                       <div className="flex justify-between text-xs text-gray-500 mt-1">
@@ -370,7 +391,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('audio')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
+                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -381,8 +402,8 @@ export default function Settings() {
                   <h2 className="text-2xl font-bold mb-6">{t('settings_notifications_title')}</h2>
                   <div className="space-y-4">
                     {[
-                      {state: emailNotifications, setState: setEmailNotifications, label: t('settings_email_notifications_label')},
-                      {state: pushNotifications, setState: setPushNotifications, label: t('settings_push_notifications_label')}
+                      { state: emailNotifications, setState: setEmailNotifications, label: t('settings_email_notifications_label') },
+                      { state: pushNotifications, setState: setPushNotifications, label: t('settings_push_notifications_label') }
                     ].map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <span className="font-medium">{item.label}</span>
@@ -403,21 +424,20 @@ export default function Settings() {
                     <label className="block text-sm font-medium text-gray-700 mb-3">{t('settings_theme_label')}</label>
                     <div className="grid grid-cols-3 gap-4">
                       {[
-                        {value: 'light', label: t('settings_theme_light')},
-                        {value: 'dark', label: t('settings_theme_dark')},
-                        {value: 'system', label: t('settings_theme_system')}
+                        { value: 'light', label: t('settings_theme_light') },
+                        { value: 'dark', label: t('settings_theme_dark') },
+                        { value: 'system', label: t('settings_theme_system') }
                       ].map((t) => (
                         <button key={t.value} onClick={() => setTheme(t.value as any)}
-                          className={`px-6 py-4 rounded-lg font-semibold ${
-                            theme === t.value ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}>{t.label}</button>
+                          className={`px-6 py-4 rounded-lg font-semibold ${theme === t.value ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}>{t.label}</button>
                       ))}
                     </div>
                   </div>
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('appearance')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
+                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>

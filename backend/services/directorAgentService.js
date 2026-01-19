@@ -24,9 +24,10 @@ class DirectorAgentService {
     /**
      * Analyzes the text to determine its dominant emotional tone.
      * @param {string} text - The text to analyze
+     * @param {string} userId - Optional user ID for cost tracking
      * @returns {Promise<string>} - The detected mood
      */
-    async analyzeMood(text) {
+    async analyzeMood(text, userId = null) {
         // Short circuit for very short text
         if (!text || text.length < 10) return 'Neutral';
 
@@ -50,6 +51,26 @@ class DirectorAgentService {
                 model: 'gpt-4o-mini', // Fast and cheap
                 systemPrompt: 'You are an emotional analysis engine (Director Agent).'
             });
+
+            // Log cost if userId provided
+            if (userId && response.usage) {
+                try {
+                    const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+                    const costInfo = calculateOpenAiCost(response.usage, 'gpt-4o-mini');
+                    await logApiCost({
+                        userId,
+                        feature: 'mood_analysis',
+                        provider: 'openai',
+                        model: 'gpt-4o-mini',
+                        inputQuantity: response.usage.prompt_tokens || 0,
+                        outputQuantity: response.usage.completion_tokens || 0,
+                        costUsd: costInfo.totalCostUsd,
+                        metadata: { text_length: text.length },
+                    });
+                } catch (costErr) {
+                    logger.warn('[DirectorAgent] Failed to log mood analysis cost:', costErr?.message);
+                }
+            }
 
             let detectedMood = response.content.trim().replace(/[^a-zA-Z]/g, '');
 
@@ -91,7 +112,7 @@ class DirectorAgentService {
             switch (m) {
                 case 'melancholic': return `User seems to be in a reflective or sad mood. Be empathetic, patient, and deeper in your responses. Avoid being overly cheery.`;
                 case 'cheerful': return `User seems happy/energetic. Match their energy! Be enthusiastic, use emojis, and keep the conversation light and fun.`;
-                case 'suspenseful': return `The topic is mysterious. Maintain the intrigue. Use "..." and ask rhetorical questions.`;
+                case 'suspenseful': return `The topic is mysterious. Use suspenseful storytelling techniques (short sentences, pauses), but ensure you provide CONCRETE DETAILS or FACTS to anchor the mystery.`;
                 case 'inspiring': return `The content is motivating. Be a coach! Use encouraging language ("You can do it!", "Keep going!").`;
                 default: return `Maintain a helpful, friendly, and professional assistant persona.`;
             }
@@ -159,6 +180,79 @@ class DirectorAgentService {
                 key_characters: [],
                 summary: 'Analysis failed.'
             };
+        }
+    }
+    /**
+     * Suggests and saves a voice for a book at a specific CEFR level.
+     * @param {Object} book - The book object (id, title, subjects)
+     * @param {string} level - CEFR level (A1, A2, B1, B2, C1, C2)
+     * @param {Object} currentSettings - Current voice_settings JSON
+     * @returns {Promise<Object>} - The selected voice config { voice_id, style }
+     */
+    async suggestAndSaveBookVoice(book, level, currentSettings = {}) {
+        try {
+            const prompt = `
+        You are an Audiobook Casting Director. Cast the perfect voice for this book at CEFR Level ${level}.
+        
+        Book Title: "${book.title}"
+        Subjects: "${book.subjects ? book.subjects.join(', ') : 'General'}"
+        Target Level: ${level} (A1=Slow/Clear, C2=Natural/Fast)
+
+        Available Voices:
+        - alloy (Neutral, Balanced)
+        - echo (Male, Warm)
+        - fable (Female, British, Expressive) - Good for fiction/fantasy
+        - onyx (Male, Deep, Authoritative) - Good for thriller/history
+        - nova (Female, Energetic) - Good for non-fiction/guides
+        - shimmer (Female, Calm) - Good for romance/poetry
+
+        Rules:
+        - Lower levels (A1-A2) need clearer voices (Alloy, Nova).
+        - Higher levels (B2-C2) can use more expressive/accented voices (Fable, Onyx).
+        - Match voice to book genre.
+
+        Output JSON:
+        {
+            "voice_id": "selected_voice_name",
+            "style": "description of why"
+        }
+      `;
+
+            const response = await openaiClient.generateChatCompletion([
+                { role: 'user', content: prompt }
+            ], {
+                temperature: 0.4,
+                maxTokens: 100,
+                model: 'gpt-4o-mini',
+                systemPrompt: 'You are an expert Casting Director. Output JSON only.'
+            });
+
+            const content = response.content.replace(/```json/g, '').replace(/```/g, '').trim();
+            const selection = JSON.parse(content);
+
+            // Update settings
+            const newSettings = { ...currentSettings };
+            newSettings[level] = {
+                voice_id: selection.voice_id,
+                style: selection.style,
+                assigned_at: new Date().toISOString()
+            };
+
+            // Persist to DB
+            const { supabase } = require('../utils/supabaseClient');
+            await supabase
+                .from('books')
+                .update({ voice_settings: newSettings })
+                .eq('id', book.id);
+
+            logger.info(`[DirectorAgent] 🎬 Casted voice for book "${book.title}" (${level}): ${selection.voice_id}`);
+
+            return newSettings[level];
+
+        } catch (error) {
+            logger.error('[DirectorAgent] Voice casting failed:', error);
+            // Fallback default
+            return { voice_id: 'alloy', style: 'Fallback default' };
         }
     }
 }

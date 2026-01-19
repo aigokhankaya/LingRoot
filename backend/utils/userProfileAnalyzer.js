@@ -2,6 +2,8 @@ const db = require('../config/db');
 const logger = require('./logger');
 const userKnowledgeAnalyzer = require('./userKnowledgeAnalyzer');
 const userInsightService = require('../services/userInsightService');
+const feedbackLoopService = require('../services/feedbackLoopService');
+const srsService = require('../services/srsService');
 
 const LOW_QUALITY_TOPICS = [
   'selam',
@@ -67,6 +69,8 @@ class UserProfileAnalyzer {
         userInsights: await userInsightService.getInsights(userId),
         // Smart Recommendation System
         smartSuggestions: await userInsightService.generateSmartSuggestions(userId),
+        // 🔄 Adaptive Context (Feedback Loop)
+        adaptiveContext: await feedbackLoopService.generateAdaptiveContext(userId),
       };
 
       return profile;

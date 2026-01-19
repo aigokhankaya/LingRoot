@@ -75,7 +75,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
 
   const colors = getDepthColors();
   const hasChildren = topic.children && topic.children.length > 0;
-  const indent = depth * 20; // Her seviye için 20px indent
+  const indent = depth * 20; // Her seviye için 20px indent (mantıksal olarak padding-inline-start kullanılacak)
 
   const audioState = audioStateByTopic?.[topic.id];
   const isTopicAudioLoading = !!audioState?.isLoading;
@@ -89,14 +89,29 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   const latestContent = (topic as any).latest_content || null;
   const hasAudio = !!(latestContent && latestContent.mp3_url);
   const isListened = !!(latestContent && latestContent.listened_at);
+  const isCompleted = !!(latestContent && latestContent.is_completed);
+  const progressPercentage = latestContent?.progress_percentage || 0;
+  const lastPositionSeconds = latestContent?.last_position_seconds || 0;
+  const hasStartedListening = lastPositionSeconds > 0;
+
+  // Dinleme durumu hesapla
+  const getListeningStatus = () => {
+    if (!hasAudio) return null;
+    if (isCompleted || isListened) return 'completed';
+    if (hasStartedListening && progressPercentage > 0 && progressPercentage < 90) return 'in_progress';
+    return 'ready';
+  };
+  const listeningStatus = getListeningStatus();
+
   // Ses oynatılabilir mi? (backend'de audio varsa veya bu oturumda yeni üretildiyse)
   const canPlayFromTree = hasAudio || hasInlineAudio;
 
-  // Alt konu istatistikleri (toplam alt konu, ses oluşturulan ve dinlenen sayıları)
+  // Alt konu istatistikleri (toplam alt konu, ses oluşturulan, dinlenen ve yarım kalan sayıları)
   const computeSubtreeStats = (root: any) => {
     let totalSubtopics = 0;
     let audioCount = 0;
     let listenedCount = 0;
+    let inProgressCount = 0;
 
     const traverse = (node: any) => {
       if (!node.children || node.children.length === 0) return;
@@ -105,19 +120,27 @@ const TopicNode: React.FC<TopicNodeProps> = ({
         const childLatest = child.latest_content;
         if (childLatest && childLatest.mp3_url) {
           audioCount += 1;
-        }
-        if (childLatest && childLatest.listened_at) {
-          listenedCount += 1;
+
+          // Dinlenme durumu kontrolü
+          const isChildCompleted = childLatest.is_completed || childLatest.listened_at;
+          const hasStartedListening = (childLatest.last_position_seconds || 0) > 0;
+          const childProgress = childLatest.progress_percentage || 0;
+
+          if (isChildCompleted) {
+            listenedCount += 1;
+          } else if (hasStartedListening && childProgress > 0 && childProgress < 90) {
+            inProgressCount += 1;
+          }
         }
         traverse(child);
       });
     };
 
     traverse(root);
-    return { totalSubtopics, audioCount, listenedCount };
+    return { totalSubtopics, audioCount, listenedCount, inProgressCount };
   };
 
-  const { totalSubtopics, audioCount, listenedCount } = computeSubtreeStats(topic as any);
+  const { totalSubtopics, audioCount, listenedCount, inProgressCount } = computeSubtreeStats(topic as any);
   const hasSubtopics = totalSubtopics > 0;
 
 
@@ -195,7 +218,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   };
 
   return (
-    <div style={{ marginLeft: `${indent}px` }}>
+    <div style={{ paddingInlineStart: `${indent}px` }}>
       {/* Node Container */}
       <div className={`${colors.bg} ${colors.border} border-2 rounded-lg p-4 transition-all hover:shadow-md`}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -227,7 +250,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               <h4 className={`${colors.text} font-semibold text-base mb-1`}>
                 {topic.title}
                 {hasSubtopics && (
-                  <span className="ml-2 text-xs font-normal text-gray-500">
+                  <span className="ms-2 text-xs font-normal text-gray-500">
                     ({totalSubtopics} {t('topics_node_subtopic_suffix')})
                   </span>
                 )}
@@ -248,17 +271,49 @@ const TopicNode: React.FC<TopicNodeProps> = ({
 
                 {/* Audio Status */}
                 {hasSubtopics ? (
-                  <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                    {audioCount}/{totalSubtopics} Audio
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <i className="fas fa-volume-up text-xs"></i>
+                      {audioCount}/{totalSubtopics}
+                    </span>
+                    {listenedCount > 0 && (
+                      <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <i className="fas fa-check text-xs"></i>
+                        {listenedCount}
+                      </span>
+                    )}
+                    {inProgressCount > 0 && (
+                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <i className="fas fa-clock text-xs"></i>
+                        {inProgressCount}
+                      </span>
+                    )}
+                  </div>
                 ) : hasAudio ? (
                   <span
-                    className={`px-2 py-0.5 rounded-full ${isListened
+                    className={`px-2 py-0.5 rounded-full flex items-center gap-1 ${listeningStatus === 'completed'
                       ? 'bg-green-100 text-green-700'
-                      : 'bg-blue-100 text-blue-700'
+                      : listeningStatus === 'in_progress'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-blue-100 text-blue-700'
                       }`}
                   >
-                    {isListened ? 'Listened' : 'Ready to Listen'}
+                    {listeningStatus === 'completed' ? (
+                      <>
+                        <i className="fas fa-check-circle text-xs"></i>
+                        {t('topics_node_status_completed')}
+                      </>
+                    ) : listeningStatus === 'in_progress' ? (
+                      <>
+                        <i className="fas fa-clock text-xs"></i>
+                        {t('topics_node_progress_percentage', { percentage: Math.round(progressPercentage) })}
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-headphones text-xs"></i>
+                        {t('topics_node_status_ready')}
+                      </>
+                    )}
                   </span>
                 ) : null}
               </div>
@@ -268,57 +323,179 @@ const TopicNode: React.FC<TopicNodeProps> = ({
           {/* Sağ Taraf - Aksiyonlar (SIMPLIFIED) */}
           <div className="flex items-center space-x-2 w-full md:w-auto mt-2 md:mt-0 justify-end">
 
-            {/* Primary Action: Listen/Create */}
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isTopicAudioLoading) return;
-                if (canPlayFromTree && onOpenAudioModal) {
-                  onOpenAudioModal(topic.id);
-                  return;
-                }
-                handleCreateContent();
-              }}
-              size="sm"
-              className={`rounded-full px-6 font-medium ${canPlayFromTree ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
-              disabled={isTopicAudioLoading}
-            >
-              {isTopicAudioLoading ? (
-                <>
-                  <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                  {t('topics_node_button_audio_creating')}
-                </>
-              ) : canPlayFromTree ? (
-                <>
-                  <i className="fas fa-play mr-2"></i> {t('topics_node_button_listen')}
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-magic mr-2"></i> {t('topics_node_button_create_audio')}
-                </>
-              )}
-            </Button>
+            {/* Progress/Status Indicator - Sağ tarafta göster */}
+            {!hasSubtopics && hasAudio && listeningStatus && (
+              <div className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${listeningStatus === 'completed'
+                ? 'bg-green-100 text-green-700'
+                : listeningStatus === 'in_progress'
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-blue-100 text-blue-700'
+                }`}>
+                {listeningStatus === 'completed' ? (
+                  <>
+                    <i className="fas fa-check-circle"></i>
+                    <span>{t('topics_node_status_completed')}</span>
+                  </>
+                ) : listeningStatus === 'in_progress' ? (
+                  <>
+                    <div className="relative w-16 h-2 bg-amber-200 rounded-full overflow-hidden">
+                      <div
+                        className="absolute left-0 top-0 h-full bg-amber-500 rounded-full transition-all"
+                        style={{ width: `${Math.round(progressPercentage)}%` }}
+                      />
+                    </div>
+                    <span>{t('topics_node_progress_percentage_only', { percentage: Math.round(progressPercentage) })}</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-headphones"></i>
+                    <span>{t('topics_node_status_ready_simple')}</span>
+                  </>
+                )}
+              </div>
+            )}
 
-            {/* Secondary Actions: Dropdown */}
+            {/* Primary Action: Konunun durumuna göre farklı butonlar */}
+            {/* Ana konular (depth === 0) için ses oluşturulamaz */}
+            {depth === 0 ? (
+              // Ana konu: Alt Konuları Göster veya Alt Konu Ekle
+              hasSubtopics ? (
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(!isExpanded);
+                  }}
+                  size="sm"
+                  className="rounded-full px-6 font-medium bg-primary hover:bg-primary/90"
+                >
+                  <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} me-2`}></i>
+                  {t('topics_node_button_show_subtopics')}
+                </Button>
+              ) : (
+                // Alt konusu olmayan ana konu: Alt Konu Ekle butonları
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSubtopicModal(true);
+                    }}
+                    size="sm"
+                    className="rounded-full px-4 font-medium bg-primary hover:bg-primary/90"
+                    disabled={isGenerating}
+                  >
+                    <i className="fas fa-robot me-2"></i>
+                    {t('topics_node_button_suggest_subtopic')}
+                  </Button>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowManualModal(true);
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10"
+                  >
+                    <i className="fas fa-plus me-2"></i>
+                    {t('topics_node_button_add_manual')}
+                  </Button>
+                </div>
+              )
+            ) : (
+              // Alt konular (depth > 0): Her zaman Ses Oluştur/Dinle + Alt Konuları Göster (varsa)
+              <div className="flex items-center gap-2">
+                {/* Alt konularda HER ZAMAN Ses Oluştur/Dinle butonu görünür */}
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isTopicAudioLoading) return;
+                    if (canPlayFromTree && onOpenAudioModal) {
+                      onOpenAudioModal(topic.id);
+                      return;
+                    }
+                    handleCreateContent();
+                  }}
+                  size="sm"
+                  className={`rounded-full px-6 font-medium ${canPlayFromTree ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
+                  disabled={isTopicAudioLoading}
+                >
+                  {isTopicAudioLoading ? (
+                    <>
+                      <i className="fas fa-circle-notch fa-spin me-2"></i>
+                      {t('topics_node_button_audio_creating')}
+                    </>
+                  ) : canPlayFromTree ? (
+                    <>
+                      <i className="fas fa-play me-2"></i> {t('topics_node_button_listen')}
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-magic me-2"></i> {t('topics_node_button_create_audio')}
+                    </>
+                  )}
+                </Button>
+
+                {/* Alt konusu olan alt konular: Alt Konuları Göster butonu da göster */}
+                {hasSubtopics && (
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExpanded(!isExpanded);
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10"
+                  >
+                    <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} me-2`}></i>
+                    {t('topics_node_button_show_subtopics')}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Alt Konu Ekle Butonu - Sadece alt konusu olan ana konularda ve tüm alt konularda görünür */}
+            {/* Alt konusu olmayan ana konularda zaten ayrı butonlar var */}
+            {(depth > 0 || hasSubtopics) && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSubtopicModal(true);
+                }}
+                size="sm"
+                variant="outline"
+                className="rounded-full px-4 font-medium border-amber-400 bg-amber-100 text-amber-700 hover:bg-amber-200 hover:border-amber-500"
+                disabled={isGenerating}
+              >
+                <i className="fas fa-plus-circle me-2"></i>
+                {t('topics_node_button_suggest_subtopic')}
+              </Button>
+            )}
+
+            {/* Secondary Actions: Dropdown (Sil ve Manuel Ekle) - Daha kompakt tasarım */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-gray-300 bg-gray-100 hover:bg-gray-200 hover:border-gray-400"
+                >
                   <span className="sr-only">Open menu</span>
-                  <i className="fas fa-ellipsis-v text-gray-500"></i>
+                  <i className="fas fa-ellipsis-v text-gray-700"></i>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowSubtopicModal(true)} disabled={isGenerating}>
-                  <i className="fas fa-robot mr-2 w-4"></i>
-                  {t('topics_node_button_suggest_subtopic')}
+              <DropdownMenuContent align="end" className="min-w-[160px] p-1">
+                <DropdownMenuItem
+                  onClick={() => setShowManualModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-100 rounded-md"
+                >
+                  <i className="fas fa-plus text-primary"></i>
+                  <span>{t('topics_node_button_add_manual')}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowManualModal(true)}>
-                  <i className="fas fa-plus mr-2 w-4"></i>
-                  {t('topics_node_button_add_manual')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-red-600 focus:text-red-600">
-                  <i className="fas fa-trash mr-2 w-4"></i>
-                  {t('topics_node_button_delete')}
+                <DropdownMenuItem
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-red-50 rounded-md text-red-600"
+                >
+                  <i className="fas fa-trash"></i>
+                  <span>{t('topics_node_button_delete')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -362,11 +539,17 @@ const TopicNode: React.FC<TopicNodeProps> = ({
       />
 
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <i className="fas fa-exclamation-triangle mr-2 text-red-600"></i>
+                <i className="fas fa-exclamation-triangle me-2 text-red-600"></i>
                 {t('topics_node_delete_title')}
               </h3>
               <button
@@ -401,12 +584,12 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               >
                 {isDeleting ? (
                   <>
-                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    <i className="fas fa-spinner fa-spin me-2"></i>
                     {t('topics_node_delete_confirm_loading')}
                   </>
                 ) : (
                   <>
-                    <i className="fas fa-trash mr-2"></i>
+                    <i className="fas fa-trash me-2"></i>
                     {t('topics_node_delete_confirm')}
                   </>
                 )}

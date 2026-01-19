@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../lib/auth';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Package, Settings, History, Heart, Globe, HelpCircle, LogOut, Home } from 'lucide-react';
+import { User, Package, Settings, History, Heart, Globe, HelpCircle, LogOut, Home, ChevronDown } from 'lucide-react';
 import { useTranslation } from '../../lib/i18n';
 
 interface ProfileDropdownMenuProps {
@@ -148,7 +148,7 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
           </div>
         )}
         {showChevron && (
-          <i className="fas fa-chevron-down text-gray-400 text-xs ml-1"></i>
+          <ChevronDown className="w-4 h-4 text-gray-400 ml-1" />
         )}
       </button>
 
