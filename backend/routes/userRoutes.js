@@ -152,7 +152,7 @@ router.post('/user-book-favorites', authenticate, async (req, res) => {
       settingsObj = existing?.settings && typeof existing.settings === 'string'
         ? JSON.parse(existing.settings)
         : (existing?.settings || {});
-    } catch {}
+    } catch { }
 
     const sanitizedIds = ids
       .map(id => {
@@ -371,7 +371,7 @@ router.get('/user-favorites/details', authenticate, async (req, res) => {
           );
           if (isFinite(maxEnd) && maxEnd > 0) derivedDurationSec = Math.round(maxEnd);
         }
-      } catch (e) {}
+      } catch (e) { }
 
       return {
         id: item.id,
@@ -425,7 +425,7 @@ router.post('/user-favorites', authenticate, async (req, res) => {
     let settingsObj = {};
     try {
       settingsObj = existing?.settings && typeof existing.settings === 'string' ? JSON.parse(existing.settings) : (existing?.settings || {});
-    } catch {}
+    } catch { }
 
     const sanitizedIds = ids.filter(id => typeof id === 'string');
     const newSettings = { ...(settingsObj || {}), favorites: sanitizedIds };
@@ -454,7 +454,7 @@ router.post('/user-favorites', authenticate, async (req, res) => {
 router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     // Authorization check - user can only access their own data
     if (req.user.id !== userId) {
       return res.status(403).json({
@@ -462,15 +462,21 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         message: 'Access denied. You can only access your own audio history.'
       });
     }
-    
+
     const page = parseInt(req.query.page, 10) > 0 ? parseInt(req.query.page, 10) : 1;
     const limit = parseInt(req.query.limit, 10) > 0 ? parseInt(req.query.limit, 10) : 10;
     const rangeFrom = (page - 1) * limit;
     const rangeTo = rangeFrom + limit - 1;
-    logger.info(`Fetching audio history for user: ${userId} (page=${page}, limit=${limit})`);
-    
-    // Fetch from contenthistory table (limited list for display)
-    const { data: audioHistory, error } = await supabase
+
+    // NEW: Filter parameters
+    const searchQuery = req.query.search ? String(req.query.search).trim() : '';
+    const levelFilter = req.query.level && req.query.level !== 'all' ? String(req.query.level).toUpperCase() : '';
+    const inputTypeFilter = req.query.input_type && req.query.input_type !== 'all' ? String(req.query.input_type).toLowerCase() : '';
+
+    logger.info(`Fetching audio history for user: ${userId} (page=${page}, limit=${limit}, search="${searchQuery}", level="${levelFilter}", input_type="${inputTypeFilter}")`);
+
+    // Build query with filters
+    let query = supabase
       .from('contenthistory')
       .select(`
         id,
@@ -485,10 +491,32 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         timepoints
       `)
       .eq('user_id', userId)
-      .not('mp3_url', 'is', null)
+      .not('mp3_url', 'is', null);
+
+    // Apply search filter (search in input, translated_text, adapted_text)
+    if (searchQuery) {
+      query = query.or(`input.ilike.%${searchQuery}%,translated_text.ilike.%${searchQuery}%,adapted_text.ilike.%${searchQuery}%`);
+    }
+
+    // Apply level filter
+    if (levelFilter) {
+      query = query.eq('level', levelFilter);
+    }
+
+    // Apply input_type filter (handle 'book' vs 'books' variation)
+    if (inputTypeFilter) {
+      if (inputTypeFilter === 'book') {
+        query = query.or('input_type.eq.book,input_type.eq.books');
+      } else {
+        query = query.eq('input_type', inputTypeFilter);
+      }
+    }
+
+    // Apply ordering and pagination
+    const { data: audioHistory, error } = await query
       .order('created_at', { ascending: false })
       .range(rangeFrom, rangeTo);
-    
+
     if (error) {
       logger.error('Error fetching audio history:', error);
       return res.status(500).json({
@@ -496,13 +524,30 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         message: 'Error fetching audio history'
       });
     }
-    
-    // Also get total count of user's audio items (without limit)
-    const { count: totalCount, error: countError } = await supabase
+
+    // Also get total count of user's audio items with same filters (without limit)
+    let countQuery = supabase
       .from('contenthistory')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .not('mp3_url', 'is', null);
+
+    // Apply same filters to count query
+    if (searchQuery) {
+      countQuery = countQuery.or(`input.ilike.%${searchQuery}%,translated_text.ilike.%${searchQuery}%,adapted_text.ilike.%${searchQuery}%`);
+    }
+    if (levelFilter) {
+      countQuery = countQuery.eq('level', levelFilter);
+    }
+    if (inputTypeFilter) {
+      if (inputTypeFilter === 'book') {
+        countQuery = countQuery.or('input_type.eq.book,input_type.eq.books');
+      } else {
+        countQuery = countQuery.eq('input_type', inputTypeFilter);
+      }
+    }
+
+    const { count: totalCount, error: countError } = await countQuery;
     if (countError) {
       logger.warn('Count query error in audio-history:', countError);
     }
@@ -532,7 +577,7 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
     const transformedHistory = (audioHistory || []).map(item => {
       let words = [];
       let timepoints = [];
-      
+
       // Parse JSON strings if they exist
       try {
         if (item.words && typeof item.words === 'string') {
@@ -579,16 +624,16 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         timepoints: timepoints
       };
     });
-    
+
     logger.info(`Found ${transformedHistory.length} audio files (paged) for user: ${userId}, totalCount: ${totalCount ?? 'unknown'}, page=${page}, limit=${limit}`);
-    
+
     res.json({
       success: true,
       data: transformedHistory,
       total_count: typeof totalCount === 'number' ? totalCount : transformedHistory.length,
       total_duration_seconds: totalDurationSeconds
     });
-    
+
   } catch (error) {
     logger.error('Error in getUserAudioHistory:', error);
     res.status(500).json({
@@ -845,17 +890,17 @@ router.put('/users/:userId', authenticate, async (req, res) => {
     // Normalize incoming keys from different clients (mobile/web)
     const normalizedFullname = (
       typeof full_name === 'string' ? full_name :
-      typeof fullname === 'string' ? fullname :
-      typeof fullName === 'string' ? fullName :
-      typeof name === 'string' ? name :
-      undefined
+        typeof fullname === 'string' ? fullname :
+          typeof fullName === 'string' ? fullName :
+            typeof name === 'string' ? name :
+              undefined
     );
     const normalizedPhone = (
       typeof phonenumber === 'string' ? phonenumber :
-      typeof phoneNumber === 'string' ? phoneNumber :
-      typeof phone_number === 'string' ? phone_number :
-      typeof phone === 'string' ? phone :
-      undefined
+        typeof phoneNumber === 'string' ? phoneNumber :
+          typeof phone_number === 'string' ? phone_number :
+            typeof phone === 'string' ? phone :
+              undefined
     );
 
     // Authorization: user can only update their own profile
@@ -908,7 +953,7 @@ router.put('/users/:userId', authenticate, async (req, res) => {
     }
 
     // Log normalized payload for diagnostics (no secrets)
-    try { logger.info('[USER_UPDATE] userId:', userId, 'payload:', updatePayload); } catch {}
+    try { logger.info('[USER_UPDATE] userId:', userId, 'payload:', updatePayload); } catch { }
 
     const { error: updateErr } = await supabase
       .from('users')
@@ -968,7 +1013,7 @@ router.get('/reminder-settings', authenticate, async (req, res) => {
     logger.info(`🔍 [DEBUG] Getting reminder settings for user: ${req.user.id}`);
     logger.info(`🔍 [DEBUG] Supabase URL: ${process.env.SUPABASE_URL}`);
     logger.info(`🔍 [DEBUG] Environment: ${process.env.NODE_ENV}`);
-    
+
     const defaultSettings = {
       wordsPerDay: 5,
       startTime: '09:00',
@@ -993,8 +1038,8 @@ router.get('/reminder-settings', authenticate, async (req, res) => {
     let reminderSettings = defaultSettings;
     if (data?.reminder_settings) {
       try {
-        reminderSettings = typeof data.reminder_settings === 'string' 
-          ? JSON.parse(data.reminder_settings) 
+        reminderSettings = typeof data.reminder_settings === 'string'
+          ? JSON.parse(data.reminder_settings)
           : data.reminder_settings;
         logger.info('✅ Loaded settings from database:', reminderSettings);
       } catch (parseError) {
@@ -1004,7 +1049,7 @@ router.get('/reminder-settings', authenticate, async (req, res) => {
     } else {
       logger.info('✅ No saved settings found, using defaults');
     }
-    
+
     res.json({
       success: true,
       data: reminderSettings
@@ -1021,7 +1066,7 @@ router.get('/reminder-settings', authenticate, async (req, res) => {
 router.post('/reminder-settings', authenticate, async (req, res) => {
   try {
     logger.info(`Saving reminder settings for user: ${req.user.id}`, req.body);
-    
+
     const { wordsPerDay, startTime, endTime, isEnabled } = req.body;
 
     // Validate input

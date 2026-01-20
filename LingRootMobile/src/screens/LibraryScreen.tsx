@@ -186,8 +186,8 @@ const LibraryScreen: React.FC = () => {
     resolveNotificationAudio();
   }, [route, navigation]);
 
-  // Fetch audio history from API
-  const fetchAudioHistory = async (showLoading = true, nextPage?: number) => {
+  // Fetch audio history from API with search and filter parameters
+  const fetchAudioHistory = async (showLoading = true, nextPage?: number, resetList = false) => {
     if (!user?.id) {
       setLoading(false);
       setAudioTracks([]);
@@ -199,8 +199,16 @@ const LibraryScreen: React.FC = () => {
         setLoading(true);
       }
 
-      const currentPage = nextPage || 1;
-      const response = await apiService.getUserAudioHistory(user.id, currentPage, PAGE_SIZE);
+      const currentPage = resetList ? 1 : (nextPage || 1);
+      // Send search and filter parameters to backend
+      const response = await apiService.getUserAudioHistory(
+        user.id,
+        currentPage,
+        PAGE_SIZE,
+        searchText, // search parameter
+        selectedLevel, // level parameter
+        selectedType // input_type parameter
+      );
 
       if (response.success && response.data) {
 
@@ -486,37 +494,50 @@ const LibraryScreen: React.FC = () => {
     return colors[level];
   };
 
+  // Client-side filtering: Only filter for favorites since search/level/type are handled by backend
   const filteredTracks = audioTracks.filter((track) => {
-    const matchesSearch = track.title.toLowerCase().includes(searchText.toLowerCase());
-    const matchesLevel = selectedLevel === 'all' || track.level === selectedLevel;
+    // Only apply favorites filter client-side
     const matchesFav = !showFavoritesOnly || isFavorite(track.id);
-
-    let matchesType = true;
-    if (selectedType !== 'all') {
-      const type = (track.input_type || '').toLowerCase();
-      // "books" sometimes appears for book
-      if (selectedType === 'book') {
-        matchesType = type === 'book' || type === 'books';
-      } else {
-        matchesType = type === selectedType;
-      }
-    }
-
-    return matchesSearch && matchesLevel && matchesFav && matchesType;
+    return matchesFav;
   });
 
-  // Favorites görünümünde istemci tarafı sayfalamayı kaldırıyoruz.
-  // Böylece favorileriniz, daha önce sayfalamayı arttırmanıza gerek kalmadan
-  // elde mevcut olanların tamamı hemen listelenir.
-  const displayedTracks = showFavoritesOnly
-    ? filteredTracks
-    : filteredTracks.slice(0, page * PAGE_SIZE);
+  // For favorites view, show all matching tracks
+  // For normal view, backend already handles pagination
+  const displayedTracks = filteredTracks;
+
+  // When search text or filters change, fetch from backend with new parameters
+  // Using debounce for search to avoid too many API calls
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Reset pagination when filters or search change
+    // Reset pagination
     setPage(1);
+    pageRef.current = 1;
     setHasUserScrolled(false);
-  }, [searchText, selectedLevel, selectedType, showFavoritesOnly]);
+
+    // Clear previous debounce timer
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    // Debounce search (500ms), but filters trigger immediately
+    const debounceMs = searchText ? 500 : 0;
+
+    searchDebounceRef.current = setTimeout(() => {
+      // Fetch new data with current search/filter parameters
+      // resetList=true will reset to page 1 and clear existing data
+      if (!showFavoritesOnly) {
+        fetchAudioHistory(true, 1, true);
+      }
+    }, debounceMs);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, selectedLevel, selectedType]);
 
   // Favoriler görünümüne geçildiğinde, eksik favorileri arka planda hydrate et
   // ve sayfalamayı başlatmak için scroll gating'i aç.
@@ -676,20 +697,16 @@ const LibraryScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-          <Icon name="refresh" size={24} color={COLORS.primary} />
+        <Text style={styles.headerTitle}>{language === 'tr' ? 'Kütüphane' : 'Library'}</Text>
+        <TouchableOpacity
+          style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
+          onPress={handleToggleFavorites}
+        >
+          <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#FFFFFF' : '#FFFFFF'} />
+          <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
+            {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
+          </Text>
         </TouchableOpacity>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
-            onPress={handleToggleFavorites}
-          >
-            <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : COLORS.primary} />
-            <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
-              {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       <View style={styles.searchContainer}>
@@ -874,11 +891,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
     backgroundColor: 'transparent',
+    zIndex: 10,
+    elevation: 5,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
     color: COLORS.slate700,
+    letterSpacing: -0.3,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.slate800,
     letterSpacing: -0.3,
   },
   refreshButton: {
@@ -927,25 +952,29 @@ const styles = StyleSheet.create({
   favoritesToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: COLORS.surface,
-    borderWidth: 2,
-    borderColor: COLORS.brandTeal,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: COLORS.brandTeal, // Koyu teal arka plan
+    borderWidth: 0,
     borderRadius: 24,
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   favoritesToggleActive: {
-    borderColor: '#E91E63',
-    backgroundColor: '#FFF0F5',
+    backgroundColor: '#E91E63', // Pembe aktif arka plan
+    shadowColor: '#E91E63',
   },
   favoritesToggleText: {
     marginLeft: 6,
-    color: COLORS.brandTeal,
+    color: '#FFFFFF', // Beyaz yazı
     fontWeight: '700',
     fontSize: 13,
   },
   favoritesToggleTextActive: {
-    color: '#E91E63',
+    color: '#FFFFFF', // Aktif durumda da beyaz
   },
   searchContainer: {
     paddingHorizontal: 24,

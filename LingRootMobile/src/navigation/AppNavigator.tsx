@@ -237,7 +237,7 @@ const MainTabs = () => {
         component={LibraryScreen}
         options={{
           tabBarLabel: t('library.title'),
-          headerTitle: t('library.title')
+          headerShown: false,
         }}
       />
       <Tab.Screen

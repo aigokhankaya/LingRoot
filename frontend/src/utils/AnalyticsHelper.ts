@@ -1,7 +1,7 @@
 import { logEvent as firebaseLogEvent, setUserProperties as firebaseSetUserProperties, setUserId as firebaseSetUserId } from "firebase/analytics";
 import { analytics } from "../lib/firebase";
 
-const DEBUG_MODE = true; // Temporary force for debugging
+const DEBUG_MODE = process.env.NODE_ENV === 'development';
 
 export const AnalyticsHelper = {
     /**
