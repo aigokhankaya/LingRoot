@@ -680,12 +680,22 @@ export const apiService = {
     }
   },
 
-  // Kullanıcının audio geçmişini getirme
-  async getUserAudioHistory(userId: string, page?: number, limit?: number): Promise<APIResponse> {
+  // Kullanıcının audio geçmişini getirme (with optional search and filter parameters)
+  async getUserAudioHistory(
+    userId: string,
+    page?: number,
+    limit?: number,
+    search?: string,
+    level?: string,
+    inputType?: string
+  ): Promise<APIResponse> {
     try {
       const params = new URLSearchParams();
       if (page && page > 0) params.append('page', String(page));
       if (limit && limit > 0) params.append('limit', String(limit));
+      if (search && search.trim()) params.append('search', search.trim());
+      if (level && level !== 'all') params.append('level', level);
+      if (inputType && inputType !== 'all') params.append('input_type', inputType);
       const qs = params.toString();
       const url = qs ? `/api/users/${userId}/audio-history?${qs}` : `/api/users/${userId}/audio-history`;
       const response = await apiClient.get<APIResponse>(url);

@@ -1621,84 +1621,144 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               }}
               style={[
                 styles.podcastDialogueRow,
-                isRight ? styles.podcastDialogueRowRight : styles.podcastDialogueRowLeft,
+                hasOriginal && styles.podcastDialogueRowWithOriginal,
               ]}
             >
-              <View style={[styles.podcastBubbleGroup, isRight ? styles.podcastBubbleGroupRight : styles.podcastBubbleGroupLeft]}>
-                {/* Speaker Avatar */}
-                <View style={styles.podcastSpeakerAvatar}>
-                  <Text style={styles.podcastSpeakerAvatarText}>
-                    {isRight ? 'G' : 'H'}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.podcastBubble,
-                    hasOriginal && styles.podcastBubbleCompact,
-                    isRight ? styles.podcastBubbleRight : styles.podcastBubbleLeft,
-                    isActive && styles.podcastBubbleActive,
-                    isActive && (isRight ? styles.podcastBubbleActiveRight : styles.podcastBubbleActiveLeft),
-                  ]}
-                >
-                  <Text style={[
-                    styles.podcastSpeakerLabel,
-                    isRight && styles.podcastSpeakerLabelRight,
-                    isActive && { color: 'rgba(255,255,255,0.8)' }
-                  ]}>
-                    {speakerLabel}
-                  </Text>
-                  <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
-                    <Text
+              {/* Left side: Speaker A (HOST) content or Speaker B (GUEST) original */}
+              <View style={[styles.podcastBubbleColumn, styles.podcastBubbleColumnLeft]}>
+                {!isRight ? (
+                  // HOST: Ana diyalog solda
+                  <View style={styles.podcastBubbleWithAvatar}>
+                    <View style={styles.podcastSpeakerAvatar}>
+                      <Text style={styles.podcastSpeakerAvatarText}>H</Text>
+                    </View>
+                    <View
                       style={[
-                        styles.podcastBubbleText,
-                        isRight && styles.podcastBubbleTextRight,
-                        isActive && styles.podcastBubbleTextActive,
+                        styles.podcastBubble,
+                        styles.podcastBubbleLeft,
+                        isActive && styles.podcastBubbleActive,
+                        isActive && styles.podcastBubbleActiveLeft,
                       ]}
                     >
-                      {segment.content
-                        .split(/\s+/)
-                        .filter(word => word.length > 0)
-                        .map((word, wordIndex, arr) => {
-                          const range = dialogueLineRanges.find(r => r.lineIndex === index);
-                          let globalIndex = range ? range.startIndex + wordIndex : -1;
-                          if (globalIndex < 0 || globalIndex >= wordsArray.length) {
-                            globalIndex = wordIndex;
-                          }
-                          return (
-                            <Text
-                              key={`${index}-${wordIndex}`}
-                              onLongPress={() => handleWordLongPress(word, globalIndex)}
-                            >
-                              {word}
-                              {wordIndex < arr.length - 1 ? ' ' : ''}
-                            </Text>
-                          );
-                        })}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {hasOriginal && (
-                <View
-                  style={[
-                    styles.podcastBubble,
-                    styles.podcastBubbleCompact,
-                    styles.podcastBubbleOriginal,
-                    isRight ? styles.podcastBubbleOriginalRight : styles.podcastBubbleOriginalLeft,
-                  ]}
-                >
-                  <Text
+                      <Text style={[
+                        styles.podcastSpeakerLabel,
+                        isActive && { color: 'rgba(255,255,255,0.8)' }
+                      ]}>
+                        {speakerLabel}
+                      </Text>
+                      <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
+                        <Text
+                          style={[
+                            styles.podcastBubbleText,
+                            isActive && styles.podcastBubbleTextActive,
+                          ]}
+                        >
+                          {segment.content
+                            .split(/\s+/)
+                            .filter(word => word.length > 0)
+                            .map((word, wordIndex, arr) => {
+                              const range = dialogueLineRanges.find(r => r.lineIndex === index);
+                              let globalIndex = range ? range.startIndex + wordIndex : -1;
+                              if (globalIndex < 0 || globalIndex >= wordsArray.length) {
+                                globalIndex = wordIndex;
+                              }
+                              return (
+                                <Text
+                                  key={`${index}-${wordIndex}`}
+                                  onLongPress={() => handleWordLongPress(word, globalIndex)}
+                                >
+                                  {word}
+                                  {wordIndex < arr.length - 1 ? ' ' : ''}
+                                </Text>
+                              );
+                            })}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : hasOriginal ? (
+                  // GUEST: Orijinal metin solda (sarı balon)
+                  <View
                     style={[
-                      styles.podcastBubbleOriginalText,
-                      isRight && styles.podcastBubbleOriginalTextRight,
+                      styles.podcastBubble,
+                      styles.podcastBubbleOriginalInline,
                     ]}
                   >
-                    {originalContent}
-                  </Text>
-                </View>
-              )}
+                    <Text style={styles.podcastBubbleOriginalText}>
+                      {originalContent}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Right side: Speaker B (GUEST) content or Speaker A (HOST) original */}
+              <View style={[styles.podcastBubbleColumn, styles.podcastBubbleColumnRight]}>
+                {isRight ? (
+                  // GUEST: Ana diyalog sağda
+                  <View style={styles.podcastBubbleWithAvatarRight}>
+                    <View
+                      style={[
+                        styles.podcastBubble,
+                        styles.podcastBubbleRight,
+                        isActive && styles.podcastBubbleActive,
+                        isActive && styles.podcastBubbleActiveRight,
+                      ]}
+                    >
+                      <Text style={[
+                        styles.podcastSpeakerLabel,
+                        styles.podcastSpeakerLabelRight,
+                        isActive && { color: 'rgba(255,255,255,0.8)' }
+                      ]}>
+                        {speakerLabel}
+                      </Text>
+                      <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
+                        <Text
+                          style={[
+                            styles.podcastBubbleText,
+                            styles.podcastBubbleTextRight,
+                            isActive && styles.podcastBubbleTextActive,
+                          ]}
+                        >
+                          {segment.content
+                            .split(/\s+/)
+                            .filter(word => word.length > 0)
+                            .map((word, wordIndex, arr) => {
+                              const range = dialogueLineRanges.find(r => r.lineIndex === index);
+                              let globalIndex = range ? range.startIndex + wordIndex : -1;
+                              if (globalIndex < 0 || globalIndex >= wordsArray.length) {
+                                globalIndex = wordIndex;
+                              }
+                              return (
+                                <Text
+                                  key={`${index}-${wordIndex}`}
+                                  onLongPress={() => handleWordLongPress(word, globalIndex)}
+                                >
+                                  {word}
+                                  {wordIndex < arr.length - 1 ? ' ' : ''}
+                                </Text>
+                              );
+                            })}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.podcastSpeakerAvatar}>
+                      <Text style={styles.podcastSpeakerAvatarText}>G</Text>
+                    </View>
+                  </View>
+                ) : hasOriginal ? (
+                  // HOST: Orijinal metin sağda (sarı balon)
+                  <View
+                    style={[
+                      styles.podcastBubble,
+                      styles.podcastBubbleOriginalInline,
+                    ]}
+                  >
+                    <Text style={styles.podcastBubbleOriginalText}>
+                      {originalContent}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
           );
         })}
@@ -1735,13 +1795,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             onPress={() => {
               // Toggle showOriginal state
               setShowOriginal(prev => !prev);
-              // Also scroll to the original text page
-              if (!showOriginal) {
-                horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
-                setPageIndex(1);
-              } else {
-                horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
-                setPageIndex(0);
+              // For non-podcast content, also scroll to the original text page
+              // For podcast content, stay on the same page - originals are shown inline
+              if (!isPodcastTranscript) {
+                if (!showOriginal) {
+                  horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+                  setPageIndex(1);
+                } else {
+                  horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+                  setPageIndex(0);
+                }
               }
             }}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -1772,10 +1835,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </TouchableOpacity>
 
         {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
+        {/* For podcast content, horizontal scroll is disabled - original text shown inline in bubbles */}
         <ScrollView
           ref={horizontalScrollRef}
           horizontal
           pagingEnabled
+          scrollEnabled={!isPodcastTranscript}
           showsHorizontalScrollIndicator={false}
           directionalLockEnabled={true}
           scrollEventThrottle={16}
@@ -2687,12 +2752,36 @@ const styles = StyleSheet.create({
   podcastDialogueRow: {
     flexDirection: 'row',
     marginBottom: 16,
+    gap: 8,
+  },
+  podcastDialogueRowWithOriginal: {
+    // Orijinal metin gösterildiğinde satır genişliğini ayarla
   },
   podcastDialogueRowLeft: {
     justifyContent: 'flex-start',
   },
   podcastDialogueRowRight: {
     justifyContent: 'flex-end',
+  },
+  podcastBubbleColumn: {
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
+  podcastBubbleColumnLeft: {
+    alignItems: 'flex-start',
+  },
+  podcastBubbleColumnRight: {
+    alignItems: 'flex-end',
+  },
+  podcastBubbleWithAvatar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  podcastBubbleWithAvatarRight: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
   },
   podcastBubbleGroup: {
     flexDirection: 'row',
@@ -2750,6 +2839,13 @@ const styles = StyleSheet.create({
     marginRight: 32,
     borderTopRightRadius: 6,
     marginLeft: 0,
+  },
+  podcastBubbleOriginalInline: {
+    backgroundColor: 'rgba(255, 237, 213, 0.9)', // Sarı/bej arka plan (eski tasarımdaki gibi)
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+    maxWidth: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   podcastBubbleActive: {
     shadowColor: COLORS.brandIndigo,
