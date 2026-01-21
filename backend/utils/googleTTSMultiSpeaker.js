@@ -1600,10 +1600,19 @@ async function createGoogleTTSPodcast(options) {
           const vttContent = createWordLevelVTTFromTimings(mfaWordTimings);
           const vttFileName = `${fileName.replace(/\.mp3$/i, '')}.vtt`;
           vttUrl = await uploadPodcastVtt(vttContent, vttFileName);
+        } else {
+          logger.warn(`[GOOGLE-PODCAST] MFA returned empty or invalid timepoints: ${JSON.stringify(mfaWordTimings)}`);
         }
       } catch (mfaErr) {
-        logger.warn('[GOOGLE-PODCAST] MFA alignment failed, continuing without timepoints/vtt:', mfaErr.message);
+        logger.error('[GOOGLE-PODCAST] MFA alignment FAILED (caught exception):', {
+          message: mfaErr.message,
+          stack: mfaErr.stack,
+          code: mfaErr.code
+        });
+        // Do not throw, continue without alignment
       }
+    } else {
+      logger.info(`[GOOGLE-PODCAST] Skipping MFA alignment. Conditions: useMFA=${useMFAAlignment}, audioUrl=${!!audioUrl}, hasText=${!!(audioResult.dialogueText || audioResult.transcript)}`);
     }
 
     // Step 4: Estimate duration (roughly 150 words per minute)
@@ -1651,7 +1660,10 @@ async function createGoogleTTSPodcast(options) {
           input_type: 'podcast',
           created_at: new Date().toISOString(),
           words: Array.isArray(wordsForTiming) && wordsForTiming.length > 0 ? JSON.stringify(wordsForTiming) : null,
-          timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
+          timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : (function () {
+            logger.warn('[GOOGLE-PODCAST] Warning: Pre-insert check - timepoints is NULL or empty array');
+            return null;
+          })(),
           dialogue_segments: Array.isArray(dialogueSegments) && dialogueSegments.length > 0 ? JSON.stringify(dialogueSegments) : null,
           tts_provider: 'google-gemini',
           tts_voice_name: requestedModel,
