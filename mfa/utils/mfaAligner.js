@@ -323,11 +323,11 @@ class MFAAligner {
                 }
             });
 
-            // 5 min timeout
+            // 40 min timeout to handle very long processing
             setTimeout(() => {
                 child.kill();
                 reject(new Error('MFA Timeout'));
-            }, 300000);
+            }, 2400000);
         });
     }
 
@@ -567,6 +567,148 @@ class MFAAligner {
             if (corpusDir) await fs.rm(corpusDir, { recursive: true, force: true }).catch(() => { });
             if (outputDir) await fs.rm(outputDir, { recursive: true, force: true }).catch(() => { });
         }
+    }
+
+    /**
+     * Analyze word timings to detect speaker changes based on pauses
+     * Speaker changes typically happen after significant pauses (>0.3s)
+     * @param {Array} wordTimings - Array of {word, startTime, endTime} from MFA
+     * @param {Array} turns - Original speaker turns [{speaker, text}, ...]
+     * @returns {Object} - {corrections: [], correctedTurns: [], pauseAnalysis: []}
+     */
+    detectSpeakerChangesFromTimings(wordTimings, turns) {
+        if (!wordTimings || wordTimings.length === 0 || !turns || turns.length === 0) {
+            return { corrections: [], correctedTurns: turns || [], pauseAnalysis: [] };
+        }
+
+        const SPEAKER_CHANGE_PAUSE_THRESHOLD = 0.35; // 350ms pause indicates speaker change
+        const SHORT_PAUSE_THRESHOLD = 0.15; // 150ms pause within same speaker
+
+        // Analyze pauses between words
+        const pauseAnalysis = [];
+        for (let i = 1; i < wordTimings.length; i++) {
+            const prev = wordTimings[i - 1];
+            const curr = wordTimings[i];
+            const pauseDuration = curr.startTime - prev.endTime;
+
+            if (pauseDuration > SHORT_PAUSE_THRESHOLD) {
+                pauseAnalysis.push({
+                    afterWordIndex: i - 1,
+                    afterWord: prev.word,
+                    beforeWord: curr.word,
+                    pauseDuration: pauseDuration,
+                    likelySpeakerChange: pauseDuration >= SPEAKER_CHANGE_PAUSE_THRESHOLD,
+                    time: prev.endTime
+                });
+            }
+        }
+
+        logger.info(`[MFA-SPEAKER] Found ${pauseAnalysis.length} significant pauses, ${pauseAnalysis.filter(p => p.likelySpeakerChange).length} likely speaker changes`);
+
+        // Map word indices to turn indices
+        const turnWordRanges = [];
+        let globalWordIndex = 0;
+        for (let turnIdx = 0; turnIdx < turns.length; turnIdx++) {
+            const turn = turns[turnIdx];
+            const turnWords = (turn.text || '').split(/\s+/).filter(w => w.length > 0);
+            turnWordRanges.push({
+                turnIndex: turnIdx,
+                startWordIndex: globalWordIndex,
+                endWordIndex: globalWordIndex + turnWords.length - 1,
+                wordCount: turnWords.length,
+                originalSpeaker: turn.speaker
+            });
+            globalWordIndex += turnWords.length;
+        }
+
+        // Detect mismatches: if a significant pause occurs WITHIN a turn, it might indicate wrong speaker assignment
+        const corrections = [];
+        const correctedTurns = JSON.parse(JSON.stringify(turns));
+
+        for (const pause of pauseAnalysis) {
+            if (!pause.likelySpeakerChange) continue;
+
+            // Find which turn this pause occurs in
+            const turnRange = turnWordRanges.find(tr =>
+                pause.afterWordIndex >= tr.startWordIndex && pause.afterWordIndex < tr.endWordIndex
+            );
+
+            if (turnRange) {
+                // Pause within a turn - this might indicate the turn should be split or speaker changed
+                // For now, we flag it but don't auto-correct (splitting turns is complex)
+                logger.debug(`[MFA-SPEAKER] Significant pause (${pause.pauseDuration.toFixed(2)}s) detected WITHIN turn ${turnRange.turnIndex} after word "${pause.afterWord}"`);
+            }
+        }
+
+        // Check for consecutive same-speaker turns separated by short pauses (might need to keep them together)
+        // and consecutive different-speaker turns with no pause (might need to swap)
+        for (let i = 1; i < turns.length; i++) {
+            const prevTurn = correctedTurns[i - 1];
+            const currTurn = correctedTurns[i];
+            const prevRange = turnWordRanges[i - 1];
+            const currRange = turnWordRanges[i];
+
+            if (!prevRange || !currRange) continue;
+
+            // Find pause between these turns
+            const pauseBetween = pauseAnalysis.find(p =>
+                p.afterWordIndex === prevRange.endWordIndex
+            );
+
+            const hasSpeakerChangePause = pauseBetween && pauseBetween.likelySpeakerChange;
+            const sameSpeaker = prevTurn.speaker === currTurn.speaker;
+
+            // Case 1: Same speaker but significant pause - might need to swap one
+            if (sameSpeaker && hasSpeakerChangePause) {
+                // Check if current turn is short (likely a reaction that should be from other speaker)
+                const currWordCount = (currTurn.text || '').split(/\s+/).filter(Boolean).length;
+                if (currWordCount <= 5) {
+                    const suggestedSpeaker = currTurn.speaker === 'A' ? 'B' : 'A';
+                    corrections.push({
+                        turnIndex: i,
+                        originalSpeaker: currTurn.speaker,
+                        correctedSpeaker: suggestedSpeaker,
+                        reason: 'speaker_change_pause_detected',
+                        confidence: Math.min(0.95, 0.5 + pauseBetween.pauseDuration),
+                        pauseDuration: pauseBetween.pauseDuration
+                    });
+                    correctedTurns[i].speaker = suggestedSpeaker;
+                    logger.info(`[MFA-SPEAKER] Correction: Turn ${i} "${currTurn.text.substring(0, 30)}..." changed from ${currTurn.speaker} to ${suggestedSpeaker} (pause: ${pauseBetween.pauseDuration.toFixed(2)}s)`);
+                }
+            }
+
+            // Case 2: Different speaker but no pause - might be wrong assignment
+            if (!sameSpeaker && !hasSpeakerChangePause && pauseBetween) {
+                // Very short pause between different speakers is suspicious
+                if (pauseBetween.pauseDuration < 0.1) {
+                    // Check if current turn is very short (likely continuation)
+                    const currWordCount = (currTurn.text || '').split(/\s+/).filter(Boolean).length;
+                    if (currWordCount <= 3) {
+                        corrections.push({
+                            turnIndex: i,
+                            originalSpeaker: currTurn.speaker,
+                            correctedSpeaker: prevTurn.speaker,
+                            reason: 'no_pause_between_different_speakers',
+                            confidence: 0.7,
+                            pauseDuration: pauseBetween.pauseDuration
+                        });
+                        correctedTurns[i].speaker = prevTurn.speaker;
+                        logger.info(`[MFA-SPEAKER] Correction: Turn ${i} "${currTurn.text.substring(0, 30)}..." changed from ${currTurn.speaker} to ${prevTurn.speaker} (no pause: ${pauseBetween.pauseDuration.toFixed(2)}s)`);
+                    }
+                }
+            }
+        }
+
+        return {
+            corrections,
+            correctedTurns,
+            pauseAnalysis,
+            summary: {
+                totalTurns: turns.length,
+                totalCorrections: corrections.length,
+                significantPauses: pauseAnalysis.filter(p => p.likelySpeakerChange).length
+            }
+        };
     }
 }
 

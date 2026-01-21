@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   contentContainer: {
-    paddingTop: 8,
+    paddingTop: 70,
     paddingBottom: 120,
   },
   sectionTitle: {

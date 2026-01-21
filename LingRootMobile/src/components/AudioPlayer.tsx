@@ -158,6 +158,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const pauseFreezePositionMsRef = useRef<number | null>(null);
   const playbackRateRef = useRef(1);
   const lastAutoScrollTsRef = useRef(0);
+  const wasPlayingRef = useRef(false); // Track previous play state to prevent event spam
   const latestWordPositionRef = useRef<{ top: number; bottom: number; height: number } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [originalText, setOriginalText] = useState('');
@@ -511,17 +512,26 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }
 
           const currentScroll = scrollOffsetRef.current || 0;
+          const visibleTop = currentScroll;
           const visibleBottom = currentScroll + textViewportHeight;
-          const bottomTrigger = visibleBottom - 40;
+          const rowTop = y;
           const rowBottom = y + h;
 
-          if (rowBottom < bottomTrigger) {
+          // Check if row is fully visible
+          const topPadding = 40;
+          const bottomPadding = 40;
+          const isAboveViewport = rowTop < visibleTop + topPadding;
+          const isBelowViewport = rowBottom > visibleBottom - bottomPadding;
+
+          // If row is already visible, don't scroll
+          if (!isAboveViewport && !isBelowViewport) {
             return;
           }
 
           lastAutoScrollTsRef.current = now;
           const alignPadding = 16;
-          const desiredOffset = Math.max(0, y - alignPadding);
+          // Center the dialogue in viewport for better UX
+          const desiredOffset = Math.max(0, y - (textViewportHeight / 3));
           scrollViewRef.current?.scrollTo({ y: desiredOffset, animated: true });
           scrollOffsetRef.current = desiredOffset;
         },
@@ -717,16 +727,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (!pauseRequestedRef.current) {
         setPosition(status.positionMillis || 0);
 
-        // Log Play/Pause transitions
-        if (status.isPlaying !== isPlaying) {
-          if (status.isPlaying) {
-            AnalyticsHelper.logEvent('audio_play_start', {
-              content_id: track.id,
-              audio_url: track.url,
-              duration: duration / 1000 // seconds
-            });
-          }
+        // Log Play/Pause transitions - use ref to prevent spam
+        if (status.isPlaying && !wasPlayingRef.current) {
+          AnalyticsHelper.logEvent('audio_play_start', {
+            content_id: track.id,
+            audio_url: track.url,
+            duration: duration / 1000 // seconds
+          });
         }
+        wasPlayingRef.current = status.isPlaying;
 
         setIsPlaying(status.isPlaying);
         lastStatusPositionMsRef.current = status.positionMillis || 0;
@@ -1107,10 +1116,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const statusDelayed = await sound.getStatusAsync();
       if (statusDelayed.isLoaded) {
         const delayedPosition = statusDelayed.positionMillis;
-        console.log(`🔊 [AUDIO DELAYED] Position after 500ms: ${(delayedPosition / 1000).toFixed(2)}s (expected: ${(positionMs / 1000).toFixed(2)}s)`);
+        // If audio is playing, expect position to have advanced by ~500ms * playback rate
+        const expectedPositionAfterDelay = isPlaying
+          ? positionMs + (500 * (playbackRate || 1))
+          : positionMs;
+        const tolerance = 1500; // Allow 1.5s tolerance for streaming/buffering delays
 
-        if (Math.abs(delayedPosition - positionMs) > 500) {
-          console.error(`❌ [SEEK ERROR] Position mismatch after 500ms! Expected ${(positionMs / 1000).toFixed(2)}s but got ${(delayedPosition / 1000).toFixed(2)}s (diff: ${Math.abs(delayedPosition - positionMs)}ms)`);
+        console.log(`🔊 [AUDIO DELAYED] Position after 500ms: ${(delayedPosition / 1000).toFixed(2)}s (expected: ~${(expectedPositionAfterDelay / 1000).toFixed(2)}s)`);
+
+        if (Math.abs(delayedPosition - expectedPositionAfterDelay) > tolerance) {
+          console.warn(`⚠️ [SEEK WARNING] Position drift after 500ms: Expected ~${(expectedPositionAfterDelay / 1000).toFixed(2)}s but got ${(delayedPosition / 1000).toFixed(2)}s (diff: ${Math.abs(delayedPosition - expectedPositionAfterDelay).toFixed(0)}ms)`);
         }
       }
 
@@ -1121,7 +1136,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           setCurrentWordIndex(knownWordIndex);
           scrollToWord(knownWordIndex);
         } else {
-          updateWordHighlighting(positionMs / 1000);
+          // For podcast: directly update dialogue index during seek to avoid stale closure issues
+          if (dialogueLineRanges.length > 0) {
+            const foundRange = dialogueLineRanges.find(r => knownWordIndex >= r.startIndex && knownWordIndex <= r.endIndex);
+            const newDialogueIdx = foundRange ? foundRange.lineIndex : -1;
+            console.log(`🎯 [SEEK PODCAST] Setting dialogue index to ${newDialogueIdx} for word index ${knownWordIndex}`);
+            setCurrentDialogueIndex(newDialogueIdx);
+          }
         }
       } else {
         const currentTimeInSeconds = positionMs / 1000;
@@ -1136,7 +1157,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               setCurrentWordIndex(globalIndex);
               scrollToWord(globalIndex);
             } else {
-              updateWordHighlighting(currentTimeInSeconds);
+              // For podcast: directly update dialogue index during seek to avoid stale closure issues
+              if (dialogueLineRanges.length > 0) {
+                const foundRange = dialogueLineRanges.find(r => globalIndex >= r.startIndex && globalIndex <= r.endIndex);
+                const newDialogueIdx = foundRange ? foundRange.lineIndex : -1;
+                console.log(`🎯 [SEEK PODCAST] Setting dialogue index to ${newDialogueIdx} for word index ${globalIndex}`);
+                setCurrentDialogueIndex(newDialogueIdx);
+              }
             }
           } else {
             console.warn(`⚠️ [SEEK] No word found for time ${currentTimeInSeconds.toFixed(2)}s`);
@@ -1152,7 +1179,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     } catch (error) {
       console.error('Seek error:', error);
     }
-  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime, isPodcastTranscript, updateWordHighlighting]);
+  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime, isPodcastTranscript, dialogueLineRanges, playbackRate]);
 
   const handleSpeedChange = async () => {
     const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -1625,19 +1652,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               ]}
             >
               {/* Left side: Speaker A (HOST) content or Speaker B (GUEST) original */}
-              <View style={[styles.podcastBubbleColumn, styles.podcastBubbleColumnLeft]}>
+              <View style={[
+                styles.podcastBubbleColumn,
+                styles.podcastBubbleColumnLeft,
+                hasOriginal && (!isRight ? { flex: 5 } : { flex: 3 })
+              ]}>
                 {!isRight ? (
                   // HOST: Ana diyalog solda
                   <View style={styles.podcastBubbleWithAvatar}>
-                    <View style={styles.podcastSpeakerAvatar}>
-                      <Text style={styles.podcastSpeakerAvatarText}>H</Text>
-                    </View>
+
                     <View
                       style={[
                         styles.podcastBubble,
                         styles.podcastBubbleLeft,
                         isActive && styles.podcastBubbleActive,
                         isActive && styles.podcastBubbleActiveLeft,
+                        hasOriginal && { maxWidth: '100%' }
                       ]}
                     >
                       <Text style={[
@@ -1682,6 +1712,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     style={[
                       styles.podcastBubble,
                       styles.podcastBubbleOriginalInline,
+                      hasOriginal && { maxWidth: '100%' }
                     ]}
                   >
                     <Text style={styles.podcastBubbleOriginalText}>
@@ -1692,7 +1723,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               </View>
 
               {/* Right side: Speaker B (GUEST) content or Speaker A (HOST) original */}
-              <View style={[styles.podcastBubbleColumn, styles.podcastBubbleColumnRight]}>
+              <View style={[
+                styles.podcastBubbleColumn,
+                styles.podcastBubbleColumnRight,
+                hasOriginal && (isRight ? { flex: 5 } : { flex: 3 })
+              ]}>
                 {isRight ? (
                   // GUEST: Ana diyalog sağda
                   <View style={styles.podcastBubbleWithAvatarRight}>
@@ -1702,6 +1737,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         styles.podcastBubbleRight,
                         isActive && styles.podcastBubbleActive,
                         isActive && styles.podcastBubbleActiveRight,
+                        hasOriginal && { maxWidth: '100%' }
                       ]}
                     >
                       <Text style={[
@@ -1741,9 +1777,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         </Text>
                       </TouchableOpacity>
                     </View>
-                    <View style={styles.podcastSpeakerAvatar}>
-                      <Text style={styles.podcastSpeakerAvatarText}>G</Text>
-                    </View>
+
                   </View>
                 ) : hasOriginal ? (
                   // HOST: Orijinal metin sağda (sarı balon)
@@ -1751,6 +1785,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     style={[
                       styles.podcastBubble,
                       styles.podcastBubbleOriginalInline,
+                      hasOriginal && { maxWidth: '100%' }
                     ]}
                   >
                     <Text style={styles.podcastBubbleOriginalText}>
@@ -2752,7 +2787,7 @@ const styles = StyleSheet.create({
   podcastDialogueRow: {
     flexDirection: 'row',
     marginBottom: 16,
-    gap: 8,
+    gap: 4,
   },
   podcastDialogueRowWithOriginal: {
     // Orijinal metin gösterildiğinde satır genişliğini ayarla

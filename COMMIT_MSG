@@ -1,0 +1,26 @@
+feat: Comprehensive update for Podcast UI, MFA stability, and Analytics
+
+## Detail Changes
+
+### Mobile UI & Podcast Experience
+- **AudioPlayer.tsx**: 
+  - Optimized bubble layout: increased width for English text, adjusted translated text width.
+  - Removed redundant avatar icons from dialogue bubbles.
+  - Adjusted spacing (gap) for better visual hierarchy.
+- **Screens**:
+  - Updates in `CreateScreen`, `HomeScreen`, `TopicTreeScreen`, and `VocabularyScreen` for consistent layout and interaction adjustments.
+
+### Backend & MFA Service
+- **MFA Aligner**:
+  - Refaced `mfaAligner.js` to correct module exports and improve instantiation.
+  - Enhanced error logging and timeout handling for remote MFA service calls.
+  - Improved resilience for large audio file processing.
+  - `googleTTSMultiSpeaker.js`: Fixes for script synchronization during generation.
+
+### Analytics Integration
+- **Tracking**:
+  - Added `frontend/src/components/AnalyticsTracker.tsx` to handle GA4 Custom Dimensions.
+  - Integrated tracking for `content_id`, `voice_name`, `cefr_level` and other key metrics.
+  
+### General
+- **API**: Updated `api.ts` to support new frontend requirements and backend signatures.
