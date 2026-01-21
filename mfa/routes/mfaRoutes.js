@@ -42,6 +42,7 @@ const processQueue = () => {
             );
             job.status = 'completed';
             job.result = { timepoints: result, wordCount: result.length };
+            console.log(`[MFA-JOB] Job ${jobId} completed. Generated ${result.length} timepoints.`);
         } catch (err) {
             job.status = 'failed';
             job.error = err.message;

@@ -372,6 +372,7 @@ class MFAAligner {
                     }
                 }
             }
+            logger.info(`[MFA-SERVER] Parsed TextGrid: Found ${words.length} aligned words.`);
             return words;
         } catch (error) {
             logger.error('Failed to parse TextGrid:', error.message);
@@ -558,6 +559,7 @@ class MFAAligner {
 
             const textGridPath = path.join(outputDir, 'audio.TextGrid');
             const parsed = await this.parseTextGrid(textGridPath);
+            logger.info(`✅ [MFA-SERVER] Execution finished. Returning ${parsed.length} timepoints.`);
             return parsed;
 
         } catch (error) {
