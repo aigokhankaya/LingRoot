@@ -101,6 +101,121 @@ async function withRetry(fn, maxRetries = 3, baseDelayMs = 5000) {
   throw lastError;
 }
 
+/**
+ * Validate and correct speaker assignments in podcast script
+ * Fixes common LLM errors like short reactions assigned to wrong speaker
+ * @param {Array} turns - Array of {speaker, text} objects
+ * @returns {Object} - {turns: correctedTurns, corrections: correctionDetails}
+ */
+function validateAndCorrectSpeakerAssignments(turns) {
+  if (!turns || turns.length === 0) {
+    return { turns: [], corrections: [] };
+  }
+
+  const corrections = [];
+  const correctedTurns = JSON.parse(JSON.stringify(turns)); // Deep copy
+
+  // Pattern definitions for speaker assignment rules
+  const HOST_PATTERNS = [
+    /^(so|well|now|let'?s|shall we|can you|could you|what|why|how|when|where|who|have you|do you|did you|are you|is it|isn't it|don't you)/i,
+    /\?$/,  // Questions typically from Host
+    /^(welcome|today we|in this episode|let me introduce)/i,
+  ];
+
+  const GUEST_PATTERNS = [
+    /^(yes|yeah|exactly|absolutely|definitely|certainly|of course|sure|right|correct|that's right|indeed|precisely)/i,
+    /^(well,? actually|you see|the thing is|in fact|basically|essentially)/i,
+    /^(it'?s|there'?s|we|they|this|that|one|the|a |an )/i, // Explanations start
+  ];
+
+  const SHORT_REACTION_PATTERNS = [
+    /^(oh|ah|hmm|wow|really|yeah|yes|no|right|exactly|absolutely|interesting|fascinating|amazing|incredible|cool|great|nice|sure|okay|ok|mhm|uh-huh|I see|got it)[\s!?.]*$/i,
+  ];
+
+  for (let i = 0; i < correctedTurns.length; i++) {
+    const turn = correctedTurns[i];
+    const prevTurn = correctedTurns[i - 1];
+    const text = (turn.text || '').trim();
+    const isShortReaction = SHORT_REACTION_PATTERNS.some(p => p.test(text)) || text.length < 25;
+
+    // Rule 1: Short reactions should alternate speakers
+    if (isShortReaction && prevTurn && turn.speaker === prevTurn.speaker) {
+      const suggestedSpeaker = turn.speaker === 'A' ? 'B' : 'A';
+      corrections.push({
+        index: i,
+        original: turn.speaker,
+        corrected: suggestedSpeaker,
+        reason: 'short_reaction_same_speaker',
+        text: text.substring(0, 50)
+      });
+      turn.speaker = suggestedSpeaker;
+      continue;
+    }
+
+    // Rule 2: Questions (ending with ?) typically from Host (A)
+    if (text.endsWith('?') && turn.speaker !== 'A' && !isShortReaction) {
+      // Check if it's a clarifying question from Guest (shorter, starts with specific words)
+      const isGuestQuestion = /^(you mean|so you're saying|like|wait)/i.test(text);
+      if (!isGuestQuestion && text.length > 30) {
+        corrections.push({
+          index: i,
+          original: turn.speaker,
+          corrected: 'A',
+          reason: 'question_from_guest',
+          text: text.substring(0, 50)
+        });
+        turn.speaker = 'A';
+        continue;
+      }
+    }
+
+    // Rule 3: Long explanations (>100 chars) typically from Guest (B)
+    if (text.length > 100 && turn.speaker === 'A' && !text.endsWith('?')) {
+      const hasHostPatterns = HOST_PATTERNS.some(p => p.test(text));
+      const hasGuestPatterns = GUEST_PATTERNS.some(p => p.test(text));
+
+      if (hasGuestPatterns && !hasHostPatterns) {
+        corrections.push({
+          index: i,
+          original: turn.speaker,
+          corrected: 'B',
+          reason: 'long_explanation_from_host',
+          text: text.substring(0, 50)
+        });
+        turn.speaker = 'B';
+        continue;
+      }
+    }
+
+    // Rule 4: Consecutive same-speaker turns (except for continuation) - fix the second one
+    if (prevTurn && turn.speaker === prevTurn.speaker) {
+      const prevEndsWithComma = prevTurn.text.trim().endsWith(',');
+      const currentStartsLower = /^[a-z]/.test(text);
+      const isContinuation = prevEndsWithComma || currentStartsLower;
+
+      if (!isContinuation && !isShortReaction) {
+        const suggestedSpeaker = turn.speaker === 'A' ? 'B' : 'A';
+        corrections.push({
+          index: i,
+          original: turn.speaker,
+          corrected: suggestedSpeaker,
+          reason: 'consecutive_same_speaker',
+          text: text.substring(0, 50)
+        });
+        turn.speaker = suggestedSpeaker;
+      }
+    }
+  }
+
+  if (corrections.length > 0) {
+    logger.info(`[SPEAKER-VALIDATION] Made ${corrections.length} speaker corrections`);
+    corrections.forEach(c => {
+      logger.debug(`[SPEAKER-VALIDATION] Turn ${c.index}: ${c.original} → ${c.corrected} (${c.reason}): "${c.text}..."`);
+    });
+  }
+
+  return { turns: correctedTurns, corrections };
+}
 
 const createWordLevelVTTFromTimings = (wordTimings) => {
   let vttContent = 'WEBVTT\n\n';
@@ -428,8 +543,27 @@ OUTPUT FORMAT (JSON):
 
         if (segData.turns && segData.turns.length > 0) {
           allTurns.push(...segData.turns);
-          if (segData.turns_original) {
-            allTurnsOriginal.push(...segData.turns_original);
+
+          // CRITICAL FIX: Ensure turns_original stays strictly in sync with turns to prevent UI misalignment
+          // GPT sometimes generates different number of items in the arrays
+          const segmentOriginals = segData.turns_original || [];
+
+          if (segmentOriginals.length !== segData.turns.length) {
+            logger.warn(`[GOOGLE-PODCAST] Segment ${seg + 1} sync mismatch: ${segData.turns.length} turns vs ${segmentOriginals.length} translations. Auto-fixing to prevent offset.`);
+          }
+
+          // Push exactly as many original turns as English turns
+          for (let i = 0; i < segData.turns.length; i++) {
+            if (i < segmentOriginals.length) {
+              allTurnsOriginal.push(segmentOriginals[i]);
+            } else {
+              // Fallback to avoid index shift
+              // We use empty string or original text as placeholder
+              allTurnsOriginal.push({
+                speaker: segData.turns[i].speaker,
+                text: ""
+              });
+            }
           }
 
           // Keep last 2 turns as context for next segment
@@ -448,13 +582,27 @@ OUTPUT FORMAT (JSON):
 
       logger.info(`[GOOGLE-PODCAST] Generated total ${allTurns.length} turns for ${duration}-minute podcast`);
 
+      // Apply speaker assignment validation and correction for long podcasts
+      const { turns: correctedTurns, corrections } = validateAndCorrectSpeakerAssignments(allTurns);
+
+      // Also correct turns_original to match corrected turns
+      let correctedTurnsOriginal = allTurnsOriginal;
+      if (corrections.length > 0 && correctedTurnsOriginal.length === correctedTurns.length) {
+        correctedTurnsOriginal = correctedTurnsOriginal.map((turn, i) => ({
+          ...turn,
+          speaker: correctedTurns[i].speaker
+        }));
+        logger.info(`[GOOGLE-PODCAST] Applied ${corrections.length} speaker corrections to long podcast script`);
+      }
+
       return {
         title: topic,
-        turns: allTurns,
-        turns_original: allTurnsOriginal,
+        turns: correctedTurns,
+        turns_original: correctedTurnsOriginal,
         speakerAId: speakerAInfo.speakerId,
         speakerBId: speakerBInfo.speakerId,
         usage: { segmentCount },
+        speakerCorrections: corrections,
       };
     }
 
@@ -482,13 +630,27 @@ OUTPUT FORMAT (JSON):
 
     logger.info(`[GOOGLE-PODCAST] Generated script with ${scriptData.turns?.length || 0} turns`);
 
+    // Apply speaker assignment validation and correction
+    const { turns: correctedTurns, corrections } = validateAndCorrectSpeakerAssignments(scriptData.turns || []);
+
+    // Also correct turns_original to match corrected turns
+    let correctedTurnsOriginal = scriptData.turns_original || [];
+    if (corrections.length > 0 && correctedTurnsOriginal.length === correctedTurns.length) {
+      correctedTurnsOriginal = correctedTurnsOriginal.map((turn, i) => ({
+        ...turn,
+        speaker: correctedTurns[i].speaker
+      }));
+      logger.info(`[GOOGLE-PODCAST] Applied ${corrections.length} speaker corrections to script`);
+    }
+
     return {
       title: scriptData.title || topic,
-      turns: scriptData.turns || [],
-      turns_original: scriptData.turns_original || [],
+      turns: correctedTurns,
+      turns_original: correctedTurnsOriginal,
       speakerAId: speakerAInfo.speakerId,
       speakerBId: speakerBInfo.speakerId,
       usage: response.usage,
+      speakerCorrections: corrections,
     };
   } catch (error) {
     logger.error('[GOOGLE-PODCAST] Script generation failed:', error.message);
@@ -1270,6 +1432,47 @@ async function createGoogleTTSPodcast(options) {
             hasRealTiming: true,
             source: 'mfa',
           }));
+
+          // MFA-based speaker correction (Phase 2 of hybrid approach)
+          // Analyze pauses to detect and correct speaker assignment errors
+          try {
+            const mfaServiceUrl = process.env.MFA_SERVICE_URL || 'http://localhost:3002';
+            const speakerCorrectionResponse = await axios.post(
+              `${mfaServiceUrl}/mfa/correct-speakers`,
+              {
+                wordTimings: mfaWordTimings.map(t => ({
+                  word: t.word,
+                  startTime: t.startTime,
+                  endTime: t.endTime
+                })),
+                turns: turns
+              },
+              { timeout: 10000 }
+            );
+
+            if (speakerCorrectionResponse.data?.success && speakerCorrectionResponse.data?.corrections?.length > 0) {
+              const mfaCorrections = speakerCorrectionResponse.data.corrections;
+              logger.info(`[GOOGLE-PODCAST] MFA Speaker Correction: ${mfaCorrections.length} additional corrections from pause analysis`);
+
+              // Apply corrections to turns and turns_original
+              for (const correction of mfaCorrections) {
+                if (turns[correction.turnIndex]) {
+                  turns[correction.turnIndex].speaker = correction.correctedSpeaker;
+                }
+                if (turnsOriginal && turnsOriginal[correction.turnIndex]) {
+                  turnsOriginal[correction.turnIndex].speaker = correction.correctedSpeaker;
+                }
+              }
+
+              // Log summary
+              const summary = speakerCorrectionResponse.data.summary;
+              if (summary) {
+                logger.info(`[GOOGLE-PODCAST] MFA Pause Analysis: ${summary.significantPauses} significant pauses detected, ${summary.totalCorrections} corrections applied`);
+              }
+            }
+          } catch (speakerCorrectionErr) {
+            logger.warn(`[GOOGLE-PODCAST] MFA speaker correction skipped: ${speakerCorrectionErr.message}`);
+          }
 
           try {
             const normalizeToken = (t) => {

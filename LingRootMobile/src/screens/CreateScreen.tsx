@@ -1428,7 +1428,6 @@ const CreateScreen: React.FC = () => {
         keyboardDismissMode="on-drag"
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{t('create.title')}</Text>
           <Text style={styles.subtitle}>
             {t('create.subtitle')}
           </Text>
@@ -1490,7 +1489,7 @@ const CreateScreen: React.FC = () => {
                         </TouchableOpacity>
                       </View>
                       <ScrollView style={styles.voiceList} keyboardShouldPersistTaps="handled">
-                        {GEMINI_PODCAST_SPEAKERS.map((opt) => (
+                        {GEMINI_PODCAST_SPEAKERS.filter(s => s.label.includes('(F)')).map((opt) => (
                           <TouchableOpacity
                             key={`host_${opt.value}`}
                             style={[styles.voiceItem, podcastHostSpeakerId === opt.value && styles.voiceItemActive]}
@@ -1529,7 +1528,7 @@ const CreateScreen: React.FC = () => {
                         </TouchableOpacity>
                       </View>
                       <ScrollView style={styles.voiceList} keyboardShouldPersistTaps="handled">
-                        {GEMINI_PODCAST_SPEAKERS.map((opt) => (
+                        {GEMINI_PODCAST_SPEAKERS.filter(s => s.label.includes('(M)')).map((opt) => (
                           <TouchableOpacity
                             key={`guest_${opt.value}`}
                             style={[styles.voiceItem, podcastGuestSpeakerId === opt.value && styles.voiceItemActive]}
@@ -2382,6 +2381,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 24,
     paddingVertical: 20,
+    paddingTop: 60,
     backgroundColor: 'transparent',
   },
   title: {

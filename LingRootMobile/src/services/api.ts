@@ -605,7 +605,7 @@ export const apiService = {
       if (error.response && error.response.status === 404) {
         return [];
       }
-      console.error('Error fetching notifications:', error);
+      // Silent fail for polling - don't spam console with 401 errors
       return [];
     }
   },

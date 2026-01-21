@@ -5,6 +5,8 @@ import { AuthProvider } from '@/lib/auth';
 import { MembershipProvider } from '@/context/MembershipContext';
 import { RTLProvider } from '@/components/providers/RTLProvider';
 
+import { AnalyticsTracker } from '@/components/AnalyticsTracker';
+
 export default function ClientLayout({
   children,
 }: {
@@ -12,6 +14,7 @@ export default function ClientLayout({
 }) {
   return (
     <AuthProvider>
+      <AnalyticsTracker />
       <MembershipProvider>
         <RTLProvider>
           {children}

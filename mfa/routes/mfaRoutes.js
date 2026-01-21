@@ -151,4 +151,46 @@ router.get('/status', async (req, res) => {
     });
 });
 
+/**
+ * Speaker Correction Endpoint
+ * Analyzes MFA word timings to detect and correct speaker assignment errors
+ * POST /correct-speakers
+ * Body: { wordTimings: [...], turns: [...] }
+ */
+router.post('/correct-speakers', async (req, res) => {
+    try {
+        const { wordTimings, turns } = req.body;
+
+        if (!wordTimings || !Array.isArray(wordTimings)) {
+            return res.status(400).json({
+                success: false,
+                error: 'wordTimings array is required'
+            });
+        }
+
+        if (!turns || !Array.isArray(turns)) {
+            return res.status(400).json({
+                success: false,
+                error: 'turns array is required'
+            });
+        }
+
+        console.log(`[MFA-SPEAKER] Analyzing ${wordTimings.length} words across ${turns.length} turns`);
+
+        const result = mfaAligner.detectSpeakerChangesFromTimings(wordTimings, turns);
+
+        res.json({
+            success: true,
+            ...result
+        });
+
+    } catch (err) {
+        console.error('[MFA-SPEAKER] Error:', err.message);
+        res.status(500).json({
+            success: false,
+            error: err.message
+        });
+    }
+});
+
 module.exports = router;
