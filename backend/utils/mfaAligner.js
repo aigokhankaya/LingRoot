@@ -148,10 +148,17 @@ class MFAAligner {
 
       if (response.data && response.data.success) {
         this.recordRemoteMFASuccess();
-        logger.info(`✅ Remote MFA success: ${response.data.wordCount} words aligned`);
+        const count = Array.isArray(response.data.timepoints) ? response.data.timepoints.length : 0;
+        logger.info(`✅ Remote MFA success: ${response.data.wordCount} words aligned, ${count} timepoints received`);
+
+        if (count === 0) {
+          logger.warn(`⚠️ Remote MFA returned success but 0 timepoints (Alignment might have been empty)`);
+        }
         return response.data.timepoints;
       } else {
-        throw new Error(response.data?.error || 'Unknown remote MFA error');
+        const errorMsg = response.data?.error || 'Unknown remote MFA error';
+        logger.warn(`⚠️ Remote MFA returned success=false: ${errorMsg}`);
+        throw new Error(errorMsg);
       }
 
     } catch (error) {
