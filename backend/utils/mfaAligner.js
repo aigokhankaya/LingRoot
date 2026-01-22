@@ -137,29 +137,68 @@ class MFAAligner {
         'x-mfa-debug-id': debug ? (typeof debug === 'string' ? debug : debug.id) : ''
       };
 
-      // Call "align" (sync) or "align-async"
-      // Using /align (sync) for simplicity, assuming service has long timeout
-      const response = await axios.post(`${this.serviceUrl}/api/mfa/align`, formData, {
+      // Call "align-async" to avoid timeouts (524 error)
+      logger.info(`🚀 Starting Async MFA Job at ${this.serviceUrl}/api/mfa/align-async`);
+
+      const startResponse = await axios.post(`${this.serviceUrl}/api/mfa/align-async`, formData, {
         headers,
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
-        timeout: 2400000 // 40 minutes client timeout
+        timeout: 30000 // 30s timeout just for submission
       });
 
-      if (response.data && response.data.success) {
-        this.recordRemoteMFASuccess();
-        const count = Array.isArray(response.data.timepoints) ? response.data.timepoints.length : 0;
-        logger.info(`✅ Remote MFA success: ${response.data.wordCount} words aligned, ${count} timepoints received`);
-
-        if (count === 0) {
-          logger.warn(`⚠️ Remote MFA returned success but 0 timepoints (Alignment might have been empty)`);
-        }
-        return response.data.timepoints;
-      } else {
-        const errorMsg = response.data?.error || 'Unknown remote MFA error';
-        logger.warn(`⚠️ Remote MFA returned success=false: ${errorMsg}`);
-        throw new Error(errorMsg);
+      if (!startResponse.data || !startResponse.data.success || !startResponse.data.jobId) {
+        throw new Error(startResponse.data?.error || 'Failed to start async MFA job');
       }
+
+      const jobId = startResponse.data.jobId;
+      logger.info(`⏳ MFA Job Started: ${jobId}. Waiting for completion...`);
+
+      // Poll for result
+      const POLLING_INTERVAL = 5000; // 5s
+      const MAX_WAIT_TIME = 25 * 60 * 1000; // 25 min
+      const startTime = Date.now();
+
+      while (Date.now() - startTime < MAX_WAIT_TIME) {
+        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+
+        try {
+          const statusUrl = `${this.serviceUrl}/api/mfa/job/${jobId}`;
+          const statusResponse = await axios.get(statusUrl, { timeout: 5000 });
+          const jobData = statusResponse.data?.job;
+
+          if (statusResponse.data?.success && jobData) {
+            if (jobData.status === 'completed') {
+              this.recordRemoteMFASuccess();
+              const words = jobData.result?.timepoints || [];
+              // Log details for debugging
+              const count = Array.isArray(words) ? words.length : 0;
+              logger.info(`✅ Async MFA Completed: ${count} words aligned (Job: ${jobId})`);
+
+              if (count === 0) {
+                logger.warn(`⚠️ MFA Job completed but returned 0 timepoints.`);
+              }
+              return words;
+            } else if (jobData.status === 'failed') {
+              throw new Error(jobData.error || 'Async MFA job returned failed status');
+            } else {
+              // pending or processing
+              // optionally log progress every ~30s
+              if (Math.round((Date.now() - startTime) / 1000) % 30 === 0) {
+                logger.info(`Still waiting for MFA Job ${jobId} (Status: ${jobData.status})...`);
+              }
+            }
+          }
+        } catch (pollErr) {
+          // If polling request fails (temporary network blip), just warn and continue waiting unless 404
+          if (pollErr.response && pollErr.response.status === 404) {
+            throw new Error(`MFA Job ${jobId} not found during polling`);
+          }
+          logger.warn(`⚠️ MFA Polling warning: ${pollErr.message}`);
+        }
+      }
+
+      throw new Error(`MFA Job ${jobId} timed out after ${MAX_WAIT_TIME / 1000}s polling`);
 
     } catch (error) {
       const msg = error.message || String(error);
