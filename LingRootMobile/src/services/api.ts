@@ -1162,6 +1162,42 @@ export const apiService = {
       return false;
     }
   },
+
+  // Favorites Management
+  async getUserFavorites(): Promise<string[]> {
+    try {
+      const response = await apiClient.get('/api/favorites');
+      if (response.data?.success && Array.isArray(response.data?.favorites)) {
+        return response.data.favorites.map((f: any) => String(f.item_id));
+      }
+      return [];
+    } catch (error) {
+      console.warn('Error fetching favorites:', error);
+      return [];
+    }
+  },
+
+  async toggleUserFavorite(itemId: string, itemType: string = 'content_item'): Promise<boolean> {
+    try {
+      const response = await apiClient.post('/api/favorites/toggle', {
+        itemType,
+        itemId
+      });
+      return response.data?.success || false;
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      return false;
+    }
+  },
+
+  async getUserFavoriteDetails(): Promise<any[]> {
+    return [];
+  },
+
+  async saveUserFavorites(ids: string[]): Promise<boolean> {
+    console.warn('saveUserFavorites is deprecated. Use toggleUserFavorite instead.');
+    return true;
+  }
 };
 
 // Vocabulary API functions
@@ -1405,8 +1441,6 @@ export const getDefaultPlanFeatures = (): UserPlanFeatures => {
   };
 };
 
-// ============================================
-// MFA API Functions (uses separate MFA backend)
 // ============================================
 
 export const mfaService = {

@@ -583,141 +583,138 @@ export default function VocabularyScreen({ navigation, route }: any) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loadingText}>{t('vocabulary.loading')}</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={loadVocabulary} style={styles.retryButton}>
-              <Text style={styles.retryButtonText}>{t('vocabulary.retry')}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            {/* İstatistikler */}
-            <View style={styles.statsContainer}>
-              <View style={styles.statsHeader}>
-                <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
-                <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
-                  <Ionicons name="add" size={24} color="#3B82F6" />
-                </TouchableOpacity>
+        <>
+          {/* İstatistikler */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statsHeader}>
+              <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
+              <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
+                <Ionicons name="add" size={24} color="#3B82F6" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>{stats.total}</Text>
+                <Text style={styles.statLabel}>{t('vocabulary.totalWords')}</Text>
               </View>
-              <View style={styles.statsGrid}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{stats.total}</Text>
-                  <Text style={styles.statLabel}>{t('vocabulary.totalWords')}</Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.learned}</Text>
-                  <Text style={styles.statLabel}>{t('vocabulary.learned')}</Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.notLearned}</Text>
-                  <Text style={styles.statLabel}>{t('vocabulary.notLearned')}</Text>
-                </View>
+              <View style={styles.statCard}>
+                <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.learned}</Text>
+                <Text style={styles.statLabel}>{t('vocabulary.learned')}</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.notLearned}</Text>
+                <Text style={styles.statLabel}>{t('vocabulary.notLearned')}</Text>
               </View>
             </View>
+          </View>
 
-            {/* Arama ve Filtreleme */}
-            <View style={styles.searchContainer}>
-              <View style={styles.searchInputContainer}>
-                <Ionicons name="search" size={20} color="#9CA3AF" />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder={language === 'tr' ? 'Kelime veya anlam ara...' : 'Search word or meaning...'}
-                  value={searchTerm}
-                  onChangeText={setSearchTerm}
-                />
-              </View>
-
-              {/* Status Filters - Row 1 */}
-              <View style={styles.filterRow}>
-                <TouchableOpacity
-                  style={[styles.filterButton, learnedFilter === 'all' && styles.statusFilterActive]}
-                  onPress={() => setLearnedFilter('all')}
-                >
-                  <Text style={[styles.filterText, learnedFilter === 'all' && styles.statusFilterActiveText]}>
-                    {language === 'tr' ? 'Tümü' : 'All'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.filterButton, learnedFilter === 'learned' && styles.statusFilterActive]}
-                  onPress={() => setLearnedFilter('learned')}
-                >
-                  <Text style={[styles.filterText, learnedFilter === 'learned' && styles.statusFilterActiveText]}>
-                    {language === 'tr' ? 'Öğrenildi' : 'Learned'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.filterButton, learnedFilter === 'unlearned' && styles.statusFilterActive]}
-                  onPress={() => setLearnedFilter('unlearned')}
-                >
-                  <Text style={[styles.filterText, learnedFilter === 'unlearned' && styles.statusFilterActiveText]}>
-                    {language === 'tr' ? 'Yeni' : 'New'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* CEFR Level Filters - Row 2 */}
-              <View style={[styles.filterRow, { marginTop: 8 }]}>
-                {Object.entries(wordLevels).map(([level, data]) => (
-                  <TouchableOpacity
-                    key={level}
-                    style={[styles.filterButton, activeLevel === level && styles.activeFilter]}
-                    onPress={() => setActiveLevel(activeLevel === level ? 'all' : level)}
-                  >
-                    <Text style={[styles.filterText, activeLevel === level && styles.activeFilterText]}>
-                      {level.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          {/* Arama ve Filtreleme */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#9CA3AF" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={language === 'tr' ? 'Kelime veya anlam ara...' : 'Search word or meaning...'}
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+              />
             </View>
 
-            {/* Kelime Listesi */}
-            <View style={styles.wordListContainer}>
-              <View style={styles.wordListHeader}>
-                <Text style={styles.sectionTitle}>
-                  {activeLevel === 'all' ? (language === 'tr' ? 'Tüm Kelimeler' : 'All Words') : wordLevels[activeLevel as keyof typeof wordLevels]?.title}
+            {/* Status Filters - Row 1 */}
+            <View style={styles.filterRow}>
+              <TouchableOpacity
+                style={[styles.filterButton, learnedFilter === 'all' && styles.statusFilterActive]}
+                onPress={() => setLearnedFilter('all')}
+              >
+                <Text style={[styles.filterText, learnedFilter === 'all' && styles.statusFilterActiveText]}>
+                  {language === 'tr' ? 'Tümü' : 'All'}
                 </Text>
-                <Text style={styles.wordCount}>{filteredWords.length} {language === 'tr' ? 'kelime' : 'words'}</Text>
-              </View>
-
-              {filteredWords.length > 0 ? (
-                <FlatList
-                  ref={flatListRef}
-                  data={filteredWords}
-                  renderItem={renderWord}
-                  keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-                  scrollEnabled={false}
-                />
-              ) : (
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="book-outline" size={48} color="#9CA3AF" />
-                  <Text style={styles.emptyTitle}>
-                    {vocabulary.length === 0
-                      ? (language === 'tr' ? 'Henüz kelime eklenmemiş' : 'No words added yet')
-                      : (language === 'tr' ? 'Sonuç bulunamadı' : 'No results found')
-                    }
-                  </Text>
-                  <Text style={styles.emptyText}>
-                    {vocabulary.length === 0
-                      ? (language === 'tr'
-                        ? 'Metin oynatıcısında kelimelere uzun basarak kelime ekleyebilirsiniz.'
-                        : 'You can add words by long-pressing on words in the text player.')
-                      : (language === 'tr'
-                        ? 'Arama kriterlerinize uygun kelime bulunamadı.'
-                        : 'No words found matching your search criteria.')
-                    }
-                  </Text>
-                </View>
-              )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterButton, learnedFilter === 'learned' && styles.statusFilterActive]}
+                onPress={() => setLearnedFilter('learned')}
+              >
+                <Text style={[styles.filterText, learnedFilter === 'learned' && styles.statusFilterActiveText]}>
+                  {language === 'tr' ? 'Öğrenildi' : 'Learned'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterButton, learnedFilter === 'unlearned' && styles.statusFilterActive]}
+                onPress={() => setLearnedFilter('unlearned')}
+              >
+                <Text style={[styles.filterText, learnedFilter === 'unlearned' && styles.statusFilterActiveText]}>
+                  {language === 'tr' ? 'Yeni' : 'New'}
+                </Text>
+              </TouchableOpacity>
             </View>
-          </>
-        )}
+
+            {/* CEFR Level Filters - Row 2 */}
+            <View style={[styles.filterRow, { marginTop: 8 }]}>
+              {Object.entries(wordLevels).map(([level, data]) => (
+                <TouchableOpacity
+                  key={level}
+                  style={[styles.filterButton, activeLevel === level && styles.activeFilter]}
+                  onPress={() => setActiveLevel(activeLevel === level ? 'all' : level)}
+                >
+                  <Text style={[styles.filterText, activeLevel === level && styles.activeFilterText]}>
+                    {level.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Kelime Listesi - Loading State handled locally */}
+          <View style={styles.wordListContainer}>
+            <View style={styles.wordListHeader}>
+              <Text style={styles.sectionTitle}>
+                {activeLevel === 'all' ? (language === 'tr' ? 'Tüm Kelimeler' : 'All Words') : wordLevels[activeLevel as keyof typeof wordLevels]?.title}
+              </Text>
+              <Text style={styles.wordCount}>{filteredWords.length} {language === 'tr' ? 'kelime' : 'words'}</Text>
+            </View>
+
+            {isLoading ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity onPress={loadVocabulary} style={styles.retryButton}>
+                  <Text style={styles.retryButtonText}>{t('vocabulary.retry')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : filteredWords.length > 0 ? (
+              <FlatList
+                ref={flatListRef}
+                data={filteredWords}
+                renderItem={renderWord}
+                keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                scrollEnabled={false}
+              />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="book-outline" size={48} color="#9CA3AF" />
+                <Text style={styles.emptyTitle}>
+                  {vocabulary.length === 0
+                    ? (language === 'tr' ? 'Henüz kelime eklenmemiş' : 'No words added yet')
+                    : (language === 'tr' ? 'Sonuç bulunamadı' : 'No results found')
+                  }
+                </Text>
+                <Text style={styles.emptyText}>
+                  {vocabulary.length === 0
+                    ? (language === 'tr'
+                      ? 'Metin oynatıcısında kelimelere uzun basarak kelime ekleyebilirsiniz.'
+                      : 'You can add words by long-pressing on words in the text player.')
+                    : (language === 'tr'
+                      ? 'Arama kriterlerinize uygun kelime bulunamadı.'
+                      : 'No words found matching your search criteria.')
+                  }
+                </Text>
+              </View>
+            )}
+          </View>
+        </>
       </ScrollView>
 
       {/* Kelime Ekleme Modal */}
