@@ -1254,27 +1254,18 @@ async function createGoogleTTSPodcast(options) {
       throw new Error('Failed to generate podcast script');
     }
 
-    const splitIntoSentences = (text) => {
-      const raw = typeof text === 'string' ? text : '';
-      const cleaned = raw.replace(/\s+/g, ' ').trim();
-      if (!cleaned) return [];
-      const matches = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
-      return (matches || []).map(s => s.trim()).filter(Boolean);
-    };
+    /* 
+    DISABLED SENTENCE SPLITTING TO FIX ALIGNMENT ISSUES
+    Splitting into sentences caused 'turns' (English) and 'turns_original' (Turkish) 
+    to have different lengths because translation sentence counts often differ from source.
+    We now keep the original turn-based structure (paragraph/block based) which guarantees 1:1 sync.
+    */
 
-    const sentenceTurns = (scriptResult.turns || []).flatMap(t => {
-      const speaker = t && typeof t === 'object' ? t.speaker : null;
-      const sentences = splitIntoSentences(t && typeof t === 'object' ? t.text : '');
-      return sentences.map(sentence => ({ speaker: speaker || 'A', text: sentence }));
-    });
+    // const splitIntoSentences = (text) => { ... }
+    // const sentenceTurns = ...
+    // const sentenceTurnsOriginal = ...
 
-    const sentenceTurnsOriginal = (scriptResult.turns_original || []).flatMap(t => {
-      const speaker = t && typeof t === 'object' ? t.speaker : null;
-      const sentences = splitIntoSentences(t && typeof t === 'object' ? t.text : '');
-      return sentences.map(sentence => ({ speaker: speaker || 'A', text: sentence }));
-    });
-
-    logger.info(`[GOOGLE-PODCAST] Script generated: ${scriptResult.turns.length} turns (sentenceTurns: ${sentenceTurns.length})`);
+    logger.info(`[GOOGLE-PODCAST] Script generated: ${scriptResult.turns.length} turns (Using turn-based sync)`);
 
     // Determine final speaker IDs (UI override > script-derived personalities > defaults)
     const isValidGeminiSpeaker = (id) => typeof id === 'string' && !!GEMINI_SPEAKERS[id];
@@ -1313,10 +1304,12 @@ async function createGoogleTTSPodcast(options) {
     // Step 2: Synthesize audio with Gemini-TTS
     const stylePrompt = STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat'];
 
-    const turnsForTts = sentenceTurns.length > 0 ? sentenceTurns : scriptResult.turns;
-    const turnsOriginalForSave = sentenceTurnsOriginal.length > 0
-      ? sentenceTurnsOriginal
-      : (Array.isArray(scriptResult.turns_original) && scriptResult.turns_original.length > 0 ? scriptResult.turns_original : null);
+    // CRITICAL FIX: Use original turns directly to maintain 1:1 mapping
+    const turnsForTts = scriptResult.turns;
+    const turnsOriginalForSave = (Array.isArray(scriptResult.turns_original) && scriptResult.turns_original.length > 0)
+      ? scriptResult.turns_original
+      : null;
+
 
     const audioResult = await synthesizeMultiSpeakerPodcast({
       turns: turnsForTts,
