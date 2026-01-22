@@ -16,6 +16,7 @@ import { getUnreadNotifications, markNotificationAsRead } from '../services/user
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
+import { logScreenView } from '../services/analytics';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -521,7 +522,25 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        setNavReady(true);
+        const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+        if (currentRouteName) {
+          logScreenView(currentRouteName, currentRouteName);
+        }
+      }}
+      onStateChange={async () => {
+        const previousRouteName = (global as any).__currentRouteName;
+        const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+
+        if (previousRouteName !== currentRouteName && currentRouteName) {
+          await logScreenView(currentRouteName, currentRouteName);
+        }
+        (global as any).__currentRouteName = currentRouteName;
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>

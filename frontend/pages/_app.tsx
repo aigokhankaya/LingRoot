@@ -7,8 +7,53 @@ import { MembershipProvider } from '../src/context/MembershipContext';
 import { AudioPlayerProvider } from '../src/context/AudioPlayerContext';
 import { GlobalAudioContainer } from '../src/components/AudioPlayer';
 import { CookieConsent } from '../src/components/CookieConsent';
+import { useRouter } from 'next/router';
+import Script from 'next/script';
+import * as gtag from '../src/lib/gtag';
 
 function MyApp({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+
+  // Route change tracking (PageView)
+  useEffect(() => {
+    const handleRouteChange = (url: string) => {
+      // Check if analytics consent is given
+      const stored = localStorage.getItem('lingroot_cookie_consent');
+      if (stored) {
+        try {
+          const prefs = JSON.parse(stored);
+          if (prefs.analytics) {
+            gtag.pageview(url);
+          }
+        } catch (e) { }
+      }
+    };
+
+    router.events.on('routeChangeComplete', handleRouteChange);
+    router.events.on('hashChangeComplete', handleRouteChange);
+
+    return () => {
+      router.events.off('routeChangeComplete', handleRouteChange);
+      router.events.off('hashChangeComplete', handleRouteChange);
+    };
+  }, [router.events]);
+
+  // Listen for consent updates (from CookieConsent component)
+  useEffect(() => {
+    const handleConsentUpdate = () => {
+      // Consent güncellendiğinde (ör: kullanıcı banner'dan kabul ettiğinde)
+      // o anki sayfa görüntülemesini gönderelim (ilk açılışta kaçmasın diye)
+      const stored = localStorage.getItem('lingroot_cookie_consent');
+      if (stored) {
+        const prefs = JSON.parse(stored);
+        if (prefs.analytics) {
+          gtag.pageview(window.location.pathname);
+        }
+      }
+    };
+    window.addEventListener('cookie-consent-updated', handleConsentUpdate);
+    return () => window.removeEventListener('cookie-consent-updated', handleConsentUpdate);
+  }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -47,6 +92,36 @@ function MyApp({ Component, pageProps }: AppProps) {
           </AudioPlayerProvider>
         </MembershipProvider>
       </AuthProvider>
+
+
+      {/* Google Analytics Script - Only loads if ID is present */}
+      {/* Not: Gerçek consent mode implementasyonunda script her zaman yüklenir ama
+          veriler 'denied' olarak gider. Basitlik için burada da yüklüyoruz,
+          ama event'leri sadece consent varsa gönderiyoruz. */}
+      {
+        process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <>
+            <Script
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+            />
+            <Script
+              id="google-analytics"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
+                  page_path: window.location.pathname,
+                });
+              `,
+              }}
+            />
+          </>
+        )
+      }
     </>
   );
 }

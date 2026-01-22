@@ -141,6 +141,11 @@ NO AGENTIC MODE: `task_boundary` tool'unu kullanma, artifact oluşturma, planlam
 NO BROWSER AUTOMATION: `browser_subagent` aracını kullanma. Tarayıcıda test gerekiyorsa kullanıcıdan manuel test yapmasını iste.
 DB OPERATIONS MANUEL: Supabase veritabanı işlemleri (tablo/kolon ekleme, güncelleme) ASLA otomatik yapılmaz ve Supabase’e doğrudan bağlanılmaz. AI sadece SQL migration dosyasını hazırlar ve kullanıcıya "Bu SQL'i Supabase SQL Editor'de çalıştırın" talimatı verir.
 AUTO-EXECUTE TERMINAL: Terminal komutları (npm, git, fs işlemleri) için kullanıcı onayı beklenmez. `SafeToAutoRun: true` parametresi varsayılan olarak kabul edilir. Sadece yıkıcı (silme, resetleme) işlemlerde onay istenir.
+DB SCHEMA SYNC: Her migration dosyası oluşturulduğunda veya veritabanı şemasında değişiklik yapıldığında (tablo oluşturma, kolon ekleme/çıkarma, FK ilişkileri), aşağıdaki dokümanlar MUTLAKA güncellenir:
+  - `docs/database/schema-overview.md` — Tablo listesi, ER diyagramı, kategori güncellemesi
+  - `docs/database/complete-column-reference.md` — Etkilenen tablonun tam kolon detayları (tip, nullable, default, PK/FK)
+  - Güncelleme formatı: Versiyon numarası artırılır, güncelleme tarihi yazılır
+  - Migration dosyası oluşturulduktan HEMEN SONRA bu dokümanlar güncellenir, ayrı bir adım olarak bırakılmaz
 DOCUMENT VERSIONING: Oluşturulan veya güncellenen her doküman dosyasında (*.md) başlık satırının hemen altında şu format kullanılır:
   ```
   > **Oluşturulma:** YYYY-MM-DD | **Güncelleme:** YYYY-MM-DD | **Versiyon:** X.Y

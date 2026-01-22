@@ -64,11 +64,18 @@ export const CookieConsent: React.FC = () => {
         };
         localStorage.setItem('lingroot_cookie_consent', JSON.stringify(consentData));
         setPrefs(newPrefs);
+
+        // Analytics Consent Logic
+        if (newPrefs.analytics) {
+            // Eğer analitik izni verildiyse sayfayı yenilemeden GA'yı aktif etmek için
+            // window.location.reload() yapılabilir veya gtag consent update gönderilebilir.
+            // Şimdilik _app.tsx'teki useEffect bu değişikliği algılamayacağı için
+            // en temiz yöntem sayfayı yenilemek veya event fırlatmak olabilir.
+            window.dispatchEvent(new Event('cookie-consent-updated'));
+        }
+
         setIsVisible(false);
         setShowSettings(false);
-
-        // Ensure necessary cookies are respected
-        // In a real implementation, you would trigger GTM updates here
     };
 
     const handleAcceptAll = () => {

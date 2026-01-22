@@ -1136,6 +1136,112 @@ class GamificationService {
         if (level <= 85) return 'C1';
         return 'C2';
     }
+
+    // ============================================
+    // SECTOR ACHIEVEMENTS (Sektör İngilizcesi)
+    // ============================================
+
+    /**
+     * Sektör achievement kontrolü
+     * @param {string} userId 
+     * @param {string} type - 'content' veya 'vocabulary'
+     * @param {number} totalCompleted - Toplam tamamlanan sayı
+     */
+    async checkSectorAchievements(userId, type, totalCompleted) {
+        const earned = [];
+
+        if (type === 'content') {
+            const contentMilestones = [1, 5, 10, 25, 50, 100];
+            const codeMap = {
+                1: 'SECTOR_FIRST_CONTENT',
+                5: 'SECTOR_5_CONTENTS',
+                10: 'SECTOR_10_CONTENTS',
+                25: 'SECTOR_25_CONTENTS',
+                50: 'SECTOR_50_CONTENTS',
+                100: 'SECTOR_100_CONTENTS'
+            };
+
+            for (const milestone of contentMilestones) {
+                if (totalCompleted >= milestone && codeMap[milestone]) {
+                    const achievement = await this.awardAchievement(userId, codeMap[milestone]);
+                    if (achievement) earned.push(achievement);
+                }
+            }
+        } else if (type === 'vocabulary') {
+            const vocabMilestones = [1, 10, 25, 50, 100, 250];
+            const codeMap = {
+                1: 'SECTOR_FIRST_VOCAB',
+                10: 'SECTOR_VOCAB_10',
+                25: 'SECTOR_VOCAB_25',
+                50: 'SECTOR_VOCAB_50',
+                100: 'SECTOR_VOCAB_100',
+                250: 'SECTOR_VOCAB_250'
+            };
+
+            for (const milestone of vocabMilestones) {
+                if (totalCompleted >= milestone && codeMap[milestone]) {
+                    const achievement = await this.awardAchievement(userId, codeMap[milestone]);
+                    if (achievement) earned.push(achievement);
+                }
+            }
+        }
+
+        // Multi-sector achievement kontrolü
+        try {
+            const sectorCountResult = await db.query(`
+                SELECT COUNT(DISTINCT sector_id) as sector_count
+                FROM user_sector_stats
+                WHERE user_id = $1 AND content_completed > 0
+            `, [userId]);
+
+            const sectorCount = parseInt(sectorCountResult.rows[0]?.sector_count || 0);
+
+            if (sectorCount >= 2) {
+                const achievement = await this.awardAchievement(userId, 'MULTI_SECTOR_2');
+                if (achievement) earned.push(achievement);
+            }
+            if (sectorCount >= 5) {
+                const achievement = await this.awardAchievement(userId, 'MULTI_SECTOR_5');
+                if (achievement) earned.push(achievement);
+            }
+        } catch (error) {
+            logger.warn('[Gamification] Multi-sector check failed:', error.message);
+        }
+
+        return earned;
+    }
+
+    /**
+     * Quiz achievement kontrolü
+     * @param {string} userId 
+     * @param {number} totalCompleted - Tamamlanan quiz sayısı
+     * @param {boolean} isPerfect - %100 mü?
+     */
+    async checkQuizAchievements(userId, totalCompleted, isPerfect = false) {
+        const earned = [];
+
+        // İlk quiz
+        if (totalCompleted >= 1) {
+            const achievement = await this.awardAchievement(userId, 'SECTOR_QUIZ_FIRST');
+            if (achievement) earned.push(achievement);
+        }
+
+        // 10 quiz
+        if (totalCompleted >= 10) {
+            const achievement = await this.awardAchievement(userId, 'SECTOR_QUIZ_10');
+            if (achievement) earned.push(achievement);
+        }
+
+        // Mükemmel skor
+        if (isPerfect) {
+            const achievement = await this.awardAchievement(userId, 'SECTOR_QUIZ_PERFECT');
+            if (achievement) earned.push(achievement);
+        }
+
+        return earned;
+    }
 }
 
 module.exports = new GamificationService();
+
+
