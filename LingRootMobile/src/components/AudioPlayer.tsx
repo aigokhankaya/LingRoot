@@ -880,26 +880,45 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!scrollViewRef.current || textViewportHeight <= 0) return;
 
     const currentScroll = scrollOffsetRef.current || 0;
-    const visibleBottom = currentScroll + textViewportHeight;
-    const alignPadding = 16; // Small offset so text isn't glued to the top
-    const bottomTrigger = visibleBottom - alignPadding;
+    const alignPadding = 16; // Margin from edges
 
-    if (position.bottom < bottomTrigger) {
-      return; // Highlight still comfortably inside viewport
-    }
+    // Define visible thresholds
+    const visibleTop = currentScroll + alignPadding;
+    const visibleBottom = currentScroll + textViewportHeight - alignPadding;
 
-    const desiredOffset = Math.max(0, position.top - alignPadding);
+    const isBelow = position.bottom > visibleBottom;
+    const isAbove = position.top < visibleTop;
 
-    // Avoid micro-adjustments that cause oscillation
-    if (Math.abs(desiredOffset - currentScroll) < 4) {
+    // If strictly inside the safe zone, do nothing
+    if (!isBelow && !isAbove) {
       return;
     }
 
     const now = Date.now();
+    // Throttle auto-scroll updates
     if (now - lastAutoScrollTsRef.current < 150) {
-      return; // Throttle auto-scroll updates
+      return;
     }
     lastAutoScrollTsRef.current = now;
+
+    let desiredOffset = currentScroll;
+
+    if (isAbove) {
+      // Scroll UP: Put the word at the top + padding
+      desiredOffset = Math.max(0, position.top - alignPadding);
+    } else if (isBelow) {
+      // Scroll DOWN: Put the word near the top (standard reading flow) 
+      // OR keep it at bottom? Usually moving it to top is better for continuous reading.
+      // Current implementation moved it to top: `position.top - alignPadding`.
+      // Let's stick to that for consistency, or maybe center it?
+      // Moving to top is simpler and matches existing logic.
+      desiredOffset = Math.max(0, position.top - alignPadding);
+    }
+
+    // Avoid micro-adjustments
+    if (Math.abs(desiredOffset - currentScroll) < 4) {
+      return;
+    }
 
     scrollViewRef.current.scrollTo({ y: desiredOffset, animated: true });
     scrollOffsetRef.current = desiredOffset;
