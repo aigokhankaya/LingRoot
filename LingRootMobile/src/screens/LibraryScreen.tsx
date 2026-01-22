@@ -313,11 +313,10 @@ const LibraryScreen: React.FC = () => {
     try {
       if (!user?.id) return;
       // pull from backend first
-      const remote = await apiService.getUserFavorites();
-      if (Array.isArray(remote) && remote.length > 0) {
-        const normalized = remote.map((x: any) => String(x));
-        setFavoriteIds(normalized);
-        await AsyncStorage.setItem(favoritesKey, JSON.stringify(normalized));
+      const remoteIds = await apiService.getUserFavorites();
+      if (Array.isArray(remoteIds) && remoteIds.length > 0) {
+        setFavoriteIds(remoteIds);
+        await AsyncStorage.setItem(favoritesKey, JSON.stringify(remoteIds));
         return;
       }
 
@@ -351,11 +350,27 @@ const LibraryScreen: React.FC = () => {
 
   const toggleFavorite = async (track: AudioTrack) => {
     const id = track.id;
-    const next = isFavorite(id)
+    const isCurrentlyFav = isFavorite(id);
+
+    // Optimistic UI update
+    const next = isCurrentlyFav
       ? favoriteIds.filter(fid => fid !== id)
       : [...favoriteIds, id];
     setFavoriteIds(next);
-    await saveFavorites(next);
+    await AsyncStorage.setItem(favoritesKey, JSON.stringify(next));
+
+    // Server update
+    try {
+      await apiService.toggleUserFavorite(id, 'content_item');
+    } catch (error) {
+      // Revert on error
+      console.error('Failed to toggle favorite on server');
+      const revert = isCurrentlyFav
+        ? [...favoriteIds, id] // add back
+        : favoriteIds.filter(fid => fid !== id); // remove again
+      setFavoriteIds(revert);
+      await AsyncStorage.setItem(favoritesKey, JSON.stringify(revert));
+    }
   };
 
   // Favoriler toggle'ı: Favoriler yüklenmemişse önce yükleyip sonra filtreyi aç
@@ -655,19 +670,8 @@ const LibraryScreen: React.FC = () => {
     );
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>
-            {language === 'tr' ? 'Ses kütüphanesi yükleniyor...' : 'Loading audio library...'}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Loading state handled inline now
+  // if (loading) { ... } removed to prevent full screen block
 
   // Not authenticated state
   if (!user?.id) {
@@ -805,7 +809,14 @@ const LibraryScreen: React.FC = () => {
         </View>
       </View>
 
-      {filteredTracks.length > 0 ? (
+      {loading && filteredTracks.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.loadingText}>
+            {language === 'tr' ? 'Yükleniyor...' : 'Loading...'}
+          </Text>
+        </View>
+      ) : filteredTracks.length > 0 ? (
         <FlatList
           data={displayedTracks}
           keyExtractor={(item) => item.id}
@@ -821,6 +832,13 @@ const LibraryScreen: React.FC = () => {
           initialNumToRender={PAGE_SIZE}
           windowSize={5}
           removeClippedSubviews
+          ListHeaderComponent={
+            loading ? (
+              <View style={{ paddingVertical: 10, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              </View>
+            ) : null
+          }
           ListFooterComponent={
             isLoadingMore ? (
               <View style={styles.footerLoadingContainer}>
