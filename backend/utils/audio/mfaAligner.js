@@ -4,7 +4,7 @@ const path = require('path');
 const os = require('os');
 const axios = require('axios');
 const FormData = require('form-data');
-const logger = require('./logger');
+const logger = require('../common/logger');
 
 /**
  * MFA Aligner Client
