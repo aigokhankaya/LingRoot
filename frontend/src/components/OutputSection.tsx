@@ -597,7 +597,7 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
                 // Dinleme tamamlandığında işaretle
                 if (audioResult.mp3_url) {
                   try {
-                    await markTopicAudioListened(audioResult.mp3_url);
+                    await markTopicAudioListened((audioResult as any).topic_id || audioResult.mp3_url, (audioResult as any).real_duration || 0);
                     console.log('✅ Topic audio marked as listened');
                   } catch (e) {
                     console.error('markTopicAudioListened error:', e);

@@ -143,7 +143,7 @@ const ResumeContentCard: React.FC<ResumeContentCardProps> = ({ onResumePlay }) =
                             <div className="relative w-10 h-10 shrink-0">
                                 <svg className="w-10 h-10 -rotate-90">
                                     <circle cx="20" cy="20" r="16" fill="none" stroke="#fde68a" strokeWidth="3" />
-                                    <circle cx="20" cy="20" r="16" fill="none" stroke="#f59e0b" strokeWidth="3" strokeDasharray={`${(item.progress_percentage / 100) * 100.5} 100.5`} strokeLinecap="round" />
+                                    <circle cx="20" cy="20" r="16" fill="none" stroke="#f59e0b" strokeWidth="3" strokeDasharray={`${((item.progress_percentage || 0) / 100) * 100.5} 100.5`} strokeLinecap="round" />
                                 </svg>
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <div className="w-6 h-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -166,7 +166,7 @@ const ResumeContentCard: React.FC<ResumeContentCardProps> = ({ onResumePlay }) =
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-slate-500">
-                                        {formatTime(item.last_position_seconds)} / {formatTime(item.total_duration_seconds || 0)}
+                                        {formatTime(item.last_position_seconds || 0)} / {formatTime(item.total_duration_seconds || 0)}
                                     </span>
                                     <div className="flex-1 h-1 bg-amber-100 rounded-full overflow-hidden max-w-[80px]">
                                         <div
@@ -179,7 +179,7 @@ const ResumeContentCard: React.FC<ResumeContentCardProps> = ({ onResumePlay }) =
                                     </span>
                                 </div>
                                 <p className="text-[10px] text-slate-400">
-                                    {getRelativeTime(item.last_listened_at)}
+                                    {item.last_listened_at ? getRelativeTime(item.last_listened_at) : ''}
                                 </p>
                             </div>
 

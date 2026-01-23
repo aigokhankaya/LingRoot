@@ -170,8 +170,10 @@ const Dashboard = () => {
       if (isAuthenticated && user) {
         setStatsLoading(true);
         try {
-          const data = await getUserStats();
-          setStats(data);
+          const response = await getUserStats(user.id);
+          if (response.success && response.data) {
+            setStats(response.data);
+          }
         } catch (error) {
           console.error('Error fetching stats:', error);
         } finally {
@@ -282,17 +284,19 @@ const Dashboard = () => {
     setLoadingHistory(true);
     try {
       console.log('[DASHBOARD] fetchContentHistory başlatılıyor...');
-      const response = await getContentHistory();
-      console.log('[DASHBOARD] getContentHistory response:', response);
+      if (user) {
+        const response = await getContentHistory(user.id);
+        console.log('[DASHBOARD] getContentHistory response:', response);
 
-      if (response.success && response.data) {
-        if (Array.isArray(response.data)) {
-          setContentHistory(response.data);
+        if (response.success && response.data) {
+          if (Array.isArray(response.data)) {
+            setContentHistory(response.data);
+          } else {
+            setContentHistory([]);
+          }
         } else {
           setContentHistory([]);
         }
-      } else {
-        setContentHistory([]);
       }
     } catch (error) {
       console.error('[DASHBOARD] Content history yüklenirken hata oluştu:', error);
@@ -1329,14 +1333,14 @@ const Dashboard = () => {
                             >
                               <div className="flex items-center justify-between mb-1">
                                 <div className="text-sm font-semibold text-gray-800 truncate mr-2">
-                                  {section.section_index}. {section.section_title || t('docs_section_fallback_title')}
+                                  {section.section_index}. {section.title || t('docs_section_fallback_title')}
                                 </div>
                                 <span className="text-xs text-gray-500 whitespace-nowrap">
                                   {section.word_count || 0} {t('docs_words_suffix')}
                                 </span>
                               </div>
                               <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">
-                                {section.section_text}
+                                {section.content}
                               </p>
                             </div>
                           ))}

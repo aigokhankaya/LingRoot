@@ -459,8 +459,17 @@ class GamificationService {
             logger.warn('[Gamification] Could not get active quest:', error.message);
         }
 
-        // Quest tipine göre görev şablonları seç
-        const questTemplates = this.getQuestTemplatesForTaskType(parentTaskType);
+        // Kullanıcının primary sektörünü al
+        let userSector = null;
+        try {
+            const sectorService = require('./sectorService');
+            userSector = await sectorService.getUserPrimarySector(userId);
+        } catch (error) {
+            logger.warn('[Gamification] Could not get user sector:', error.message);
+        }
+
+        // Quest tipine göre görev şablonları seç (sektör dahil)
+        const questTemplates = this.getQuestTemplatesForTaskType(parentTaskType, userSector);
 
         // Dengeli görev seçimi (en az 2 tanesi parent quest ile ilgili)
         const selectedQuests = this.selectBalancedQuests(questTemplates, parentTaskType);
@@ -487,8 +496,10 @@ class GamificationService {
 
     /**
      * Task tipine göre görev şablonları
+     * @param {string} taskType - Parent quest task type
+     * @param {Object|null} userSector - Kullanıcının primary sektörü
      */
-    getQuestTemplatesForTaskType(taskType) {
+    getQuestTemplatesForTaskType(taskType, userSector = null) {
         // Temel görevler (her zaman dahil)
         const baseTemplates = [
             { type: 'listen_minutes', title: '10 dakika dinle', target: 10, xp: 50, relatedToParent: false },
@@ -523,8 +534,19 @@ class GamificationService {
             { type: 'create_content', title: 'Yeni içerik oluştur', target: 1, xp: 100, relatedToParent: false },
         ];
 
+        // Sektörel görevler (kullanıcının seçtiği sektör varsa)
+        const sectorTemplates = [];
+        if (userSector) {
+            const sectorName = userSector.name_tr || userSector.name || 'Sektör';
+            sectorTemplates.push(
+                { type: 'sector_vocab', title: `${sectorName} Terimleri (5 kelime)`, target: 5, xp: 45, relatedToParent: false, sectorId: userSector.id },
+                { type: 'sector_content', title: `${sectorName} Makalesi Oku`, target: 1, xp: 65, relatedToParent: false, sectorId: userSector.id },
+                { type: 'sector_quiz', title: `${sectorName} Quiz Tamamla`, target: 1, xp: 80, relatedToParent: false, sectorId: userSector.id }
+            );
+        }
+
         const specific = typeSpecificTemplates[taskType] || [];
-        return [...baseTemplates, ...specific, ...generalTemplates];
+        return [...baseTemplates, ...specific, ...sectorTemplates, ...generalTemplates];
     }
 
     /**

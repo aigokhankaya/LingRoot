@@ -216,6 +216,202 @@ const generateSectorAudio = async (req, res) => {
     }
 };
 
+// ============ PROGRESS TRACKING ============
+
+/**
+ * Get user's progress for a content
+ * GET /api/sectors/content/:contentId/progress
+ */
+const getContentProgress = async (req, res) => {
+    try {
+        const { contentId } = req.params;
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Giriş yapmanız gerekiyor'
+            });
+        }
+
+        const sectorProgressService = require('../services/sectorProgressService');
+        const progress = await sectorProgressService.getContentProgress(userId, contentId);
+
+        res.json({
+            success: true,
+            data: progress
+        });
+    } catch (error) {
+        logger.error('Error getting content progress:', error);
+        res.status(500).json({
+            success: false,
+            error: 'İlerleme bilgisi alınırken hata oluştu'
+        });
+    }
+};
+
+/**
+ * Update user's progress for a content
+ * POST /api/sectors/content/:contentId/progress
+ */
+const updateContentProgress = async (req, res) => {
+    try {
+        const { contentId } = req.params;
+        const userId = req.user?.id;
+        const { status, progress_percentage, last_position_seconds, rating } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Giriş yapmanız gerekiyor'
+            });
+        }
+
+        const sectorProgressService = require('../services/sectorProgressService');
+        const progress = await sectorProgressService.updateProgress(userId, contentId, {
+            status,
+            progress_percentage,
+            last_position_seconds,
+            rating
+        });
+
+        res.json({
+            success: true,
+            data: progress
+        });
+    } catch (error) {
+        logger.error('Error updating content progress:', error);
+        res.status(500).json({
+            success: false,
+            error: 'İlerleme güncellenirken hata oluştu'
+        });
+    }
+};
+
+/**
+ * Get user's progress for a sector
+ * GET /api/sectors/:id/progress
+ */
+const getSectorProgress = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Giriş yapmanız gerekiyor'
+            });
+        }
+
+        const sectorProgressService = require('../services/sectorProgressService');
+        const progress = await sectorProgressService.getSectorProgress(userId, parseInt(id));
+
+        res.json({
+            success: true,
+            data: progress
+        });
+    } catch (error) {
+        logger.error('Error getting sector progress:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Sektör ilerleme bilgisi alınırken hata oluştu'
+        });
+    }
+};
+
+/**
+ * Get user's overall stats
+ * GET /api/sectors/stats
+ */
+const getUserSectorStats = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Giriş yapmanız gerekiyor'
+            });
+        }
+
+        const sectorProgressService = require('../services/sectorProgressService');
+        const stats = await sectorProgressService.getUserStats(userId);
+
+        res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        logger.error('Error getting user sector stats:', error);
+        res.status(500).json({
+            success: false,
+            error: 'İstatistikler alınırken hata oluştu'
+        });
+    }
+};
+
+/**
+ * Sektör kelimesini SRS tekrar listesine ekle
+ * POST /api/sectors/vocabulary/:wordId/add-to-review
+ */
+const addVocabularyToReview = async (req, res) => {
+    try {
+        const { wordId } = req.params;
+        const userId = req.user?.id;
+        const { quality = 3 } = req.body; // Initial quality (0-5), default 3 = first time seen
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Giriş yapmanız gerekiyor'
+            });
+        }
+
+        // Get vocabulary details from sector_vocabulary
+        const { supabase } = require('../utils/storage/supabaseClient');
+        const { data: vocab, error: vocabError } = await supabase
+            .from('sector_vocabulary')
+            .select('word, definition_tr, definition_en, example_sentence, sector_id')
+            .eq('id', wordId)
+            .single();
+
+        if (vocabError || !vocab) {
+            return res.status(404).json({
+                success: false,
+                error: 'Kelime bulunamadı'
+            });
+        }
+
+        // Add to SRS using existing service
+        const srsService = require('../services/srsService');
+        const result = await srsService.reviewWord(
+            userId,
+            vocab.word,
+            vocab.definition_tr,
+            quality,
+            vocab.definition_en || vocab.definition_tr,
+            vocab.example_sentence,
+            `sector_${vocab.sector_id}`
+        );
+
+        res.json({
+            success: true,
+            data: {
+                word: vocab.word,
+                next_review: result.next_review_date,
+                message: 'Kelime tekrar listesine eklendi'
+            }
+        });
+    } catch (error) {
+        logger.error('Error adding vocabulary to review:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Kelime eklenirken hata oluştu'
+        });
+    }
+};
+
 module.exports = {
     getAllSectors,
     getSectorById,
@@ -223,6 +419,10 @@ module.exports = {
     getSectorVocabulary,
     getContentById,
     generateContentAudio,
-    generateSectorAudio
+    generateSectorAudio,
+    getContentProgress,
+    updateContentProgress,
+    getSectorProgress,
+    getUserSectorStats,
+    addVocabularyToReview
 };
-

@@ -9,3 +9,5 @@ export type { ContentItem } from './ContentCard';
 
 export { default as VocabularyCard, FlashcardCarousel } from './VocabularyCard';
 export type { VocabularyItem } from './VocabularyCard';
+
+export { ProgressCard, MiniProgress, CompletionBadge } from './ProgressCard';

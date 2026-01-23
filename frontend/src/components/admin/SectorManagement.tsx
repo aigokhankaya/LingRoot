@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import api from '../../services/api';
+import api from '../../lib/api';
 
 // Types
 interface Sector {
@@ -60,8 +60,8 @@ const TabButton: React.FC<{
     <button
         onClick={onClick}
         className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${active
-                ? 'bg-teal-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            ? 'bg-teal-600 text-white'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
     >
         {children}
@@ -495,10 +495,10 @@ const ContentManagementTab: React.FC<ContentManagementTabProps> = ({
                                 <td className="p-3 border">
                                     <span
                                         className={`px-2 py-1 rounded text-sm ${content.status === 'published'
-                                                ? 'bg-green-100 text-green-800'
-                                                : content.status === 'draft'
-                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                    : 'bg-gray-100 text-gray-800'
+                                            ? 'bg-green-100 text-green-800'
+                                            : content.status === 'draft'
+                                                ? 'bg-yellow-100 text-yellow-800'
+                                                : 'bg-gray-100 text-gray-800'
                                             }`}
                                     >
                                         {content.status}

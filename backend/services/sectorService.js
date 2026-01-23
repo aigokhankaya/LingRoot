@@ -9,6 +9,101 @@ const logger = require('../utils/common/logger');
 
 class SectorService {
     /**
+     * Add a sector to user's preferences
+     * @param {string} userId 
+     * @param {number} sectorId 
+     * @param {boolean} isPrimary 
+     */
+    async addUserSector(userId, sectorId, isPrimary = false) {
+        try {
+            // If setting as primary, first unset any existing primary
+            if (isPrimary) {
+                await supabase
+                    .from('user_sectors')
+                    .update({ is_primary: false })
+                    .eq('user_id', userId)
+                    .eq('is_primary', true);
+            }
+
+            const { data, error } = await supabase
+                .from('user_sectors')
+                .upsert({
+                    user_id: userId,
+                    sector_id: sectorId,
+                    is_primary: isPrimary,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id,sector_id' })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            logger.info(`[SectorService] User ${userId} added sector ${sectorId} (primary: ${isPrimary})`);
+            return data;
+        } catch (error) {
+            logger.error(`Error adding user sector:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get user's primary sector
+     * @param {string} userId 
+     */
+    async getUserPrimarySector(userId) {
+        try {
+            const { data, error } = await supabase
+                .from('user_sectors')
+                .select('*, sectors(*)')
+                .eq('user_id', userId)
+                .eq('is_primary', true)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { // Not found is ok
+                throw error;
+            }
+
+            if (data?.sectors) {
+                return {
+                    ...data.sectors,
+                    name: data.sectors.name_tr,
+                    description: data.sectors.description_tr
+                };
+            }
+            return null;
+        } catch (error) {
+            logger.error(`Error getting user primary sector:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Get all sectors for a user
+     * @param {string} userId 
+     */
+    async getUserSectors(userId) {
+        try {
+            const { data, error } = await supabase
+                .from('user_sectors')
+                .select('*, sectors(*)')
+                .eq('user_id', userId)
+                .order('is_primary', { ascending: false });
+
+            if (error) throw error;
+
+            return (data || []).map(us => ({
+                ...us.sectors,
+                name: us.sectors?.name_tr,
+                description: us.sectors?.description_tr,
+                is_primary: us.is_primary
+            }));
+        } catch (error) {
+            logger.error(`Error getting user sectors:`, error);
+            return [];
+        }
+    }
+
+    /**
      * Get all sectors
      */
     async getAllSectors(includeInactive = false) {

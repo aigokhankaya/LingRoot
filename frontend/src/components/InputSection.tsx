@@ -396,14 +396,14 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         console.log("YouTube transkript başarıyla alındı.");
 
         // Transkripti topic_instructions alanına yerleştir
-        setText(transcript);
+        setText(transcript.text || '');
         setLoadingTranscript(false);
 
         // Input değeri olarak YouTube linkini kullan
         const inputData: ProcessInputData = {
           type: 'youtube',
           input: youtubeLink,
-          text: transcript,
+          text: transcript.text || '',
           level,
           SesHızı: speakingRate,
           voice

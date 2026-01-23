@@ -183,8 +183,9 @@ Assessment criteria:
      * @param {string} targetCEFR 
      * @param {string} archetype 
      * @param {number} weeklyMinutes - Haftalık hedef dakika
+     * @param {number|null} sectorId - Kullanıcının seçtiği sektör (opsiyonel)
      */
-    async generateRoadmap(userId, currentCEFR, targetCEFR, archetype, weeklyMinutes = 120) {
+    async generateRoadmap(userId, currentCEFR, targetCEFR, archetype, weeklyMinutes = 120, sectorId = null) {
         try {
             // Seviye farkını hesapla
             const cefrLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -203,6 +204,26 @@ Assessment criteria:
             // AI ile detaylı plan oluştur
             const archetypeDetails = this.getArchetypeDetails(archetype);
 
+            // Sektör bilgisi varsa al
+            let sectorContext = '';
+            let sectorName = null;
+            if (sectorId) {
+                try {
+                    const sectorService = require('./sectorService');
+                    const sector = await sectorService.getSectorById(sectorId);
+                    if (sector) {
+                        sectorName = sector.name_en || sector.name_tr;
+                        sectorContext = `
+## Sector Context
+User's Primary Sector: ${sectorName}
+IMPORTANT: At least 40% of reading/listening content and vocabulary tasks MUST be related to ${sectorName}.
+Include sector-specific terminology and professional scenarios.`;
+                    }
+                } catch (err) {
+                    logger.warn('[Onboarding] Could not load sector info:', err.message);
+                }
+            }
+
             const planPrompt = this.roadmapPrompt || `
 Create a personalized English learning roadmap.
 
@@ -213,6 +234,7 @@ User Profile:
 - Focus Areas: ${archetypeDetails.focusAreas.join(', ')}
 - Weekly Study Time: ${weeklyMinutes} minutes
 - Estimated Duration: ${totalWeeks} weeks
+${sectorContext}
 
 Generate a JSON roadmap with weekly milestones:
 {
@@ -481,37 +503,72 @@ Generate a JSON roadmap with weekly milestones:
      * Onboarding'i tamamla
      */
     async completeOnboarding(userId, data) {
-        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes } = data;
+        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes, sectors } = data;
 
         try {
             // 1. Archetype ayarla
             await this.setArchetype(userId, archetype);
 
-            // 2. Roadmap oluştur
+            // 2. Sektörleri kaydet (varsa)
+            if (sectors && Array.isArray(sectors) && sectors.length > 0) {
+                const sectorService = require('./sectorService');
+                let savedCount = 0;
+                for (let i = 0; i < sectors.length; i++) {
+                    const sectorId = sectors[i];
+
+                    // Sector ID validation
+                    if (typeof sectorId !== 'number' || sectorId <= 0) {
+                        logger.warn(`[Onboarding] Invalid sector ID format: ${sectorId}`);
+                        continue;
+                    }
+
+                    // Sektörün var olup olmadığını kontrol et
+                    const sector = await sectorService.getSectorById(sectorId);
+                    if (!sector) {
+                        logger.warn(`[Onboarding] Sector not found: ${sectorId}`);
+                        continue;
+                    }
+
+                    const isPrimary = savedCount === 0; // İlk başarılı kayıt primary
+                    try {
+                        await sectorService.addUserSector(userId, sectorId, isPrimary);
+                        savedCount++;
+                    } catch (sectorError) {
+                        logger.warn(`[Onboarding] Could not save sector ${sectorId}:`, sectorError.message);
+                    }
+                }
+                if (savedCount > 0) {
+                    logger.info(`[Onboarding] Saved ${savedCount} sector(s) for user ${userId}`);
+                }
+            }
+
+            // 3. Roadmap oluştur (sektör varsa bağlamlı)
+            const primarySectorId = sectors && sectors.length > 0 ? sectors[0] : null;
             const roadmapResult = await this.generateRoadmap(
                 userId,
                 assessedCEFR,
                 targetCEFR,
                 archetype,
-                weeklyMinutes
+                weeklyMinutes,
+                primarySectorId // Yeni parametre
             );
 
-            // 3. Onboarding'i tamamlandı olarak işaretle
+            // 4. Onboarding'i tamamlandı olarak işaretle
             await db.query(`
                 UPDATE user_gamification 
                 SET onboarding_completed = true, updated_at = NOW()
                 WHERE user_id = $1
             `, [userId]);
 
-            // 4. CEFR seviyesini users tablosuna kaydet
+            // 5. CEFR seviyesini users tablosuna kaydet
             await db.query(`
                 UPDATE users SET cefr_level = $1 WHERE id = $2
             `, [assessedCEFR, userId]);
 
-            // 5. İlk başarımı ver
+            // 6. İlk başarımı ver
             await gamificationService.awardAchievement(userId, 'FIRST_CONTENT');
 
-            // 6. Başlangıç XP ver
+            // 7. Başlangıç XP ver
             await gamificationService.addXP(userId, 100, 'onboarding', null, 'Yolculuğa hoş geldin!');
 
             logger.info(`[Onboarding] Completed for user ${userId}`);
@@ -519,7 +576,8 @@ Generate a JSON roadmap with weekly milestones:
             return {
                 success: true,
                 ...roadmapResult,
-                welcomeMessage: this.getWelcomeMessage(archetype, assessedCEFR, targetCEFR)
+                welcomeMessage: this.getWelcomeMessage(archetype, assessedCEFR, targetCEFR),
+                selectedSectors: sectors || []
             };
 
         } catch (error) {

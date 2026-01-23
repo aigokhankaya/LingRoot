@@ -1451,8 +1451,9 @@ const Welcome: React.FC = () => {
   const fetchContentHistory = async () => {
     setLoadingHistory(true);
     try {
+      if (!user) return;
       console.log('fetchContentHistory başlatılıyor...');
-      const response = await getContentHistory();
+      const response = await getContentHistory(user.id);
       console.log('getContentHistory response:', response);
 
       if (response.success && response.data) {
@@ -1780,6 +1781,7 @@ const Welcome: React.FC = () => {
 
       // Kullanım/abonelik kontrolü
       try {
+        if (!user) throw new Error('User not found');
         const usageSummary = await getUsageSummary();
         if (usageSummary?.success && usageSummary.data && usageSummary.data.hasPlan === false) {
           setError('Aktif paketiniz yok');
