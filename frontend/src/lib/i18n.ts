@@ -670,7 +670,7 @@ export const translations: Translations = {
     topic: "Konu",
     subject: "Konu",
     youtube: "YouTube",
-    web_link: "Web Linki",
+    web_link: "Sektör İngilizcesi",
     document: "Belge",
     book: "Kitap",
     spotify: "Spotify",

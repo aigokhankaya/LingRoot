@@ -21,6 +21,7 @@ import {
   FaLink,
   FaGraduationCap,
   FaPlus,
+  FaBriefcase,
 } from 'react-icons/fa';
 import { MessageSquare } from 'lucide-react';
 import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails, createDocumentFromText, DocumentRecord, DocumentSection } from '../src/lib/api';
@@ -471,7 +472,7 @@ const Welcome: React.FC = () => {
     { id: 'youtube', name: t('youtube'), icon: <FaYoutube /> },
     { id: 'document', name: t('document'), icon: <FaFileWord /> },
     { id: 'text', name: t('text'), icon: <FaFileAlt /> },
-    { id: 'weblink', name: t('web_link'), icon: <FaLink /> },
+    { id: 'sectors', name: t('web_link'), icon: <FaBriefcase /> },
     { id: 'subject', name: t('subject'), icon: <FaGraduationCap /> },
     { id: 'custom', name: t('content_type_custom'), icon: <FaPlus /> },
   ];
@@ -2325,7 +2326,13 @@ const Welcome: React.FC = () => {
                   {contentTypeOptions.map((option) => (
                     <div
                       key={option.id}
-                      onClick={() => setContentType(option.id)}
+                      onClick={() => {
+                        if (option.id === 'sectors') {
+                          router.push('/sectors');
+                        } else {
+                          setContentType(option.id);
+                        }
+                      }}
                       className={`group flex flex-col items-center justify-center p-4 rounded-lg border cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md ${contentType === option.id
                         ? 'bg-primary/10 border-primary/40'
                         : 'bg-muted border-border hover:bg-muted/80'
