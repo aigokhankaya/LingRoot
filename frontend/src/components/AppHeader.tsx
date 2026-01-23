@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -8,10 +8,29 @@ import BrandWordmark from '@/components/BrandWordmark';
 import NotificationBell from '@/components/NotificationBell';
 import { ProfileDropdownMenu } from '@/components/shared/ProfileDropdownMenu';
 import { LevelProgressBar } from '@/components/gamification';
+import { useGamification } from '@/hooks/useGamification';
 
 export const AppHeader: React.FC = () => {
     const { t } = useTranslation();
     const { isAuthenticated, user } = useAuth();
+    const { checkIn } = useGamification();
+    const hasCheckedIn = useRef(false);
+
+    // Otomatik streak check-in (günde bir kez)
+    useEffect(() => {
+        if (isAuthenticated && !hasCheckedIn.current) {
+            const today = new Date().toISOString().split('T')[0];
+            const lastCheckIn = localStorage.getItem('lingroot_lastCheckIn');
+
+            if (lastCheckIn !== today) {
+                hasCheckedIn.current = true;
+                checkIn().then(() => {
+                    localStorage.setItem('lingroot_lastCheckIn', today);
+                    console.log('[Gamification] Auto check-in completed');
+                }).catch(console.error);
+            }
+        }
+    }, [isAuthenticated, checkIn]);
 
     return (
         <div className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -19,7 +38,7 @@ export const AppHeader: React.FC = () => {
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center space-x-6">
                         {/* Logo + Brand */}
-                        <Link href="/">
+                        <Link href="/welcome">
                             <div className="flex items-center space-x-3 flex-shrink-0 cursor-pointer">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img

@@ -15,7 +15,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService, getMyPlanFeatures, PlanFeatures } from '../services/api';
+import { getUserAudioCount, getUserAudioHistory, getFullContentHistory } from '../services/contentService';
+import { getMyPlanFeatures, PlanFeatures } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 import { AudioTrack } from '../types';
 import AudioPlayer from '../components/AudioPlayer';
@@ -160,8 +161,8 @@ const HomeScreen: React.FC = () => {
     }
     try {
       const [countOrNull, response] = await Promise.all([
-        apiService.getUserAudioCount(user.id),
-        apiService.getUserAudioHistory(user.id),
+        getUserAudioCount(user.id),
+        getUserAudioHistory(user.id),
       ]);
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
@@ -170,7 +171,7 @@ const HomeScreen: React.FC = () => {
           : ((response as any).total_count ?? audioTracks.length);
         if (typeof (response as any).total_count !== 'number' && finalCount === 50) {
           try {
-            const full = await apiService.getFullContentHistory();
+            const full = await getFullContentHistory();
             if (full?.success && Array.isArray(full.data)) {
               finalCount = full.data.length;
             }

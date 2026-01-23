@@ -1,5 +1,5 @@
 // Script to check current subscription plans in database
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function checkPlans() {
   try {

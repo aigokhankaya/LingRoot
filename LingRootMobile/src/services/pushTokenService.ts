@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import Constants from 'expo-constants';
-import { apiService } from './api';
+import { registerDeviceToken } from './userService';
 
 console.log('[PushToken] pushTokenService module loaded');
 
@@ -48,7 +48,7 @@ export async function registerPushTokenWithBackend(): Promise<void> {
     const appVersion = await getAppVersion();
 
     try {
-      const response = await apiService.registerDeviceToken({
+      const response = await registerDeviceToken({
         platform: Platform.OS as 'android' | 'ios',
         token: fcmToken,
         deviceId: null,
@@ -82,7 +82,7 @@ export function setupPushTokenRefreshListener(): void {
         console.log('[PushToken] onTokenRefresh triggered');
         const appVersion = await getAppVersion();
         try {
-          const response = await apiService.registerDeviceToken({
+          const response = await registerDeviceToken({
             platform: Platform.OS as 'android' | 'ios',
             token,
             deviceId: null,

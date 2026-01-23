@@ -1,4 +1,4 @@
-const { sendSupportMessageNotification } = require('./utils/supportNotifier');
+const { sendSupportMessageNotification } = require('./utils/notifications/supportNotifier.js');
 const db = require('./config/db');
 
 async function testSupportNotification() {

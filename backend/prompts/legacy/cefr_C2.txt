@@ -1,5 +1,6 @@
 🎯 TASK:
-Rewrite the given English text into CEFR level C2.
+Rewrite the given text into CEFR level C2.
+If the input text is not in English, TRANSLATE it to English first, preserving the original meaning.
 
 ⚠️ Follow ONLY the rules listed under C2. Do NOT mix rules from other levels.
 

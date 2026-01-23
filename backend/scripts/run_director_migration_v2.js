@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function runMigration() {
     console.log('🔧 Director Mode 2.0 Migration');

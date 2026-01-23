@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 
 import { useAuth } from '../src/lib/auth';
@@ -250,6 +251,7 @@ const App: React.FC = () => {
 
     // Auth kontrolü sırasında veya kullanıcı authenticated iken (yönlendirme beklerken) loading göster
     // Bu, flash sorununu önler
+
     if (authLoading || isAuthenticated) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -262,6 +264,10 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-background">
+            <Head>
+                <title>LingRoot - AI Language Learning</title>
+                <meta name="description" content={t('landing_hero_desc')} />
+            </Head>
             {/* Navigation */}
             <nav className="bg-white/90 border-b border-border backdrop-blur-sm py-3 sticky top-0 z-50">
                 <div className="container mx-auto px-8 flex justify-between items-center">

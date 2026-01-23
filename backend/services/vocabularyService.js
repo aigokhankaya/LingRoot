@@ -6,7 +6,7 @@
  */
 
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const gamificationService = require('./gamificationService');
 
 // SM-2 Algoritması parametreleri

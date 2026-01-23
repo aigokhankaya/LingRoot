@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const chatController = require('../controllers/chatController');
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 

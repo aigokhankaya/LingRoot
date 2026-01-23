@@ -7,16 +7,16 @@ if (process.env.OPENAI_API_KEY) {
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   } catch { }
 }
-const { logRequestStep } = require('../utils/requestLogger');
+const { logRequestStep } = require('../utils/common/requestLogger.js');
 const { v4: uuidv4 } = require('uuid');
-const logger = require('../utils/logger');
-const { chunkText } = require('../utils/textProcessor');
-const { simplifyLexically, getComplexWordStats } = require('../utils/lexicalSimplifier');
-const { auditSemanticPreservation } = require('../utils/semanticAudit');
-const { extractDailyUsagePatterns } = require('../utils/dailyPatternExtractor');
-const { supabase } = require('../utils/supabaseClient');
-const { generateBilingualContent } = require('../utils/translateAndAdapt');
-const { validateContent, generateFeedbackPrompt } = require('../utils/contentQualityValidator');
+const logger = require('../utils/common/logger.js');
+const { chunkText } = require('../utils/content/textProcessor.js');
+const { simplifyLexically, getComplexWordStats } = require('../utils/ai/lexicalSimplifier.js');
+const { auditSemanticPreservation } = require('../utils/ai/semanticAudit.js');
+const { extractDailyUsagePatterns } = require('../utils/content/dailyPatternExtractor.js');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const { generateBilingualContent } = require('../utils/ai/translateAndAdapt.js');
+const { validateContent, generateFeedbackPrompt } = require('../utils/content/contentQualityValidator.js');
 
 /**
  * Helper function to get the correct content generation prompt file by CEFR level
@@ -136,7 +136,7 @@ exports.processTopicToEnglishText = async (req, res) => {
 
       // Log cost for topic suggestions
       try {
-        const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+        const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
         const usage = result.usage.suggestions;
         if (usage && req.user?.id) {
           const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');
@@ -204,7 +204,7 @@ exports.processTopicToEnglishText = async (req, res) => {
 
         // Log cost for bilingual generation
         try {
-          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
           const usage = bilingualResult.usage;
           if (usage && req.user?.id) {
             const costInfo = calculateOpenAiCost(usage, bilingualResult.model || 'gpt-4o-mini');
@@ -315,7 +315,7 @@ exports.processTopicToEnglishText = async (req, res) => {
       // Log cost for daily patterns extraction (if not skipped)
       if (patternExtraction.usage && !patternExtraction.skipped && req.user?.id) {
         try {
-          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
           const usage = patternExtraction.usage;
           const costInfo = calculateOpenAiCost(usage, usage.model || 'gpt-4o-mini');
           await logApiCost({

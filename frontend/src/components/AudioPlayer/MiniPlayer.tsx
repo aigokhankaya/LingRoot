@@ -195,6 +195,10 @@ const MiniPlayer: React.FC = () => {
                             />
                         </div>
                         <span className="text-[10px] opacity-80">{formatTime(currentTime)}</span>
+                        {/* Percentage badge */}
+                        <span className="text-[9px] bg-white/20 px-1 rounded opacity-80">
+                            {Math.round(progressPercent)}%
+                        </span>
                     </div>
                 </div>
 

@@ -62,8 +62,9 @@ export default function Profile() {
 
   useEffect(() => {
     async function fetchHistory() {
+      if (!user) return;
       try {
-        const res = await getContentHistory();
+        const res = await getContentHistory(user.id);
         if (res.success) {
           setContentHistory(res.data || []);
         }
@@ -73,12 +74,15 @@ export default function Profile() {
         setLoadingHistory(false);
       }
     }
-    fetchHistory();
-  }, []);
+    if (user) {
+      fetchHistory();
+    }
+  }, [user]);
 
   // Kullanım özeti ve tahminleri getir
   useEffect(() => {
     async function fetchUsage() {
+      if (!user) return;
       try {
         const res = await getUsageSummary();
         if (res?.success) {
@@ -92,8 +96,10 @@ export default function Profile() {
         setEstimates(null);
       }
     }
-    fetchUsage();
-  }, []);
+    if (user) {
+      fetchUsage();
+    }
+  }, [user]);
 
   // Tercih edilen locale'i ve profil ayarlarını yükle
   useEffect(() => {

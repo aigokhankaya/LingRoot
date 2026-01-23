@@ -1,4 +1,4 @@
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function getContent() {
     const topicId = 'aa7f4ee3-29be-4b5b-91be-c777ac5a73e5';

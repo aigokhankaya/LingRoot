@@ -5,7 +5,7 @@
  * Usage: node set_environment.js [production|test]
  */
 
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function setEnvironment(env) {
   if (!env || !['production', 'test'].includes(env)) {

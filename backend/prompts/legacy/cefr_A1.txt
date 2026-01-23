@@ -1,5 +1,6 @@
 🎯 TASK:
-Rewrite the given English text into STRICT CEFR level A1.
+Rewrite the given text into STRICT CEFR level A1.
+If the input text is not in English, TRANSLATE it to English first, preserving the original meaning.
 The output must be understandable by a 6-year-old child or a student in their first week of English.
 
 ⚠️ CRITICAL FAILURES TO AVOID (Do NOT use these):

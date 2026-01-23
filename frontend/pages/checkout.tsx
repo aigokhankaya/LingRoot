@@ -52,6 +52,11 @@ export default function Checkout() {
   });
   const [cardType, setCardType] = useState<string | null>(null);
 
+  // Contracts
+  const [acceptContracts, setAcceptContracts] = useState(false);
+  const [showPreInfo, setShowPreInfo] = useState(false);
+  const [showDistanceSales, setShowDistanceSales] = useState(false);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push(`/login?next=${encodeURIComponent('/checkout?plan=' + planId)}`);
@@ -205,6 +210,10 @@ export default function Checkout() {
   };
 
   const handleCheckout = () => {
+    if (!acceptContracts) {
+      setError(t('checkout_contracts_error'));
+      return;
+    }
     if (paymentMethod === 'iyzico') {
       handleIyzicoCheckout();
     } else {
@@ -317,8 +326,8 @@ export default function Checkout() {
                   type="button"
                   onClick={() => setPaymentMethod('iyzico')}
                   className={`p-4 border-2 rounded-lg text-center transition-all ${paymentMethod === 'iyzico'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-gray-300'
                     }`}
                 >
                   <div className="font-semibold text-gray-900">iyzico</div>
@@ -333,8 +342,8 @@ export default function Checkout() {
                   type="button"
                   onClick={() => setPaymentMethod('stripe')}
                   className={`p-4 border-2 rounded-lg text-center transition-all ${paymentMethod === 'stripe'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-gray-300'
                     }`}
                 >
                   <div className="font-semibold text-gray-900">Stripe</div>
@@ -457,8 +466,8 @@ export default function Checkout() {
                           <label
                             key={inst.installmentNumber}
                             className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all ${selectedInstallment === inst.installmentNumber
-                                ? 'border-primary bg-primary/5'
-                                : 'border-gray-200 hover:border-gray-300'
+                              ? 'border-primary bg-primary/5'
+                              : 'border-gray-200 hover:border-gray-300'
                               }`}
                           >
                             <div className="flex items-center gap-3">
@@ -490,6 +499,45 @@ export default function Checkout() {
                 </div>
               </div>
             )}
+
+            {/* Sözleşme Onay Kutusu */}
+            <div className="mb-6">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative flex items-center mt-1">
+                  <input
+                    type="checkbox"
+                    checked={acceptContracts}
+                    onChange={(e) => {
+                      setAcceptContracts(e.target.checked);
+                      if (e.target.checked) setError(null);
+                    }}
+                    className="w-5 h-5 border-2 border-gray-300 rounded text-primary focus:ring-primary focus:ring-offset-0 transition-colors cursor-pointer group-hover:border-primary"
+                  />
+                </div>
+                <div className="text-sm text-gray-600 leading-relaxed select-none">
+                  <span
+                    className="text-primary hover:text-primary/80 font-medium underline cursor-pointer px-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowPreInfo(true);
+                    }}
+                  >
+                    {t('checkout_contract_view_pre_info')}
+                  </span>
+                  {' '}{t('and') || 've'}{' '}
+                  <span
+                    className="text-primary hover:text-primary/80 font-medium underline cursor-pointer px-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowDistanceSales(true);
+                    }}
+                  >
+                    {t('checkout_contract_view_distance_sales')}
+                  </span>
+                  {' '}{t('accept_terms_suffix') || "'ni okudum, onaylıyorum."}
+                </div>
+              </label>
+            </div>
 
             {/* Stripe Bilgi Mesajı - Sadece Stripe seçiliyse göster */}
             {paymentMethod === 'stripe' && (
@@ -567,6 +615,58 @@ export default function Checkout() {
           </button>
         </div>
       </div>
+      {/* Modals */}
+      {showPreInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowPreInfo(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+              <h3 className="text-lg font-bold text-gray-900">{t('pre_info_title')}</h3>
+              <button onClick={() => setShowPreInfo(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+              {t('pre_info_text')}
+            </div>
+            <div className="p-6 border-t bg-gray-50 rounded-b-xl flex justify-end">
+              <button
+                onClick={() => setShowPreInfo(false)}
+                className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              >
+                {t('close') || 'Kapat'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDistanceSales && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowDistanceSales(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+              <h3 className="text-lg font-bold text-gray-900">{t('distance_sales_title')}</h3>
+              <button onClick={() => setShowDistanceSales(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+              {t('distance_sales_text')}
+            </div>
+            <div className="p-6 border-t bg-gray-50 rounded-b-xl flex justify-end">
+              <button
+                onClick={() => setShowDistanceSales(false)}
+                className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              >
+                {t('close') || 'Kapat'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

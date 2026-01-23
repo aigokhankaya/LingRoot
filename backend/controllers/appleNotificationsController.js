@@ -1,5 +1,5 @@
-const logger = require('../utils/logger');
-const { supabase } = require('../utils/supabaseClient');
+const logger = require('../utils/common/logger.js');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 /**
  * Apple App Store Server Notifications V2 Handler

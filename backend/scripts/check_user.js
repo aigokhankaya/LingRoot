@@ -1,6 +1,6 @@
 // Check if user exists
 require('dotenv').config();
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function checkUser(email) {
   const { data, error } = await supabase

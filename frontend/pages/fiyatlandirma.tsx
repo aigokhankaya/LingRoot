@@ -62,7 +62,7 @@ export default function Fiyatlandirma() {
       return;
     }
     // Giriş yapmışsa ödeme sayfasına yönlendir
-    router.push(`/payment?planId=${encodeURIComponent(planId)}`);
+    router.push(`/checkout?plan=${encodeURIComponent(planId)}`);
   };
 
   return (
@@ -199,15 +199,15 @@ export default function Fiyatlandirma() {
                       return trimmed;
                     })
                     .filter((f: any) => f);
-                    
+
                   const intervalLabel =
                     plan.interval === 'yearly' ? t('pricing_interval_year') : plan.interval === 'monthly' ? t('pricing_interval_month') : '';
                   const buttonLabel = isFree ? t('pricing_button_free') : isYearly ? t('pricing_button_yearly') : t('pricing_button_start');
                   const cardClasses = isPopular
                     ? 'bg-muted rounded-2xl border-2 border-primary shadow-2xl hover:shadow-3xl transition-all duration-300 transform md:hover:scale-105 z-10 overflow-hidden hover:-translate-y-2'
                     : isFree
-                    ? 'bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:-translate-y-2'
-                    : 'bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden';
+                      ? 'bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:-translate-y-2'
+                      : 'bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden';
 
                   const planName = String(plan.name || '').toLowerCase();
                   const sanitizedFeatures: string[] = localizedFeatures.filter((feature: any) => {
@@ -252,7 +252,7 @@ export default function Fiyatlandirma() {
                     marketingBullets.length > 0 || marketingDescription
                       ? [...marketingBullets]
                       : sanitizedFeatures;
-                  
+
                   const finalFeatures = combinedFeatures;
 
 
@@ -271,13 +271,12 @@ export default function Fiyatlandirma() {
                         </h3>
                         <div className="text-center">
                           <span
-                            className={`text-4xl font-bold ${
-                              isPopular
+                            className={`text-4xl font-bold ${isPopular
                                 ? 'text-white'
                                 : isFree
-                                ? 'bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent'
-                                : 'text-[#28a745]'
-                            }`}
+                                  ? 'bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent'
+                                  : 'text-[#28a745]'
+                              }`}
                           >
                             {plan.price} ₺
                           </span>

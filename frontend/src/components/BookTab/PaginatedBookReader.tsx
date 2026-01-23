@@ -372,8 +372,8 @@ export default function PaginatedBookReader({
             <button
               onClick={() => setShowTranslation(!showTranslation)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showTranslation
-                  ? 'bg-amber-600 text-white shadow-md'
-                  : 'bg-white/60 text-amber-700 hover:bg-white/80'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'bg-white/60 text-amber-700 hover:bg-white/80'
                 }`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -410,13 +410,13 @@ export default function PaginatedBookReader({
               >
                 {currentPageWords.map((word, idx) => {
                   const globalIndex = pageStartIndex + idx;
-                  const isCurrentWord = isPlaying && globalIndex === activeWordIndex;
+                  const isCurrentWord = globalIndex === activeWordIndex && activeWordIndex >= 0;
                   return (
                     <span
                       key={idx}
                       className={`transition-all duration-200 cursor-pointer ${isCurrentWord
-                          ? 'bg-amber-300 text-amber-900 px-1 py-0.5 rounded-sm shadow-sm font-medium'
-                          : 'hover:bg-amber-200/70 rounded-sm'
+                        ? 'bg-amber-300 text-amber-900 px-1 py-0.5 rounded-sm shadow-sm font-medium'
+                        : 'hover:bg-amber-200/70 rounded-sm'
                         }`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -514,8 +514,8 @@ export default function PaginatedBookReader({
                   key={i}
                   onClick={() => goToPage(pageNum)}
                   className={`transition-all duration-200 ${isActive
-                      ? 'w-8 h-2 bg-amber-600 rounded-full'
-                      : 'w-2 h-2 bg-amber-300 rounded-full hover:bg-amber-400'
+                    ? 'w-8 h-2 bg-amber-600 rounded-full'
+                    : 'w-2 h-2 bg-amber-300 rounded-full hover:bg-amber-400'
                     }`}
                   title={`Sayfa ${pageNum + 1}`}
                 />

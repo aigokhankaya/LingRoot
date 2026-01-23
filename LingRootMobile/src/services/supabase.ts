@@ -20,31 +20,31 @@ const supabaseAnonKey = (resolvedSupabaseAnonKey || '').toString().trim();
 // Supabase client oluştur (config yoksa güvenli noop client kullan)
 export const supabase: any = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        storage: AsyncStorage,
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-      },
-    })
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  })
   : {
-      // Minimal noop client to prevent crashes when env is missing on dev devices
-      auth: {
-        async signInWithPassword() {
-          throw new Error('[SUPABASE] Missing configuration: cannot sign in.');
-        },
-        async signOut() {
-          return { error: null };
-        },
-        async getUser() {
-          return { data: { user: null } } as any;
-        },
-        onAuthStateChange(cb: (event: any, session: any) => void) {
-          // Return an unsubscribe-like handle compatible with upstream usage
-          return { data: { subscription: { unsubscribe() {} } } } as any;
-        },
+    // Minimal noop client to prevent crashes when env is missing on dev devices
+    auth: {
+      async signInWithPassword() {
+        throw new Error('[SUPABASE] Missing configuration: cannot sign in.');
       },
-    };
+      async signOut() {
+        return { error: null };
+      },
+      async getUser() {
+        return { data: { user: null } } as any;
+      },
+      onAuthStateChange(cb: (event: any, session: any) => void) {
+        // Return an unsubscribe-like handle compatible with upstream usage
+        return { data: { subscription: { unsubscribe() { } } } } as any;
+      },
+    },
+  };
 
 // Web projesindeki getUserRole fonksiyonunu da ekleyelim
 export const getUserRole = async (userId: string): Promise<string | null> => {
@@ -86,7 +86,7 @@ export const authService = {
     const apiBaseUrl = await getApiBaseUrl();
     const [firstName, ...rest] = (fullName || '').trim().split(' ');
     const lastName = rest.join(' ') || 'User';
-    
+
     // Use provided phone number or generate a unique placeholder phone (E.164) to satisfy backend uniqueness
     const finalPhoneNumber = phoneNumber || `+1${Math.floor(1000000000 + Math.random() * 9000000000)}`; // +1XXXXXXXXXX
 
@@ -118,9 +118,9 @@ export const authService = {
     return user;
   },
 
-  onAuthStateChange(callback: (user: any) => void) {
+  onAuthStateChange(callback: (session: Session | null) => void) {
     return supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      callback(session?.user || null);
+      callback(session);
     });
   },
 }; 

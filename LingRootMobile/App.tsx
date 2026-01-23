@@ -12,6 +12,7 @@ import TrackPlayer from 'react-native-track-player';
 import NotificationService from './src/services/notificationService';
 import { clearEnvironmentCache } from './src/services/environmentConfig';
 import { apiService } from './src/services/api';
+import { initializeApiClient } from './src/services/apiClient';
 
 export default function App() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
@@ -24,6 +25,11 @@ export default function App() {
         // Remove this after testing
         await clearEnvironmentCache();
         console.log('🧹 [APP] Environment cache cleared on startup');
+
+        // Initialize API client early
+        await initializeApiClient();
+        console.log('🔗 [APP] API Client initialized');
+
         // iOS: perform full init on launch
         if (Platform.OS === 'ios') {
           await TrackPlayer.setupPlayer();

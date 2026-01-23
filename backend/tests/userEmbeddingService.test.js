@@ -8,13 +8,13 @@ jest.mock('../config/db', () => ({
     on: jest.fn()
 }));
 
-jest.mock('../utils/openaiClient', () => ({
+jest.mock('../utils/ai/openaiClient.js', () => ({
     embeddings: {
         create: jest.fn()
     }
 }));
 
-jest.mock('../utils/logger', () => ({
+jest.mock('../utils/common/logger.js', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn()

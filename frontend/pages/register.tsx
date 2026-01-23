@@ -57,6 +57,7 @@ const RegisterPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -75,6 +76,12 @@ const RegisterPage: React.FC = () => {
     // Password confirmation validation
     if (password !== confirmPassword) {
       setError(t('register_password_mismatch') || 'Şifreler eşleşmiyor.');
+      setLoading(false);
+      return;
+    }
+
+    if (!acceptTerms) {
+      setError(t('register_accept_terms_error') || 'Lütfen Kullanım Koşulları ve Gizlilik Politikasını kabul edin.');
       setLoading(false);
       return;
     }
@@ -300,6 +307,29 @@ const RegisterPage: React.FC = () => {
                       )}
                     </svg>
                   </button>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="terms"
+                    name="terms"
+                    type="checkbox"
+                    required
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="terms" className="font-medium text-gray-700">
+                    {t('accept_terms_prefix')}
+                    <Link href="/terms" className="text-primary hover:underline">{t('terms_title') || 'Kullanım Koşulları'}</Link>
+                    {' '}{t('and') || 've'}{' '}
+                    <Link href="/privacy-policy" className="text-primary hover:underline">{t('privacy_policy_title') || 'Gizlilik Politikası'}</Link>
+                    {' '}{t('accept_terms_suffix') || "'nı kabul ediyorum."}
+                  </label>
                 </div>
               </div>
             </div>

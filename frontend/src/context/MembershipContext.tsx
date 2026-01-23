@@ -35,8 +35,8 @@ const defaultValue: MembershipContextType = {
   canUse: { text: true, youtube: false, web: false, file: false, spotify: false },
   badge: { color: 'gray', label: 'Free', icon: '⚪️' },
   currentPlanName: 'Ücretsiz Plan',
-  upgrade: () => {},
-  refresh: () => {},
+  upgrade: () => { },
+  refresh: () => { },
 };
 
 const MembershipContext = createContext<MembershipContextType>(defaultValue);
@@ -51,14 +51,14 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
     if (user) {
       setLevel(getLevelFromStatus(user.membershipStatus));
       // Günlük hak sorgusu - API'den çek
-      getUserStats().then((stats) => {
+      getUserStats(user.id).then((stats) => {
         if (stats) {
           // Free Trial için: maxAudioCount - audioCreationCount
           const maxCount = 3; // Free Trial için sabit
           const used = stats.subscription.audioCreationCount || 0;
           const remainingCount = Math.max(0, maxCount - used);
           setRemaining(remainingCount);
-          
+
           // Gerçek plan adını ayarla
           const planName = stats.subscription?.plan || 'Free Trial';
           setCurrentPlanName(planName);

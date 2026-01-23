@@ -9,7 +9,7 @@ const TermsOfServiceScreen: React.FC = () => {
   const contentTR = `
 KULLANIM ŞARTLARI
 
-Son Güncelleme: 6 Ekim 2025
+Son Güncelleme: 16 Ocak 2026
 
 LingRoot mobil uygulamasını kullanarak aşağıdaki şartları kabul etmiş olursunuz.
 
@@ -17,32 +17,37 @@ LingRoot mobil uygulamasını kullanarak aşağıdaki şartları kabul etmiş ol
 
 LingRoot, İngilizce öğrenenler için yapay zeka destekli metin-sese dönüştürme, kelime öğrenme ve içerik oluşturma hizmeti sunar.
 
-2. HESAP OLUŞTURMA
+2. HESAP OLUŞTURMA VE SORUMLULUKLAR
 
 • 13 yaş ve üzeri kullanıcılar hesap oluşturabilir
 • Doğru ve güncel bilgiler sağlamalısınız
 • Hesap güvenliğinden siz sorumlusunuz
 • Hesabınızı başkalarıyla paylaşamazsınız
 
-3. ABONELİK VE ÖDEMELER
+3. İÇERİK VE TELİF HAKKI
 
-3.1. Ücretsiz Deneme
-• Yeni kullanıcılara 3 ses oluşturma hakkı verilir
-• Her ses maksimum 10 dakika olabilir
+3.1. Telif Hakkı Uyarısı
+LingRoot'a yüklediğiniz tüm içerikler için telif hakkı sorumluluğu size aittir. Başkalarına ait telif hakkı korumalı materyalleri izinsiz yüklemek yasal sorumluluk doğurur.
+
+3.2. Kullanıcı Yüklemeleri (Önemli Sorumluluk Reddi)
+Özellikle PDF ve diğer doküman yüklemelerinde; içeriklerin hukuka uygunluğundan, üçüncü kişilere ait telif hakları, kişisel veriler, ticari sırlar ve diğer tüm yasal yükümlülüklerden yalnızca dokümanı yükleyen kullanıcı sorumludur. LingRoot, kullanıcılar tarafından yüklenen dokümanların içeriğini ön incelemeye tabi tutmaz ve bu içeriklerden doğabilecek hiçbir hukuki, idari veya cezai sorumluluğu üstlenmez.
+
+4. ABONELİK VE ÖDEMELER
+
+4.1. Ücretsiz Deneme
+• Yeni kullanıcılara sınırlı ses oluşturma hakkı verilir
 • Deneme hakkı bittikten sonra premium pakete geçiş gerekir
 
-3.2. Premium Paketler
-• Gold Plan: ₺399/ay
-• Platinum Plan: ₺599/ay
+4.2. Premium Paketler
 • Ödemeler Apple App Store üzerinden işlenir
 • Abonelikler otomatik olarak yenilenir
 • İptal etmek için iOS Ayarlar > Apple ID > Abonelikler'den yönetebilirsiniz
 
-3.3. İade Politikası
+4.3. İade Politikası
 • İadeler Apple'ın iade politikasına tabidir
 • İade talepleri Apple App Store üzerinden yapılmalıdır
 
-4. KULLANIM KURALLARI
+5. KULLANIM KURALLARI
 
 Aşağıdaki davranışlar yasaktır:
 • Yasadışı içerik oluşturma
@@ -51,60 +56,35 @@ Aşağıdaki davranışlar yasaktır:
 • Hizmeti tersine mühendislik ile inceleme
 • Otomatik sistemler (botlar) kullanma
 
-5. FİKRİ MÜLKİYET
+6. SORUMLULUK REDDİ VE HİZMET SINIRLAMALARI
 
-• LingRoot markası ve logosu şirketimize aittir
-• Oluşturduğunuz içerikler size aittir
-• Hizmeti sağlamak için içeriklerinizi işleme hakkımız vardır
-• Üçüncü taraf API'ler (Google TTS, OpenAI) kendi şartlarına tabidir
+• Hizmet "olduğu gibi" sunulur, kesintisiz hizmet garantisi verilmez.
+• Teknik sorunlar ve API limitleri uygulanabilir.
+• Veri kaybından veya üçüncü taraf hizmetlerden kaynaklanan sorunlardan sorumlu değiliz.
 
-6. HİZMET SINIRLAMALARI
+7. YAPAY ZEKA VE TEKNOLOJİ RİSKİ (AI Disclaimer)
 
-• Hizmet "olduğu gibi" sunulur
-• Kesintisiz hizmet garantisi vermiyoruz
-• Teknik sorunlar yaşanabilir
-• API limitleri uygulanır
+LingRoot tarafından sunulan içerikler, yapay zeka teknolojileri kullanılarak üretilmektedir. Yapay zeka modelleri, zaman zaman 'halüsinasyon' olarak adlandırılan yanlış, yanıltıcı veya uydurma bilgiler üretebilir. Hizmet tarafından üretilen çeviriler, özetler veya seslendirmeler profesyonel tavsiye (tıbbi, hukuki, finansal vb.) niteliği taşımaz. Kullanıcılar, kritik kararlar almadan önce üretilen içeriklerin doğruluğunu bağımsız kaynaklardan teyit etmelidir.
 
-7. SORUMLULUK SINIRI
+8. HESAP ASKIYA ALMA
 
-• Hizmet kesintilerinden sorumlu değiliz
-• Veri kaybından sorumlu değiliz
-• Üçüncü taraf hizmetlerden kaynaklanan sorunlardan sorumlu değiliz
-• Maksimum sorumluluk ödediğiniz ücretle sınırlıdır
+Kullanım şartlarını ihlal, yasadışı aktiviteler veya kötüye kullanım durumunda hesabınızı askıya alabiliriz.
 
-8. HİZMET DEĞİŞİKLİKLERİ
-
-• Hizmeti değiştirme veya sonlandırma hakkımız saklıdır
-• Fiyatları değiştirme hakkımız saklıdır
-• Önemli değişiklikler önceden bildirilir
-
-9. HESAP ASKIYA ALMA VE SONLANDIRMA
-
-Aşağıdaki durumlarda hesabınızı askıya alabilir veya sonlandırabiliriz:
-• Kullanım şartlarını ihlal
-• Yasadışı aktiviteler
-• Kötüye kullanım
-• Ödeme sorunları
-
-10. UYGULANACAK HUKUK
+9. UYGULANACAK HUKUK
 
 Bu şartlar Türkiye Cumhuriyeti yasalarına tabidir.
 
-11. DEĞİŞİKLİKLER
-
-Bu kullanım şartlarını zaman zaman güncelleyebiliriz. Önemli değişiklikler e-posta ile bildirilecektir.
-
-12. İLETİŞİM
+10. İLETİŞİM
 
 Sorularınız için:
-E-posta: support@lingroot.com
+E-posta: legal@lingroot.com
 Web: https://lingroot.com
 `;
 
   const contentEN = `
 TERMS OF SERVICE
 
-Last Updated: October 6, 2025
+Last Updated: January 16, 2026
 
 By using the LingRoot mobile application, you agree to these terms.
 
@@ -112,32 +92,37 @@ By using the LingRoot mobile application, you agree to these terms.
 
 LingRoot provides AI-powered text-to-speech, vocabulary learning, and content creation services for English learners.
 
-2. ACCOUNT CREATION
+2. ACCOUNT RESPONSIBILITIES
 
 • Users must be 13 years or older
 • You must provide accurate and current information
 • You are responsible for account security
 • You may not share your account with others
 
-3. SUBSCRIPTIONS AND PAYMENTS
+3. CONTENT AND COPYRIGHT
 
-3.1. Free Trial
-• New users receive 3 audio creation credits
-• Each audio can be up to 10 minutes
-• Premium upgrade required after trial credits are used
+3.1. Copyright Warning
+You are solely responsible for the copyright of all content you upload to LingRoot. Uploading copyright-protected materials owned by others without permission creates legal liability.
 
-3.2. Premium Plans
-• Gold Plan: ₺399/month
-• Platinum Plan: ₺599/month
+3.2. User Uploads (Liability Disclaimer)
+Particularly for PDF and document uploads; the user uploading the document is solely responsible for the legality of the content, third-party intellectual property rights, personal data, trade secrets, and all other legal obligations. LingRoot does not pre-screen content uploaded by users and assumes no legal, administrative, or criminal liability arising from such content.
+
+4. SUBSCRIPTIONS AND PAYMENTS
+
+4.1. Free Trial
+• New users receive limited audio creation credits
+• Premium upgrade required after trial
+
+4.2. Premium Plans
 • Payments are processed through Apple App Store
 • Subscriptions automatically renew
 • Cancel anytime via iOS Settings > Apple ID > Subscriptions
 
-3.3. Refund Policy
+4.3. Refund Policy
 • Refunds are subject to Apple's refund policy
 • Refund requests must be made through Apple App Store
 
-4. USAGE RULES
+5. USAGE RULES
 
 The following behaviors are prohibited:
 • Creating illegal content
@@ -146,53 +131,27 @@ The following behaviors are prohibited:
 • Reverse engineering the service
 • Using automated systems (bots)
 
-5. INTELLECTUAL PROPERTY
+6. DISCLAIMER OF WARRANTIES
 
-• LingRoot brand and logo are owned by our company
-• Content you create belongs to you
-• We have the right to process your content to provide the service
-• Third-party APIs (Google TTS, OpenAI) are subject to their own terms
+• Service is provided "as is" without guarantees of uninterrupted service.
+• Technical issues and API limits may apply.
+• We are not liable for data loss or issues caused by third-party services.
 
-6. SERVICE LIMITATIONS
+7. AI AND TECHNOLOGY RISK (AI Disclaimer)
+Content provided by LingRoot is generated using artificial intelligence technologies. AI models may occasionally produce incorrect, misleading, or fabricated information (often called "hallucinations"). Translations, summaries, or voiceovers generated by the service do not constitute professional advice (medical, legal, financial, etc.). Users should independently verify the accuracy of the content before making critical decisions.
 
-• Service is provided "as is"
-• We do not guarantee uninterrupted service
-• Technical issues may occur
-• API limits apply
+8. TERMINATION
 
-7. LIMITATION OF LIABILITY
+We may suspend or terminate your account for violation of terms, illegal activities, or abuse.
 
-• We are not liable for service interruptions
-• We are not liable for data loss
-• We are not liable for issues caused by third-party services
-• Maximum liability is limited to the amount you paid
-
-8. SERVICE CHANGES
-
-• We reserve the right to modify or terminate the service
-• We reserve the right to change prices
-• Significant changes will be notified in advance
-
-9. ACCOUNT SUSPENSION AND TERMINATION
-
-We may suspend or terminate your account for:
-• Violation of terms of service
-• Illegal activities
-• Abuse
-• Payment issues
-
-10. GOVERNING LAW
+9. GOVERNING LAW
 
 These terms are governed by the laws of the Republic of Turkey.
 
-11. CHANGES
-
-We may update these terms from time to time. Significant changes will be notified via email.
-
-12. CONTACT
+10. CONTACT
 
 For questions:
-Email: support@lingroot.com
+Email: legal@lingroot.com
 Web: https://lingroot.com
 `;
 

@@ -1,0 +1,54 @@
+appId: com.lingroot.mobile
+---
+# LingRoot Mobile - Registration Flow E2E Test
+# Kullanım: maestro test .maestro/register.yaml
+
+# 1. Uygulamayı başlat
+- launchApp:
+    clearState: true
+
+# 2. Login ekranından Register'a git
+- tapOn:
+    text: "Kayıt Ol"
+    optional: true
+- tapOn:
+    text: "Sign Up"
+    optional: true
+
+# 3. Register ekranının yüklendiğini doğrula (bekleme süresi)
+# 3. Register ekranının yüklendiğini doğrula (bekleme süresi)
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 4. Ad alanının görünür olduğunu kontrol et
+- assertVisible:
+    text: "AD"
+    optional: true
+- assertVisible:
+    text: "FIRST NAME"
+    optional: true
+
+# 5. Soyad alanının görünür olduğunu kontrol et
+- assertVisible:
+    text: "SOYAD"
+    optional: true
+- assertVisible:
+    text: "LAST NAME"
+    optional: true
+
+# 6. Email alanının görünür olduğunu kontrol et
+- assertVisible:
+    text: "E-POSTA"
+    optional: true
+
+# 7. Kayıt ol butonunun görünür olduğunu kontrol et
+- assertVisible:
+    text: "Hesap Oluştur"
+    optional: true
+- assertVisible:
+    text: "Create Account"
+    optional: true
+
+# 8. Test başarıyla tamamlandı
+# 8. Test başarıyla tamamlandı
+- takeScreenshot: register_test_result

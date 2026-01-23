@@ -1,12 +1,12 @@
 // Supabase entegrasyonu için güncellenmiş contentController.js
-const { supabase } = require("../utils/supabaseClient");
+const { supabase } = require('../utils/storage/supabaseClient.js');
 require("dotenv").config();
-const logger = require("../utils/logger"); // Import logger
-const { logStep } = require('../utils/stepLogger');
+const logger = require('../utils/common/logger.js'); // Import logger
+const { logStep } = require('../utils/common/stepLogger.js');
 const { v4: uuidv4 } = require('uuid');
-const { processTextPipeline } = require('../utils/pipeline');
-const { getNewsForTopic } = require('../utils/newsService');
-const { extractFromWebLink } = require('../utils/inputExtractor');
+const { processTextPipeline } = require('../utils/common/pipeline.js');
+const { getNewsForTopic } = require('../utils/content/newsService.js');
+const { extractFromWebLink } = require('../utils/ai/inputExtractor.js');
 const gamificationService = require('../services/gamificationService');
 
 function tryParseJson(value) {
@@ -663,7 +663,7 @@ exports.submitContent = async (req, res) => {
 
     // Kullanım limiti kontrolü ve paketi gerekirse pasife çek
     try {
-      const state = await require('../utils/usageLimiter').checkLimits(req.user.id);
+      const state = await require('../utils/infra/usageLimiter.js').checkLimits(req.user.id);
       if (state?.hasPlan && state.isExceeded) {
         logger.warn(`[USAGE LIMIT] User ${req.user.id} exceeded limits after content save. Deactivating active subscription.`);
         // En yeni aktif aboneliği pasife çek

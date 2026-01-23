@@ -1,9 +1,9 @@
 const db = require('../config/db');
-const logger = require('../utils/logger');
-const { sendSupportMessageNotification } = require('../utils/supportNotifier');
-const { uploadChatAttachment } = require('../utils/chatStorageUploader');
-const { sendPushNotification } = require('../utils/pushNotification');
-const { getIO } = require('../utils/socketManager');
+const logger = require('../utils/common/logger.js');
+const { sendSupportMessageNotification } = require('../utils/notifications/supportNotifier.js');
+const { uploadChatAttachment } = require('../utils/storage/chatStorageUploader.js');
+const { sendPushNotification } = require('../utils/notifications/pushNotification.js');
+const { getIO } = require('../utils/notifications/socketManager.js');
 
 // Completely separate support chat controller
 // Uses support_conversations / support_messages / support_message_attachments tables

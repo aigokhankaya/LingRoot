@@ -3,6 +3,8 @@ import NewSyncedTextPlayer from './NewSyncedTextPlayer';
 import PatternDetailModal from './PatternDetailModal';
 import { markTopicAudioListened, addWordWithTranslation, lookupVocabularyWord, getApiUrl, createHeaders } from '../lib/api';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+import { useGamification } from '../hooks/useGamification';
+import { LevelUpModal, AchievementModal } from './gamification';
 
 interface TtsResponseData {
   success?: boolean;
@@ -44,16 +46,30 @@ interface OutputSectionProps {
   isLoggedIn: boolean;
   onAudioComplete?: () => void;
   disableSticky?: boolean; // Yeni prop: Sticky davranışı devre dışı bırakmak için
+  audioRef?: React.RefObject<HTMLAudioElement | null>; // NEW
+  initialPosition?: number; // Başlangıç pozisyonu (saniye) - resume için
 }
 
-export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete, disableSticky = false }: OutputSectionProps) {
+export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete, disableSticky = false, audioRef, initialPosition }: OutputSectionProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [activeDialogueIndex, setActiveDialogueIndex] = useState<number | null>(null);
   const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [hasPinnedControls, setHasPinnedControls] = useState(false);
 
-  // Pattern highlighting state
+  // Gamification hook
+  const {
+    addXP,
+    showLevelUp,
+    levelUpData,
+    closeLevelUp,
+    showAchievement,
+    newAchievement,
+    closeAchievement,
+    fireCelebration
+  } = useGamification();
+
+
   const [patterns, setPatterns] = useState<Array<{
     pattern: string;
     type: string;
@@ -570,10 +586,12 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
               originalText={audioResult.dialogue && audioResult.dialogue.length > 0 ? audioResult.dialogue : (adaptedText || audioResult.message)}
               className=""
               showControls={true}
+              externalAudioRef={audioRef} // NEW
               level={audioResult.level}
               originalTurkish={audioResult.original_turkish}
               topic={audioResult.topic}
               uiVariant={hasPinnedControls ? 'bare' : 'card'}
+              initialPosition={initialPosition}
               downloadUrls={{
                 mp3: playableAudioUrl,
                 vtt: playableVttUrl
@@ -596,12 +614,25 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
                 // Dinleme tamamlandığında işaretle
                 if (audioResult.mp3_url) {
                   try {
-                    await markTopicAudioListened(audioResult.mp3_url);
+                    await markTopicAudioListened((audioResult as any).topic_id || audioResult.mp3_url, (audioResult as any).real_duration || 0);
                     console.log('✅ Topic audio marked as listened');
                   } catch (e) {
                     console.error('markTopicAudioListened error:', e);
                   }
                 }
+
+                // 🎮 Gamification: İçerik tamamlandığında XP ver
+                try {
+                  const contentId = (audioResult as any).id || audioResult.mp3_url;
+                  const result = await addXP(100, 'content', contentId);
+                  if (result) {
+                    console.log(`🎮 +${result.xpAdded} XP kazanıldı! Level: ${result.currentLevel}`);
+                    fireCelebration('levelUp');
+                  }
+                } catch (e) {
+                  console.error('addXP error:', e);
+                }
+
                 // Parent callback'i de çağır
                 onAudioComplete?.();
               }}
@@ -680,7 +711,7 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
               </div>
               <div className="text-gray-800 leading-relaxed" style={{ fontSize: '15px', lineHeight: '1.8' }}>
                 {adaptedTextWords.map((word: string, index: number) => {
-                  const isCurrentWord = isAudioPlaying && index === activeWordIndex;
+                  const isCurrentWord = index === activeWordIndex && activeWordIndex >= 0;
                   const patternForWord = getPatternForWord(index);
                   const isInPattern = !!patternForWord;
                   const isPatternStart = isFirstInPattern(index);
@@ -837,6 +868,24 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
         pattern={selectedPattern}
         onClose={() => setSelectedPattern(null)}
       />
+
+      {/* Gamification Modals */}
+      {showLevelUp && levelUpData && (
+        <LevelUpModal
+          isOpen={showLevelUp}
+          onClose={closeLevelUp}
+          oldLevel={levelUpData.oldLevel}
+          newLevel={levelUpData.newLevel}
+        />
+      )}
+
+      {showAchievement && newAchievement && (
+        <AchievementModal
+          isOpen={showAchievement}
+          onClose={closeAchievement}
+          achievement={newAchievement}
+        />
+      )}
     </div>
   );
 }

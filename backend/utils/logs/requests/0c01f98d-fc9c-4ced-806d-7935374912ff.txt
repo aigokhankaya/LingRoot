@@ -1,0 +1,76 @@
+[2026-01-17T09:01:43.274Z] [input:parse]
+{
+  "body": {
+    "input": "yeni client api ilk testi",
+    "type": "text",
+    "level": "A1",
+    "SesHızı": 0.8,
+    "voice": "lr_us_female_basic_1"
+  }
+}
+
+-------------------- extractText --------------------
+[2026-01-17T09:01:43.282Z] [extractText:start]
+{
+  "inputData": "yeni client api ilk testi",
+  "inputType": "text",
+  "level": "A1",
+  "detectedLang": "en"
+}
+
+[2026-01-17T09:01:43.283Z] [extractText:end]
+{
+  "rawText": "yeni client api ilk testi"
+}
+-----------------------------------------------------
+
+-------------------- cleanText --------------------
+[2026-01-17T09:01:43.285Z] [cleanText]
+{
+  "rawText": "yeni client api ilk testi",
+  "cleanedText": "yeni client api ilk testi"
+}
+-----------------------------------------------------
+
+-------------------- translateAndAdapt --------------------
+[2026-01-17T09:01:43.577Z] [translateAndAdapt:start]
+{
+  "cleanedText": "yeni client api ilk testi",
+  "level": "A1"
+}
+
+[2026-01-17T09:01:46.657Z] [translateAndAdapt:success]
+{
+  "resultLength": 665
+}
+
+[2026-01-17T09:01:46.658Z] [translateAndAdapt:end]
+{
+  "textToAdapt": "New client API first test. \n\nThis test is for a new client API (Application Programming Interface). An API helps different software talk to each other. It is important for making apps work well togeth..."
+}
+-----------------------------------------------------
+
+-------------------- dailyPatterns --------------------
+[2026-01-17T09:01:46.659Z] [dailyPatterns:start]
+{
+  "textLength": 665
+}
+
+[2026-01-17T09:01:47.128Z] [dailyPatterns:end]
+{
+  "count": 0,
+  "skipped": false
+}
+-----------------------------------------------------
+
+[2026-01-17T09:01:47.128Z] [chunkText:preTTS:start]
+{
+  "textToAdapt": "New client API first test. \n\nThis test is for a new client API (Application Programming Interface). An API helps different software talk to each other. It is important for making apps work well together. \n\nIn this first test, we check if the API works. We send a request to the API. Then, we see if we get the right answer. This shows that the API is ready to use. \n\nThe new client API can help many users. It can make tasks easier and faster. Users can connect different programs. This makes work more efficient. \n\nTesting the API is very important. It helps find problems before people use it. A good API helps users feel happy. They can trust that it works well.",
+  "chunkCount": 1
+}
+
+[2026-01-17T09:01:47.129Z] [chunkText:preTTS:end]
+{
+  "chunkCount": 1
+}
+

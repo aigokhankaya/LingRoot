@@ -1,9 +1,9 @@
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const path = require('path');
 const fs = require('fs');
-const { sendSupportMessageNotification } = require('../utils/supportNotifier');
-const { uploadChatAttachment } = require('../utils/chatStorageUploader');
+const { sendSupportMessageNotification } = require('../utils/notifications/supportNotifier.js');
+const { uploadChatAttachment } = require('../utils/storage/chatStorageUploader.js');
 
 // Get all conversations for a user
 const getUserConversations = async (req, res) => {

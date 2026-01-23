@@ -7,8 +7,8 @@ if (process.env.OPENAI_API_KEY) {
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   } catch { }
 }
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -113,7 +113,7 @@ exports.generateAndStoreHobbySuggestions = async (req, res) => {
 
     // Log cost for hobby suggestions generation
     try {
-      const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+      const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
       const usage = completion.usage;
       if (usage) {
         const userId = req.user?.id || null;

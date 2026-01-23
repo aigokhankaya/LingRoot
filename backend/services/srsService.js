@@ -1,6 +1,6 @@
 const pool = require('../config/db');
-const logger = require('../utils/logger');
-const { withRetry, withGracefulDegradation } = require('../utils/retryUtils');
+const logger = require('../utils/common/logger.js');
+const { withRetry, withGracefulDegradation } = require('../utils/common/retryUtils.js');
 
 class SrsService {
     /**
@@ -103,8 +103,6 @@ class SrsService {
               ease_factor = $5,
               repetition_count = $6,
               streak_correct = CASE WHEN $7 >= 3 THEN streak_correct + 1 ELSE 0 END,
-              total_reviews = total_reviews + 1,
-              correct_reviews = correct_reviews + (CASE WHEN $7 >= 3 THEN 1 ELSE 0 END),
               last_reviewed_at = NOW()
             WHERE id = $1 AND user_id = $2
             RETURNING *
@@ -127,25 +125,24 @@ class SrsService {
                 // Insert (İlk defa review ediliyor)
                 const insertQuery = `
             INSERT INTO word_reviews (
-              user_id, word, word_translation, context_sentence, source_content_id,
+              user_id, word, definition, example_sentence, source_content_id,
               next_review_date, interval_days, ease_factor, repetition_count, streak_correct,
-              total_reviews, correct_reviews, last_reviewed_at
+              last_reviewed_at
             ) VALUES (
               $1, $2, $3, $4, $5,
               $6, $7, $8, $9, $10,
-              1, $11, NOW()
+              NOW()
             )
             RETURNING *
           `;
 
                 const values = [
-                    userId, sanitizedWord, wordTranslation, contextSentence, sourceContentId,
+                    userId, sanitizedWord, definition || wordTranslation, contextSentence, sourceContentId,
                     calculation.nextReviewDate,
                     calculation.interval,
                     calculation.easeFactor,
                     calculation.repetitions,
-                    quality >= 3 ? 1 : 0, // streak_correct
-                    quality >= 3 ? 1 : 0 // correct_reviews
+                    quality >= 3 ? 1 : 0 // streak_correct
                 ];
 
                 const res = await pool.query(insertQuery, values);
@@ -167,15 +164,34 @@ class SrsService {
                 COUNT(*) as total_words,
                 SUM(CASE WHEN next_review_date <= CURRENT_DATE THEN 1 ELSE 0 END) as due_today,
                 AVG(streak_correct) as avg_streak,
-                AVG(ease_factor) as avg_mastery
+                AVG(ease_factor) as avg_mastery,
+                SUM(CASE WHEN DATE(last_reviewed_at) = CURRENT_DATE THEN 1 ELSE 0 END) as reviewed_today
               FROM word_reviews
               WHERE user_id = $1
             `;
             const res = await pool.query(query, [userId]);
-            return res.rows[0];
+            const stats = res.rows[0];
+
+            // Günlük hedef: due olan tüm kelimeler tamamlandıysa completed
+            const dueToday = parseInt(stats.due_today) || 0;
+            const reviewedToday = parseInt(stats.reviewed_today) || 0;
+            const dailyReviewCompleted = dueToday === 0 && reviewedToday > 0;
+
+            return {
+                ...stats,
+                reviewed_today: reviewedToday,
+                daily_review_completed: dailyReviewCompleted
+            };
         } catch (error) {
             logger.error('[SRS] getStats error:', error);
-            return { total_words: 0, due_today: 0, avg_streak: 0, avg_mastery: 2.5 };
+            return {
+                total_words: 0,
+                due_today: 0,
+                avg_streak: 0,
+                avg_mastery: 2.5,
+                reviewed_today: 0,
+                daily_review_completed: false
+            };
         }
     }
 }

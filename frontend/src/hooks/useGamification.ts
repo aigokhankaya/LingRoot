@@ -48,6 +48,7 @@ export interface DailyQuest {
     xp_reward: number;
     is_completed: boolean;
     is_claimed: boolean;
+    parent_quest_node_id?: number;
 }
 
 export interface XPResult {

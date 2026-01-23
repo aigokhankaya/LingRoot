@@ -10,10 +10,10 @@ const {
     withCircuitBreaker,
     withGracefulDegradation,
     getCircuitBreakerStatus
-} = require('../utils/retryUtils');
+} = require('../utils/common/retryUtils.js');
 
 // Mock logger
-jest.mock('../utils/logger', () => ({
+jest.mock('../utils/common/logger.js', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     info: jest.fn(),

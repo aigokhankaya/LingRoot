@@ -11,7 +11,10 @@ const ExpandedPlayerModal: React.FC = () => {
         return null;
     }
 
-    const { activeTrack, minimize, close } = player;
+    const { activeTrack, minimize, close, currentTime, duration } = player;
+
+    // Calculate progress percentage
+    const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
     // Handle backdrop click - minimize instead of close
     const handleBackdropClick = (e: React.MouseEvent) => {
@@ -49,9 +52,28 @@ const ExpandedPlayerModal: React.FC = () => {
             >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">
-                        {activeTrack.title || 'Ses Oynatıcı'}
-                    </h3>
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-800">
+                            {activeTrack.title || 'Ses Oynatıcı'}
+                        </h3>
+                        {/* Progress Badge */}
+                        {duration > 0 && (
+                            <div className="flex items-center gap-2">
+                                <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-primary rounded-full transition-all duration-300"
+                                        style={{ width: `${progressPercent}%` }}
+                                    />
+                                </div>
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${progressPercent >= 90 ? 'bg-green-100 text-green-700' :
+                                        progressPercent > 0 ? 'bg-amber-100 text-amber-700' :
+                                            'bg-gray-100 text-gray-600'
+                                    }`}>
+                                    {Math.round(progressPercent)}%
+                                </span>
+                            </div>
+                        )}
+                    </div>
                     <div className="flex items-center gap-3">
                         {/* Rating Buttons */}
                         {activeTrack.id && (
@@ -87,6 +109,7 @@ const ExpandedPlayerModal: React.FC = () => {
                     audioResult={audioResult as any}
                     isLoggedIn={true}
                     disableSticky={true}
+                    audioRef={player.audioRef} // NEW
                 />
             </div>
         </div>

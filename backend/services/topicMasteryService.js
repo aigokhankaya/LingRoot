@@ -10,8 +10,8 @@
  */
 
 const pool = require('../config/db');
-const logger = require('../utils/logger');
-const { withRetry, withGracefulDegradation } = require('../utils/retryUtils');
+const logger = require('../utils/common/logger.js');
+const { withRetry, withGracefulDegradation } = require('../utils/common/retryUtils.js');
 
 class TopicMasteryService {
 

@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Get API costs analytics from api_costs table

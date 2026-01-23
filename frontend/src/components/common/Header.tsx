@@ -13,7 +13,7 @@ const Header: React.FC = () => {
 
   return (
     <header className="flex items-center justify-between py-4 px-6 bg-white/90 border-b border-border backdrop-blur-sm">
-      <Link href="/">
+      <Link href="/welcome">
         <div className="flex items-center space-x-3">
           <Image
             src="/lingroot-logo.svg"
@@ -32,7 +32,7 @@ const Header: React.FC = () => {
         </div>
       </Link>
       <nav className="flex items-center space-x-6 text-sm md:text-base font-medium text-foreground/80">
-        <Link href="/" className="hover:text-primary transition-colors">
+        <Link href="/welcome" className="hover:text-primary transition-colors">
           {t('dashboard')}
         </Link>
         <Link href="/about" className="hover:text-primary transition-colors">
@@ -54,7 +54,7 @@ const Header: React.FC = () => {
             <Button
               onClick={() => {
                 logout();
-                router.push('/');
+                router.push('/welcome');
               }}
               className="ml-2 text-xs md:text-sm"
             >
@@ -72,6 +72,6 @@ const Header: React.FC = () => {
     </header>
   );
 }
-;
+  ;
 
 export default Header; 

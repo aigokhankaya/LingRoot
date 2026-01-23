@@ -4,7 +4,7 @@
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function setOpenAIProvider() {
     console.log('🔧 Setting TTS provider to OpenAI...');

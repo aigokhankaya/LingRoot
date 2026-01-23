@@ -1,4 +1,4 @@
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function getFullData() {
     const topicId = '7e08a77d-0e8f-41db-b060-ceef9d9b18d3'; // Istanbul Topic

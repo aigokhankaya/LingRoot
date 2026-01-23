@@ -1,5 +1,5 @@
 // Script to compare Gold vs Platinum limits calculation
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function compareLimits() {
   try {

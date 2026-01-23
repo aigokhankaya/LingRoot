@@ -1,5 +1,5 @@
 const conversationSummaryService = require('../services/conversationSummaryService');
-const dynamicLevelAnalyzer = require('../utils/dynamicLevelAnalyzer');
+const dynamicLevelAnalyzer = require('../utils/content/dynamicLevelAnalyzer.js');
 const db = require('../config/db');
 
 async function test() {

@@ -6,7 +6,7 @@
 require('dotenv').config();
 const db = require('../config/db');
 const userInsightService = require('../services/userInsightService');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 async function main() {
     const email = process.argv[2] || 'egokhankaya@gmail.com';

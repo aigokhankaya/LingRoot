@@ -1,8 +1,8 @@
 const express = require('express');
 const { getUserInterests, updateUserInterests } = require('../controllers/interestController');
 const { authenticate } = require('../middleware/authMiddleware');
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 
 const router = express.Router();
 

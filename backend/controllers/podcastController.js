@@ -1,6 +1,6 @@
-const { uploadToSupabase } = require('../utils/storageUploader');
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
+const { uploadToSupabase } = require('../utils/storage/storageUploader.js');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 const axios = require('axios');
 
 function parseVttTimestampToSeconds(ts) {
@@ -296,7 +296,7 @@ const uploadPodcast = async (req, res) => {
         };
 
         try {
-          const { calculateTtsCost } = require('../utils/costTracker');
+          const { calculateTtsCost } = require('../utils/infra/costTracker.js');
           const ttsCharacters = typeof extractedText === 'string' ? extractedText.length : 0;
           const ttsCategory = 'Premium';
           const ttsCostUsd = calculateTtsCost(ttsCharacters, ttsCategory);

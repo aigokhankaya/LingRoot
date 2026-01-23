@@ -214,9 +214,9 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                         ) : (
                             <ul className="divide-y divide-gray-100">
                                 {notifications.map((notification) => {
-                                    const Icon = typeIcons[notification.type] || Info;
-                                    const iconColor = typeColors[notification.type] || typeColors.info;
-                                    const bgColor = typeBgColors[notification.type] || typeBgColors.info;
+                                    const Icon = typeIcons[notification.type as keyof typeof typeIcons] || Info;
+                                    const iconColor = typeColors[notification.type as keyof typeof typeColors] || typeColors.info;
+                                    const bgColor = typeBgColors[notification.type as keyof typeof typeBgColors] || typeBgColors.info;
 
                                     return (
                                         <li
