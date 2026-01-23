@@ -24,6 +24,9 @@ import AppHeader from '../src/components/AppHeader';
 // Gamification components
 import { GamificationBanner, DailyQuestsCard } from '../src/components/gamification';
 import { useGamification } from '../src/hooks/useGamification';
+// Resume Content
+import ResumeContentCard from '../src/components/content/ResumeContentCard';
+import { IncompleteListeningItem } from '../src/lib/api';
 
 interface ContentHistoryItem {
   id: string;
@@ -107,6 +110,13 @@ const Dashboard = () => {
     'subject',
   ]);
   const [activeMoodFilter, setActiveMoodFilter] = useState<string>('All');
+
+  // Resume Content State
+  const [resumeItem, setResumeItem] = useState<IncompleteListeningItem | null>(null);
+
+  const handleResumePlay = (item: IncompleteListeningItem) => {
+    setResumeItem(item);
+  };
 
   const historyTypeOptions = React.useMemo(
     () => [
@@ -558,6 +568,9 @@ const Dashboard = () => {
             <TabsContent value="dashboard" className="mt-0">
               {/* Gamification Banner - Streak warning / Challenge reminder */}
               <GamificationBanner />
+
+              {/* Resume Content Card - Kaldığın yerden devam et */}
+              <ResumeContentCard onResumePlay={handleResumePlay} />
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Quick Stats */}
@@ -1366,6 +1379,68 @@ const Dashboard = () => {
           </Tabs>
         </div>
       </div>
+
+      {/* Resume Player Modal */}
+      {resumeItem && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Modal Header */}
+            <div className="p-4 border-b bg-gradient-to-r from-amber-50 to-orange-50 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
+                  <i className="fas fa-play text-white"></i>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800">{resumeItem.topics?.title || t('reading_history_adapted_title')}</h3>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      resumeItem.topics?.level === 'A1' ? 'bg-green-100 text-green-700' :
+                      resumeItem.topics?.level === 'A2' ? 'bg-lime-100 text-lime-700' :
+                      resumeItem.topics?.level === 'B1' ? 'bg-yellow-100 text-yellow-700' :
+                      resumeItem.topics?.level === 'B2' ? 'bg-orange-100 text-orange-700' :
+                      resumeItem.topics?.level === 'C1' ? 'bg-red-100 text-red-700' :
+                      'bg-purple-100 text-purple-700'
+                    }`}>
+                      {resumeItem.topics?.level || 'A1'}
+                    </span>
+                    <span>•</span>
+                    <span>{Math.round(resumeItem.progress_percentage || 0)}% {t('dashboard_daily_goal_title') || 'tamamlandı'}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setResumeItem(null)}
+                className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+              >
+                <i className="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <OutputSection
+                audioResult={{
+                  message: resumeItem.adapted_text || '',
+                  mp3_url: resumeItem.mp3_url || '',
+                  vtt_url: resumeItem.vtt_url || resumeItem.mp3_url?.replace('.mp3', '.vtt') || '',
+                  level: resumeItem.topics?.level || 'A1',
+                  adapted_text: resumeItem.adapted_text || '',
+                  translated_text: resumeItem.translated_text || '',
+                  topic: resumeItem.topics?.title || '',
+                  timepoints: Array.isArray(resumeItem.timepoints)
+                    ? resumeItem.timepoints
+                    : [],
+                  words: Array.isArray(resumeItem.words)
+                    ? resumeItem.words
+                    : (resumeItem.adapted_text || '').split(/\s+/).filter((w: string) => w.length > 0),
+                }}
+                isLoggedIn={isAuthenticated}
+                initialPosition={resumeItem.last_position_seconds}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

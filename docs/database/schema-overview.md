@@ -807,6 +807,106 @@ External service configurations.
 
 ---
 
+## 11. Quiz Engine Tables (New - 2026-01-23)
+
+### quiz_word_attempts (0 rows)
+Kelime bazlı quiz denemeleri. SRS entegrasyonu için kritik.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | FK → users |
+| word | VARCHAR(100) | Tested word |
+| quiz_result_id | UUID | FK → user_quiz_results |
+| question_id | INTEGER | Question ID in quiz |
+| question_type | VARCHAR(50) | multiple_choice, cloze, matching, ordering |
+| difficulty | INTEGER | 1-5 difficulty |
+| was_correct | BOOLEAN | Correct answer |
+| user_answer | TEXT | User's answer (JSON) |
+| correct_answer | TEXT | Correct answer (JSON) |
+| response_time_ms | INTEGER | Response time in ms |
+| hints_used | INTEGER | Hints used count |
+| source_content_id | UUID | Source content |
+| sector_id | INTEGER | FK → sectors |
+| cefr_level | VARCHAR(10) | Question CEFR level |
+| synced_to_srs | BOOLEAN | Synced to word_reviews |
+| synced_at | TIMESTAMP | SRS sync time |
+| created_at | TIMESTAMP | Record creation time |
+
+### user_quiz_difficulty_profile (0 rows)
+Kullanıcı quiz zorluk profili. Adaptif zorluk sistemi için.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| user_id | UUID | Primary key, FK → users |
+| vocabulary_accuracy | DECIMAL(4,3) | Vocabulary accuracy (0-1) |
+| grammar_accuracy | DECIMAL(4,3) | Grammar accuracy |
+| listening_accuracy | DECIMAL(4,3) | Listening accuracy |
+| reading_accuracy | DECIMAL(4,3) | Reading accuracy |
+| mc_accuracy | DECIMAL(4,3) | Multiple choice accuracy |
+| cloze_accuracy | DECIMAL(4,3) | Cloze test accuracy |
+| matching_accuracy | DECIMAL(4,3) | Matching accuracy |
+| ordering_accuracy | DECIMAL(4,3) | Ordering accuracy |
+| avg_response_time_ms | INTEGER | Average response time |
+| fastest_response_ms | INTEGER | Fastest response |
+| slowest_response_ms | INTEGER | Slowest response |
+| total_questions_answered | INTEGER | Total questions answered |
+| total_correct | INTEGER | Total correct answers |
+| current_streak | INTEGER | Current correct streak |
+| best_streak | INTEGER | Best correct streak |
+| preferred_question_types | JSONB | AI-learned preferences |
+| struggling_topics | JSONB | Struggling topics |
+| mastered_topics | JSONB | Mastered topics |
+| recommended_difficulty | INTEGER | AI-recommended difficulty (1-5) |
+| created_at | TIMESTAMP | Profile creation |
+| updated_at | TIMESTAMP | Last update |
+
+### quiz_question_templates (0 rows)
+Dinamik soru üretimi için şablonlar.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| question_type | VARCHAR(50) | cloze, matching, ordering, etc. |
+| category | VARCHAR(50) | vocabulary, grammar, phrase |
+| subcategory | VARCHAR(50) | More specific category |
+| cefr_level | VARCHAR(10) | CEFR level |
+| difficulty | INTEGER | 1-5 difficulty |
+| template | JSONB | Template definition |
+| sector_id | INTEGER | FK → sectors (optional) |
+| usage_count | INTEGER | Times used |
+| success_rate | DECIMAL(4,3) | Average success rate |
+| is_active | BOOLEAN | Active status |
+| created_at | TIMESTAMP | Creation date |
+| updated_at | TIMESTAMP | Last update |
+
+### quiz_sessions (0 rows)
+Quiz oturum takibi. Uzun/kesintiye uğrayan quizler için.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | FK → users |
+| quiz_id | UUID | FK → sector_quizzes |
+| quiz_type | VARCHAR(50) | sector, vocabulary, content, adaptive |
+| content_id | UUID | Related content |
+| sector_id | INTEGER | FK → sectors |
+| status | VARCHAR(20) | in_progress, completed, abandoned, paused |
+| current_question_index | INTEGER | Current position |
+| total_questions | INTEGER | Total questions |
+| answers | JSONB | Saved answers |
+| started_at | TIMESTAMP | Session start |
+| last_activity_at | TIMESTAMP | Last activity |
+| completed_at | TIMESTAMP | Completion time |
+| time_limit_seconds | INTEGER | Time limit |
+| time_spent_seconds | INTEGER | Time spent |
+| score | INTEGER | Final score |
+| score_percentage | DECIMAL(5,2) | Score percentage |
+| correct_count | INTEGER | Correct answers |
+| wrong_count | INTEGER | Wrong answers |
+
+---
+
 ## Database Functions
 
 ### XP & Level Calculations
@@ -818,12 +918,22 @@ calculate_level_from_xp(total_xp INTEGER) → INTEGER
 xp_for_next_level(current_level INTEGER) → INTEGER
 ```
 
+### Quiz Engine Functions
+```sql
+-- Get word quiz statistics for a user
+get_word_quiz_stats(p_user_id UUID, p_word VARCHAR) → TABLE
+
+-- Get struggling words for SRS
+get_struggling_words(p_user_id UUID, p_limit INTEGER) → TABLE
+```
+
 ### Triggers
 - `trigger_gamification_updated` - Updates `updated_at` on user_gamification
 - `trigger_create_gamification_profile` - Auto-creates gamification profile for new users
 - `trigger_daily_quest_completion` - Updates parent quest progress when daily quest completes
 - `trigger_update_streak_society` - Updates streak tier when streak changes
 - `trigger_add_new_quests` - Adds new quests to user progress
+- `trigger_update_quiz_difficulty` - **[NEW]** Updates user quiz difficulty profile on answer
 
 ---
 

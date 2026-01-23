@@ -67,6 +67,7 @@ interface NewSyncedTextPlayerProps {
   hideText?: boolean;
   uiVariant?: 'card' | 'bare';
   externalAudioRef?: React.RefObject<HTMLAudioElement | null>; // NEW
+  initialPosition?: number; // Başlangıç pozisyonu (saniye) - resume için
 }
 
 interface ContextMenu {
@@ -96,7 +97,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   onComplete,
   hideText = false,
   uiVariant = 'card',
-  externalAudioRef // NEW
+  externalAudioRef, // NEW
+  initialPosition // Resume için başlangıç pozisyonu
 }: NewSyncedTextPlayerProps) {
 
   // Use useWordSync hook directly in component
@@ -146,6 +148,15 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       onWordChange(activeWordIndex, isPlaying);
     }
   }, [activeWordIndex, isPlaying, onWordChange]);
+
+  // Resume: Başlangıç pozisyonuna git
+  useEffect(() => {
+    if (initialPosition && initialPosition > 0 && duration > 0) {
+      // Sadece bir kez çalışması için duration kontrolü
+      seek(initialPosition);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duration]); // duration hazır olduğunda seek yap
 
   const dialogueLines = useMemo(
     () =>

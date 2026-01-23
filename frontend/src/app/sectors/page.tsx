@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, X, Sparkles, BookOpen, GraduationCap, TrendingUp } from 'lucide-react';
 import SectorCard, { Sector } from '@/components/sectors/SectorCard';
 import { api } from '@/lib/api';
+import AppHeader from '@/components/AppHeader';
 
 // 16 sektörün tamamı için fallback verisi
 const FALLBACK_SECTORS: Sector[] = [
@@ -102,6 +103,9 @@ export default function SectorsPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+            {/* Header */}
+            <AppHeader />
+
             {/* Hero Section */}
             <div className="relative overflow-hidden">
                 {/* Background decorations */}
