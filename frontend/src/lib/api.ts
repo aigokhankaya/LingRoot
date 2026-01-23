@@ -124,21 +124,29 @@ export const addWordWithTranslation = async (
 // --- Topic Hierarchy ---
 
 export const getTopicTree = async () => fetchApi('topic-hierarchy');
-export const createMainTopic = async (title: string, language: string) =>
+export const createMainTopic = async (params: { title: string; description?: string; level?: string; mood?: string; language?: string }) =>
     fetchApi('topic-hierarchy', {
         method: 'POST',
-        body: JSON.stringify({ title, language })
+        body: JSON.stringify(params)
     });
-export const generateSubtopics = async (parentId: string, parentTitle: string) =>
-    fetchApi('topic-hierarchy/generate-subtopics', {
+export const generateSubtopics = async (parentId: string, options: { count?: number; language?: string; angle?: string } | string) => {
+    const body = typeof options === 'string'
+        ? { parentId, parentTitle: options }
+        : { parentId, ...options };
+    return fetchApi('topic-hierarchy/generate-subtopics', {
         method: 'POST',
-        body: JSON.stringify({ parentId, parentTitle })
+        body: JSON.stringify(body)
     });
-export const addManualSubtopic = async (parentId: string, title: string) =>
-    fetchApi('topic-hierarchy/manual', {
+};
+export const addManualSubtopic = async (parentId: string, options: { title: string; description?: string } | string) => {
+    const body = typeof options === 'string'
+        ? { parentId, title: options }
+        : { parentId, ...options };
+    return fetchApi('topic-hierarchy/manual', {
         method: 'POST',
-        body: JSON.stringify({ parentId, title })
+        body: JSON.stringify(body)
     });
+};
 export const deleteTopicAndChildren = async (id: string) =>
     fetchApi(`topic-hierarchy/${id}`, { method: 'DELETE' });
 
@@ -371,11 +379,29 @@ export interface UserStats {
 export interface Topic {
     id: string;
     title: string;
-    level: number;
+    level: number | string;
+    description?: string;
     parentId?: string;
     children?: Topic[];
     progress?: number; // 0-100
     isLocked?: boolean;
+    is_manual?: boolean;
+    mood_tag?: string;
+    latest_content?: {
+        mp3_url?: string;
+        vtt_url?: string;
+        adapted_text?: string;
+        translated_text?: string;
+        words?: any[];
+        timepoints?: any[];
+        listened_at?: string;
+        is_completed?: boolean;
+        progress_percentage?: number;
+        last_position_seconds?: number;
+        dialogue_segments?: any[];
+        message?: string;
+        level?: string;
+    };
 }
 
 export interface BookHistoryItem {
@@ -469,6 +495,8 @@ export interface ProcessInputData {
     chapter_id?: string;
     topic_id?: string;
     targetDurationMinutes?: number;
+    mood?: string;
+    suppressPlanAlerts?: boolean;
 }
 
 export interface PodcastCreationParams {
@@ -579,6 +607,36 @@ export const getLibrary = async () => fetchApi<LibraryItem[]>('library');
 
 export const getItemDetails = async (id: string, type: 'book' | 'document') =>
     fetchApi(`library/${id}?type=${type}`);
+
+// Chapter Info for library player
+export interface ChapterInfo {
+    id: number;
+    index: number;
+    title: string;
+    content: string;
+    word_count?: number;
+}
+
+// Library Item Details for player page
+export interface LibraryItemDetails {
+    item: {
+        id: number;
+        title: string;
+        author: string;
+        type: 'book' | 'document';
+        cover_url?: string;
+    };
+    chapters: ChapterInfo[];
+    progress: {
+        current_chapter_index: number;
+        position_seconds?: number;
+        progress_percentage?: number;
+        is_finished?: boolean;
+    };
+}
+
+export const getLibraryItemDetails = async (id: number, type: 'book' | 'document') =>
+    fetchApi<LibraryItemDetails>(`library/${id}?type=${type}`);
 
 export const updateProgress = async (
     type: 'book' | 'document',
