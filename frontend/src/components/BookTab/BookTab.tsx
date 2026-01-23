@@ -179,8 +179,8 @@ export default function BookTab() {
 
     try {
       setChaptersLoading(true);
-      const bookChapters = await getBookChapters(book.id);
-      setChapters(bookChapters);
+      const response = await getBookChapters(book.id);
+      setChapters(response.data || []);
     } catch (error) {
       console.error('Failed to load chapters:', error);
       setChapters([]);
@@ -747,8 +747,8 @@ export default function BookTab() {
                     className="p-2 transition-all duration-300 transform hover:scale-125 active:scale-95"
                   >
                     <i className={`text-2xl transition-all duration-300 ${favoriteIds.includes(selectedBook.id)
-                        ? 'fas fa-heart text-red-500'
-                        : 'far fa-heart text-gray-400 hover:text-red-500'
+                      ? 'fas fa-heart text-red-500'
+                      : 'far fa-heart text-gray-400 hover:text-red-500'
                       }`}></i>
                   </button>
                 </div>

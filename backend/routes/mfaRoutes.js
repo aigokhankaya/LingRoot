@@ -5,8 +5,8 @@ const multer = require('multer');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { mfaAligner } = require('../utils/mfaAligner');
-const logger = require('../utils/logger');
+const { mfaAligner } = require('../utils/audio/mfaAligner.js');
+const logger = require('../utils/common/logger.js');
 
 const mfaJobs = new Map();
 const mfaJobQueue = [];

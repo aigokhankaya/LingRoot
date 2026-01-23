@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/db');
-const bookTextExtractor = require('../utils/bookTextExtractor');
-const logger = require('../utils/logger');
+const bookTextExtractor = require('../utils/content/bookTextExtractor.js');
+const logger = require('../utils/common/logger.js');
 
 // Kitap arama endpoint'i
 router.get('/search', async (req, res) => {

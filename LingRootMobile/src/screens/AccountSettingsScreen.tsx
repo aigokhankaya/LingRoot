@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { apiService } from '../services/api';
+import { getMe, getAccountDeletionInfo, deleteAccount } from '../services/userService';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../theme/colors';
@@ -55,7 +55,7 @@ const AccountSettingsScreen: React.FC = () => {
     let mounted = true;
     (async () => {
       try {
-        const me = await apiService.getMe();
+        const me = await getMe();
         const backendPhone: string | undefined = me?.phonenumber || me?.phoneNumber || me?.phone;
         if (mounted && backendPhone) {
           setPhone(formatTRPhone(backendPhone));
@@ -114,7 +114,7 @@ const AccountSettingsScreen: React.FC = () => {
   // Open Delete Account Modal
   const openDeleteModal = async () => {
     try {
-      const info = await apiService.getAccountDeletionInfo();
+      const info = await getAccountDeletionInfo();
       setDeletionInfo(info.data);
       setDeleteEmailInput('');
       setShowDeleteModal(true);
@@ -167,7 +167,7 @@ const AccountSettingsScreen: React.FC = () => {
             try {
               setIsDeleting(true);
               setShowDeleteModal(false);
-              await apiService.deleteAccount();
+              await deleteAccount();
 
               showAlert(
                 language === 'tr' ? 'Başarılı' : 'Success',

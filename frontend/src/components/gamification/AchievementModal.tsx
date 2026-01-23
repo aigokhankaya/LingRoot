@@ -2,94 +2,102 @@
  * 🏆 Achievement Unlock Modal
  * 
  * Başarım kazanıldığında gösterilen animasyonlu modal.
+ * React Portal kullanılarak document.body altında render edilir.
  */
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Achievement, getRarityColor } from '@/hooks/useGamification';
 
 interface AchievementModalProps {
-    isOpen: boolean;
-    achievement: Achievement | null;
-    onClose: () => void;
+  isOpen: boolean;
+  achievement: Achievement | null;
+  onClose: () => void;
 }
 
 export const AchievementModal: React.FC<AchievementModalProps> = ({
-    isOpen,
-    achievement,
-    onClose
+  isOpen,
+  achievement,
+  onClose
 }) => {
-    const [showContent, setShowContent] = useState(false);
+  const [showContent, setShowContent] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-    useEffect(() => {
-        if (isOpen) {
-            setTimeout(() => setShowContent(true), 100);
-        } else {
-            setShowContent(false);
-        }
-    }, [isOpen]);
+  // Client-side mounting for Portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-    if (!isOpen || !achievement) return null;
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => setShowContent(true), 100);
+    } else {
+      setShowContent(false);
+    }
+  }, [isOpen]);
 
-    const rarityColor = getRarityColor(achievement.rarity);
-    const rarityLabels: Record<string, string> = {
-        common: 'Yaygın',
-        rare: 'Nadir',
-        epic: 'Epik',
-        legendary: 'Efsanevi'
-    };
+  if (!isOpen || !achievement || !mounted) return null;
 
-    return (
-        <div className="achievement-overlay" onClick={onClose}>
-            <div
-                className={`achievement-modal ${showContent ? 'show' : ''}`}
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Rarity glow */}
-                <div className="rarity-glow" style={{ background: `radial-gradient(circle, ${rarityColor}40 0%, transparent 70%)` }} />
+  const rarityColor = getRarityColor(achievement.rarity);
+  const rarityLabels: Record<string, string> = {
+    common: 'Yaygın',
+    rare: 'Nadir',
+    epic: 'Epik',
+    legendary: 'Efsanevi'
+  };
 
-                {/* Badge */}
-                <div className="badge-container">
-                    <div className="badge-ring" style={{ borderColor: rarityColor }} />
-                    <div className="badge-inner">
-                        <span className="badge-emoji">{achievement.icon_emoji}</span>
-                    </div>
-                    <div className="sparkles">
-                        {[...Array(8)].map((_, i) => (
-                            <div
-                                key={i}
-                                className="sparkle"
-                                style={{
-                                    transform: `rotate(${i * 45}deg) translateY(-60px)`,
-                                    animationDelay: `${i * 0.1}s`
-                                }}
-                            />
-                        ))}
-                    </div>
-                </div>
+  const modalContent = (
+    <div className="achievement-overlay" onClick={onClose}>
+      <div
+        className={`achievement-modal ${showContent ? 'show' : ''}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Rarity glow */}
+        <div className="rarity-glow" style={{ background: `radial-gradient(circle, ${rarityColor}40 0%, transparent 70%)` }} />
 
-                {/* Text */}
-                <div className="text-content">
-                    <span className="unlock-text">BAŞARIM KAZANILDI!</span>
+        {/* Badge */}
+        <div className="badge-container">
+          <div className="badge-ring" style={{ borderColor: rarityColor }} />
+          <div className="badge-inner">
+            <span className="badge-emoji">{achievement.icon_emoji}</span>
+          </div>
+          <div className="sparkles">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="sparkle"
+                style={{
+                  transform: `rotate(${i * 45}deg) translateY(-60px)`,
+                  animationDelay: `${i * 0.1}s`
+                }}
+              />
+            ))}
+          </div>
+        </div>
 
-                    <h2 className="achievement-title">{achievement.title_tr}</h2>
+        {/* Text */}
+        <div className="text-content">
+          <span className="unlock-text">BAŞARIM KAZANILDI!</span>
 
-                    <p className="achievement-desc">{achievement.description_tr}</p>
+          <h2 className="achievement-title">{achievement.title_tr}</h2>
 
-                    <div className="rarity-badge" style={{ background: `${rarityColor}30`, color: rarityColor }}>
-                        {rarityLabels[achievement.rarity] || 'Yaygın'}
-                    </div>
+          <p className="achievement-desc">{achievement.description_tr}</p>
 
-                    <div className="xp-reward">
-                        <span className="xp-icon">⚡</span>
-                        <span className="xp-amount">+{achievement.xp_reward} XP</span>
-                    </div>
-                </div>
+          <div className="rarity-badge" style={{ background: `${rarityColor}30`, color: rarityColor }}>
+            {rarityLabels[achievement.rarity] || 'Yaygın'}
+          </div>
 
-                <button className="close-btn" onClick={onClose}>
-                    Harika!
-                </button>
+          <div className="xp-reward">
+            <span className="xp-icon">⚡</span>
+            <span className="xp-amount">+{achievement.xp_reward} XP</span>
+          </div>
+        </div>
 
-                <style jsx>{`
+        <button className="close-btn" onClick={onClose}>
+          Harika!
+        </button>
+
+        <style jsx>{`
           .achievement-overlay {
             position: fixed;
             inset: 0;
@@ -281,9 +289,12 @@ export const AchievementModal: React.FC<AchievementModalProps> = ({
             box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
           }
         `}</style>
-            </div>
-        </div>
-    );
+      </div>
+    </div>
+  );
+
+  // React Portal ile document.body altında render et
+  return createPortal(modalContent, document.body);
 };
 
 export default AchievementModal;

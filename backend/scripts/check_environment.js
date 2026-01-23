@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function checkEnvironment() {
   try {

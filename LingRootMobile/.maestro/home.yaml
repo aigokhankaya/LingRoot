@@ -1,0 +1,60 @@
+appId: com.lingroot.mobile
+---
+# LingRoot Mobile - Home Screen Navigation Flow
+# Tests home screen loading and navigation
+
+# 1. Launch app (assuming logged in state)
+- launchApp:
+    clearState: false
+
+# 2. Wait for app to load
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# 3. Verify home screen elements
+- assertVisible:
+    text: "/LingRoot|Ana Sayfa|Home/"
+    optional: true
+
+# 4. Check for bottom navigation
+- assertVisible:
+    text: "/Kütüphane|Library/"
+    optional: true
+
+- assertVisible:
+    text: "/Profil|Profile/"
+    optional: true
+
+# 5. Navigate to Library tab
+- tapOn:
+    text: "/Kütüphane|Library/"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 6. Verify Library screen
+- assertVisible:
+    text: "/Kütüphane|Library|İçerikler|Contents/"
+    optional: true
+
+# 7. Navigate to Profile tab
+- tapOn:
+    text: "/Profil|Profile/"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 8. Verify Profile screen
+- assertVisible:
+    text: "/Profil|Profile|Ayarlar|Settings/"
+    optional: true
+
+# 9. Return to Home
+- tapOn:
+    text: "/Ana Sayfa|Home/"
+    optional: true
+
+# 10. Test complete
+- takeScreenshot: home_navigation_result

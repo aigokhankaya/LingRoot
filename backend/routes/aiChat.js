@@ -2,19 +2,20 @@ const express = require('express');
 const router = express.Router();
 const aiChatController = require('../controllers/aiChatController');
 const { authenticate } = require('../middleware/auth');
+const { chatLimiter, chatDailyLimiter } = require('../middleware/security');
 
 // All routes require authentication
 router.use(authenticate);
 
-// Conversation routes
+// Conversation routes (normal limit)
 router.get('/conversations', aiChatController.getConversations);
 router.post('/conversations', aiChatController.createConversation);
 router.put('/conversations/:conversationId', aiChatController.updateConversationTitle);
 router.delete('/conversations/:conversationId', aiChatController.deleteConversation);
 
-// Message routes
+// Message routes (rate limited - AI API calls)
 router.get('/conversations/:conversationId/messages', aiChatController.getMessages);
-router.post('/conversations/:conversationId/messages', aiChatController.sendMessage);
+router.post('/conversations/:conversationId/messages', chatLimiter, chatDailyLimiter, aiChatController.sendMessage);
 
 // Topic suggestions
 router.get('/suggestions', aiChatController.getPopularTopics);

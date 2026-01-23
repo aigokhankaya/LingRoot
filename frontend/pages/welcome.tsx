@@ -21,6 +21,7 @@ import {
   FaLink,
   FaGraduationCap,
   FaPlus,
+  FaBriefcase,
 } from 'react-icons/fa';
 import { MessageSquare } from 'lucide-react';
 import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails, createDocumentFromText, DocumentRecord, DocumentSection } from '../src/lib/api';
@@ -32,7 +33,6 @@ import Footer from '../src/components/Footer';
 import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
 import InterestManager from '../src/components/InterestManager';
 import { WelcomePopup } from '../src/components/welcome/WelcomePopup';
-import { AnalyticsHelper } from '../src/utils/AnalyticsHelper';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
@@ -43,11 +43,14 @@ import BrandWordmark from "../src/components/BrandWordmark";
 import LiroAvatar from "../src/components/LiroAvatar";
 import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
 import NotificationBell from "../src/components/NotificationBell";
-import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal } from "../src/components/gamification";
+import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal, GamificationBanner } from "../src/components/gamification";
 import { useGamification } from "../src/hooks/useGamification";
 import ResumeContentCard from "../src/components/content/ResumeContentCard";
 import ContentQuizModal from "../src/components/quiz/ContentQuizModal";
 import AppHeader from "../src/components/AppHeader";
+import { useAudioPlayerSafe } from "../src/context/AudioPlayerContext";
+import { IncompleteListeningItem, getListeningProgress } from "../src/lib/api";
+import { preloadSounds } from "../src/utils/soundEffects";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -150,6 +153,7 @@ const Welcome: React.FC = () => {
   const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
   const { t } = useTranslation();
   const router = useRouter();
+  const audioPlayer = useAudioPlayerSafe();
 
   const getHistoryTypeLabel = (inputType: string): string => {
     const key = (inputType || '').toLowerCase();
@@ -266,6 +270,7 @@ const Welcome: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       checkIn();
+      preloadSounds(); // Sesleri önceden yükle
     }
   }, [isAuthenticated, user]);
 
@@ -467,19 +472,26 @@ const Welcome: React.FC = () => {
     { id: 'youtube', name: t('youtube'), icon: <FaYoutube /> },
     { id: 'document', name: t('document'), icon: <FaFileWord /> },
     { id: 'text', name: t('text'), icon: <FaFileAlt /> },
-    { id: 'weblink', name: t('web_link'), icon: <FaLink /> },
+    { id: 'sectors', name: t('web_link'), icon: <FaBriefcase /> },
     { id: 'subject', name: t('subject'), icon: <FaGraduationCap /> },
     { id: 'custom', name: t('content_type_custom'), icon: <FaPlus /> },
   ];
 
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
   useEffect(() => {
-    if (!isAuthenticated) return; // Henüz login değilse işlem yapma
+    // Test için URL parametresi kontrolü
+    const { forceOnboarding } = router.query;
+    if (forceOnboarding === 'true') {
+      setShowOnboardingFlow(true);
+      return;
+    }
 
-    // LocalStorage'da onboarding tamamlandı flag'i varsa, asla gösterme
+    // LocalStorage'da onboarding tamamlandı flag'i varsa, onboarding modalını gösterme
+    // NOT: Artık dashboard'a yönlendirmiyoruz - welcome ana sayfa
     try {
       const localOnboardingDone = localStorage.getItem('onboarding_completed');
       if (localOnboardingDone === 'true') {
+        // Onboarding tamamlanmış, modal gösterme, sayfada kal
         return;
       }
     } catch { }
@@ -490,19 +502,19 @@ const Welcome: React.FC = () => {
     // Gamification datası henüz gelmediyse (null/undefined), bekle
     if (!gamificationStats) return;
 
-    // Gamification datası geldi ve onboarding zaten tamamlanmışsa, gösterme
+    // Gamification datası geldi ve onboarding zaten tamamlanmışsa, gösterme (normal sayfa akışına devam et)
     if (gamificationStats.onboardingCompleted) {
       return;
     }
 
-    // Kullanıcının geçmişi varsa (eski kullanıcı), onboarding'i atla
+    // Kullanıcının geçmişi varsa (eski kullanıcı), onboarding'i atla (normal sayfa akışına devam et)
     if (contentHistory && contentHistory.length > 0) {
       return;
     }
 
     // Gerçekten yeni kullanıcı ise modalı göster
     setShowOnboardingFlow(true);
-  }, [gamificationLoading, gamificationStats, contentHistory, loadingHistory, isAuthenticated]);
+  }, [gamificationLoading, gamificationStats, contentHistory, loadingHistory, isAuthenticated, router]);
 
   const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   const rateOptions = [
@@ -603,7 +615,6 @@ const Welcome: React.FC = () => {
 
   // YouTube altyazı çekme
   const handleFetchYoutubeSubtitle = async () => {
-    AnalyticsHelper.logEvent('action_fetch_youtube_click', { url: youtubeUrl });
     if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
       setSubtitleError(t('welcome_youtube_invalid_url'));
       return;
@@ -648,14 +659,6 @@ const Welcome: React.FC = () => {
 
   // Podcast oluşturma fonksiyonu
   const handleCreatePodcast = async () => {
-    AnalyticsHelper.logEvent('action_create_podcast_click', {
-      topic: podcastTopic,
-      level: englishLevel,
-      duration: podcastDuration,
-      host: podcastHostSpeakerId,
-      guest: podcastGuestSpeakerId
-    });
-
     if (!podcastTopic || podcastTopic.trim().length === 0) {
       setPodcastError(t('validation_enter_podcast_topic'));
       return;
@@ -767,32 +770,66 @@ const Welcome: React.FC = () => {
     }
   };
 
-  const handleResumeContent = (item: any) => {
-    // Scroll to player first
-    setTimeout(() => {
-      const outputSection = document.getElementById('output-section');
-      if (outputSection) {
-        const rect = outputSection.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        window.scrollTo({
-          top: rect.top + scrollTop - 100, // Header için pay
-          behavior: 'smooth'
+  const handleResumeContent = async (item: IncompleteListeningItem) => {
+    console.log('🔄 [RESUME] Opening content:', item.topics?.title);
+
+    // Use AudioPlayerContext to open the global player modal
+    if (audioPlayer) {
+      try {
+        // Use words/timepoints/text directly from the item (now included in API response)
+        const words = item.words || [];
+        const timepoints = item.timepoints || [];
+        const originalText = item.adapted_text || '';
+        const translatedText = item.translated_text || '';
+
+        console.log('📍 [RESUME] Content data:', {
+          wordsCount: words.length,
+          timepointsCount: timepoints.length,
+          hasText: !!originalText
         });
+
+        // Play the track via global audio player with full text data
+        audioPlayer.playTrack({
+          id: item.topic_id,
+          url: item.mp3_url,
+          title: item.topics?.title || 'İçerik',
+          level: item.topics?.level || 'A2',
+          words: words,
+          timepoints: timepoints,
+          originalText: originalText,
+          translatedText: translatedText,
+          topic: item.topics?.title,
+        });
+      } catch (err) {
+        console.error('Resume playback error:', err);
       }
-    }, 100);
+    } else {
+      // Fallback: scroll to output section and set local state
+      setTimeout(() => {
+        const outputSection = document.getElementById('output-section');
+        if (outputSection) {
+          const rect = outputSection.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          window.scrollTo({
+            top: rect.top + scrollTop - 100,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
 
-    const audioData: AudioResult = {
-      message: item.input,
-      mp3_url: item.mp3_url,
-      vtt_url: '',
-      translated_text: undefined,
-      words: [],
-      contentId: item.id,
-      topic: item.input_type === 'podcast' ? 'Podcast' : 'İçerik',
-      level: item.level
-    };
+      const audioData: AudioResult = {
+        message: item.adapted_text || '',
+        mp3_url: item.mp3_url,
+        vtt_url: item.vtt_url || '',
+        translated_text: item.translated_text,
+        words: item.words || [],
+        contentId: item.id,
+        topic: item.topics?.title || 'İçerik',
+        level: item.topics?.level || 'A2'
+      };
 
-    setAudioResult(audioData);
+      setAudioResult(audioData);
+    }
   };
 
   // Konu önerileri alma fonksiyonu
@@ -1415,8 +1452,9 @@ const Welcome: React.FC = () => {
   const fetchContentHistory = async () => {
     setLoadingHistory(true);
     try {
+      if (!user) return;
       console.log('fetchContentHistory başlatılıyor...');
-      const response = await getContentHistory();
+      const response = await getContentHistory(user.id);
       console.log('getContentHistory response:', response);
 
       if (response.success && response.data) {
@@ -1744,6 +1782,7 @@ const Welcome: React.FC = () => {
 
       // Kullanım/abonelik kontrolü
       try {
+        if (!user) throw new Error('User not found');
         const usageSummary = await getUsageSummary();
         if (usageSummary?.success && usageSummary.data && usageSummary.data.hasPlan === false) {
           setError('Aktif paketiniz yok');
@@ -1939,7 +1978,6 @@ const Welcome: React.FC = () => {
 
     try {
       setUploadingFile(true);
-      AnalyticsHelper.logEvent('action_upload_file_start', { file_type: file.type, file_size: file.size });
 
       const formData = new FormData();
       formData.append('file', file);
@@ -2065,12 +2103,6 @@ const Welcome: React.FC = () => {
 
   // Yeni tasarım için ses oluşturma fonksiyonu
   const handleGenerate = async () => {
-    AnalyticsHelper.logEvent('action_generate_audio_click', {
-      content_type: contentType,
-      level: englishLevel,
-      voice: voiceType,
-      speaking_rate: speakingRate
-    });
     const trimmed = textInput.trim();
 
     // Metne dayalı modlarda boş içerik engeli
@@ -2222,6 +2254,9 @@ const Welcome: React.FC = () => {
 
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-5xl mx-auto">
+          {/* Gamification Status Banner */}
+          <GamificationBanner alwaysShow={true} />
+
           {error && (
             <div className="mb-8">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
@@ -2233,8 +2268,7 @@ const Welcome: React.FC = () => {
             </div>
           )}
 
-          {/* Kaldığın Yerden Devam Et */}
-          {/* Kaldığın Yerden Devam Et */}
+          {/* Dinlemeye Devam Et */}
           <ResumeContentCard onResumePlay={handleResumeContent} />
 
           {/* AI Content Entry Card */}
@@ -2292,7 +2326,13 @@ const Welcome: React.FC = () => {
                   {contentTypeOptions.map((option) => (
                     <div
                       key={option.id}
-                      onClick={() => { setContentType(option.id); AnalyticsHelper.logEvent('interaction_input_type_select', { type: option.id }); }}
+                      onClick={() => {
+                        if (option.id === 'sectors') {
+                          router.push('/sectors');
+                        } else {
+                          setContentType(option.id);
+                        }
+                      }}
                       className={`group flex flex-col items-center justify-center p-4 rounded-lg border cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md ${contentType === option.id
                         ? 'bg-primary/10 border-primary/40'
                         : 'bg-muted border-border hover:bg-muted/80'
@@ -2817,7 +2857,7 @@ const Welcome: React.FC = () => {
                               <Button
                                 key={level}
                                 type="button"
-                                onClick={() => { setEnglishLevel(level.toLowerCase()); AnalyticsHelper.logEvent('interaction_setting_level', { level: level }); }}
+                                onClick={() => setEnglishLevel(level.toLowerCase())}
                                 variant={englishLevel === level.toLowerCase() ? "default" : "outline"}
                                 className={`!rounded-button whitespace-nowrap cursor-pointer ${englishLevel === level.toLowerCase() ? 'bg-primary text-primary-foreground' : ''
                                   }`}
@@ -3339,7 +3379,7 @@ const Welcome: React.FC = () => {
               <CardContent className="p-6">
                 <div
                   className="flex items-center mb-6 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => { setShowAudioSettings(!showAudioSettings); AnalyticsHelper.logEvent('interaction_audio_settings_toggle', { state: !showAudioSettings ? 'open' : 'closed' }); }}
+                  onClick={() => setShowAudioSettings(!showAudioSettings)}
                 >
                   <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold mr-4">
                     2
@@ -3370,7 +3410,7 @@ const Welcome: React.FC = () => {
                           {levelOptions.map((level) => (
                             <Button
                               key={level}
-                              onClick={() => { setEnglishLevel(level.toLowerCase()); AnalyticsHelper.logEvent('interaction_setting_level', { level: level }); }}
+                              onClick={() => setEnglishLevel(level.toLowerCase())}
                               variant={englishLevel === level.toLowerCase() ? "default" : "outline"}
                               className={`!rounded-button whitespace-nowrap cursor-pointer ${englishLevel === level.toLowerCase() ? 'bg-primary text-primary-foreground' : ''
                                 }`}
@@ -3384,7 +3424,7 @@ const Welcome: React.FC = () => {
                           {rateOptions.map((rate) => (
                             <Button
                               key={rate.value}
-                              onClick={() => { setSpeakingRate(rate.value); AnalyticsHelper.logEvent('interaction_setting_rate', { rate: rate.value }); }}
+                              onClick={() => setSpeakingRate(rate.value)}
                               variant={speakingRate === rate.value ? "default" : "outline"}
                               className={`!rounded-button whitespace-nowrap cursor-pointer ${speakingRate === rate.value ? 'bg-primary text-primary-foreground' : ''
                                 }`}
@@ -3402,7 +3442,7 @@ const Welcome: React.FC = () => {
                               {genderOptions.map((gender) => (
                                 <Button
                                   key={gender.value}
-                                  onClick={() => { setSelectedGender(gender.value); AnalyticsHelper.logEvent('interaction_setting_gender', { gender: gender.value }); }}
+                                  onClick={() => setSelectedGender(gender.value)}
                                   variant={selectedGender === gender.value ? "default" : "outline"}
                                   size="sm"
                                   className={`!rounded-button whitespace-nowrap cursor-pointer ${selectedGender === gender.value ? 'bg-primary text-primary-foreground' : ''
@@ -3420,7 +3460,7 @@ const Welcome: React.FC = () => {
                               {accentVoiceOptions.map((accent) => (
                                 <Button
                                   key={accent.value}
-                                  onClick={() => { setSelectedAccent(accent.value); AnalyticsHelper.logEvent('interaction_setting_accent', { accent: accent.value }); }}
+                                  onClick={() => setSelectedAccent(accent.value)}
                                   variant={selectedAccent === accent.value ? "default" : "outline"}
                                   size="sm"
                                   className={`!rounded-button whitespace-nowrap cursor-pointer ${selectedAccent === accent.value ? 'bg-primary text-primary-foreground' : ''
@@ -3448,7 +3488,6 @@ const Welcome: React.FC = () => {
                               key={category.value}
                               onClick={() => {
                                 setSelectedVoiceCategory(category.value);
-                                AnalyticsHelper.logEvent('interaction_setting_voice_category', { category: category.value });
                                 // Kategori değiştiğinde ilk sesi seç
                                 const categoryVoices = detailedVoices[category.value as keyof typeof detailedVoices];
                                 if (categoryVoices && categoryVoices.length > 0) {
@@ -3499,7 +3538,7 @@ const Welcome: React.FC = () => {
                               {DURATION_OPTIONS.map((option) => (
                                 <Button
                                   key={option.value}
-                                  onClick={() => { setContentDuration(option.value); AnalyticsHelper.logEvent('interaction_setting_duration', { duration: option.value }); }}
+                                  onClick={() => setContentDuration(option.value)}
                                   variant={contentDuration === option.value ? "default" : "outline"}
                                   size="sm"
                                   className={`!rounded-button cursor-pointer flex flex-col h-auto py-2 ${contentDuration === option.value ? 'bg-primary text-primary-foreground' : ''
@@ -3557,7 +3596,7 @@ const Welcome: React.FC = () => {
                                       name="voice"
                                       value={voiceId}
                                       checked={voiceType === voiceId}
-                                      onChange={(e) => { setVoiceType(e.target.value); AnalyticsHelper.logEvent('interaction_setting_voice', { voice_id: e.target.value }); }}
+                                      onChange={(e) => setVoiceType(e.target.value)}
                                       className="mr-3 text-primary"
                                     />
                                     <div className="flex-1">
@@ -3961,148 +4000,146 @@ const Welcome: React.FC = () => {
       </div >
 
       {/* History Audio Player Modal - Konu ağacındaki gibi popup */}
-      {
-        expandedHistoryItem && (() => {
-          const selectedHistoryItem = contentHistory.find(item => item.id === expandedHistoryItem);
-          if (!selectedHistoryItem) return null;
+      {expandedHistoryItem && (() => {
+        const selectedHistoryItem = contentHistory.find(item => item.id === expandedHistoryItem);
+        if (!selectedHistoryItem) return null;
 
-          const looksLikeDialogueTranscript = (text: any) => {
-            if (!text || typeof text !== 'string') return false;
-            return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
-          };
+        const looksLikeDialogueTranscript = (text: any) => {
+          if (!text || typeof text !== 'string') return false;
+          return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
+        };
 
-          const historyAudioResult = {
-            message: selectedHistoryItem.adapted_text || selectedHistoryItem.input,
-            mp3_url: selectedHistoryItem.mp3_url,
-            vtt_url: selectedHistoryItem.mp3_url.replace('.mp3', '.vtt'),
-            level: selectedHistoryItem.level,
-            adapted_text: selectedHistoryItem.adapted_text || selectedHistoryItem.input,
-            translated_text: selectedHistoryItem.translated_text || selectedHistoryItem.input,
-            dialogue: looksLikeDialogueTranscript(selectedHistoryItem.translated_text) ? selectedHistoryItem.translated_text : undefined,
-            topic: getHistoryTypeLabel(selectedHistoryItem.input_type),
-            input_type: selectedHistoryItem.input_type,
-            dialogue_segments: Array.isArray((selectedHistoryItem as any).dialogue_segments)
-              ? (selectedHistoryItem as any).dialogue_segments
-              : (selectedHistoryItem as any).dialogue_segments
-                ? JSON.parse((selectedHistoryItem as any).dialogue_segments)
-                : undefined,
-            timepoints: (() => {
-              try {
-                if (Array.isArray(selectedHistoryItem.timepoints)) return selectedHistoryItem.timepoints;
-                if (typeof selectedHistoryItem.timepoints === 'string') return JSON.parse(selectedHistoryItem.timepoints);
-                return [];
-              } catch (e) {
-                console.error('Error parsing timepoints:', e);
-                return [];
-              }
-            })(),
-            words: (() => {
-              try {
-                return Array.isArray(selectedHistoryItem.words)
-                  ? selectedHistoryItem.words
-                  : (selectedHistoryItem.words
-                    ? JSON.parse(selectedHistoryItem.words)
-                    : (selectedHistoryItem.adapted_text || selectedHistoryItem.input).split(/\s+/).filter((word: string) => word.length > 0));
-              } catch (e) {
-                console.warn('Failed to parse words:', e);
-                return (selectedHistoryItem.adapted_text || selectedHistoryItem.input).split(/\s+/).filter((word: string) => word.length > 0);
-              }
-            })(),
-            original_turkish: selectedHistoryItem.input,
-            speaking_rate: 1.0
-          };
+        const historyAudioResult = {
+          message: selectedHistoryItem.adapted_text || selectedHistoryItem.input,
+          mp3_url: selectedHistoryItem.mp3_url,
+          vtt_url: selectedHistoryItem.mp3_url.replace('.mp3', '.vtt'),
+          level: selectedHistoryItem.level,
+          adapted_text: selectedHistoryItem.adapted_text || selectedHistoryItem.input,
+          translated_text: selectedHistoryItem.translated_text || selectedHistoryItem.input,
+          dialogue: looksLikeDialogueTranscript(selectedHistoryItem.translated_text) ? selectedHistoryItem.translated_text : undefined,
+          topic: getHistoryTypeLabel(selectedHistoryItem.input_type),
+          input_type: selectedHistoryItem.input_type,
+          dialogue_segments: Array.isArray((selectedHistoryItem as any).dialogue_segments)
+            ? (selectedHistoryItem as any).dialogue_segments
+            : (selectedHistoryItem as any).dialogue_segments
+              ? JSON.parse((selectedHistoryItem as any).dialogue_segments)
+              : undefined,
+          timepoints: (() => {
+            try {
+              if (Array.isArray(selectedHistoryItem.timepoints)) return selectedHistoryItem.timepoints;
+              if (typeof selectedHistoryItem.timepoints === 'string') return JSON.parse(selectedHistoryItem.timepoints);
+              return [];
+            } catch (e) {
+              console.error('Error parsing timepoints:', e);
+              return [];
+            }
+          })(),
+          words: (() => {
+            try {
+              return Array.isArray(selectedHistoryItem.words)
+                ? selectedHistoryItem.words
+                : (selectedHistoryItem.words
+                  ? JSON.parse(selectedHistoryItem.words)
+                  : (selectedHistoryItem.adapted_text || selectedHistoryItem.input).split(/\s+/).filter((word: string) => word.length > 0));
+            } catch (e) {
+              console.warn('Failed to parse words:', e);
+              return (selectedHistoryItem.adapted_text || selectedHistoryItem.input).split(/\s+/).filter((word: string) => word.length > 0);
+            }
+          })(),
+          original_turkish: selectedHistoryItem.input,
+          speaking_rate: 1.0
+        };
 
-          return (
+        return (
+          <div
+            className="fixed inset-0 z-[9998] flex items-center justify-center bg-black bg-opacity-60"
+            onClick={() => setExpandedHistoryItem(null)}
+          >
             <div
-              className="fixed inset-0 z-[9998] flex items-center justify-center bg-black bg-opacity-60"
-              onClick={() => setExpandedHistoryItem(null)}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4 mx-4"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4 mx-4"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex flex-col gap-2">
-                    {/* Konu başlığı */}
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      {(() => {
-                        const inputText = selectedHistoryItem.input || '';
-                        const colonIndex = inputText.indexOf(':');
-                        if (colonIndex > 0 && colonIndex < 80) {
-                          return inputText.substring(0, colonIndex).trim();
-                        }
-                        return inputText.length > 60 ? inputText.substring(0, 60) + '...' : inputText;
-                      })()}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="bg-primary text-white px-3 py-1 rounded-full text-xs font-medium">
-                        {getHistoryTypeLabel(selectedHistoryItem.input_type)}
-                      </span>
-                      <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-medium">
-                        {t('welcome_level_label')}: {selectedHistoryItem.level?.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col gap-2">
+                  {/* Konu başlığı */}
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {(() => {
+                      const inputText = selectedHistoryItem.input || '';
+                      const colonIndex = inputText.indexOf(':');
+                      if (colonIndex > 0 && colonIndex < 80) {
+                        return inputText.substring(0, colonIndex).trim();
+                      }
+                      return inputText.length > 60 ? inputText.substring(0, 60) + '...' : inputText;
+                    })()}
+                  </h3>
                   <div className="flex items-center gap-2">
-                    {/* Minimize button */}
-                    <button
-                      onClick={() => setExpandedHistoryItem(null)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
-                      title={t('minimize_button') || 'Küçült'}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                      </svg>
-                    </button>
-                    {/* Close button */}
-                    <button
-                      onClick={() => setExpandedHistoryItem(null)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-red-100 text-gray-700 hover:text-red-600 transition-colors"
-                      title={t('close_button') || 'Kapat'}
-                    >
-                      ✕
-                    </button>
+                    <span className="bg-primary text-white px-3 py-1 rounded-full text-xs font-medium">
+                      {getHistoryTypeLabel(selectedHistoryItem.input_type)}
+                    </span>
+                    <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-medium">
+                      {t('welcome_level_label')}: {selectedHistoryItem.level?.toUpperCase()}
+                    </span>
                   </div>
                 </div>
-
-                {/* Audio Player Content */}
-                <OutputSection
-                  audioResult={historyAudioResult}
-                  isLoggedIn={isAuthenticated}
-                  disableSticky={true}
-                />
-
-                {/* Quick actions */}
-                <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10 whitespace-nowrap cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(convertToPlayableUrl(selectedHistoryItem.mp3_url), '_blank');
-                    }}
-                  >
-                    <i className="fas fa-external-link-alt mr-2"></i>
-                    {t('open_in_new_tab')}
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full px-4 font-medium border-gray-300 text-gray-600 hover:bg-gray-100 whitespace-nowrap cursor-pointer"
+                <div className="flex items-center gap-2">
+                  {/* Minimize button */}
+                  <button
                     onClick={() => setExpandedHistoryItem(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+                    title={t('minimize_button') || 'Küçült'}
                   >
-                    <i className="fas fa-times mr-2"></i>
-                    {t('close_button')}
-                  </Button>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                  </button>
+                  {/* Close button */}
+                  <button
+                    onClick={() => setExpandedHistoryItem(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-red-100 text-gray-700 hover:text-red-600 transition-colors"
+                    title={t('close_button') || 'Kapat'}
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
+
+              {/* Audio Player Content */}
+              <OutputSection
+                audioResult={historyAudioResult}
+                isLoggedIn={isAuthenticated}
+                disableSticky={true}
+              />
+
+              {/* Quick actions */}
+              <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10 whitespace-nowrap cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(convertToPlayableUrl(selectedHistoryItem.mp3_url), '_blank');
+                  }}
+                >
+                  <i className="fas fa-external-link-alt mr-2"></i>
+                  {t('open_in_new_tab')}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full px-4 font-medium border-gray-300 text-gray-600 hover:bg-gray-100 whitespace-nowrap cursor-pointer"
+                  onClick={() => setExpandedHistoryItem(null)}
+                >
+                  <i className="fas fa-times mr-2"></i>
+                  {t('close_button')}
+                </Button>
+              </div>
             </div>
-          );
-        })()
-      }
+          </div>
+        );
+      })()}
 
       {/* Welcome Popup */}
       < WelcomePopup

@@ -1,6 +1,6 @@
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
-const logger = require("../utils/logger");
+const logger = require('../utils/common/logger.js');
 const { v4: uuidv4 } = require('uuid');
 
 const supabaseUrl = process.env.SUPABASE_URL;

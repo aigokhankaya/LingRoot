@@ -714,6 +714,59 @@ Content-Type: application/json
 }
 ```
 
+### System & Queue Metrics
+
+#### Queue Dashboard (Bull Board)
+```http
+GET /admin/queues
+Authorization: Bearer <admin_token>
+```
+Redirects to the Bull Board UI.
+
+#### Health Check
+```http
+GET /admin/metrics/health
+Authorization: Bearer <admin_token>
+```
+**Response:**
+```json
+{
+  "success": true,
+  "timestamp": "2026-01-15T22:00:00Z",
+  "uptime": 1234.5,
+  "redis": {
+    "available": true,
+    "url": "redis://***:6379"
+  }
+}
+```
+
+#### Queue Statistics
+```http
+GET /admin/metrics/queues
+Authorization: Bearer <admin_token>
+```
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "tts-processing": {
+      "waiting": 5,
+      "active": 2,
+      "completed": 150,
+      "failed": 0
+    }
+  }
+}
+```
+
+#### All Metrics
+```http
+GET /admin/metrics/all
+Authorization: Bearer <admin_token>
+```
+
 ### Payment Provider Management
 
 #### List Payment Providers

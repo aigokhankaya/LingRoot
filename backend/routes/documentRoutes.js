@@ -2,7 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const { authenticate } = require("../middleware/auth");
 const documentController = require("../controllers/documentController");
-const logger = require("../utils/logger");
+const logger = require('../utils/common/logger.js');
 
 const router = express.Router();
 

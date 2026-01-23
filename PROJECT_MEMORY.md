@@ -1,7 +1,7 @@
 PROJECT_MEMORY.md
 Project Name: Lingroot
-Last Updated: 2026-01-11
-Current Phase: Phase 2 – Intelligent Content Generation
+Last Updated: 2026-01-16
+Current Phase: Phase 2 – Intelligent Content Generation (Refactoring & Security Hardening)
 Active Context: CEFR-based content engine, prompt governance, audio pipeline stability, mobile/web harmonization.
 
 [1. PROJECT VISION & GOALS]
@@ -36,6 +36,7 @@ Audio: Google TTS + MFA Forced Aligner
 Storage: Supabase Storage + Cloudflare R2
 Database:
 PostgreSQL (Supabase)
+Redis (Job Queue & Caching)
 RLS zorunlu
 Multi-tenancy opsiyonlu
 Prompt logs + CEFR scoring tabloları ayrı tutulur
@@ -54,14 +55,14 @@ Web + Mobile arasında aynı API sözleşmesi kullanılmalıdır
 
 [3. ARCHITECTURE & PATTERNS]
 System-Level Architecture:
-Web (client) → Supabase Auth → Lingroot API → TTS Worker → MFA Processor → Storage → Frontend Display
+Web (client) → Supabase Auth → Lingroot API → Redis Queue → TTS/Podcast Workers → Storage → Frontend
 n8n: Topic → Prompt → CEFR adaptation → TTS → SRT → Video (Veo3)
 Admin panel: Prompt yönetimi + içerik onayı + kullanım istatistikleri
 Design Pattern:
 Clean Architecture + Modular Feature-Based Foldering
 Prompt-Oriented Architecture (POA)
-TTS-Pipeline Isolated Worker Pattern
-Audio alignment distributed workers
+Persistent Job Queue Pattern (BullMQ + Redis)
+Isolated Worker Pattern (TTS, Podcast, MFA)
 Folder Structure Standard:
 /src
    /app (web routes)
@@ -86,10 +87,19 @@ Folder Structure Standard:
    /mfa-worker
    /models
    /utils
+      /ai
+      /audio
+      /content
+      /storage
+      /infra
+      /notifications
+      /common
 /docs
    /architecture
    /codebase
    /api
+/packages
+   /api-client         # Shared TypeScript API client for Web + Mobile
    /database
    /prompts
    /marketing       # Instagram, Launch Plan, Ads Strategy
@@ -131,6 +141,11 @@ NO AGENTIC MODE: `task_boundary` tool'unu kullanma, artifact oluşturma, planlam
 NO BROWSER AUTOMATION: `browser_subagent` aracını kullanma. Tarayıcıda test gerekiyorsa kullanıcıdan manuel test yapmasını iste.
 DB OPERATIONS MANUEL: Supabase veritabanı işlemleri (tablo/kolon ekleme, güncelleme) ASLA otomatik yapılmaz ve Supabase’e doğrudan bağlanılmaz. AI sadece SQL migration dosyasını hazırlar ve kullanıcıya "Bu SQL'i Supabase SQL Editor'de çalıştırın" talimatı verir.
 AUTO-EXECUTE TERMINAL: Terminal komutları (npm, git, fs işlemleri) için kullanıcı onayı beklenmez. `SafeToAutoRun: true` parametresi varsayılan olarak kabul edilir. Sadece yıkıcı (silme, resetleme) işlemlerde onay istenir.
+DB SCHEMA SYNC: Her migration dosyası oluşturulduğunda veya veritabanı şemasında değişiklik yapıldığında (tablo oluşturma, kolon ekleme/çıkarma, FK ilişkileri), aşağıdaki dokümanlar MUTLAKA güncellenir:
+  - `docs/database/schema-overview.md` — Tablo listesi, ER diyagramı, kategori güncellemesi
+  - `docs/database/complete-column-reference.md` — Etkilenen tablonun tam kolon detayları (tip, nullable, default, PK/FK)
+  - Güncelleme formatı: Versiyon numarası artırılır, güncelleme tarihi yazılır
+  - Migration dosyası oluşturulduktan HEMEN SONRA bu dokümanlar güncellenir, ayrı bir adım olarak bırakılmaz
 DOCUMENT VERSIONING: Oluşturulan veya güncellenen her doküman dosyasında (*.md) başlık satırının hemen altında şu format kullanılır:
   ```
   > **Oluşturulma:** YYYY-MM-DD | **Güncelleme:** YYYY-MM-DD | **Versiyon:** X.Y
@@ -178,15 +193,34 @@ Phase 4 — Topic Mastery & Detailed Feedback
 ✅ Marketing analytics integration
 
 [NEW ARCHITECTURE]
+Refactored Backend Utils Structure:
+See: docs/codebase/api-services.md
+Implemented domain-driven grouping for utility functions: /ai, /audio, /content, /storage, etc.
+
+[NEW ARCHITECTURE]
 Gamified Onboarding & Progression Strategy
 See: docs/architecture/gamification-strategy.md
 Implements "Hero's Journey" onboarding, Quest-based roadmap, SRS vocabulary system, and Gamified quizzes.
 
 [6. DECISION LOG & ANTI-PATTERNS]
+[2026-01] Backend Utils Refactoring
+Karar: `backend/utils` klasörünü domain bazlı alt klasörlere ayırmak (ai, audio, infra, string...).
+Neden: God Folder anti-pattern'i oluşmuştu (60+ dosya). Bakım ve navigasyon zorlaşıyordu.
+
+[2026-01] Production Security Hardening
+Karar: Production ortamında varsayılan JWT secret'lar varsa uygulamayı başlatmamak (Crash on insecure config).
+Neden: Güvenlik açığını kaynağında engellemek.
+
+[2026-01] Shared API Client (@lingroot/api-client)
+Karar: Web ve Mobile için ortak TypeScript API client paketi oluşturmak.
+Neden: Kod tekrarını ortadan kaldırmak (~4000 satır→~100 satır), tip güvenliği sağlamak, token yönetimini merkezileştirmek.
+
 [2025-11] MFA Kullanımı
 Karar: Google TTS timepoint API yerine MFA forced aligner kullanmak.
 Neden: %99 doğruluk, kelime seviyesinde senkron ihtiyacı.
 [Anti-Pattern]
+God Object Controller: `ttsController.js` gibi 2000+ satırlık controller dosyaları.
+Çözüm: Service layer'a business logic taşıma (örn: `voiceModelService.js`, `subtitleService.js`).
 Ham YouTube altyazılarını direkt kullanmak.
 Neden yanlış: Çeviri kalitesi düşük ve seviye uyarlaması (CEFR) yok.
 [Anti-Pattern]
@@ -305,6 +339,37 @@ CEFR uygunsuzsa: “regenerate with corrected difficulty constraints”
 Supabase 429: 2s exponential retry
 Cloudflare 525: automatic fallback → local API
 MFA timeout: redispatch to Worker #2
+
+[11. TESTING & VERIFICATION PROTOCOL]
+11.1. Interactive Screen Tests Rule
+Geliştirme tamamlandığında agent, kullanıcıyı test etmeye yönlendirmek ZORUNDADIR.
+- Kullanıcıdan ilgili ekranın ekran görüntüsünü iste.
+- Kullanıcıdan bir aksiyon (buton tıklama, akış başlatma) iste.
+- Arka planda logları kontrol ederek işlemin başarısını doğrula.
+
+11.2. Verification Workflow
+Her "EXECUTION" fazının sonunda "VERIFICATION" moduna geçildiğinde:
+1) Değişen bileşenleri listele.
+2) Kullanıcıya "Şu adımları takip ederek X ekranına gidin ve ekran görüntüsü paylaşın" talimatı ver.
+3) Kullanıcı aksiyonu sonrası backend/frontend loglarını analiz et.
+4) Hata varsa düzelt ve 1. adıma dön; yoksa görevi tamamla.
+
+[12. DESIGN & UI RULES]
+12.1. Renk Paleti (Strict Color Palette)
+LingRoot marka kimliği "Organik Öğrenme" üzerinedir. "Yapay Zeka" klişelerinden kaçınılmalıdır.
+- **Onaylı Renkler (Approved):**
+  - **Primary:** Teal / Turkuaz (`--primary`, `teal-*`, `cyan-*`) - Güven ve sakinlik.
+  - **Accent:** Orange / Amber (`--accent`, `orange-*`, `amber-*`) - Enerji ve motivasyon.
+  - **Neutral:** Slate / Gray (`slate-*`) - Okunabilirlik.
+- **YASAKLI RENKLER (BANNED):**
+  - **"AI Purple" / "Generic Tech Violet":**
+  - `purple-*`, `violet-*`, `fuchsia-*` renkleri ve bu renkleri içeren gradientlar KESİNLİKLE YASAK.
+  - Sebeb: Kullanıcıda "samimiyetsiz yapay zeka ürünü" algısı yaratıyor.
+  - Mevcut "Secondary" (Lavender) rengini UI bileşenlerinde baskın kullanma.
+
+12.2. Görsel Stil
+- Gradient kullanıyorsan: `from-teal-500 to-emerald-500` veya `from-orange-400 to-amber-500` gibi doğal geçişler kullan.
+- "Neon" veya "Cyberpunk" estetiğinden kaçın. "Clean & Modern Textbook" havasını hedefle.
 
 OPERATIONAL DIRECTIVE
 Yapay zeka için zorunlu talimatlar:

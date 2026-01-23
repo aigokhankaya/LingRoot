@@ -1,5 +1,5 @@
 const axios = require('axios');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const { translate } = require('@vitalets/google-translate-api');
 
 // Helper for DeepL

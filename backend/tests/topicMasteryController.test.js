@@ -3,7 +3,7 @@ const topicMasteryService = require('../services/topicMasteryService');
 
 // Mock Service
 jest.mock('../services/topicMasteryService');
-jest.mock('../utils/logger');
+jest.mock('../utils/common/logger.js');
 
 describe('TopicMastery Controller Integration Tests', () => {
     let mockReq, mockRes;

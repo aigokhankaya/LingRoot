@@ -8,9 +8,10 @@
  */
 
 const db = require('../config/db');
-const logger = require('../utils/logger');
-const openaiClient = require('../utils/openaiClient');
+const logger = require('../utils/common/logger.js');
+const openaiClient = require('../utils/ai/openaiClient.js');
 const gamificationService = require('./gamificationService');
+const questContentService = require('./questContentService');
 const fs = require('fs');
 const path = require('path');
 
@@ -182,8 +183,9 @@ Assessment criteria:
      * @param {string} targetCEFR 
      * @param {string} archetype 
      * @param {number} weeklyMinutes - Haftalık hedef dakika
+     * @param {number|null} sectorId - Kullanıcının seçtiği sektör (opsiyonel)
      */
-    async generateRoadmap(userId, currentCEFR, targetCEFR, archetype, weeklyMinutes = 120) {
+    async generateRoadmap(userId, currentCEFR, targetCEFR, archetype, weeklyMinutes = 120, sectorId = null) {
         try {
             // Seviye farkını hesapla
             const cefrLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -202,6 +204,26 @@ Assessment criteria:
             // AI ile detaylı plan oluştur
             const archetypeDetails = this.getArchetypeDetails(archetype);
 
+            // Sektör bilgisi varsa al
+            let sectorContext = '';
+            let sectorName = null;
+            if (sectorId) {
+                try {
+                    const sectorService = require('./sectorService');
+                    const sector = await sectorService.getSectorById(sectorId);
+                    if (sector) {
+                        sectorName = sector.name_en || sector.name_tr;
+                        sectorContext = `
+## Sector Context
+User's Primary Sector: ${sectorName}
+IMPORTANT: At least 40% of reading/listening content and vocabulary tasks MUST be related to ${sectorName}.
+Include sector-specific terminology and professional scenarios.`;
+                    }
+                } catch (err) {
+                    logger.warn('[Onboarding] Could not load sector info:', err.message);
+                }
+            }
+
             const planPrompt = this.roadmapPrompt || `
 Create a personalized English learning roadmap.
 
@@ -212,6 +234,7 @@ User Profile:
 - Focus Areas: ${archetypeDetails.focusAreas.join(', ')}
 - Weekly Study Time: ${weeklyMinutes} minutes
 - Estimated Duration: ${totalWeeks} weeks
+${sectorContext}
 
 Generate a JSON roadmap with weekly milestones:
 {
@@ -480,37 +503,72 @@ Generate a JSON roadmap with weekly milestones:
      * Onboarding'i tamamla
      */
     async completeOnboarding(userId, data) {
-        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes } = data;
+        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes, sectors } = data;
 
         try {
             // 1. Archetype ayarla
             await this.setArchetype(userId, archetype);
 
-            // 2. Roadmap oluştur
+            // 2. Sektörleri kaydet (varsa)
+            if (sectors && Array.isArray(sectors) && sectors.length > 0) {
+                const sectorService = require('./sectorService');
+                let savedCount = 0;
+                for (let i = 0; i < sectors.length; i++) {
+                    const sectorId = sectors[i];
+
+                    // Sector ID validation
+                    if (typeof sectorId !== 'number' || sectorId <= 0) {
+                        logger.warn(`[Onboarding] Invalid sector ID format: ${sectorId}`);
+                        continue;
+                    }
+
+                    // Sektörün var olup olmadığını kontrol et
+                    const sector = await sectorService.getSectorById(sectorId);
+                    if (!sector) {
+                        logger.warn(`[Onboarding] Sector not found: ${sectorId}`);
+                        continue;
+                    }
+
+                    const isPrimary = savedCount === 0; // İlk başarılı kayıt primary
+                    try {
+                        await sectorService.addUserSector(userId, sectorId, isPrimary);
+                        savedCount++;
+                    } catch (sectorError) {
+                        logger.warn(`[Onboarding] Could not save sector ${sectorId}:`, sectorError.message);
+                    }
+                }
+                if (savedCount > 0) {
+                    logger.info(`[Onboarding] Saved ${savedCount} sector(s) for user ${userId}`);
+                }
+            }
+
+            // 3. Roadmap oluştur (sektör varsa bağlamlı)
+            const primarySectorId = sectors && sectors.length > 0 ? sectors[0] : null;
             const roadmapResult = await this.generateRoadmap(
                 userId,
                 assessedCEFR,
                 targetCEFR,
                 archetype,
-                weeklyMinutes
+                weeklyMinutes,
+                primarySectorId // Yeni parametre
             );
 
-            // 3. Onboarding'i tamamlandı olarak işaretle
+            // 4. Onboarding'i tamamlandı olarak işaretle
             await db.query(`
                 UPDATE user_gamification 
                 SET onboarding_completed = true, updated_at = NOW()
                 WHERE user_id = $1
             `, [userId]);
 
-            // 4. CEFR seviyesini users tablosuna kaydet
+            // 5. CEFR seviyesini users tablosuna kaydet
             await db.query(`
                 UPDATE users SET cefr_level = $1 WHERE id = $2
             `, [assessedCEFR, userId]);
 
-            // 5. İlk başarımı ver
+            // 6. İlk başarımı ver
             await gamificationService.awardAchievement(userId, 'FIRST_CONTENT');
 
-            // 6. Başlangıç XP ver
+            // 7. Başlangıç XP ver
             await gamificationService.addXP(userId, 100, 'onboarding', null, 'Yolculuğa hoş geldin!');
 
             logger.info(`[Onboarding] Completed for user ${userId}`);
@@ -518,7 +576,8 @@ Generate a JSON roadmap with weekly milestones:
             return {
                 success: true,
                 ...roadmapResult,
-                welcomeMessage: this.getWelcomeMessage(archetype, assessedCEFR, targetCEFR)
+                welcomeMessage: this.getWelcomeMessage(archetype, assessedCEFR, targetCEFR),
+                selectedSectors: sectors || []
             };
 
         } catch (error) {
@@ -544,6 +603,7 @@ Generate a JSON roadmap with weekly milestones:
 
     /**
      * Kullanıcının yol haritasını getir
+     * Quest'leri içerik URL'leri ile zenginleştirir
      */
     async getUserRoadmap(userId) {
         const quests = await db.query(`
@@ -557,6 +617,14 @@ Generate a JSON roadmap with weekly milestones:
             ORDER BY qn.step_order
         `, [userId]);
 
+        // İçerik bilgilerini zenginleştir
+        let enrichedQuests = quests.rows;
+        try {
+            enrichedQuests = await questContentService.enrichQuestsWithContent(quests.rows);
+        } catch (error) {
+            logger.warn('[OnboardingService] Could not enrich quests with content:', error.message);
+        }
+
         // Aktif, yakın gelecek ve kilitli olarak grupla
         const roadmap = {
             current: null,
@@ -565,7 +633,7 @@ Generate a JSON roadmap with weekly milestones:
             locked: []
         };
 
-        for (const quest of quests.rows) {
+        for (const quest of enrichedQuests) {
             if (quest.status === 'in_progress') {
                 roadmap.current = quest;
             } else if (quest.status === 'unlocked') {
@@ -651,6 +719,96 @@ Generate a JSON roadmap with weekly milestones:
         } catch (error) {
             await client.query('ROLLBACK');
             logger.error('[OnboardingService] completeQuest failed:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+    /**
+     * Tipe göre aktif görevi tamamla
+     * Örn: 'vocabulary' tipindeki 'in_progress' veya 'unlocked' (ilk sıradaki) görevi bulur ve tamamlar
+     */
+    async completeActiveQuestByType(userId, taskType) {
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. İlgili tipteki aktif görevi bul
+            // Öncelik: in_progress -> unlocked (ve step order'ı en düşük olan)
+            const activeQuest = await client.query(`
+                SELECT qn.* 
+                FROM quest_nodes qn
+                JOIN user_quest_progress uqp ON qn.id = uqp.node_id
+                WHERE uqp.user_id = $1 
+                  AND qn.task_type = $2
+                  AND uqp.status IN ('in_progress', 'unlocked')
+                ORDER BY 
+                  CASE WHEN uqp.status = 'in_progress' THEN 1 ELSE 2 END,
+                  qn.step_order ASC
+                LIMIT 1
+            `, [userId, taskType]);
+
+            if (activeQuest.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return { success: false, message: 'Aktif görev bulunamadı' };
+            }
+
+            const quest = activeQuest.rows[0];
+
+            // 2. Görevi tamamla (completeQuest mantığını tekrar kullanıyoruz ama transaction içinde)
+            // Görevi tamamlandı olarak işaretle
+            await client.query(`
+                UPDATE user_quest_progress 
+                SET status = 'completed', completed_at = NOW(), score = 100
+                WHERE user_id = $1 AND node_id = $2
+            `, [userId, quest.id]);
+
+            // Sonraki görevi aç
+            let nextQuestNodes = await client.query(`
+                SELECT id FROM quest_nodes 
+                WHERE prerequisite_node_id = $1
+            `, [quest.id]);
+
+            // Fallback: Prerequisite yoksa step_order'a göre sonrakini bul
+            if (nextQuestNodes.rows.length === 0) {
+                const currentQuestStep = quest.step_order;
+                nextQuestNodes = await client.query(`
+                    SELECT id FROM quest_nodes 
+                    WHERE step_order > $1
+                    ORDER BY step_order ASC
+                    LIMIT 1
+                `, [currentQuestStep]);
+            }
+
+            if (nextQuestNodes.rows.length > 0) {
+                await client.query(`
+                    UPDATE user_quest_progress 
+                    SET status = 'unlocked'
+                    WHERE user_id = $1 AND node_id = $2 AND status = 'locked'
+                `, [userId, nextQuestNodes.rows[0].id]);
+            }
+
+            await client.query('COMMIT');
+
+            // XP ekle (Transaction dışı)
+            const xpResult = await gamificationService.addXP(
+                userId,
+                quest.reward_xp,
+                'quest',
+                quest.id.toString(),
+                `Görev tamamlandı: ${quest.title}`
+            );
+
+            return {
+                success: true,
+                quest: quest,
+                xpEarned: quest.reward_xp,
+                ...xpResult
+            };
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            logger.error('[OnboardingService] completeActiveQuestByType failed:', error);
             throw error;
         } finally {
             client.release();

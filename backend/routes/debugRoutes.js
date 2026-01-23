@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const { authenticate } = require('../middleware/auth');
-const userProfileAnalyzer = require('../utils/userProfileAnalyzer');
-const liroPromptGenerator = require('../utils/liroPromptGenerator');
+const userProfileAnalyzer = require('../utils/ai/userProfileAnalyzer.js');
+const liroPromptGenerator = require('../utils/ai/liroPromptGenerator.js');
 const userInsightService = require('../services/userInsightService');
 
 // Debug endpoint: Son TTS isteğinin timing kalitesini göster

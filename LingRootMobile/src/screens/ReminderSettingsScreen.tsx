@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getReminderSettings, saveReminderSettings, ReminderSettings } from '../services/api';
+import { getReminderSettings, saveReminderSettings, ReminderSettings } from '../services/userService';
 import NotificationService from '../services/notificationService';
 import { COLORS } from '../theme/colors';
 

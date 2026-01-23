@@ -6,7 +6,8 @@
  */
 
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
+const { sendPushNotification } = require('../utils/notifications/pushNotification.js');
 
 // Level başına gereken XP (kümülatif değil, o level için gereken)
 const XP_PER_LEVEL_BASE = 50;
@@ -97,6 +98,39 @@ class GamificationService {
             }
 
             await client.query('COMMIT');
+
+            // Update weekly leaderboard score (non-blocking)
+            this.updateWeeklyScore(userId, amount, source).catch(() => { });
+
+            // Update challenge progress (non-blocking)
+            if (source === 'content') {
+                this.updateChallengeProgress(userId, 'listen_content', 1).catch(() => { });
+            } else if (source === 'word') {
+                this.updateChallengeProgress(userId, 'learn_words', 1).catch(() => { });
+            } else if (source === 'quiz') {
+                this.updateChallengeProgress(userId, 'complete_quiz', 1).catch(() => { });
+            }
+
+            // 🔔 Send notifications (non-blocking)
+            // Level Up Notification
+            if (leveledUp) {
+                sendPushNotification(userId, {
+                    title: `🎉 Level ${newLevel} Oldun!`,
+                    body: `Tebrikler! ${amount} XP kazandın ve Level ${newLevel}'e ulaştın!`,
+                    type: 'level_up',
+                    data: { level: newLevel, xpAdded: amount }
+                }).catch(err => logger.error('[Gamification] Level notification failed:', err));
+            }
+
+            // Achievement Notification
+            for (const achievement of earnedAchievements) {
+                sendPushNotification(userId, {
+                    title: `🏆 ${achievement.title_tr}`,
+                    body: achievement.description_tr,
+                    type: 'achievement',
+                    data: { achievementCode: achievement.code, xpReward: achievement.xp_reward }
+                }).catch(err => logger.error('[Gamification] Achievement notification failed:', err));
+            }
 
             logger.info(`[Gamification] User ${userId}: +${amount} XP (${source}), Level ${oldLevel} → ${newLevel}`);
 
@@ -218,6 +252,23 @@ class GamificationService {
 
             // Streak achievement kontrolü
             const streakAchievements = await this.checkStreakAchievements(userId, newStreak);
+
+            // 🔔 Send streak notifications (non-blocking)
+            if (streakBroken) {
+                sendPushNotification(userId, {
+                    title: '💔 Streak Kırıldı',
+                    body: 'Serin sona erdi, ama bugün yeni bir başlangıç yap!',
+                    type: 'streak_broken',
+                    data: { previousStreak: profile.streak_count }
+                }).catch(err => logger.error('[Gamification] Streak broken notification failed:', err));
+            } else if (newStreak === 7 || newStreak === 30 || newStreak === 100) {
+                sendPushNotification(userId, {
+                    title: `🔥 ${newStreak} Günlük Seri!`,
+                    body: `Muhteşem! ${newStreak} gün üst üste çalıştın!`,
+                    type: 'streak_milestone',
+                    data: { streak: newStreak, bonus: streakBonus }
+                }).catch(err => logger.error('[Gamification] Streak milestone notification failed:', err));
+            }
 
             logger.info(`[Gamification] User ${userId}: Streak ${profile.streak_count} → ${newStreak}`);
 
@@ -370,6 +421,7 @@ class GamificationService {
 
     /**
      * Günlük görevleri getir veya oluştur
+     * Aktif yolculuk quest'ine bağlı görevler oluşturur
      */
     async getDailyQuests(userId) {
         const today = new Date().toISOString().split('T')[0];
@@ -384,25 +436,56 @@ class GamificationService {
             return existing.rows;
         }
 
-        // Yeni görevler oluştur
-        const questTemplates = [
-            { type: 'listen_minutes', title: '10 dakika dinle', target: 10, xp: 50 },
-            { type: 'learn_words', title: '5 kelime öğren', target: 5, xp: 30 },
-            { type: 'review_words', title: '10 kelime tekrar et', target: 10, xp: 40 },
-            { type: 'complete_content', title: '1 içerik tamamla', target: 1, xp: 75 },
-            { type: 'create_content', title: 'Yeni içerik oluştur', target: 1, xp: 100 },
-            { type: 'listen_content', title: 'İçerik dinle', target: 1, xp: 50 },
-            { type: 'complete_quiz', title: 'Quiz tamamla', target: 1, xp: 50 },
-        ];
+        // Aktif yolculuk quest'ini al
+        let parentQuestNodeId = null;
+        let parentTaskType = null;
 
-        // Rastgele 2-3 görev seç
-        const selectedQuests = questTemplates.sort(() => Math.random() - 0.5).slice(0, 3);
+        try {
+            const activeQuest = await db.query(`
+                SELECT qn.* 
+                FROM quest_nodes qn
+                JOIN user_quest_progress uqp ON qn.id = uqp.node_id
+                WHERE uqp.user_id = $1 
+                  AND uqp.status IN ('in_progress', 'unlocked')
+                ORDER BY qn.step_order ASC
+                LIMIT 1
+            `, [userId]);
+
+            if (activeQuest.rows.length > 0) {
+                parentQuestNodeId = activeQuest.rows[0].id;
+                parentTaskType = activeQuest.rows[0].task_type;
+            }
+        } catch (error) {
+            logger.warn('[Gamification] Could not get active quest:', error.message);
+        }
+
+        // Kullanıcının primary sektörünü al
+        let userSector = null;
+        try {
+            const sectorService = require('./sectorService');
+            userSector = await sectorService.getUserPrimarySector(userId);
+        } catch (error) {
+            logger.warn('[Gamification] Could not get user sector:', error.message);
+        }
+
+        // Quest tipine göre görev şablonları seç (sektör dahil)
+        const questTemplates = this.getQuestTemplatesForTaskType(parentTaskType, userSector);
+
+        // Dengeli görev seçimi (en az 2 tanesi parent quest ile ilgili)
+        const selectedQuests = this.selectBalancedQuests(questTemplates, parentTaskType);
 
         for (const quest of selectedQuests) {
             await db.query(`
-                INSERT INTO daily_quests (user_id, quest_date, task_type, task_title, target_amount, xp_reward)
-                VALUES ($1, $2, $3, $4, $5, $6)
-            `, [userId, today, quest.type, quest.title, quest.target, quest.xp]);
+                INSERT INTO daily_quests (
+                    user_id, quest_date, task_type, task_title, 
+                    target_amount, xp_reward, parent_quest_node_id
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `, [
+                userId, today, quest.type, quest.title,
+                quest.target, quest.xp,
+                quest.relatedToParent ? parentQuestNodeId : null
+            ]);
         }
 
         return (await db.query(
@@ -412,19 +495,140 @@ class GamificationService {
     }
 
     /**
+     * Task tipine göre görev şablonları
+     * @param {string} taskType - Parent quest task type
+     * @param {Object|null} userSector - Kullanıcının primary sektörü
+     */
+    getQuestTemplatesForTaskType(taskType, userSector = null) {
+        // Temel görevler (her zaman dahil)
+        const baseTemplates = [
+            { type: 'listen_minutes', title: '10 dakika dinle', target: 10, xp: 50, relatedToParent: false },
+            { type: 'listen_content', title: 'İçerik dinle', target: 1, xp: 50, relatedToParent: false },
+        ];
+
+        // Tip bazlı özel görevler
+        const typeSpecificTemplates = {
+            vocabulary: [
+                { type: 'learn_words', title: '5 kelime öğren', target: 5, xp: 30, relatedToParent: true },
+                { type: 'review_words', title: '5 kelime tekrar et', target: 5, xp: 30, relatedToParent: true },
+            ],
+            listen: [
+                { type: 'listen_minutes', title: '15 dakika dinle', target: 15, xp: 75, relatedToParent: true },
+                { type: 'complete_content', title: '1 içerik tamamla', target: 1, xp: 75, relatedToParent: true },
+            ],
+            quiz: [
+                { type: 'complete_quiz', title: 'Quiz tamamla', target: 1, xp: 50, relatedToParent: true },
+                { type: 'review_words', title: '10 kelime tekrar et', target: 10, xp: 40, relatedToParent: true },
+            ],
+            milestone: [
+                { type: 'complete_content', title: '2 içerik tamamla', target: 2, xp: 100, relatedToParent: true },
+                { type: 'learn_words', title: '10 kelime öğren', target: 10, xp: 60, relatedToParent: true },
+            ],
+        };
+
+        // Genel görevler (tip belirli değilse)
+        const generalTemplates = [
+            { type: 'learn_words', title: '5 kelime öğren', target: 5, xp: 30, relatedToParent: false },
+            { type: 'review_words', title: '10 kelime tekrar et', target: 10, xp: 40, relatedToParent: false },
+            { type: 'complete_content', title: '1 içerik tamamla', target: 1, xp: 75, relatedToParent: false },
+            { type: 'create_content', title: 'Yeni içerik oluştur', target: 1, xp: 100, relatedToParent: false },
+        ];
+
+        // Sektörel görevler (kullanıcının seçtiği sektör varsa)
+        const sectorTemplates = [];
+        if (userSector) {
+            const sectorName = userSector.name_tr || userSector.name || 'Sektör';
+            sectorTemplates.push(
+                { type: 'sector_vocab', title: `${sectorName} Terimleri (5 kelime)`, target: 5, xp: 45, relatedToParent: false, sectorId: userSector.id },
+                { type: 'sector_content', title: `${sectorName} Makalesi Oku`, target: 1, xp: 65, relatedToParent: false, sectorId: userSector.id },
+                { type: 'sector_quiz', title: `${sectorName} Quiz Tamamla`, target: 1, xp: 80, relatedToParent: false, sectorId: userSector.id }
+            );
+        }
+
+        const specific = typeSpecificTemplates[taskType] || [];
+        return [...baseTemplates, ...specific, ...sectorTemplates, ...generalTemplates];
+    }
+
+    /**
+     * Dengeli görev seçimi
+     * En az 2 tanesi parent quest ile ilgili olacak şekilde seçer
+     */
+    selectBalancedQuests(templates, parentTaskType) {
+        const relatedQuests = templates.filter(t => t.relatedToParent);
+        const generalQuests = templates.filter(t => !t.relatedToParent);
+
+        const selected = [];
+        const usedTypes = new Set();
+
+        // İlgili görevlerden 2 tane (farklı tiplerden)
+        const shuffledRelated = relatedQuests.sort(() => Math.random() - 0.5);
+        for (const quest of shuffledRelated) {
+            if (!usedTypes.has(quest.type) && selected.length < 2) {
+                selected.push(quest);
+                usedTypes.add(quest.type);
+            }
+        }
+
+        // Genel görevlerden 1-2 tane (farklı tiplerden)
+        const shuffledGeneral = generalQuests.sort(() => Math.random() - 0.5);
+        for (const quest of shuffledGeneral) {
+            if (!usedTypes.has(quest.type) && selected.length < 4) {
+                selected.push(quest);
+                usedTypes.add(quest.type);
+            }
+        }
+
+        // En az 3 görev olsun
+        while (selected.length < 3 && shuffledGeneral.length > 0) {
+            const quest = shuffledGeneral.pop();
+            if (quest && !selected.includes(quest)) {
+                selected.push(quest);
+            }
+        }
+
+        return selected.slice(0, 4); // Maksimum 4 görev
+    }
+
+    /**
      * Günlük görev ilerlemesi güncelle
+     * Aynı türden birden fazla görev varsa sadece birini günceller:
+     * 1. parent_quest_node_id olanlar (roadmap bağlantılı) öncelikli
+     * 2. En az ilerleme göstermiş olan
      */
     async updateDailyQuestProgress(userId, taskType, incrementAmount = 1) {
         const today = new Date().toISOString().split('T')[0];
 
+        // 1. Önce hedef görevi bul (sadece 1 tane)
+        const targetQuest = await db.query(`
+            SELECT id, current_amount, target_amount 
+            FROM daily_quests 
+            WHERE user_id = $1 
+              AND quest_date = $2 
+              AND task_type = $3 
+              AND is_claimed = false 
+              AND current_amount < target_amount
+            ORDER BY 
+                CASE WHEN parent_quest_node_id IS NOT NULL THEN 0 ELSE 1 END,
+                current_amount ASC
+            LIMIT 1
+        `, [userId, today, taskType]);
+
+        if (targetQuest.rows.length === 0) {
+            // Güncellenecek görev yok
+            return null;
+        }
+
+        const questId = targetQuest.rows[0].id;
+
+        // 2. Sadece o görevi güncelle
         const result = await db.query(`
             UPDATE daily_quests 
             SET 
-                current_amount = LEAST(current_amount + $3, target_amount),
-                is_completed = (current_amount + $3 >= target_amount)
-            WHERE user_id = $1 AND quest_date = $2 AND task_type = $4 AND is_claimed = false
+                current_amount = LEAST(current_amount + $2, target_amount),
+                is_completed = (current_amount + $2 >= target_amount)
+            WHERE id = $1
             RETURNING *
-        `, [userId, today, incrementAmount, taskType]);
+        `, [questId, incrementAmount]);
 
         if (result.rows.length > 0 && result.rows[0].is_completed && !result.rows[0].is_claimed) {
             // Otomatik claim
@@ -505,6 +709,19 @@ class GamificationService {
         const earnedCount = achievements.filter(a => a.is_earned).length;
         const totalCount = achievements.length;
 
+        // Get additional data
+        let league = null;
+        let streakSociety = null;
+        let activeChallenges = [];
+
+        try {
+            league = await this.getUserLeague(userId);
+            streakSociety = await this.getStreakSociety(userId);
+            activeChallenges = await this.getUserChallengeProgress(userId);
+        } catch (error) {
+            // Ignore errors for optional data
+        }
+
         return {
             // Level & XP
             level: profile.current_level,
@@ -530,7 +747,389 @@ class GamificationService {
             // Daily Quests
             dailyQuests,
             dailyQuestsCompleted: dailyQuests.filter(q => q.is_completed).length,
+
+            // New: League & Society
+            league,
+            streakSociety,
+            activeChallenges,
         };
+    }
+
+    // ============================================
+    // LEADERBOARD SYSTEM
+    // ============================================
+
+    /**
+     * Haftalık skor güncelle (XP eklendiğinde çağrılır)
+     */
+    async updateWeeklyScore(userId, xpAmount, source = null) {
+        const weekStart = this.getWeekStart();
+
+        try {
+            await db.query(`
+                INSERT INTO weekly_scores (user_id, week_start, xp_earned, content_completed, words_learned, listening_minutes)
+                VALUES ($1, $2, $3, 
+                    CASE WHEN $4 = 'content' THEN 1 ELSE 0 END,
+                    CASE WHEN $4 = 'word' THEN 1 ELSE 0 END,
+                    CASE WHEN $4 = 'listening' THEN 1 ELSE 0 END
+                )
+                ON CONFLICT (user_id, week_start) 
+                DO UPDATE SET 
+                    xp_earned = weekly_scores.xp_earned + $3,
+                    content_completed = weekly_scores.content_completed + CASE WHEN $4 = 'content' THEN 1 ELSE 0 END,
+                    words_learned = weekly_scores.words_learned + CASE WHEN $4 = 'word' THEN 1 ELSE 0 END,
+                    listening_minutes = weekly_scores.listening_minutes + CASE WHEN $4 = 'listening' THEN 1 ELSE 0 END,
+                    updated_at = NOW()
+            `, [userId, weekStart, xpAmount, source]);
+        } catch (error) {
+            logger.error('[Gamification] updateWeeklyScore failed:', error);
+        }
+    }
+
+    /**
+     * Haftalık leaderboard getir
+     */
+    async getLeaderboard(userId, limit = 30) {
+        const weekStart = this.getWeekStart();
+
+        try {
+            // Önce tüm haftalık skorları sırala
+            const result = await db.query(`
+                SELECT 
+                    ws.user_id,
+                    ws.xp_earned,
+                    ws.listening_minutes,
+                    ws.content_completed,
+                    ws.league,
+                    u.display_name,
+                    u.avatar_url,
+                    ug.current_level,
+                    ug.streak_count,
+                    ROW_NUMBER() OVER (ORDER BY ws.xp_earned DESC, ws.listening_minutes DESC) as rank
+                FROM weekly_scores ws
+                JOIN users u ON ws.user_id = u.id
+                LEFT JOIN user_gamification ug ON ws.user_id = ug.user_id
+                WHERE ws.week_start = $1
+                ORDER BY ws.xp_earned DESC, ws.listening_minutes DESC
+                LIMIT $2
+            `, [weekStart, limit]);
+
+            // Kullanıcının kendi sırasını bul
+            const userRankResult = await db.query(`
+                SELECT rank FROM (
+                    SELECT 
+                        user_id,
+                        ROW_NUMBER() OVER (ORDER BY xp_earned DESC, listening_minutes DESC) as rank
+                    FROM weekly_scores
+                    WHERE week_start = $1
+                ) ranked
+                WHERE user_id = $2
+            `, [weekStart, userId]);
+
+            const userRank = userRankResult.rows[0]?.rank || null;
+
+            return {
+                leaderboard: result.rows,
+                userRank,
+                weekStart,
+                totalParticipants: result.rows.length
+            };
+        } catch (error) {
+            logger.error('[Gamification] getLeaderboard failed:', error);
+            return { leaderboard: [], userRank: null, weekStart, totalParticipants: 0 };
+        }
+    }
+
+    /**
+     * Ligleri getir
+     */
+    async getLeagues() {
+        try {
+            const result = await db.query(`
+                SELECT * FROM leagues ORDER BY rank_order ASC
+            `);
+            return result.rows;
+        } catch (error) {
+            logger.error('[Gamification] getLeagues failed:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Kullanıcının mevcut ligini getir
+     */
+    async getUserLeague(userId) {
+        try {
+            const profile = await this.getOrCreateProfile(userId);
+            const leagueCode = profile.current_league || 'seed';
+
+            const result = await db.query(`
+                SELECT * FROM leagues WHERE code = $1
+            `, [leagueCode]);
+
+            return result.rows[0] || { code: 'seed', name_tr: 'Tohum', icon: '🌱' };
+        } catch (error) {
+            logger.error('[Gamification] getUserLeague failed:', error);
+            return { code: 'seed', name_tr: 'Tohum', icon: '🌱' };
+        }
+    }
+
+    /**
+     * Haftanın başlangıç tarihini al (Pazartesi)
+     */
+    getWeekStart() {
+        const now = new Date();
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(now.setDate(diff));
+        return monday.toISOString().split('T')[0];
+    }
+
+    // ============================================
+    // WEEKLY CHALLENGES
+    // ============================================
+
+    /**
+     * Aktif weekly challenge'ları getir
+     */
+    async getActiveChallenges() {
+        const today = new Date().toISOString().split('T')[0];
+
+        try {
+            const result = await db.query(`
+                SELECT * FROM weekly_challenges
+                WHERE week_start <= $1 AND week_end >= $1 AND is_active = true
+                ORDER BY week_start DESC
+            `, [today]);
+
+            return result.rows;
+        } catch (error) {
+            logger.error('[Gamification] getActiveChallenges failed:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Kullanıcının challenge ilerlemesini getir
+     */
+    async getUserChallengeProgress(userId, challengeId = null) {
+        try {
+            let query = `
+                SELECT 
+                    ucp.*,
+                    wc.title_tr,
+                    wc.title_en,
+                    wc.theme,
+                    wc.theme_icon,
+                    wc.tasks,
+                    wc.week_end,
+                    wc.total_xp_reward,
+                    wc.badge_code
+                FROM user_challenge_progress ucp
+                JOIN weekly_challenges wc ON ucp.challenge_id = wc.id
+                WHERE ucp.user_id = $1
+            `;
+            const params = [userId];
+
+            if (challengeId) {
+                query += ' AND ucp.challenge_id = $2';
+                params.push(challengeId);
+            }
+
+            query += ' ORDER BY wc.week_start DESC';
+
+            const result = await db.query(query, params);
+            return result.rows;
+        } catch (error) {
+            logger.error('[Gamification] getUserChallengeProgress failed:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Challenge'a katıl
+     */
+    async joinChallenge(userId, challengeId) {
+        try {
+            // Zaten katılmış mı?
+            const existing = await db.query(`
+                SELECT 1 FROM user_challenge_progress 
+                WHERE user_id = $1 AND challenge_id = $2
+            `, [userId, challengeId]);
+
+            if (existing.rows.length > 0) {
+                return { success: false, message: 'Zaten bu challenge\'a katıldınız' };
+            }
+
+            // Challenge var mı ve aktif mi?
+            const challenge = await db.query(`
+                SELECT * FROM weekly_challenges 
+                WHERE id = $1 AND is_active = true AND week_end >= CURRENT_DATE
+            `, [challengeId]);
+
+            if (challenge.rows.length === 0) {
+                return { success: false, message: 'Challenge bulunamadı veya süresi dolmuş' };
+            }
+
+            // Katıl
+            await db.query(`
+                INSERT INTO user_challenge_progress (user_id, challenge_id, tasks_progress)
+                VALUES ($1, $2, '{}')
+            `, [userId, challengeId]);
+
+            logger.info(`[Gamification] User ${userId} joined challenge ${challengeId}`);
+
+            return {
+                success: true,
+                message: 'Challenge\'a başarıyla katıldınız!',
+                challenge: challenge.rows[0]
+            };
+        } catch (error) {
+            logger.error('[Gamification] joinChallenge failed:', error);
+            return { success: false, message: 'Bir hata oluştu' };
+        }
+    }
+
+    /**
+     * Challenge görev ilerlemesini güncelle
+     */
+    async updateChallengeProgress(userId, taskType, incrementAmount = 1) {
+        try {
+            // Kullanıcının aktif challenge'larını bul
+            const activeProgress = await db.query(`
+                SELECT ucp.*, wc.tasks
+                FROM user_challenge_progress ucp
+                JOIN weekly_challenges wc ON ucp.challenge_id = wc.id
+                WHERE ucp.user_id = $1 
+                    AND ucp.is_completed = false
+                    AND wc.week_end >= CURRENT_DATE
+            `, [userId]);
+
+            for (const progress of activeProgress.rows) {
+                const tasks = progress.tasks;
+                let tasksProgress = progress.tasks_progress || {};
+                let updated = false;
+
+                // İlgili task'ları bul ve güncelle
+                tasks.forEach((task, index) => {
+                    if (task.type === taskType) {
+                        const current = tasksProgress[index] || 0;
+                        tasksProgress[index] = Math.min(current + incrementAmount, task.target);
+                        updated = true;
+                    }
+                });
+
+                if (updated) {
+                    // Tamamlanan görev sayısını hesapla
+                    let completedTasks = 0;
+                    let totalXpEarned = 0;
+
+                    tasks.forEach((task, index) => {
+                        if ((tasksProgress[index] || 0) >= task.target) {
+                            completedTasks++;
+                            totalXpEarned += task.xp_reward;
+                        }
+                    });
+
+                    const isCompleted = completedTasks === tasks.length;
+
+                    await db.query(`
+                        UPDATE user_challenge_progress
+                        SET 
+                            tasks_progress = $1,
+                            completed_tasks = $2,
+                            total_xp_earned = $3,
+                            is_completed = $4,
+                            completed_at = CASE WHEN $4 THEN NOW() ELSE NULL END
+                        WHERE id = $5
+                    `, [JSON.stringify(tasksProgress), completedTasks, totalXpEarned, isCompleted, progress.id]);
+
+                    // İlk challenge tamamlandıysa rozet ver
+                    if (isCompleted) {
+                        await this.awardAchievement(userId, 'CHALLENGE_FIRST');
+                        logger.info(`[Gamification] User ${userId} completed challenge ${progress.challenge_id}`);
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error('[Gamification] updateChallengeProgress failed:', error);
+        }
+    }
+
+    // ============================================
+    // STREAK SOCIETY
+    // ============================================
+
+    /**
+     * Streak Society bilgisini getir
+     */
+    async getStreakSociety(userId) {
+        try {
+            const profile = await this.getOrCreateProfile(userId);
+            const streak = profile.streak_count || 0;
+
+            let society = null;
+            let nextMilestone = null;
+            let daysToNext = null;
+
+            if (streak >= 100) {
+                society = {
+                    code: 'legendary',
+                    name_tr: 'Efsanevi Kökler',
+                    name_en: 'Legendary Roots',
+                    icon: '👑',
+                    color: '#FFD700'
+                };
+            } else if (streak >= 30) {
+                society = {
+                    code: 'month_master',
+                    name_tr: 'Ay Ustaları',
+                    name_en: 'Month Masters',
+                    icon: '🌙',
+                    color: '#9333EA'
+                };
+                nextMilestone = 100;
+                daysToNext = 100 - streak;
+            } else if (streak >= 7) {
+                society = {
+                    code: 'week_warrior',
+                    name_tr: 'Haftalık Savaşçılar',
+                    name_en: 'Week Warriors',
+                    icon: '⚔️',
+                    color: '#3B82F6'
+                };
+                nextMilestone = 30;
+                daysToNext = 30 - streak;
+            } else {
+                society = null;
+                nextMilestone = 7;
+                daysToNext = 7 - streak;
+            }
+
+            // Streak Society üye sayıları
+            const memberCounts = await db.query(`
+                SELECT 
+                    streak_society,
+                    COUNT(*) as count
+                FROM user_gamification
+                WHERE streak_society IS NOT NULL
+                GROUP BY streak_society
+            `);
+
+            return {
+                currentStreak: streak,
+                society,
+                nextMilestone,
+                daysToNext,
+                memberCounts: memberCounts.rows.reduce((acc, row) => {
+                    acc[row.streak_society] = parseInt(row.count);
+                    return acc;
+                }, {})
+            };
+        } catch (error) {
+            logger.error('[Gamification] getStreakSociety failed:', error);
+            return { currentStreak: 0, society: null, nextMilestone: 7, daysToNext: 7 };
+        }
     }
 
     /**
@@ -559,6 +1158,112 @@ class GamificationService {
         if (level <= 85) return 'C1';
         return 'C2';
     }
+
+    // ============================================
+    // SECTOR ACHIEVEMENTS (Sektör İngilizcesi)
+    // ============================================
+
+    /**
+     * Sektör achievement kontrolü
+     * @param {string} userId 
+     * @param {string} type - 'content' veya 'vocabulary'
+     * @param {number} totalCompleted - Toplam tamamlanan sayı
+     */
+    async checkSectorAchievements(userId, type, totalCompleted) {
+        const earned = [];
+
+        if (type === 'content') {
+            const contentMilestones = [1, 5, 10, 25, 50, 100];
+            const codeMap = {
+                1: 'SECTOR_FIRST_CONTENT',
+                5: 'SECTOR_5_CONTENTS',
+                10: 'SECTOR_10_CONTENTS',
+                25: 'SECTOR_25_CONTENTS',
+                50: 'SECTOR_50_CONTENTS',
+                100: 'SECTOR_100_CONTENTS'
+            };
+
+            for (const milestone of contentMilestones) {
+                if (totalCompleted >= milestone && codeMap[milestone]) {
+                    const achievement = await this.awardAchievement(userId, codeMap[milestone]);
+                    if (achievement) earned.push(achievement);
+                }
+            }
+        } else if (type === 'vocabulary') {
+            const vocabMilestones = [1, 10, 25, 50, 100, 250];
+            const codeMap = {
+                1: 'SECTOR_FIRST_VOCAB',
+                10: 'SECTOR_VOCAB_10',
+                25: 'SECTOR_VOCAB_25',
+                50: 'SECTOR_VOCAB_50',
+                100: 'SECTOR_VOCAB_100',
+                250: 'SECTOR_VOCAB_250'
+            };
+
+            for (const milestone of vocabMilestones) {
+                if (totalCompleted >= milestone && codeMap[milestone]) {
+                    const achievement = await this.awardAchievement(userId, codeMap[milestone]);
+                    if (achievement) earned.push(achievement);
+                }
+            }
+        }
+
+        // Multi-sector achievement kontrolü
+        try {
+            const sectorCountResult = await db.query(`
+                SELECT COUNT(DISTINCT sector_id) as sector_count
+                FROM user_sector_stats
+                WHERE user_id = $1 AND content_completed > 0
+            `, [userId]);
+
+            const sectorCount = parseInt(sectorCountResult.rows[0]?.sector_count || 0);
+
+            if (sectorCount >= 2) {
+                const achievement = await this.awardAchievement(userId, 'MULTI_SECTOR_2');
+                if (achievement) earned.push(achievement);
+            }
+            if (sectorCount >= 5) {
+                const achievement = await this.awardAchievement(userId, 'MULTI_SECTOR_5');
+                if (achievement) earned.push(achievement);
+            }
+        } catch (error) {
+            logger.warn('[Gamification] Multi-sector check failed:', error.message);
+        }
+
+        return earned;
+    }
+
+    /**
+     * Quiz achievement kontrolü
+     * @param {string} userId 
+     * @param {number} totalCompleted - Tamamlanan quiz sayısı
+     * @param {boolean} isPerfect - %100 mü?
+     */
+    async checkQuizAchievements(userId, totalCompleted, isPerfect = false) {
+        const earned = [];
+
+        // İlk quiz
+        if (totalCompleted >= 1) {
+            const achievement = await this.awardAchievement(userId, 'SECTOR_QUIZ_FIRST');
+            if (achievement) earned.push(achievement);
+        }
+
+        // 10 quiz
+        if (totalCompleted >= 10) {
+            const achievement = await this.awardAchievement(userId, 'SECTOR_QUIZ_10');
+            if (achievement) earned.push(achievement);
+        }
+
+        // Mükemmel skor
+        if (isPerfect) {
+            const achievement = await this.awardAchievement(userId, 'SECTOR_QUIZ_PERFECT');
+            if (achievement) earned.push(achievement);
+        }
+
+        return earned;
+    }
 }
 
 module.exports = new GamificationService();
+
+

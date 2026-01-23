@@ -1,6 +1,6 @@
-const { supabase } = require("../utils/supabaseClient");
+const { supabase } = require('../utils/storage/supabaseClient.js');
 require("dotenv").config();
-const logger = require("../utils/logger");
+const logger = require('../utils/common/logger.js');
 
 // Helper: derive estimates from plan price
 function computeEstimates(plan) {

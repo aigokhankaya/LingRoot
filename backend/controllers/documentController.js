@@ -1,9 +1,9 @@
-const { supabase } = require("../utils/supabaseClient");
-const logger = require("../utils/logger");
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 const { v4: uuidv4 } = require("uuid");
 const pdfParse = require("pdf-parse");
-const bookTextExtractor = require("../utils/bookTextExtractor");
-const openaiClient = require("../utils/openaiClient");
+const bookTextExtractor = require('../utils/content/bookTextExtractor.js');
+const openaiClient = require('../utils/ai/openaiClient.js');
 const { storeTopic } = require("../lib/rag");
 
 /**

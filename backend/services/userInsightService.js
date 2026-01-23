@@ -8,8 +8,8 @@
  */
 
 const db = require('../config/db');
-const logger = require('../utils/logger');
-const openaiClient = require('../utils/openaiClient');
+const logger = require('../utils/common/logger.js');
+const openaiClient = require('../utils/ai/openaiClient.js');
 const fs = require('fs');
 const path = require('path');
 

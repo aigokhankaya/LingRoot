@@ -1,20 +1,20 @@
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const fs = require('fs');
 const path = require('path');
-const claudeClient = require('../utils/claudeClient');
-const openaiClient = require('../utils/openaiClient');
-const userProfileAnalyzer = require('../utils/userProfileAnalyzer');
-const liroPromptGenerator = require('../utils/liroPromptGenerator');
-const liroContentGraph = require('../utils/liroContentGraph');
-const { supabase } = require('../utils/supabaseClient');
-const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+const claudeClient = require('../utils/ai/claudeClient.js');
+const openaiClient = require('../utils/ai/openaiClient.js');
+const userProfileAnalyzer = require('../utils/ai/userProfileAnalyzer.js');
+const liroPromptGenerator = require('../utils/ai/liroPromptGenerator.js');
+const liroContentGraph = require('../utils/ai/liroContentGraph.js');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
 const { suggestTopicsForUser, extractAndStoreTopic } = require('../lib/rag');
 const directorAgentService = require('../services/directorAgentService');
-const webSearchService = require('../utils/webSearchService');
+const webSearchService = require('../utils/content/webSearchService.js');
 // NEW: Sonsuz Hafıza ve Dinamik Seviye servisleri
 const conversationSummaryService = require('../services/conversationSummaryService');
-const dynamicLevelAnalyzer = require('../utils/dynamicLevelAnalyzer');
+const dynamicLevelAnalyzer = require('../utils/content/dynamicLevelAnalyzer.js');
 // NEW: ChatService (cache destekli) ve Constants
 const chatService = require('../services/chatService');
 const { SENDER_TYPES, CHAT_LIMITS, BEGINNER_LEVELS, OPENAI_MODELS } = require('../constants/chatConstants');

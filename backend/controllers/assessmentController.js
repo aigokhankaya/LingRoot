@@ -5,7 +5,7 @@
  */
 
 const placementTestService = require('../services/placementTestService');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 // In-memory session store (for simplicity; use Redis in production)
 const sessions = new Map();

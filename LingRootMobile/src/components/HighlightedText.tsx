@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { highlightPatterns, Pattern, HighlightedSegment } from '../utils/textHighlighter';
-import { apiService } from '../services/api';
+import { findPatternsInText } from '../services/patternService';
 
 interface HighlightedTextProps {
   text: string;
@@ -35,14 +35,14 @@ export const HighlightedText: React.FC<HighlightedTextProps> = ({
     try {
       setLoading(true);
       console.log(`🔍 [HighlightedText] Loading patterns for level: ${level}, text length: ${text.length}`);
-      const response = await apiService.findPatternsInText(text, level);
-      
+      const response = await findPatternsInText(text, level);
+
       console.log(`📊 [HighlightedText] API response:`, {
         success: response.success,
         patternCount: response.patterns?.length || 0,
         patterns: response.patterns
       });
-      
+
       if (response.success && response.patterns.length > 0) {
         const highlighted = highlightPatterns(text, response.patterns);
         setSegments(highlighted);

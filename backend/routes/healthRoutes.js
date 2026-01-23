@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getCircuitBreakerStatus } = require('../utils/retryUtils');
+const { getCircuitBreakerStatus } = require('../utils/common/retryUtils.js');
 
 /**
  * GET /api/health

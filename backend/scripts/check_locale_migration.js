@@ -1,7 +1,7 @@
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 const fs = require('fs');
 const path = require('path');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 async function runMigration() {
     try {

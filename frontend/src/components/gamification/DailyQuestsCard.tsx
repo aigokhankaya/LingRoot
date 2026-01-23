@@ -37,13 +37,17 @@ export const DailyQuestsCard: React.FC = () => {
       case 'review_words':
         router.push('/vocabulary?mode=due');
         break;
-      case 'listen_minutes':
-      case 'complete_content':
-      case 'listen_content':
       case 'create_content':
-      case 'complete_quiz':
-      default:
+      case 'listen_minutes':
+      case 'listen_content':
+      case 'complete_content':
         router.push('/welcome');
+        break;
+      case 'complete_quiz':
+        router.push('/dashboard?tab=reading-history');
+        break;
+      default:
+        router.push('/dashboard');
         break;
     }
   };
@@ -120,6 +124,15 @@ const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim, onClick }) => {
           : 'bg-white border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md cursor-pointer hover:bg-slate-50'}
             ${isClaimed ? 'opacity-60 saturate-50' : ''}
         `}>
+      {/* Parent Quest Badge - Yolculuk ile bağlantılı görevler */}
+      {(quest as any).parent_quest_node_id && (
+        <div className="absolute top-1 right-1">
+          <span className="text-[9px] bg-teal-500 text-white px-1.5 py-0.5 rounded-full font-medium">
+            🗺️
+          </span>
+        </div>
+      )}
+
       <div className={`
                 w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-sm
                 ${isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}

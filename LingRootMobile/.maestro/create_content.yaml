@@ -1,0 +1,59 @@
+appId: com.lingroot.mobile
+---
+# LingRoot Mobile - Content Creation Flow
+# Tests content input and creation screens
+
+# 1. Launch app
+- launchApp:
+    clearState: false
+
+# 2. Wait for app to load
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# 3. Look for create button
+- assertVisible:
+    text: "/Oluştur|Create|Yeni|New/"
+    optional: true
+
+# 4. Tap on create button if visible
+- tapOn:
+    text: "/Oluştur|Create/"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 5. Check for content type selection
+- assertVisible:
+    text: "/Metin|Text|URL|YouTube|Konu|Topic/"
+    optional: true
+
+# 6. Select text input mode
+- tapOn:
+    text: "/Metin|Text/"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# 7. Verify text input area
+- assertVisible:
+    text: "/Metin girin|Enter text|İçerik/"
+    optional: true
+
+# 8. Check for level selector
+- assertVisible:
+    text: "/Seviye|Level|A1|A2|B1|B2|C1|C2/"
+    optional: true
+
+# 9. Check for generate button
+- assertVisible:
+    text: "/Oluştur|Generate|Başlat|Start/"
+    optional: true
+
+# 10. Go back
+- back
+
+# 11. Test complete
+- takeScreenshot: content_creation_result

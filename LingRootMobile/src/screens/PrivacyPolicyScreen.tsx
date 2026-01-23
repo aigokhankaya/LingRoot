@@ -9,7 +9,7 @@ const PrivacyPolicyScreen: React.FC = () => {
   const contentTR = `
 GİZLİLİK POLİTİKASI
 
-Son Güncelleme: 6 Ekim 2025
+Son Güncelleme: 16 Ocak 2026
 
 LingRoot olarak gizliliğinize önem veriyoruz. Bu gizlilik politikası, kişisel bilgilerinizi nasıl topladığımızı, kullandığımızı ve koruduğumuzu açıklar.
 
@@ -18,84 +18,56 @@ LingRoot olarak gizliliğinize önem veriyoruz. Bu gizlilik politikası, kişise
 1.1. Hesap Bilgileri
 • Ad ve soyad
 • E-posta adresi
-• Telefon numarası
 • Şifre (şifrelenmiş olarak saklanır)
 
-1.2. Kullanım Verileri
-• Oluşturduğunuz ses dosyaları
-• Metin içerikleri
-• Kelime listeleri ve çalışma geçmişi
-• Uygulama kullanım istatistikleri
-• Cihaz bilgileri (model, işletim sistemi)
+1.2. Biyometrik ve Ses Verileri (Önemli)
+• Hizmetin bir parçası olarak, sesli komutlarınız veya ses klonlama özelliği için yüklediğiniz ses dosyaları işlenebilir.
+• Ses verileriniz SADECE size bu hizmeti sağlamak (örn. metin seslendirme, telaffuz analizi) amacıyla kullanılır.
+• Ses verileriniz izniniz olmadan kimlik doğrulama veya üçüncü taraf reklamcılık amacıyla kullanılmaz.
 
-1.3. Ödeme Bilgileri
-• Abonelik bilgileri
-• Apple App Store üzerinden yapılan ödemeler (Apple tarafından işlenir)
-• Ödeme geçmişi
+1.3. Kullanım Verileri
+• Oluşturduğunuz ses dosyaları, metin içerikleri
+• Kelime listeleri, çalışma geçmişi
+• Cihaz bilgileri (model, IP, işletim sistemi)
 
-2. BİLGİLERİN KULLANIMI
+2. BİLGİLERİN KULLANIMI VE YAPAY ZEKA
 
 Topladığımız bilgileri şu amaçlarla kullanırız:
-• Hizmetlerimizi sağlamak ve geliştirmek
-• Ses dosyaları oluşturmak (Google Text-to-Speech API)
-• Metin çevirileri yapmak (OpenAI API)
-• Kelime önerileri ve CEFR seviye belirleme (OpenAI API)
-• Hesap güvenliğini sağlamak
-• Müşteri desteği sunmak
-• Yasal yükümlülükleri yerine getirmek
+• Hizmetleri sağlamak (TTS, Çeviri, Seviye Belirleme)
+• Text-to-Speech ve LLM (Large Language Model) hizmetleri için OpenAI ve Google Cloud API'lerini kullanmak.
+• AI Modellerinin İyileştirilmesi: Anonimleştirilmiş (kimlikten arındırılmış) kullanım verileri, yapay zeka modellerinin doğruluğunu ve performansını artırmak için analiz edilebilir. Kişisel veriler doğrudan model eğitiminde kullanılmaz.
 
-3. ÜÇÜNCÜ TARAF HİZMETLER
+3. ÜÇÜNCÜ TARAF HİZMETLER VE VERİ AKTARIMI
 
-Aşağıdaki üçüncü taraf hizmetlerini kullanıyoruz:
-• Google Text-to-Speech API (ses oluşturma)
-• OpenAI API (metin işleme, çeviri, seviye belirleme)
-• Apple App Store (ödeme işlemleri)
-• Supabase (veri saklama)
+Hizmetlerimizi sunabilmek için verileriniz güvenli protokollerle aşağıdaki sağlayıcılara aktarılabilir:
+• Google Cloud (Text-to-Speech, Storage)
+• OpenAI (Metin işleme, dil modelleri) - Veriler yurtdışı sunucularında işlenebilir.
+• Apple App Store (Ödeme işlemleri)
+• Supabase (Veritabanı ve kimlik doğrulama)
 
-Bu hizmetler kendi gizlilik politikalarına tabidir.
+Bu hizmetler uluslararası güvenlik standartlarına (SOC2, GDPR) uygundur.
 
 4. VERİ GÜVENLİĞİ
 
-• Tüm veriler şifrelenmiş bağlantılar (HTTPS) üzerinden iletilir
-• Şifreler bcrypt ile hash'lenerek saklanır
-• Veritabanı erişimi güvenli kimlik doğrulama ile korunur
-• Düzenli güvenlik güncellemeleri yapılır
+• Tüm veriler SSL/TLS şifreleme ile iletilir.
+• Veritabanı erişimi katı yetkilendirme kurallarına bağlıdır.
+• Hassas veriler (şifreler) hashlenerek saklanır.
 
-5. VERİ SAKLAMA
+5. HAKLARINIZ (KVKK ve GDPR)
 
-• Hesap bilgileriniz hesabınızı silene kadar saklanır
-• Ses dosyaları ve içerikler hesabınızla ilişkili olarak saklanır
-• Kullanım istatistikleri analiz amacıyla saklanır
+• Verilerinize erişme, düzeltme ve silme (unutulma) hakkına sahipsiniz.
+• Hesabınızı uygulama içinden sildiğinizde, ilişkili tüm kişisel veriler sistemden kalıcı olarak kaldırılır veya anonimleştirilir.
 
-6. HAKLARINIZ
-
-• Kişisel verilerinize erişim hakkı
-• Verilerinizi düzeltme hakkı
-• Verilerinizi silme hakkı (hesap silme)
-• Veri taşınabilirliği hakkı
-• İtiraz etme hakkı
-
-7. ÇOCUKLARIN GİZLİLİĞİ
-
-Hizmetimiz 13 yaş altı çocuklara yönelik değildir. Bilerek 13 yaş altı çocuklardan kişisel bilgi toplamıyoruz.
-
-8. DEĞİŞİKLİKLER
-
-Bu gizlilik politikasını zaman zaman güncelleyebiliriz. Önemli değişiklikler e-posta ile bildirilecektir.
-
-9. İLETİŞİM
+6. İLETİŞİM
 
 Gizlilik ile ilgili sorularınız için:
-E-posta: support@lingroot.com
-Web: https://lingroot.com
-
-KVKK kapsamındaki haklarınızı kullanmak için yukarıdaki iletişim bilgilerinden bize ulaşabilirsiniz.
+E-posta: privacy@lingroot.com
 `;
 
   const contentEN = `
 PRIVACY POLICY
 
-Last Updated: October 6, 2025
+Last Updated: January 16, 2026
 
 At LingRoot, we value your privacy. This privacy policy explains how we collect, use, and protect your personal information.
 
@@ -104,78 +76,50 @@ At LingRoot, we value your privacy. This privacy policy explains how we collect,
 1.1. Account Information
 • Full name
 • Email address
-• Phone number
 • Password (stored encrypted)
 
-1.2. Usage Data
-• Audio files you create
-• Text content
+1.2. Biometric and Voice Data (Important)
+• As part of the service, voice files you upload for voice commands or voice cloning features may be processed.
+• Your voice data is used ONLY to provide this service to you (e.g., text-to-speech, pronunciation analysis).
+• Your voice data is not used for authentication or third-party advertising purposes without your consent.
+
+1.3. Usage Data
+• Audio files you create, text content
 • Vocabulary lists and study history
-• App usage statistics
-• Device information (model, operating system)
+• Device information (model, IP, operating system)
 
-1.3. Payment Information
-• Subscription details
-• Payments made through Apple App Store (processed by Apple)
-• Payment history
-
-2. HOW WE USE YOUR INFORMATION
+2. HOW WE USE YOUR INFORMATION AND AI
 
 We use the collected information for:
-• Providing and improving our services
-• Creating audio files (Google Text-to-Speech API)
-• Text translations (OpenAI API)
-• Word suggestions and CEFR level determination (OpenAI API)
-• Account security
-• Customer support
-• Legal compliance
+• Providing services (TTS, Translation, Level Determination)
+• Using OpenAI and Google Cloud APIs for Text-to-Speech and LLM (Large Language Model) services.
+• AI Model Improvement: Anonymized (de-identified) usage data may be analyzed to improve the accuracy and performance of AI models. Personal data is not directly used in model training.
 
-3. THIRD-PARTY SERVICES
+3. THIRD-PARTY SERVICES AND DATA TRANSFER
 
-We use the following third-party services:
-• Google Text-to-Speech API (audio creation)
-• OpenAI API (text processing, translation, level determination)
-• Apple App Store (payment processing)
-• Supabase (data storage)
+To provide our services, your data may be transferred to the following providers via secure protocols:
+• Google Cloud (Text-to-Speech, Storage)
+• OpenAI (Text processing, language models) - Data may be processed on international servers.
+• Apple App Store (Payment processing)
+• Supabase (Database and authentication)
 
-These services are subject to their own privacy policies.
+These services comply with international security standards (SOC2, GDPR).
 
 4. DATA SECURITY
 
-• All data is transmitted over encrypted connections (HTTPS)
-• Passwords are hashed using bcrypt
-• Database access is protected with secure authentication
-• Regular security updates are performed
+• All data is transmitted via SSL/TLS encryption.
+• Database access is subject to strict authorization rules.
+• Sensitive data (passwords) is stored hashed.
 
-5. DATA RETENTION
+5. YOUR RIGHTS (KVKK and GDPR)
 
-• Your account information is stored until you delete your account
-• Audio files and content are stored associated with your account
-• Usage statistics are retained for analysis purposes
+• You have the right to access, correct, and delete (be forgotten) your data.
+• When you delete your account from within the app, all associated personal data is permanently removed from the system or anonymized.
 
-6. YOUR RIGHTS
-
-• Right to access your personal data
-• Right to correct your data
-• Right to delete your data (account deletion)
-• Right to data portability
-• Right to object
-
-7. CHILDREN'S PRIVACY
-
-Our service is not directed to children under 13. We do not knowingly collect personal information from children under 13.
-
-8. CHANGES
-
-We may update this privacy policy from time to time. Significant changes will be notified via email.
-
-9. CONTACT
+6. CONTACT
 
 For privacy-related questions:
-Email: support@lingroot.com
-Web: https://lingroot.com
-
-You can contact us using the above information to exercise your rights under applicable data protection laws.
+Email: privacy@lingroot.com
 `;
 
   return (

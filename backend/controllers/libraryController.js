@@ -1,5 +1,5 @@
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Get unified library (Public Books + User Documents) with progress

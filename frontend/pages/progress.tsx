@@ -14,7 +14,10 @@ import {
   DailyQuestsCard,
   LevelUpModal,
   AchievementModal,
-  OnboardingFlow
+  OnboardingFlow,
+  Leaderboard,
+  WeeklyChallenges,
+  StreakSociety
 } from '@/components/gamification';
 import { useGamification, Achievement } from '@/hooks/useGamification';
 import AppHeader from '@/components/AppHeader';
@@ -96,6 +99,7 @@ const ProgressPage: React.FC = () => {
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8 max-w-4xl space-y-8">
+
           {/* Level Progress */}
           <section>
             <LevelProgressBar showStreak={true} />
@@ -185,7 +189,7 @@ const ProgressPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Journey Map */}
+          {/* 🗺️ Journey Map - PRIMARY: Either shows roadmap or onboarding CTA */}
           <section>
             <JourneyRoadmap
               onQuestClick={(quest) => {
@@ -207,6 +211,25 @@ const ProgressPage: React.FC = () => {
           {/* Daily Quests */}
           <section>
             <DailyQuestsCard />
+          </section>
+
+          {/* Sosyal & Meydan Okumalar */}
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-2xl">🎮</span>
+              <h2 className="text-2xl font-bold text-slate-800">Sosyal & Meydan Okumalar</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <Leaderboard />
+              </div>
+              <div className="md:col-span-1">
+                <WeeklyChallenges />
+              </div>
+              <div className="md:col-span-1">
+                <StreakSociety />
+              </div>
+            </div>
           </section>
 
           {/* Achievements */}

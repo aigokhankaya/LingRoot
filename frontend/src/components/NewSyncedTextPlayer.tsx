@@ -66,6 +66,7 @@ interface NewSyncedTextPlayerProps {
   onComplete?: () => void;
   hideText?: boolean;
   uiVariant?: 'card' | 'bare';
+  externalAudioRef?: React.RefObject<HTMLAudioElement | null>; // NEW
 }
 
 interface ContextMenu {
@@ -94,7 +95,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   onWordChange,
   onComplete,
   hideText = false,
-  uiVariant = 'card'
+  uiVariant = 'card',
+  externalAudioRef // NEW
 }: NewSyncedTextPlayerProps) {
 
   // Use useWordSync hook directly in component
@@ -115,7 +117,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     audioUrl,
     timepoints,
     originalText,
-    onEnded: onComplete
+    onEnded: onComplete,
+    externalAudioRef // NEW
   });
 
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService } from '../services/api';
+import { resetPassword } from '../services/authService';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { COLORS } from '../theme/colors';
 
@@ -25,7 +25,7 @@ const ResetPasswordScreen: React.FC = () => {
     }
     setLoading(true);
     try {
-      await apiService.resetPassword(email.trim(), code.trim(), newPassword);
+      await resetPassword(code.trim(), newPassword);
       Alert.alert('Başarılı', 'Şifreniz güncellendi. Giriş ekranına dönün.', [
         { text: 'Tamam', onPress: () => navigation.navigate('Login') },
       ]);

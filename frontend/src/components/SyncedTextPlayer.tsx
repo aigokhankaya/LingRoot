@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { addWordToVocabulary, addWordWithTranslation, lookupVocabularyWord, saveListeningProgress } from '../lib/api';
+import { addWordWithTranslation, lookupVocabularyWord, saveListeningProgress } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;

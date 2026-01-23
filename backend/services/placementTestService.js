@@ -6,7 +6,7 @@
  */
 
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 // CEFR Word Bank (Oxford 3000/5000 inspired)
 const QUESTION_BANK = [

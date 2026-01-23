@@ -69,13 +69,13 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
 
   const handleLogout = () => {
     logout();
-    router.push('/');
+    router.push('/welcome');
   };
 
   // Menü öğeleri - tek bir yerden yönetiliyor
   const menuItems = [
     ...(showHomeLink ? [{
-      href: '/',
+      href: '/welcome',
       icon: <Home className="h-4 w-4" />,
       label: t('profile_menu_home'),
       iconClass: 'fas fa-home',

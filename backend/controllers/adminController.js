@@ -1,7 +1,7 @@
-const { supabase, bucketName } = require("../utils/supabaseClient");
+const { supabase, bucketName } = require('../utils/storage/supabaseClient.js');
 require("dotenv").config();
-const logger = require("../utils/logger"); // Import logger
-const { checkLimits } = require('../utils/usageLimiter');
+const logger = require('../utils/common/logger.js'); // Import logger
+const { checkLimits } = require('../utils/infra/usageLimiter.js');
 
 // Supabase client provided by shared utility
 
@@ -1546,7 +1546,7 @@ exports.downgradeExpiredSubscriptions = async (req, res) => {
   try {
     logger.info('[ADMIN] Manual trigger: downgrading expired subscriptions to Free Trial');
 
-    const { downgradeAllExpiredSubscriptions } = require('../utils/subscriptionDowngrader');
+    const { downgradeAllExpiredSubscriptions } = require('../utils/infra/subscriptionDowngrader.js');
     const result = await downgradeAllExpiredSubscriptions();
 
     if (result.error) {

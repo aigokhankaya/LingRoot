@@ -9,7 +9,7 @@
 
 const srsService = require('../services/srsService');
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 /**
  * GET /api/vocabulary/lookup?word=xxx
@@ -182,6 +182,26 @@ exports.addWord = async (req, res) => {
             JSON.stringify({ ipa, collocations: enrichedData.collocations, sourceContext })
         ]);
 
+        // 4. 🔄 Also insert into word_reviews for SRS flashcard system
+        try {
+            await db.query(`
+                INSERT INTO word_reviews (
+                    user_id, word, definition, example_sentence,
+                    next_review_date, interval_days, ease_factor, repetition_count, streak_correct
+                ) VALUES ($1, $2, $3, $4, CURRENT_DATE, 1, 2.5, 0, 0)
+                ON CONFLICT (user_id, word) DO NOTHING
+            `, [
+                userId,
+                word.toLowerCase(),
+                finalDefinition || '',
+                finalExample || ''
+            ]);
+            logger.info(`[Vocabulary API] Word "${word}" synced to word_reviews for SRS`);
+        } catch (srsError) {
+            // Non-critical - log but don't fail the request
+            logger.warn('[Vocabulary API] word_reviews sync failed:', srsError.message);
+        }
+
         // Fetch full data for response
         const fullData = await db.query(`
             SELECT uv.*, v.word, v.definition, v.example_sentence, v.level 
@@ -211,18 +231,20 @@ exports.addWord = async (req, res) => {
 exports.getStats = async (req, res) => {
     try {
         const userId = req.user.id;
-        const type = req.query.type || 'word'; // word, phrase, idiom
+        // type filter removed as column does not exist yet
+        let whereClause = 'user_id = $1';
+        const params = [userId];
 
-        // Get counts by status
+        // Get counts using is_learned (status column doesn't exist)
         const statsQuery = await db.query(`
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN status = 'mastered' THEN 1 ELSE 0 END) as mastered,
-                SUM(CASE WHEN status = 'learning' OR status = 'new' THEN 1 ELSE 0 END) as learning,
-                SUM(CASE WHEN (next_review_at <= NOW() OR status = 'new') THEN 1 ELSE 0 END) as due_today
+                SUM(CASE WHEN is_learned = true THEN 1 ELSE 0 END) as mastered,
+                SUM(CASE WHEN is_learned = false THEN 1 ELSE 0 END) as learning,
+                SUM(CASE WHEN next_review_at <= NOW() OR is_learned = false THEN 1 ELSE 0 END) as due_today
             FROM user_vocabulary
-            WHERE user_id = $1 AND type = $2
-        `, [userId, type]);
+            WHERE ${whereClause}
+        `, params);
 
         const stats = statsQuery.rows[0];
 
@@ -257,35 +279,34 @@ exports.getStats = async (req, res) => {
 exports.getCollection = async (req, res) => {
     try {
         const userId = req.user.id;
-        const status = req.query.status; // Optional: 'learning', 'mastered', 'new'
-        const type = req.query.type || 'word';
+        logger.info(`[Vocabulary API] Fetching collection for user: ${userId}`, req.query);
+        const status = req.query.status; // Optional: 'learning', 'mastered'
         const limit = parseInt(req.query.limit) || 100;
         const offset = parseInt(req.query.offset) || 0;
 
-        let whereClause = 'uv.user_id = $1 AND uv.type = $2';
-        const params = [userId, type];
+        // Base filter
+        let whereClause = 'uv.user_id = $1';
+        const params = [userId];
 
+        // Filter by learning status using is_learned column
         if (status) {
             if (status === 'learning') {
-                whereClause += ` AND (uv.status = 'learning' OR uv.status = 'new')`;
+                whereClause += ` AND uv.is_learned = false`;
             } else if (status === 'mastered') {
-                whereClause += ` AND uv.status = 'mastered'`;
-            } else {
-                whereClause += ` AND uv.status = $${params.length + 1}`;
-                params.push(status);
+                whereClause += ` AND uv.is_learned = true`;
             }
         }
+
+        logger.info(`[Vocabulary API] Collection query: WHERE ${whereClause}`, params);
 
         const result = await db.query(`
             SELECT 
                 uv.id,
                 uv.word_id,
-                uv.status,
+                uv.is_learned,
                 uv.streak,
                 uv.next_review_at,
                 uv.last_reviewed_at,
-                uv.review_count,
-                uv.is_learned,
                 uv.created_at,
                 v.word,
                 v.original_word,
@@ -300,9 +321,15 @@ exports.getCollection = async (req, res) => {
             LIMIT $${params.length + 1} OFFSET $${params.length + 2}
         `, [...params, limit, offset]);
 
+        // Map is_learned to status for frontend compatibility
+        const mappedRows = result.rows.map(row => ({
+            ...row,
+            status: row.is_learned ? 'mastered' : 'learning'
+        }));
+
         res.json({
             success: true,
-            data: result.rows,
+            data: mappedRows,
             pagination: {
                 limit,
                 offset,
@@ -336,7 +363,7 @@ exports.getRandomWords = async (req, res) => {
             SELECT 
                 uv.id,
                 uv.word_id,
-                uv.status,
+                uv.is_learned,
                 uv.streak,
                 uv.created_at,
                 v.word,
@@ -352,9 +379,15 @@ exports.getRandomWords = async (req, res) => {
             LIMIT $2
         `, [userId, limit]);
 
+        // Map is_learned to status for frontend compatibility
+        const mappedRows = result.rows.map(row => ({
+            ...row,
+            status: row.is_learned ? 'mastered' : 'learning'
+        }));
+
         res.json({
             success: true,
-            data: result.rows
+            data: mappedRows
         });
     } catch (error) {
         logger.error('[Vocabulary API] Get random words error:', error);

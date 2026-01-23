@@ -3,6 +3,7 @@ import Link from 'next/link';
 import MembershipBadge from '../src/components/user/MembershipBadge';
 import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
 import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem, FavoriteBookItem, getUserBookFavoritesDetails, DocumentRecord, DocumentSection, getUserDocuments, getDocumentSections, getContentHistory } from '../src/lib/api';
 import { Badge } from '../src/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../src/components/ui/card';
@@ -20,6 +21,9 @@ import { ProfileDropdownMenu } from '../src/components/shared/ProfileDropdownMen
 import { useTranslation } from '../src/lib/i18n';
 import BookTab from '../src/components/BookTab/BookTab';
 import AppHeader from '../src/components/AppHeader';
+// Gamification components
+import { GamificationBanner, DailyQuestsCard } from '../src/components/gamification';
+import { useGamification } from '../src/hooks/useGamification';
 
 interface ContentHistoryItem {
   id: string;
@@ -43,6 +47,32 @@ const Dashboard = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const { t } = useTranslation();
+
+  // Gamification Integration
+  const { stats: gamificationStats, loading: gamificationLoading } = useGamification();
+
+  // Calculate real daily progress based on quests
+  const completedQuests = gamificationStats?.dailyQuests.filter(q => q.is_completed).length || 0;
+  const totalQuests = gamificationStats?.dailyQuests.length || 0;
+  const dailyQuestProgress = totalQuests > 0 ? Math.round((completedQuests / totalQuests) * 100) : 0;
+
+  // Handle focus scrolling
+  useEffect(() => {
+    if (router.query.focus === 'daily-quests') {
+      setTimeout(() => {
+        const element = document.getElementById('daily-quests-section');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.classList.add('ring-4', 'ring-primary/50', 'transition-all', 'duration-1000');
+          setTimeout(() => {
+            element.classList.remove('ring-4', 'ring-primary/50');
+          }, 2000);
+        }
+      }, 500);
+    }
+  }, [router.query.focus]);
+
+
   const [tab, setTab] = React.useState<string>('dashboard');
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -140,8 +170,10 @@ const Dashboard = () => {
       if (isAuthenticated && user) {
         setStatsLoading(true);
         try {
-          const data = await getUserStats();
-          setStats(data);
+          const response = await getUserStats(user.id);
+          if (response.success && response.data) {
+            setStats(response.data);
+          }
         } catch (error) {
           console.error('Error fetching stats:', error);
         } finally {
@@ -252,17 +284,19 @@ const Dashboard = () => {
     setLoadingHistory(true);
     try {
       console.log('[DASHBOARD] fetchContentHistory başlatılıyor...');
-      const response = await getContentHistory();
-      console.log('[DASHBOARD] getContentHistory response:', response);
+      if (user) {
+        const response = await getContentHistory(user.id);
+        console.log('[DASHBOARD] getContentHistory response:', response);
 
-      if (response.success && response.data) {
-        if (Array.isArray(response.data)) {
-          setContentHistory(response.data);
+        if (response.success && response.data) {
+          if (Array.isArray(response.data)) {
+            setContentHistory(response.data);
+          } else {
+            setContentHistory([]);
+          }
         } else {
           setContentHistory([]);
         }
-      } else {
-        setContentHistory([]);
       }
     } catch (error) {
       console.error('[DASHBOARD] Content history yüklenirken hata oluştu:', error);
@@ -431,6 +465,9 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background fadeIn">
+      <Head>
+        <title>{t('dashboard')} | LingRoot</title>
+      </Head>
       {/* Top Navigation Header */}
       <AppHeader />
 
@@ -519,6 +556,9 @@ const Dashboard = () => {
 
             {/* Dashboard Tab */}
             <TabsContent value="dashboard" className="mt-0">
+              {/* Gamification Banner - Streak warning / Challenge reminder */}
+              <GamificationBanner />
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Quick Stats */}
                 <div className="col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -527,14 +567,19 @@ const Dashboard = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-500">{t('dashboard_daily_goal_title')}</p>
-                          <h3 className="text-2xl font-bold text-primary">{statsLoading ? '...' : `${stats?.activity.dailyGoalProgress || 0}%`}</h3>
-                          <p className="text-xs text-gray-500 mt-1">{t('dashboard_daily_goal_subtitle')}</p>
+                          <h3 className="text-2xl font-bold text-primary">{gamificationLoading ? '...' : `${dailyQuestProgress}%`}</h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {gamificationLoading
+                              ? t('loading')
+                              : `${completedQuests}/${totalQuests} ${t('gamification_quests_completed') || 'Görev Tamamlandı'}`
+                            }
+                          </p>
                         </div>
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                           <i className="fas fa-bullseye text-xl"></i>
                         </div>
                       </div>
-                      <Progress value={stats?.activity.dailyGoalProgress || 0} className="h-2 mt-4" />
+                      <Progress value={dailyQuestProgress} className="h-2 mt-4" />
                     </CardContent>
                   </Card>
 
@@ -622,81 +667,10 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
 
-                {/* Today's Tasks */}
-                <Card className="border-none shadow-md hover-lift slideUp">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_today_tasks_title')}</CardTitle>
-                    <CardDescription>{t('dashboard_today_tasks_date_example')}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[300px] pr-4">
-                      <div className="space-y-4">
-                        <div className="flex items-center p-3 bg-green-50 rounded-lg border border-green-100">
-                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 mr-3 flex-shrink-0">
-                            <i className="fas fa-headphones"></i>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{t('dashboard_task_listen_title')}</h4>
-                            <p className="text-sm text-gray-600">{t('dashboard_task_listen_desc')}</p>
-                          </div>
-                          <Badge className="bg-green-500 ml-2">{t('dashboard_task_listen_done_badge')}</Badge>
-                        </div>
-
-                        <div className="flex items-center p-3 bg-primary/5 rounded-lg border border-primary/10">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3 flex-shrink-0">
-                            <i className="fas fa-book-open"></i>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{t('dashboard_task_read_title')}</h4>
-                            <p className="text-sm text-gray-600">{t('dashboard_task_read_desc')}</p>
-                          </div>
-                          <Button size="sm" variant="outline" className="ml-2">
-                            {t('dashboard_task_start_button')}
-                          </Button>
-                        </div>
-
-                        <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
-                          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mr-3 flex-shrink-0">
-                            <i className="fas fa-comment"></i>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{t('dashboard_task_speak_title')}</h4>
-                            <p className="text-sm text-gray-600">{t('dashboard_task_speak_desc')}</p>
-                          </div>
-                          <Button size="sm" variant="outline" className="ml-2">
-                            {t('dashboard_task_start_button')}
-                          </Button>
-                        </div>
-
-                        <div className="flex items-center p-3 bg-amber-50 rounded-lg border border-amber-100">
-                          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mr-3 flex-shrink-0">
-                            <i className="fas fa-pen"></i>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{t('dashboard_task_write_title')}</h4>
-                            <p className="text-sm text-gray-600">{t('dashboard_task_write_desc')}</p>
-                          </div>
-                          <Button size="sm" variant="outline" className="ml-2">
-                            {t('dashboard_task_start_button')}
-                          </Button>
-                        </div>
-
-                        <div className="flex items-center p-3 bg-red-50 rounded-lg border border-red-100">
-                          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 mr-3 flex-shrink-0">
-                            <i className="fas fa-brain"></i>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{t('dashboard_task_vocab_title')}</h4>
-                            <p className="text-sm text-gray-600">{t('dashboard_task_vocab_desc')}</p>
-                          </div>
-                          <Button size="sm" variant="outline" className="ml-2">
-                            {t('dashboard_task_start_button')}
-                          </Button>
-                        </div>
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
+                {/* Today's Tasks (Dynamic) */}
+                <div id="daily-quests-section" className="hover-lift slideUp">
+                  <DailyQuestsCard />
+                </div>
 
                 {/* Skills Progress */}
                 {/* <Card className="border-none shadow-md">
@@ -729,6 +703,42 @@ const Dashboard = () => {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Gamification Summary - Links to Progress Hub */}
+                <div className="col-span-3 mt-6">
+                  <div
+                    onClick={() => router.push('/progress')}
+                    className="group cursor-pointer bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="text-white">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-3xl">🎮</span>
+                          <h2 className="text-2xl font-bold">Oyunlaştırma Merkezi</h2>
+                        </div>
+                        <p className="text-white/80 text-sm">
+                          Günlük görevler, liderlik tablosu, haftalık meydan okumalar ve başarımlarını takip et
+                        </p>
+                        <div className="flex items-center gap-4 mt-4">
+                          <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">
+                            🔥 {gamificationStats?.streak || 0} Gün Seri
+                          </div>
+                          <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">
+                            ⚡ {gamificationStats?.totalXP?.toLocaleString() || 0} XP
+                          </div>
+                          <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">
+                            📊 Seviye {gamificationStats?.level || 1}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Upcoming Events */}
                 {/* <Card className="border-none shadow-md">
@@ -1323,14 +1333,14 @@ const Dashboard = () => {
                             >
                               <div className="flex items-center justify-between mb-1">
                                 <div className="text-sm font-semibold text-gray-800 truncate mr-2">
-                                  {section.section_index}. {section.section_title || t('docs_section_fallback_title')}
+                                  {section.section_index}. {section.title || t('docs_section_fallback_title')}
                                 </div>
                                 <span className="text-xs text-gray-500 whitespace-nowrap">
                                   {section.word_count || 0} {t('docs_words_suffix')}
                                 </span>
                               </div>
                               <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">
-                                {section.section_text}
+                                {section.content}
                               </p>
                             </div>
                           ))}

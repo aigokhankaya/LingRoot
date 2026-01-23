@@ -22,7 +22,10 @@ import { pick, keepLocalCopy } from '@react-native-documents/picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
-import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures, PlanFeatures } from '../services/api';
+import * as ttsService from '../services/ttsService';
+import * as bookService from '../services/bookService';
+import { submitContent } from '../services/contentService';
+import { getMyPlanFeatures, PlanFeatures, getUsageSummary } from '../services/subscriptionService';
 import AudioPlayer from '../components/AudioPlayer';
 import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
 import { COLORS } from '../theme/colors';
@@ -67,7 +70,7 @@ const CreateScreen: React.FC = () => {
     React.useCallback(() => {
       const checkActiveJob = async () => {
         try {
-          const res = await apiService.getActiveTtsJob();
+          const res = await ttsService.getActiveTtsJob();
           if (res && res.hasActiveJob) {
             setIsTtsJobLocked(true);
             setIsCreatingVoice(true);
@@ -316,7 +319,7 @@ const CreateScreen: React.FC = () => {
     }
     setIsLoadingSuggestions(true);
     try {
-      const res = await apiService.getTopicSuggestions(suggestion, selectedLevel);
+      const res = await ttsService.getTopicSuggestions(suggestion, selectedLevel);
 
       if (res?.success) {
         const suggestions = res.suggestions || [];
@@ -499,7 +502,7 @@ const CreateScreen: React.FC = () => {
   useEffect(() => {
     const fetchProvider = async () => {
       try {
-        const response = await apiService.getTtsProvider();
+        const response = await ttsService.getTtsProvider();
         if (response?.provider) {
           console.log('🎙️ TTS Provider from admin settings:', response.provider);
           setCurrentProvider(response.provider);
@@ -519,7 +522,7 @@ const CreateScreen: React.FC = () => {
   const fetchAvailableVoices = async () => {
     setLoadingVoices(true);
     try {
-      const response = await apiService.getAvailableVoices();
+      const response = await ttsService.getAvailableVoices();
 
 
       // Backend'den { provider: 'google', voices: [...] } formatında geliyor
@@ -594,7 +597,7 @@ const CreateScreen: React.FC = () => {
 
       console.log('🎙️ [FETCH FILTERED] Request params:', { accent, gender, category, backendCategory });
 
-      const response = await apiService.getFilteredVoices(accent, gender, undefined, backendCategory);
+      const response = await ttsService.getFilteredVoices(accent, gender, undefined, backendCategory);
 
       console.log('🎙️ [FETCH FILTERED] Raw response:', JSON.stringify(response, null, 2));
 
@@ -796,7 +799,7 @@ const CreateScreen: React.FC = () => {
     if (!hasCriteria) return;
     setIsSearchingBooks(true);
     try {
-      const res = await apiService.searchBooks({ q: bookQ, title: bookTitle, author: bookAuthor, page: nextPage || 1, per_page: 10 });
+      const res = await bookService.searchBooks({ q: bookQ, title: bookTitle, author: bookAuthor, page: nextPage || 1, per_page: 10 });
       setBookResults(res.books || []);
       setBookPage(res.page || 1);
       setBookTotalPages(res.total_pages || 1);
@@ -815,7 +818,7 @@ const CreateScreen: React.FC = () => {
     setSelectedBook(book);
     setIsLoadingChapters(true);
     try {
-      const list = await apiService.getBookChapters(book.id);
+      const list = await bookService.getBookChapters(book.id);
       setBookChapters(list || []);
       // Auto-select first chapter text if available
       if (Array.isArray(list) && list.length > 0) {
@@ -838,7 +841,7 @@ const CreateScreen: React.FC = () => {
     (async () => {
       try {
         await fetchAvailableVoices();
-        const settings = await getUserSettings();
+        const settings = await ttsService.getUserSettings();
         const dv = settings?.default_voice;
         // Only apply default voice automatically if it looks like a Lingroot ID
         if (dv && typeof dv === 'string' && dv.startsWith('lr_')) {
@@ -899,7 +902,7 @@ const CreateScreen: React.FC = () => {
     }
     try {
       // Usage limit pre-check
-      const summary = await apiService.getUsageSummary();
+      const summary = await getUsageSummary();
       const sData: any = (summary as any)?.data || {};
       if (summary?.success && (sData?.isExceeded || sData?.hasPlan === false)) {
         Alert.alert(
@@ -948,7 +951,7 @@ const CreateScreen: React.FC = () => {
       }
       try {
         setIsLoading(true);
-        const rr = await apiService.rewriteToNarration(base, selectedLevel);
+        const rr = await ttsService.rewriteToNarration(base, selectedLevel);
         const narration = rr?.data?.narration_text || base;
         effectiveInputText = narration;
         setInputText(narration);
@@ -992,7 +995,7 @@ const CreateScreen: React.FC = () => {
         formData.append('gender', selectedGender);
         formData.append('accent', selectedAccent);
 
-        const response = await apiService.processFileToSpeechAsync(formData);
+        const response = await ttsService.processFileToSpeechAsync(formData);
 
         if (response.success) {
           setSelectedFile(null);
@@ -1033,7 +1036,7 @@ const CreateScreen: React.FC = () => {
         });
 
         console.log('🎯 [CREATE] Calling processTextToSpeechAsync...');
-        const response = await apiService.processTextToSpeechAsync(request);
+        const response = await ttsService.processTextToSpeechAsync(request);
 
         if (response.success) {
           if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
@@ -1145,7 +1148,7 @@ const CreateScreen: React.FC = () => {
     try {
       // Google podcast: run async in background and notify when ready
       if (podcastTtsProvider === 'google') {
-        const response: any = await apiService.createPodcastAsync({
+        const response: any = await ttsService.createPodcastAsync({
           topic: podcastTopic.trim(),
           level: selectedLevel,
           duration: podcastDuration,
@@ -1173,7 +1176,7 @@ const CreateScreen: React.FC = () => {
         );
       }
 
-      const response: any = await apiService.createPodcast({
+      const response: any = await ttsService.createPodcast({
         topic: podcastTopic.trim(),
         level: selectedLevel,
         duration: podcastDuration,
@@ -1236,17 +1239,16 @@ const CreateScreen: React.FC = () => {
         const topicForHistory = topicForTrack;
         const transcriptText = transcriptForTrack;
 
-        await apiService.submitContent(
-          topicForHistory,
-          'podcast',
-          selectedLevel,
-          audioUrl,
-          transcriptText,
-          transcriptText,
-          undefined,
-          safeTimepoints,
-          safeWords
-        );
+        await submitContent({
+          input: topicForHistory,
+          input_type: 'podcast',
+          level: selectedLevel,
+          mp3_url: audioUrl,
+          translated_text: transcriptText,
+          adapted_text: transcriptText,
+          timepoints: safeTimepoints,
+          words: safeWords
+        });
         console.log('[Mobile][PODCAST] Podcast submitted to contenthistory via submitContent (with timings)');
       } catch (submitErr) {
         console.error('[Mobile][PODCAST] submitContent failed for podcast:', submitErr);
@@ -1661,7 +1663,7 @@ const CreateScreen: React.FC = () => {
                         setIsConvertingSuggestion(true);
                         setConvertingText(language === 'tr' ? 'Öneri metne dönüştürülüyor...' : 'Converting suggestion to text...');
 
-                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
+                        const rr = await ttsService.rewriteToNarration(s, selectedLevel);
                         const narration = rr?.data?.narration_text || s;
                         setInputText(narration);
 
@@ -2125,7 +2127,7 @@ const CreateScreen: React.FC = () => {
                       style={[styles.defaultVoiceButton, !selectedVoice && styles.createButtonDisabled]}
                       onPress={async () => {
                         try {
-                          await saveDefaultVoiceSetting(selectedVoice);
+                          await ttsService.saveDefaultVoiceSetting(selectedVoice);
                           setShouldPromoteSelectedVoiceTop(true);
                           Alert.alert(
                             t('common.success'),

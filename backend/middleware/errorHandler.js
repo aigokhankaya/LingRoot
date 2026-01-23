@@ -1,6 +1,6 @@
 // Error handling middleware
-const { formatError } = require('../utils/responseFormatter');
-const logger = require('../utils/logger');
+const { formatError } = require('../utils/common/responseFormatter.js');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Global error handler middleware

@@ -21,7 +21,8 @@ import { createSound } from '../services/audioService';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
-import { addWordToVocabulary, addWordWithTranslation, apiService } from '../services/api';
+import { addWordToVocabulary, addWordWithTranslation, lookupVocabularyWord } from '../services/vocabularyService';
+import { getUserContentById } from '../services/contentService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { SkiaWordHighlight } from './SkiaWordHighlight';
 import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
@@ -99,7 +100,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const cleanWord = word.replace(/[.,!?;:]/g, '');
 
     try {
-      const result = await apiService.lookupVocabularyWord(cleanWord);
+      const result = await lookupVocabularyWord(cleanWord);
 
       if (!result.found || !result.data) {
         showAlert(
@@ -218,7 +219,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     (async () => {
       try {
         setOriginalLoading(true);
-        const res = await apiService.getUserContentById(track.id);
+        const res = await getUserContentById(track.id);
         if ((res as any)?.success && (res as any)?.data?.input) {
           setOriginalText((res as any).data.input);
         }
@@ -1426,7 +1427,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     // CASE 1: Kelime bu kullanıcı için zaten vocabulary + user_vocabulary'de kayıtlıysa
     // doğrudan anlam popup'ı göster ve "Kelime Ekle" opsiyonu sunma
     try {
-      const result = await apiService.lookupVocabularyWord(cleanWord);
+      const result = await lookupVocabularyWord(cleanWord);
       if (result.found && result.data && result.hasUserWord) {
         const w = result.data;
 
@@ -1915,7 +1916,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               // Eğer track.original_turkish yoksa, backend'den içeriği çekmeye çalış
               try {
                 setOriginalLoading(true);
-                const res = await apiService.getUserContentById(track.id);
+                const res = await getUserContentById(track.id);
                 if ((res as any)?.success && (res as any)?.data?.input) {
                   setOriginalText((res as any).data.input);
                 }

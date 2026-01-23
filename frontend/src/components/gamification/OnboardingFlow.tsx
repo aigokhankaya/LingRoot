@@ -11,10 +11,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import LiroAvatar from '../LiroAvatar';
+import SectorSelector from './SectorSelector';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
-type OnboardingStep = 'welcome' | 'archetype' | 'assessment' | 'goal' | 'roadmap' | 'complete';
+type OnboardingStep = 'welcome' | 'archetype' | 'sector' | 'assessment' | 'goal' | 'roadmap' | 'complete';
 
 interface Archetype {
   code: string;
@@ -41,6 +42,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   // Varsayılan verilerle başlat, böylece yükleme hatasında boş kalmaz
   const [archetypes, setArchetypes] = useState<Archetype[]>(DEFAULT_ARCHETYPES);
   const [selectedArchetype, setSelectedArchetype] = useState<Archetype | null>(null);
+  const [selectedSectors, setSelectedSectors] = useState<number[]>([]);
   const [assessedCEFR, setAssessedCEFR] = useState<string>('B1');
   const [targetCEFR, setTargetCEFR] = useState<string>('C1');
   const [dailyMinutes, setDailyMinutes] = useState<number>(20);
@@ -95,13 +97,29 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     });
   };
 
+  // Archetype seçimi sonrası yönlendirme
+  const afterArchetypeSelect = () => {
+    if (selectedArchetype?.code === 'career') {
+      // Kariyer Mimarı için sektör seçimi zorunlu
+      setStep('sector');
+    } else {
+      // Diğerleri için sektör opsiyonel, direkt assessment'a geç
+      startAssessment();
+    }
+  };
+
+  const afterSectorSelect = () => {
+    startAssessment();
+  };
+
   const startAssessment = () => {
     setStep('assessment');
     // Liro'nun ilk mesajı
+    const sectorNote = selectedSectors.length > 0 ? '\n\nSeçtiğin sektöre özel içerikler de hazırlayacağım!' : '';
     setChatMessages([
       {
         role: 'assistant',
-        content: `Harika bir seçim, ${selectedArchetype?.name}! 🎉\n\nBen Liro. Senin için **en doğru yol haritasını** hazırlayabilmem için İngilizce seviyeni anlamam gerekiyor.\n\nBana İngilizce ile ilgili deneyimlerinden kısaca bahseder misin? (Türkçe veya İngilizce yazabilirsin)`
+        content: `Harika bir seçim, ${selectedArchetype?.name}! 🎉\n\nBen Liro. Senin için **en doğru yol haritasını** hazırlayabilmem için İngilizce seviyeni anlamam gerekiyor.${sectorNote}\n\nBana İngilizce ile ilgili deneyimlerinden kısaca bahseder misin? (Türkçe veya İngilizce yazabilirsin)`
       }
     ]);
   };
@@ -208,7 +226,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
           archetype: selectedArchetype?.code,
           assessedCEFR,
           targetCEFR,
-          weeklyMinutes: dailyMinutes * 7 // Günlük değeri haftalığa çevir
+          weeklyMinutes: dailyMinutes * 7, // Günlük değeri haftalığa çevir
+          sectors: selectedSectors // Seçilen sektörler
         })
       });
 
@@ -245,13 +264,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-6 bg-white/95 backdrop-blur-2xl overflow-hidden animate-fade-in text-slate-800">
       {/* Progress indicator */}
       <div className="absolute top-10 flex gap-3">
-        {['welcome', 'archetype', 'assessment', 'goal', 'complete'].map((s, i) => (
+        {['welcome', 'archetype', 'sector', 'assessment', 'goal', 'complete'].map((s, i) => (
           <div
             key={s}
             className={`w-2.5 h-2.5 rounded-full transition-all duration-300 
-                            ${step === s ? 'bg-teal-600 scale-125' : ''} 
-                            ${['welcome', 'archetype', 'assessment', 'goal', 'complete'].indexOf(step) > i ? 'bg-emerald-400' : 'bg-slate-200'}
-                        `}
+                        ${step === s ? 'bg-teal-600 scale-125' : ''} 
+                        ${['welcome', 'archetype', 'sector', 'assessment', 'goal', 'complete'].indexOf(step) > i ? 'bg-emerald-400' : 'bg-slate-200'}
+                    `}
           />
         ))}
       </div>
@@ -317,10 +336,46 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
                         `}
             disabled={!selectedArchetype}
-            onClick={startAssessment}
+            onClick={afterArchetypeSelect}
           >
             Devam Et
           </button>
+        </div>
+      )}
+
+      {/* Sector Selection (Career Architect için zorunlu) */}
+      {step === 'sector' && (
+        <div className="w-full max-w-4xl text-center animate-fade-in">
+          <h2 className="text-4xl font-extrabold text-slate-800 mb-2">Hangi sektörde çalışıyorsun?</h2>
+          <p className="text-lg text-slate-500 mb-8">Sana özel içerikler hazırlayacağız.</p>
+
+          <SectorSelector
+            selectedSectors={selectedSectors}
+            onSelectionChange={setSelectedSectors}
+            maxSelections={3}
+            isRequired={selectedArchetype?.code === 'career'}
+          />
+
+          <div className="flex gap-4 justify-center mt-8">
+            <button
+              className="px-8 py-3 rounded-xl text-slate-600 border-2 border-slate-200 hover:border-slate-300 transition-all"
+              onClick={() => setStep('archetype')}
+            >
+              Geri
+            </button>
+            <button
+              className={`
+                px-12 py-4 rounded-xl text-lg font-bold transition-all duration-300
+                ${(selectedSectors.length > 0 || selectedArchetype?.code !== 'career')
+                  ? 'bg-slate-800 text-white shadow-lg hover:bg-slate-900 hover:-translate-y-1'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
+              `}
+              disabled={selectedArchetype?.code === 'career' && selectedSectors.length === 0}
+              onClick={afterSectorSelect}
+            >
+              {selectedSectors.length === 0 ? 'Atla' : 'Devam Et'}
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const userInsightService = require('../services/userInsightService');
 const topicMasteryService = require('../services/topicMasteryService');
 

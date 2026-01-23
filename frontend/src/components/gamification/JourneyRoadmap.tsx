@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -20,6 +21,9 @@ interface Quest {
   icon_emoji: string;
   reward_xp: number;
   is_major_milestone: boolean;
+  content_url?: string;
+  has_content?: boolean;
+  content_ready?: boolean;
 }
 
 interface RoadmapData {
@@ -36,9 +40,11 @@ interface JourneyRoadmapProps {
 }
 
 export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, onStartOnboarding }) => {
+  const router = useRouter();
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRoadmap();
@@ -66,15 +72,20 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
 
   const createDefaultRoadmap = async () => {
     setIsGenerating(true);
+    console.log('[JourneyRoadmap] Starting createDefaultRoadmap...');
+
     try {
       const token = localStorage.getItem('lingroot_token');
+      console.log('[JourneyRoadmap] Token exists:', !!token, 'Length:', token?.length);
 
       // Token kontrolü
       if (!token || token === 'null' || token.length < 10) {
+        console.error('[JourneyRoadmap] Invalid token, attempting fallback');
         throw new Error('Invalid token');
       }
 
       // Varsayılan değerlerle plan oluştur (B1 -> C1, Career)
+      console.log('[JourneyRoadmap] Calling onboarding/complete API...');
       const response = await fetch(`${API_BASE}/api/gamification/onboarding/complete`, {
         method: 'POST',
         headers: {
@@ -90,67 +101,51 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
       });
 
       const data = await response.json();
+      console.log('[JourneyRoadmap] API Response:', data);
+
       if (data.success) {
+        console.log('[JourneyRoadmap] SUCCESS! Roadmap created in database.');
+        localStorage.setItem('onboarding_completed', 'true');
+        setError(null);
         await fetchRoadmap();
+        return;
       } else {
-        throw new Error('API returned failure');
+        console.warn('[JourneyRoadmap] API returned failure:', data.error || data.message);
+        throw new Error(data.error || 'API returned failure');
       }
     } catch (error) {
-      console.warn('Backend plan creation failed, using local fallback:', error);
-
-      // FALLBACK: Local Roadmap oluştur
-      // Backend'e gidilemediği için kullanıcıyı bekletmemek adına frontend'de mock veri gösteriyoruz
-      const mockRoadmap: RoadmapData = {
-        current: {
-          id: 101,
-          title: "Kelime Kartları ile Başla",
-          description: "Günlük 10 kelime tekrarı yaparak hafızanı güçlendir.",
-          step_order: 1,
-          week_number: 1,
-          status: 'in_progress',
-          task_type: 'vocabulary',
-          icon_emoji: '📚',
-          reward_xp: 100,
-          is_major_milestone: false
-        },
-        upcoming: [
-          {
-            id: 102,
-            title: "İş İngilizcesine Giriş",
-            description: "Toplantı ve e-posta için temel kelimeler.",
-            step_order: 2,
-            week_number: 2,
-            status: 'locked',
-            task_type: 'vocabulary',
-            icon_emoji: '💼',
-            reward_xp: 200,
-            is_major_milestone: false
-          },
-          {
-            id: 103,
-            title: "Sunum Teknikleri",
-            description: "Etkili sunum yapma ve grafik anlatma.",
-            step_order: 3,
-            week_number: 3,
-            status: 'locked',
-            task_type: 'speak',
-            icon_emoji: '📊',
-            reward_xp: 250,
-            is_major_milestone: true
-          }
-        ],
-        completed: [],
-        lockedPreview: [],
-        totalLocked: 8
-      };
-
-      // Kullanıcıya hissettirmeden mock veriyi set et
-      setTimeout(() => {
-        setRoadmap(mockRoadmap);
-      }, 1000);
+      console.error('[JourneyRoadmap] Backend plan creation failed:', error);
+      // Hata durumunda kullanıcıya mesaj göster, mock data oluşturma
+      setError('Yol haritası oluşturulamadı. Lütfen tekrar deneyin.');
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Quest tıklama işleyicisi - içerik URL'ine yönlendir
+  const handleQuestClick = (quest: Quest) => {
+    if (quest.status === 'locked') return;
+
+    // İçerik URL'i varsa oraya yönlendir
+    if (quest.content_url && quest.status !== 'completed') {
+      router.push(quest.content_url);
+      return;
+    }
+
+    // Fallback: task tipine göre yönlendir
+    const fallbackUrls: Record<string, string> = {
+      vocabulary: '/vocabulary',
+      listen: '/dashboard?tab=reading-history',
+      quiz: '/quiz',
+      milestone: '/dashboard',
+    };
+
+    if (quest.status !== 'completed') {
+      router.push(fallbackUrls[quest.task_type] || '/dashboard');
+    }
+
+    // Callback varsa çağır
+    onQuestClick?.(quest);
   };
 
   if (loading) {
@@ -190,48 +185,61 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
   // Check if onboarding was completed (localStorage fallback for when API fails)
   const onboardingCompleted = typeof window !== 'undefined' && localStorage.getItem('onboarding_completed') === 'true';
 
-  if (!roadmap) {
-    if (onboardingCompleted) {
-      // Onboarding yapıldı ama roadmap yüklenemedi (muhtemelen ilk seferde hata oluştu)
-      return (
-        <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl text-center shadow-sm">
-          <div className="text-6xl mb-4">🗺️</div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">Planını Oluşturalım</h3>
-          <p className="text-slate-500 mb-6 font-medium">Sana özel bir çalışma planı ve haftalık hedefler hazırlıyoruz.</p>
+  // Check if roadmap is effectively empty (API returned object but no quests)
+  const isRoadmapEmpty = !roadmap || (
+    !roadmap.current &&
+    (!roadmap.upcoming || roadmap.upcoming.length === 0) &&
+    (!roadmap.completed || roadmap.completed.length === 0) &&
+    (!roadmap.lockedPreview || roadmap.lockedPreview.length === 0)
+  );
+
+  if (isRoadmapEmpty) {
+    // Show prominent CTA to create/start journey
+    return (
+      <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-8 md:p-12 rounded-3xl shadow-2xl text-white">
+        {/* Background decoration */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-300 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
+        </div>
+
+        <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex items-center gap-6 text-center md:text-left">
+            <div className="text-6xl md:text-7xl animate-bounce hidden md:block">🗺️</div>
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold mb-3">
+                {onboardingCompleted ? 'Öğrenme Planını Oluştur' : 'Kişisel Yolculuğunu Başlat!'}
+              </h2>
+              <p className="text-white/80 text-sm md:text-base max-w-md">
+                {onboardingCompleted
+                  ? 'Sana özel hazırlanmış haftalık hedefler ve görevlerle İngilizce seviyeni yükselt.'
+                  : 'Liro ile tanış, seviyeni belirle ve sana özel hazırlanan haftalık öğrenme planını keşfet.'
+                }
+              </p>
+            </div>
+          </div>
+
           <button
             className={`
-              px-8 py-3.5 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-xl font-bold text-base shadow-lg hover:shadow-xl transition-all
-              ${isGenerating ? 'opacity-80 cursor-wait' : 'hover:-translate-y-0.5'}
+              flex items-center gap-3 bg-white text-purple-600 px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all
+              ${isGenerating ? 'opacity-80 cursor-wait' : 'hover:scale-105 hover:shadow-xl'}
             `}
             onClick={createDefaultRoadmap}
             disabled={isGenerating}
           >
             {isGenerating ? (
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <>
+                <span className="w-5 h-5 border-2 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
                 <span>Plan Hazırlanıyor...</span>
-              </div>
+              </>
             ) : (
-              <span>✨ Kişiselleştirilmiş Planımı Getir</span>
+              <>
+                <span>🚀</span>
+                <span>Hemen Başla</span>
+              </>
             )}
           </button>
         </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl text-center shadow-sm">
-        <div className="text-6xl mb-4 opacity-80">🗺️</div>
-        <h3 className="text-xl font-bold text-slate-800 mb-2">Yol Haritanız Henüz Oluşturulmadı</h3>
-        <p className="text-slate-500 mb-6 font-medium">Kişiselleştirilmiş öğrenme yolculuğunuzu başlatın</p>
-        {onStartOnboarding && (
-          <button
-            className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-xl font-bold text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
-            onClick={onStartOnboarding}
-          >
-            <span>🚀</span> Yolculuğumu Başlat
-          </button>
-        )}
       </div>
     );
   }
@@ -259,8 +267,8 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
           {allQuests.map((quest, index) => (
             <div
               key={quest.id}
-              className={`relative flex flex-col items-center group ${quest.status === 'locked' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-              onClick={() => quest.status !== 'locked' && onQuestClick?.(quest)}
+              className={`relative flex flex-col items-center group ${quest.status === 'locked' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:scale-105 transition-transform'}`}
+              onClick={() => handleQuestClick(quest)}
             >
               {/* Connector line overlay for completed path */}
               {index > 0 && allQuests[index - 1]?.status === 'completed' && (
