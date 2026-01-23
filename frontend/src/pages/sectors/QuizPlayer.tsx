@@ -22,7 +22,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 // TYPES
 // ============================================
 
-interface QuizQuestion {
+export interface QuizQuestion {
     id: number;
     type: 'multiple_choice' | 'cloze' | 'matching' | 'ordering' | 'true_false' | 'error_correction';
     question: string;
@@ -39,14 +39,14 @@ interface QuizQuestion {
     };
 }
 
-interface QuizResult {
+export interface QuizResult {
     questionId: number;
     userAnswer: any;
     isCorrect: boolean;
     responseTime: number;
 }
 
-interface QuizPlayerProps {
+export interface QuizPlayerProps {
     quizId?: string;
     contentId?: string;
     questions?: QuizQuestion[];
@@ -380,8 +380,8 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({
                                 onClick={handleNextQuestion}
                                 disabled={currentAnswer === null || currentAnswer === undefined || submitting}
                                 className={`px-8 py-4 rounded-2xl font-bold text-lg transition-all ${currentAnswer !== null && currentAnswer !== undefined
-                                        ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-lg shadow-teal-500/30 hover:scale-105'
-                                        : 'bg-white/10 text-white/30 cursor-not-allowed'
+                                    ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-lg shadow-teal-500/30 hover:scale-105'
+                                    : 'bg-white/10 text-white/30 cursor-not-allowed'
                                     }`}
                             >
                                 {submitting
@@ -509,14 +509,14 @@ const MultipleChoiceQuestion: React.FC<MCQuestionProps> = ({ question, selected,
                         key={index}
                         onClick={() => onSelect(index)}
                         className={`w-full p-5 rounded-2xl text-left transition-all duration-200 border-2 ${selected === index
-                                ? 'border-teal-400 bg-teal-500/20 text-white shadow-lg shadow-teal-500/20'
-                                : 'border-white/10 bg-white/5 text-white/90 hover:border-white/30 hover:bg-white/10'
+                            ? 'border-teal-400 bg-teal-500/20 text-white shadow-lg shadow-teal-500/20'
+                            : 'border-white/10 bg-white/5 text-white/90 hover:border-white/30 hover:bg-white/10'
                             }`}
                     >
                         <div className="flex items-center gap-4">
                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${selected === index
-                                    ? 'bg-teal-500 text-white'
-                                    : 'bg-white/10 text-white/70'
+                                ? 'bg-teal-500 text-white'
+                                : 'bg-white/10 text-white/70'
                                 }`}>
                                 {String.fromCharCode(65 + index)}
                             </div>
@@ -638,10 +638,10 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({ question, matches, 
                                 key={index}
                                 onClick={() => handleLeftClick(index)}
                                 className={`w-full p-4 rounded-xl text-left transition-all ${selectedLeft === index
-                                        ? 'bg-amber-500 text-white ring-2 ring-amber-300'
-                                        : matchedRight !== null
-                                            ? 'bg-teal-500/20 border-2 border-teal-400 text-teal-300'
-                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                    ? 'bg-amber-500 text-white ring-2 ring-amber-300'
+                                    : matchedRight !== null
+                                        ? 'bg-teal-500/20 border-2 border-teal-400 text-teal-300'
+                                        : 'bg-white/10 text-white hover:bg-white/20'
                                     }`}
                             >
                                 <span className="font-medium">{pair.left}</span>
@@ -660,10 +660,10 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({ question, matches, 
                                 onClick={() => handleRightClick(item.originalIndex)}
                                 disabled={isMatched && selectedLeft === null}
                                 className={`w-full p-4 rounded-xl text-left transition-all ${isMatched
-                                        ? 'bg-teal-500/20 border-2 border-teal-400 text-teal-300 opacity-50'
-                                        : selectedLeft !== null
-                                            ? 'bg-white/10 text-white hover:bg-white/20 cursor-pointer ring-2 ring-amber-300/50'
-                                            : 'bg-white/10 text-white/70'
+                                    ? 'bg-teal-500/20 border-2 border-teal-400 text-teal-300 opacity-50'
+                                    : selectedLeft !== null
+                                        ? 'bg-white/10 text-white hover:bg-white/20 cursor-pointer ring-2 ring-amber-300/50'
+                                        : 'bg-white/10 text-white/70'
                                     }`}
                             >
                                 <span className="font-medium">{item.text}</span>
@@ -807,8 +807,8 @@ const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({ question, selecte
                 <button
                     onClick={() => onSelect(true)}
                     className={`w-40 h-40 rounded-3xl flex flex-col items-center justify-center gap-2 transition-all ${selected === true
-                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-105'
-                            : 'bg-white/10 text-white hover:bg-white/20'
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-105'
+                        : 'bg-white/10 text-white hover:bg-white/20'
                         }`}
                 >
                     <span className="text-5xl">✓</span>
@@ -818,8 +818,8 @@ const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({ question, selecte
                 <button
                     onClick={() => onSelect(false)}
                     className={`w-40 h-40 rounded-3xl flex flex-col items-center justify-center gap-2 transition-all ${selected === false
-                            ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105'
-                            : 'bg-white/10 text-white hover:bg-white/20'
+                        ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105'
+                        : 'bg-white/10 text-white hover:bg-white/20'
                         }`}
                 >
                     <span className="text-5xl">✕</span>
