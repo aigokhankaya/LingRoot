@@ -139,6 +139,7 @@ app.use((req, res, next) => {
 
 // Health check endpoints (before auth)
 app.get('/healthz', (req, res) => res.status(200).send('OK'));
+app.get('/', (req, res) => res.status(200).send('LingRoot Backend Service'));
 app.use('/api/health', healthRoutes);
 
 // API Routes
