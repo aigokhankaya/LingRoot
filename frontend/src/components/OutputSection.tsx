@@ -47,9 +47,10 @@ interface OutputSectionProps {
   onAudioComplete?: () => void;
   disableSticky?: boolean; // Yeni prop: Sticky davranışı devre dışı bırakmak için
   audioRef?: React.RefObject<HTMLAudioElement | null>; // NEW
+  initialPosition?: number; // Başlangıç pozisyonu (saniye) - resume için
 }
 
-export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete, disableSticky = false, audioRef }: OutputSectionProps) {
+export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete, disableSticky = false, audioRef, initialPosition }: OutputSectionProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [activeDialogueIndex, setActiveDialogueIndex] = useState<number | null>(null);
   const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
@@ -590,6 +591,7 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
               originalTurkish={audioResult.original_turkish}
               topic={audioResult.topic}
               uiVariant={hasPinnedControls ? 'bare' : 'card'}
+              initialPosition={initialPosition}
               downloadUrls={{
                 mp3: playableAudioUrl,
                 vtt: playableVttUrl

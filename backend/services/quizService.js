@@ -256,47 +256,56 @@ class QuizService {
 
     /**
      * Cevapları değerlendir
+     * Quiz Engine Service'i kullanarak çoklu soru tiplerini destekler
+     * Backward compatible: Eski format (sadece MC) hala çalışır
      */
     evaluateAnswers(questions, userAnswers) {
-        let score = 0;
-        let correctCount = 0;
-        let wrongCount = 0;
-        const detailedAnswers = [];
+        // Yeni Quiz Engine Service'i kullan
+        const quizEngine = require('./quizEngineService');
 
-        for (const question of questions) {
-            const userAnswer = userAnswers.find(a => a.question_id === question.id);
-            const selectedAnswer = userAnswer?.selected;
-            const isCorrect = selectedAnswer === question.correct;
-            const points = question.points || 10;
+        // userAnswers formatını normalize et
+        const normalizedAnswers = userAnswers.map(a => ({
+            question_id: a.question_id,
+            questionId: a.question_id,
+            answer: a.selected ?? a.answer,
+            selected: a.selected,
+            responseTime: a.response_time ?? a.responseTime
+        }));
 
-            if (isCorrect) {
-                score += points;
-                correctCount++;
-            } else {
-                wrongCount++;
-            }
+        // Quiz Engine ile değerlendir
+        const engineResult = quizEngine.evaluateMultipleAnswers(questions, normalizedAnswers);
 
-            detailedAnswers.push({
-                question_id: question.id,
-                selected: selectedAnswer,
-                correct: question.correct,
-                is_correct: isCorrect,
-                points_earned: isCorrect ? points : 0,
-                explanation: question.explanation
-            });
-        }
-
-        const maxScore = questions.reduce((sum, q) => sum + (q.points || 10), 0);
-        const scorePercentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+        // Eski format ile uyumlu response dön
+        const detailedAnswers = engineResult.detailedAnswers.map(a => ({
+            question_id: a.questionId,
+            question_type: a.questionType,
+            word: a.word,
+            selected: a.userAnswer,
+            correct: a.correctAnswer,
+            is_correct: a.isCorrect,
+            points_earned: a.pointsEarned,
+            max_points: a.maxPoints,
+            explanation: a.explanation,
+            feedback: a.feedback,
+            partial_score: a.partialScore,
+            response_time: a.responseTime
+        }));
 
         return {
-            score,
-            maxScore,
-            scorePercentage,
-            correctCount,
-            wrongCount,
-            totalQuestions: questions.length,
-            detailedAnswers
+            score: engineResult.score,
+            maxScore: engineResult.maxScore,
+            scorePercentage: engineResult.scorePercentage,
+            correctCount: engineResult.correctCount,
+            wrongCount: engineResult.wrongCount,
+            totalQuestions: engineResult.totalQuestions,
+            avgResponseTime: engineResult.avgResponseTime,
+            detailedAnswers,
+            // Yeni alanlar
+            performance: engineResult.performance,
+            // Yanlış cevaplanan kelimeler (SRS sync için)
+            wrongWords: detailedAnswers
+                .filter(a => !a.is_correct && a.word)
+                .map(a => a.word)
         };
     }
 

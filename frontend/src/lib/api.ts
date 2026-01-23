@@ -218,7 +218,7 @@ export const markTopicAudioListened = async (topicId: string, duration: number) 
         body: JSON.stringify({ topicId, duration })
     });
 
-export const getIncompleteListenings = async () => fetchApi('content/incomplete');
+export const getIncompleteListenings = async () => fetchApi('topic-hierarchy/topics/incomplete');
 
 export const saveListeningProgress = async (id: string, progress: number, duration: number) =>
     fetchApi(`content/${id}/progress`, {
