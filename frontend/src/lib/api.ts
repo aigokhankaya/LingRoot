@@ -233,10 +233,10 @@ export const getContentHistory = async (userId: string, page = 1) =>
 
 export const generateContentQuiz = async (contentId: string) => fetchApi(`content/${contentId}/quiz`);
 
-export const submitContentQuiz = async (contentId: string, answers: any) =>
+export const submitContentQuiz = async (contentId: string, answers: any, questions?: any[]) =>
     fetchApi(`content/${contentId}/quiz/submit`, {
         method: 'POST',
-        body: JSON.stringify({ answers })
+        body: JSON.stringify({ answers, questions })
     });
 
 export const createPodcast = async (options: any) =>
@@ -274,6 +274,273 @@ export const updateUserInterests = async (interests: string[]) =>
         method: 'PUT',
         body: JSON.stringify({ interests })
     });
+
+// --- Sector Dashboard API ---
+
+export interface SectorProgressSummary {
+    vocabulary: {
+        learned: number;
+        total: number;
+        progress: number;
+    };
+    content: {
+        completed: number;
+        total: number;
+        progress: number;
+    };
+    modules: {
+        completed: number;
+        total: number;
+        progress: number;
+    };
+    totalXP: number;
+    sectorStreak: number;
+    longestStreak: number;
+    lastActivity: string | null;
+}
+
+export interface UserSectorWithPosition {
+    id: number;
+    sector_id: number;
+    is_primary: boolean;
+    job_position?: string;
+    job_position_en?: string;
+    years_experience?: number;
+    company_name?: string;
+    company_size?: string;
+    sector: {
+        id: number;
+        code: string;
+        name_tr: string;
+        name_en: string;
+        icon: string;
+        color: string;
+    };
+}
+
+// Get all user sectors with position info
+export const getUserSectors = async () =>
+    fetchApi<UserSectorWithPosition[]>('sectors/user-sectors');
+
+// Get user's primary sector with position
+export const getUserPrimarySector = async () =>
+    fetchApi<UserSectorWithPosition>('sectors/user-sectors/primary');
+
+// Get sector progress summary (gamification + progress)
+export const getSectorProgressSummary = async (sectorId: number) =>
+    fetchApi<SectorProgressSummary>(`sectors/${sectorId}/gamification/progress`);
+
+// Get all sectors gamification stats
+export const getAllSectorStats = async () =>
+    fetchApi('sectors/gamification/all-stats');
+
+// Get sector content recommendations
+export const getSectorRecommendations = async (sectorId: number, limit = 5) =>
+    fetchApi(`sectors/${sectorId}/content?limit=${limit}&sort=recommended`);
+
+// Get sector vocabulary for review today
+export const getSectorReviewWords = async (sectorId: number, limit = 10) =>
+    fetchApi(`sectors/${sectorId}/vocabulary/review-today?limit=${limit}`);
+
+// Get sector daily quests
+export const generateSectorDailyQuests = async (sectorId: number, count = 2) =>
+    fetchApi(`sectors/${sectorId}/gamification/daily-quests`, {
+        method: 'POST',
+        body: JSON.stringify({ count })
+    });
+
+// --- Sector Recommendation API (Faz 3) ---
+
+export interface ContentRecommendation {
+    id: number;
+    title: string;
+    content_type: string;
+    difficulty_level: string;
+    cefr_level: string;
+    estimated_time?: number;
+    xp_reward: number;
+    score: number;
+    recommendation_reason: string;
+}
+
+export interface NextBestContent {
+    type: 'continue' | 'vocabulary_review' | 'new_content';
+    content?: ContentRecommendation;
+    words?: VocabularyWord[];
+    reason: string;
+}
+
+export interface LearningPathStep {
+    id: number;
+    title: string;
+    content_type: string;
+    difficulty_level: string;
+    cefr_level: string;
+    estimated_time?: number;
+    xp_reward: number;
+    module_name: string;
+    status: 'not_started' | 'in_progress' | 'completed';
+    step_number: number;
+    is_next: boolean;
+}
+
+export interface LearningPath {
+    steps: LearningPathStep[];
+    total_remaining: number;
+    user_level: string;
+    completion_percentage: number;
+}
+
+export interface VocabularyWord {
+    id: number;
+    term: string;
+    definition: string;
+    example_sentence?: string;
+    cefr_level: string;
+    mastery_level?: number;
+}
+
+export interface VocabularyRecommendations {
+    type: 'review' | 'new' | 'mixed';
+    review_words?: VocabularyWord[];
+    new_words?: VocabularyWord[];
+    words?: VocabularyWord[];
+    total_due: number;
+    total_new: number;
+}
+
+export interface DailySummary {
+    greeting: string;
+    next_action: NextBestContent | null;
+    vocabulary_due: number;
+    learning_path: LearningPathStep[];
+    today_stats: {
+        content_completed: number;
+        words_reviewed: number;
+    };
+    motivational_message: string;
+}
+
+// Get personalized content recommendations
+export const getPersonalizedRecommendations = async (sectorId: number, limit = 5, types?: string[]) =>
+    fetchApi<ContentRecommendation[]>(`sectors/${sectorId}/recommendations?limit=${limit}${types ? `&types=${types.join(',')}` : ''}`);
+
+// Get next best content to study
+export const getNextBestContent = async (sectorId: number) =>
+    fetchApi<NextBestContent>(`sectors/${sectorId}/next-best`);
+
+// Get learning path
+export const getLearningPath = async (sectorId: number, maxSteps = 5) =>
+    fetchApi<LearningPath>(`sectors/${sectorId}/learning-path?maxSteps=${maxSteps}`);
+
+// Get vocabulary recommendations
+export const getVocabularyRecommendations = async (sectorId: number, limit = 10, mode: 'review' | 'new' | 'mixed' = 'mixed') =>
+    fetchApi<VocabularyRecommendations>(`sectors/${sectorId}/vocabulary-recommendations?limit=${limit}&mode=${mode}`);
+
+// Get daily summary
+export const getDailySummary = async (sectorId: number) =>
+    fetchApi<DailySummary>(`sectors/${sectorId}/daily-summary`);
+
+// Get vocabulary injection for content
+export const getVocabularyInjection = async (sectorId: number, contentId: number) =>
+    fetchApi(`sectors/${sectorId}/content/${contentId}/vocabulary-injection`);
+
+// --- Sector Challenge API (Faz 5) ---
+
+export interface SectorChallenge {
+    id: number;
+    sector_id: number;
+    challenge_type: string;
+    title: string;
+    title_tr: string;
+    description: string;
+    description_tr: string;
+    task_type: string;
+    target_count: number;
+    xp_reward: number;
+    badge_id?: number;
+    difficulty: 'easy' | 'medium' | 'hard';
+    starts_at: string;
+    ends_at: string;
+    is_active: boolean;
+    participant_count?: number;
+    user_joined?: boolean;
+    user_progress?: number;
+    user_completed?: boolean;
+}
+
+export interface ChallengeProgress {
+    challenge_id: number;
+    user_id: number;
+    current_progress: number;
+    target_count: number;
+    percentage: number;
+    is_completed: boolean;
+    completed_at?: string;
+    joined_at: string;
+    xp_earned?: number;
+    rank?: number;
+}
+
+export interface LeaderboardEntry {
+    user_id: number;
+    username: string;
+    avatar_url?: string;
+    progress: number;
+    completed_at?: string;
+    rank: number;
+    xp_earned?: number;
+}
+
+export interface ChallengeLeaderboard {
+    leaderboard: LeaderboardEntry[];
+    userRank: {
+        rank: number;
+        progress: number;
+        isInTop: boolean;
+    } | null;
+}
+
+export interface ChallengeStats {
+    total_joined: number;
+    total_completed: number;
+    total_xp_earned: number;
+    active_challenges: number;
+    win_rate: number;
+    best_rank: number;
+    current_challenges: SectorChallenge[];
+}
+
+// Get active sector challenges
+export const getSectorChallenges = async (sectorId: number, includeJoined = true) =>
+    fetchApi<SectorChallenge[]>(`sectors/${sectorId}/challenges?includeJoined=${includeJoined}`);
+
+// Get challenge details
+export const getChallengeDetails = async (sectorId: number, challengeId: number) =>
+    fetchApi<SectorChallenge>(`sectors/${sectorId}/challenges/${challengeId}`);
+
+// Get user's challenge progress
+export const getChallengeProgress = async (sectorId: number, challengeId: number) =>
+    fetchApi<ChallengeProgress>(`sectors/${sectorId}/challenges/${challengeId}/progress`);
+
+// Join a challenge
+export const joinChallenge = async (sectorId: number, challengeId: number) =>
+    fetchApi(`sectors/${sectorId}/challenges/${challengeId}/join`, { method: 'POST' });
+
+// Update challenge progress
+export const updateChallengeProgress = async (sectorId: number, challengeId: number, incrementBy = 1) =>
+    fetchApi(`sectors/${sectorId}/challenges/${challengeId}/progress`, {
+        method: 'PUT',
+        body: JSON.stringify({ incrementBy })
+    });
+
+// Get challenge leaderboard
+export const getChallengeLeaderboard = async (sectorId: number, challengeId: number, limit = 10) =>
+    fetchApi<ChallengeLeaderboard>(`sectors/${sectorId}/challenges/${challengeId}/leaderboard?limit=${limit}`);
+
+// Get user's challenge stats
+export const getChallengeStats = async (sectorId: number) =>
+    fetchApi<ChallengeStats>(`sectors/${sectorId}/challenge-stats`);
 
 export const saveUserBookFavorites = async (bookIds: number[] | string[]) =>
     fetchApi('user-book-favorites', {

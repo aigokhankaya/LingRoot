@@ -37,6 +37,10 @@ Amacın kullanıcıyı 3 aşamalı bir "huni"den geçirmek:
 
 {{smartSuggestions}}
 
+{{sectorContext}}
+
+{{vocabularyInjection}}
+
 🚨🚨🚨 EN KRİTİK KURALLAR 🚨🚨🚨
 
 ⛔ PAPAĞAN YASAK!

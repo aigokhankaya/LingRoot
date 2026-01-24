@@ -153,6 +153,31 @@ class SectorContentTTSService {
                 }
                 break;
 
+            case 'business_roleplay':
+                // Rol tabanlı iş senaryosu - her rolün repliğini birleştir
+                if (content.dialogue_data?.dialogue_turns) {
+                    text = content.dialogue_data.dialogue_turns
+                        .map(turn => `${turn.speaker || 'Speaker'} says: ${turn.english}`)
+                        .join(' ... '); // Replikleri ayrı tut
+                } else {
+                    try {
+                        const turns = JSON.parse(content.original_text || '[]');
+                        text = turns.map(t => `${t.speaker || 'Speaker'} says: ${t.english}`).join(' ... ');
+                    } catch {
+                        text = content.original_text || '';
+                    }
+                }
+                break;
+
+            case 'sector_podcast':
+                // Podcast transcript'i direkt kullan
+                if (content.dialogue_data?.transcript) {
+                    text = content.dialogue_data.transcript;
+                } else {
+                    text = content.original_text || '';
+                }
+                break;
+
             case 'essential_sentences':
             case 'sentence_patterns':
                 // Parse JSON array of sentences

@@ -260,7 +260,15 @@ router.get('/onboarding/archetypes', async (req, res) => {
 router.post('/onboarding/complete', async (req, res) => {
     try {
         const userId = req.user.id;
-        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes } = req.body;
+        const {
+            archetype,
+            assessedCEFR,
+            targetCEFR,
+            weeklyMinutes,
+            sectors,          // Seçilen sektör ID'leri
+            positionInfo,     // Pozisyon bilgisi (career arketipi için)
+            sectorGoals       // Sektör hedefleri { vocabularyGoal, contentGoal, dailyMinutes }
+        } = req.body;
 
         if (!archetype || !assessedCEFR || !targetCEFR) {
             return res.status(400).json({
@@ -273,7 +281,10 @@ router.post('/onboarding/complete', async (req, res) => {
             archetype,
             assessedCEFR,
             targetCEFR,
-            weeklyMinutes: weeklyMinutes || 120
+            weeklyMinutes: weeklyMinutes || 120,
+            sectors: sectors || [],
+            positionInfo: positionInfo || null,
+            sectorGoals: sectorGoals || null
         });
 
         res.json({

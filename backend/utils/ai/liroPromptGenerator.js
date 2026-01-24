@@ -46,6 +46,8 @@ class LiroPromptGenerator {
         userInsights,
         smartSuggestions,
         adaptiveContext, // 🔄 Feedback Loop adaptive context
+        sectorProfile, // 🏢 Sector English
+        targetVocabulary, // 🎯 Target vocabulary for injection
       } = userProfile;
 
       const username = basicInfo?.username || 'Kullanıcı';
@@ -65,6 +67,8 @@ class LiroPromptGenerator {
       const userInsightsSection = userInsightService.formatForPrompt(userInsights);
       const smartSuggestionsSection = userInsightService.formatSmartSuggestionsForPrompt(smartSuggestions);
       const adaptiveContextSection = feedbackLoopService.formatForPrompt(adaptiveContext);
+      const sectorSection = this.generateSectorSection(sectorProfile);
+      const vocabularyInjectionSection = this.generateVocabularyInjectionSection(targetVocabulary);
 
       // Replace all placeholders
       return promptTemplate
@@ -82,7 +86,9 @@ class LiroPromptGenerator {
         .replace(/{{userInsights}}/g, userInsightsSection)
         .replace(/{{smartSuggestions}}/g, smartSuggestionsSection)
         .replace(/{{adaptiveContext}}/g, adaptiveContextSection)
-        .replace(/{{searchResults}}/g, searchResultsText);
+        .replace(/{{searchResults}}/g, searchResultsText)
+        .replace(/{{sectorContext}}/g, sectorSection)
+        .replace(/{{vocabularyInjection}}/g, vocabularyInjectionSection);
     } catch (error) {
       logger.error('Failed to load personalized prompt template:', error);
       return this.getDefaultPrompt();
@@ -441,6 +447,93 @@ ${recentTopics.slice(0, 10).map((t, i) => `${i + 1}. "${t}"`).join('\n')}
       // Ultimate fallback
       return `Sen Liro'sun, LingRoot'un AI asistanı. Kullanıcılara İngilizce öğrenme içeriği oluşturmalarında yardımcı oluyorsun.`;
     }
+  }
+
+  /**
+   * 🏢 Sektör bölümü oluştur
+   * Kullanıcının çalıştığı sektöre özgü terminoloji ve bağlam
+   */
+  generateSectorSection(sectorProfile) {
+    if (!sectorProfile || !sectorProfile.hasSector) {
+      return '';
+    }
+
+    const { primary, targetTerms } = sectorProfile;
+
+    let section = [
+      `\n🏢 SEKTÖR BAĞLAMI:`,
+      `- Kullanıcının çalıştığı/ilgilendiği sektör: **${primary.name}**`,
+    ];
+
+    if (primary.description) {
+      section.push(`- ${primary.description}`);
+    }
+
+    if (targetTerms && targetTerms.length > 0) {
+      section.push(`\n📚 Bu sektöre özgü terimler (mümkünse doğal şekilde dahil et):`);
+      targetTerms.slice(0, 6).forEach((term, i) => {
+        section.push(`  ${i + 1}. "${term.term}" - ${term.definition || ''} ${term.cefrLevel ? `(${term.cefrLevel})` : ''}`);
+      });
+    }
+
+    section.push(`\n💡 SEKTÖR YÖNLENDİRMESİ:`);
+    section.push(`- İçerik önerirken bu sektörle ilgili senaryoları TERCİH ET ama ZORLAMA`);
+    section.push(`- Kullanıcı farklı konu isterse, onun tercihine saygı duy`);
+    section.push(`- Sektör terminolojisini DOĞAL şekilde kullan, yapay hissettirme`);
+
+    return section.join('\n');
+  }
+
+  /**
+   * 🎯 Kelime enjeksiyon bölümü oluştur
+   * Kullanıcının öğrenmesi gereken kelimeleri içeriğe dahil etmek için
+   */
+  generateVocabularyInjectionSection(targetVocabulary) {
+    if (!targetVocabulary || !targetVocabulary.hasTargets) {
+      return '';
+    }
+
+    const { priority } = targetVocabulary;
+
+    if (!priority || priority.length === 0) {
+      return '';
+    }
+
+    let section = [
+      `\n🎯 HEDEF KELİMELER (Mümkünse İçeriğe Dahil Et):`,
+      `Aşağıdaki kelimeler kullanıcının öğrenme hedeflerinde. İçerik oluştururken DOĞAL şekilde kullanmaya çalış:\n`,
+    ];
+
+    priority.forEach((item, i) => {
+      let reasonEmoji = '';
+      let reasonText = '';
+      switch (item.reason) {
+        case 'struggling':
+          reasonEmoji = '⚠️';
+          reasonText = 'Zorlandığı kelime';
+          break;
+        case 'srs_due':
+          reasonEmoji = '🔄';
+          reasonText = 'Tekrar zamanı';
+          break;
+        case 'want_to_learn':
+          reasonEmoji = '📖';
+          reasonText = 'Öğrenmek istiyor';
+          break;
+        default:
+          reasonEmoji = '•';
+          reasonText = '';
+      }
+      section.push(`  ${i + 1}. ${reasonEmoji} "${item.word}" ${reasonText ? `→ ${reasonText}` : ''}`);
+    });
+
+    section.push(`\n⚡ ENJEKSİYON KURALLARI:`);
+    section.push(`- Kelimeleri ZORLA ve YAPMACIK şekilde yerleştirme`);
+    section.push(`- Konu uygunsa kullan, değilse atla - içerik kalitesi öncelikli`);
+    section.push(`- Aynı kelimeyi farklı bağlamlarda kullanmak idealdir`);
+    section.push(`- "Bu kelimeyi hatırlıyor musun?" gibi meta-yorumlar YAPMA`);
+
+    return section.join('\n');
   }
 }
 

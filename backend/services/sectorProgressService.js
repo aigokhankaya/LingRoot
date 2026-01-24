@@ -107,6 +107,41 @@ class SectorProgressService {
             // Update content read/listen count
             await this.incrementContentStats(contentId, status === 'completed');
 
+            // 🎮 GAMIFICATION: İçerik tamamlama XP'si
+            if (status === 'completed') {
+                try {
+                    // İçerik bilgilerini al (sector_id ve content_type için)
+                    const { data: content } = await supabase
+                        .from('sector_content')
+                        .select('sector_id, content_type')
+                        .eq('id', contentId)
+                        .single();
+
+                    if (content && content.sector_id) {
+                        const sectorGamificationService = require('./sectorGamificationService');
+
+                        // Content type'a göre XP tipi belirle
+                        let activityType = 'content_complete';
+                        if (content.content_type === 'business_roleplay') {
+                            activityType = 'dialogue_complete';
+                        } else if (content.content_type === 'sector_podcast') {
+                            activityType = 'podcast_complete';
+                        }
+
+                        await sectorGamificationService.addSectorXP(
+                            userId,
+                            activityType,
+                            content.sector_id,
+                            contentId,
+                            {}
+                        );
+                        logger.info(`[Gamification] Content XP awarded: ${activityType} for user ${userId}`);
+                    }
+                } catch (gamError) {
+                    logger.warn('[Gamification] Content XP failed (non-blocking):', gamError.message);
+                }
+            }
+
             logger.info(`Progress updated for user ${userId}, content ${contentId}: ${status}`);
             return result;
 

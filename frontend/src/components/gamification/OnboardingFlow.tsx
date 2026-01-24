@@ -15,7 +15,13 @@ import SectorSelector from './SectorSelector';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
-type OnboardingStep = 'welcome' | 'archetype' | 'sector' | 'assessment' | 'goal' | 'roadmap' | 'complete';
+type OnboardingStep = 'welcome' | 'archetype' | 'sector' | 'sector_goals' | 'assessment' | 'goal' | 'roadmap' | 'complete';
+
+interface SectorGoals {
+  vocabularyGoal: number;  // Aylık kelime hedefi
+  contentGoal: number;     // Haftalık içerik hedefi
+  dailyMinutes: number;    // Günlük sektör çalışması (dk)
+}
 
 interface Archetype {
   code: string;
@@ -49,6 +55,18 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   const [isLoading, setIsLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ role: string, content: string }>>([]);
   const [userInput, setUserInput] = useState('');
+  const [positionInfo, setPositionInfo] = useState<{
+    jobPosition: string;
+    jobPositionEn?: string;
+    yearsExperience?: number;
+    companyName?: string;
+    companySize?: string;
+  }>({ jobPosition: '' });
+  const [sectorGoals, setSectorGoals] = useState<SectorGoals>({
+    vocabularyGoal: 50,   // Varsayılan: 50 kelime/ay
+    contentGoal: 5,       // Varsayılan: 5 içerik/hafta
+    dailyMinutes: 15      // Varsayılan: 15 dk/gün
+  });
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -97,15 +115,36 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     });
   };
 
-  // Archetype seçimi sonrası yönlendirme
-  const afterArchetypeSelect = () => {
-    if (selectedArchetype?.code === 'career') {
-      // Kariyer Mimarı için sektör seçimi zorunlu
-      setStep('sector');
-    } else {
-      // Diğerleri için sektör opsiyonel, direkt assessment'a geç
-      startAssessment();
+  // Arketipe göre sektör başlıkları ve açıklamaları
+  const sectorContextByArchetype: Record<string, { title: string; subtitle: string; isRequired: boolean }> = {
+    career: {
+      title: 'Hangi sektörde çalışıyorsun?',
+      subtitle: 'Sana özel profesyonel içerikler hazırlayacağız.',
+      isRequired: true
+    },
+    travel: {
+      title: 'Seyahatlerinde hangi sektörlerle iletişim kuruyorsun?',
+      subtitle: 'Otel, havayolu, turizm gibi alanlarda İngilizce pratiği yapmana yardımcı olacağız.',
+      isRequired: false
+    },
+    intellectual: {
+      title: 'Hangi alanlarda derinleşmek istiyorsun?',
+      subtitle: 'Akademik ve profesyonel terminoloji ile içerikler sunacağız.',
+      isRequired: false
     }
+  };
+
+  // Arketipe göre önerilen sektörler
+  const suggestedSectorsByArchetype: Record<string, string[]> = {
+    career: ['it_software', 'finance', 'marketing', 'healthcare', 'engineering'],
+    travel: ['tourism', 'aviation', 'retail', 'hr', 'real_estate'],
+    intellectual: ['education', 'legal', 'engineering', 'healthcare', 'finance']
+  };
+
+  // Archetype seçimi sonrası yönlendirme - ARTIK HERKES SEKTÖR GÖREBİLİR
+  const afterArchetypeSelect = () => {
+    // Tüm arketipler için sektör seçimi göster
+    setStep('sector');
   };
 
   const afterSectorSelect = () => {
@@ -227,7 +266,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
           assessedCEFR,
           targetCEFR,
           weeklyMinutes: dailyMinutes * 7, // Günlük değeri haftalığa çevir
-          sectors: selectedSectors // Seçilen sektörler
+          sectors: selectedSectors, // Seçilen sektörler
+          positionInfo: positionInfo.jobPosition ? positionInfo : undefined, // Pozisyon bilgisi (varsa)
+          sectorGoals: selectedSectors.length > 0 ? sectorGoals : undefined // Sektör hedefleri (sektör seçildiyse)
         })
       });
 
@@ -264,12 +305,12 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-6 bg-white/95 backdrop-blur-2xl overflow-hidden animate-fade-in text-slate-800">
       {/* Progress indicator */}
       <div className="absolute top-10 flex gap-3">
-        {['welcome', 'archetype', 'sector', 'assessment', 'goal', 'complete'].map((s, i) => (
+        {['welcome', 'archetype', 'sector', 'sector_goals', 'assessment', 'goal', 'complete'].map((s, i) => (
           <div
             key={s}
-            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 
-                        ${step === s ? 'bg-teal-600 scale-125' : ''} 
-                        ${['welcome', 'archetype', 'sector', 'assessment', 'goal', 'complete'].indexOf(step) > i ? 'bg-emerald-400' : 'bg-slate-200'}
+            className={`w-2.5 h-2.5 rounded-full transition-all duration-300
+                        ${step === s ? 'bg-teal-600 scale-125' : ''}
+                        ${['welcome', 'archetype', 'sector', 'sector_goals', 'assessment', 'goal', 'complete'].indexOf(step) > i ? 'bg-emerald-400' : 'bg-slate-200'}
                     `}
           />
         ))}
@@ -343,17 +384,26 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
         </div>
       )}
 
-      {/* Sector Selection (Career Architect için zorunlu) */}
+      {/* Sector Selection (Tüm arketipler için - Career zorunlu, diğerleri opsiyonel) */}
       {step === 'sector' && (
         <div className="w-full max-w-4xl text-center animate-fade-in">
-          <h2 className="text-4xl font-extrabold text-slate-800 mb-2">Hangi sektörde çalışıyorsun?</h2>
-          <p className="text-lg text-slate-500 mb-8">Sana özel içerikler hazırlayacağız.</p>
+          <h2 className="text-4xl font-extrabold text-slate-800 mb-2">
+            {sectorContextByArchetype[selectedArchetype?.code || 'career']?.title || 'Sektör Seçimi'}
+          </h2>
+          <p className="text-lg text-slate-500 mb-8">
+            {sectorContextByArchetype[selectedArchetype?.code || 'career']?.subtitle || 'Sana özel içerikler hazırlayacağız.'}
+          </p>
 
           <SectorSelector
             selectedSectors={selectedSectors}
             onSelectionChange={setSelectedSectors}
             maxSelections={3}
-            isRequired={selectedArchetype?.code === 'career'}
+            isRequired={sectorContextByArchetype[selectedArchetype?.code || 'career']?.isRequired || false}
+            showPositionForm={selectedArchetype?.code === 'career'}
+            positionInfo={positionInfo}
+            onPositionChange={setPositionInfo}
+            suggestedSectorCodes={suggestedSectorsByArchetype[selectedArchetype?.code || 'career']}
+            archetypeCode={selectedArchetype?.code}
           />
 
           <div className="flex gap-4 justify-center mt-8">
@@ -366,14 +416,126 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
             <button
               className={`
                 px-12 py-4 rounded-xl text-lg font-bold transition-all duration-300
-                ${(selectedSectors.length > 0 || selectedArchetype?.code !== 'career')
+                ${(selectedSectors.length > 0 || !sectorContextByArchetype[selectedArchetype?.code || 'career']?.isRequired)
                   ? 'bg-slate-800 text-white shadow-lg hover:bg-slate-900 hover:-translate-y-1'
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
               `}
-              disabled={selectedArchetype?.code === 'career' && selectedSectors.length === 0}
-              onClick={afterSectorSelect}
+              disabled={sectorContextByArchetype[selectedArchetype?.code || 'career']?.isRequired && selectedSectors.length === 0}
+              onClick={() => {
+                if (selectedSectors.length > 0) {
+                  // Sektör seçildiyse hedef belirleme step'ine git
+                  setStep('sector_goals');
+                } else {
+                  // Sektör seçilmediyse direkt assessment'a geç
+                  afterSectorSelect();
+                }
+              }}
             >
               {selectedSectors.length === 0 ? 'Atla' : 'Devam Et'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sector Goals (Sektör hedef belirleme) */}
+      {step === 'sector_goals' && (
+        <div className="w-full max-w-2xl bg-white rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-100 animate-fade-in">
+          <h2 className="text-3xl font-extrabold text-center text-slate-800 mb-2">
+            🎯 Sektör Hedefin
+          </h2>
+          <p className="text-center text-slate-500 mb-8">
+            Profesyonel İngilizce yolculuğunda seni nasıl destekleyelim?
+          </p>
+
+          {/* Kelime Hedefi */}
+          <div className="mb-8">
+            <label className="block text-sm font-bold text-slate-400 mb-3 uppercase tracking-wider">
+              📝 Aylık Kelime Hedefi
+            </label>
+            <div className="flex flex-wrap gap-3">
+              {[25, 50, 100, 150].map(count => (
+                <button
+                  key={count}
+                  className={`
+                    px-6 py-3 rounded-xl font-bold border-2 transition-all duration-200
+                    ${sectorGoals.vocabularyGoal === count
+                      ? 'bg-teal-50 border-teal-500 text-teal-700 shadow-md transform scale-105'
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'}
+                  `}
+                  onClick={() => setSectorGoals(prev => ({ ...prev, vocabularyGoal: count }))}
+                >
+                  {count} kelime
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* İçerik Hedefi */}
+          <div className="mb-8">
+            <label className="block text-sm font-bold text-slate-400 mb-3 uppercase tracking-wider">
+              📖 Haftalık İçerik Hedefi
+            </label>
+            <div className="flex flex-wrap gap-3">
+              {[3, 5, 10, 15].map(count => (
+                <button
+                  key={count}
+                  className={`
+                    px-6 py-3 rounded-xl font-bold border-2 transition-all duration-200
+                    ${sectorGoals.contentGoal === count
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-md transform scale-105'
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'}
+                  `}
+                  onClick={() => setSectorGoals(prev => ({ ...prev, contentGoal: count }))}
+                >
+                  {count} içerik
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Günlük Sektör Çalışması */}
+          <div className="mb-10">
+            <label className="block text-sm font-bold text-slate-400 mb-3 uppercase tracking-wider">
+              ⏱️ Günlük Sektör Çalışması
+            </label>
+            <div className="flex flex-wrap gap-3">
+              {[10, 15, 20, 30].map(mins => (
+                <button
+                  key={mins}
+                  className={`
+                    px-6 py-3 rounded-xl font-bold border-2 transition-all duration-200
+                    ${sectorGoals.dailyMinutes === mins
+                      ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-md transform scale-105'
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'}
+                  `}
+                  onClick={() => setSectorGoals(prev => ({ ...prev, dailyMinutes: mins }))}
+                >
+                  {mins} dk
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Info Box */}
+          <div className="p-4 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-xl border border-teal-100 mb-8">
+            <p className="text-sm text-slate-600 leading-relaxed">
+              💡 <span className="font-semibold">Hedefler esnek!</span> İstediğin zaman ayarlardan değiştirebilirsin.
+              Günlük görevlerin bu hedeflere göre oluşturulacak.
+            </p>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              className="flex-1 py-4 rounded-xl text-slate-600 border-2 border-slate-200 hover:border-slate-300 transition-all font-semibold"
+              onClick={() => setStep('sector')}
+            >
+              Geri
+            </button>
+            <button
+              className="flex-[2] py-4 bg-slate-800 text-white rounded-xl text-lg font-bold shadow-lg hover:bg-slate-900 hover:-translate-y-0.5 transition-all duration-300"
+              onClick={afterSectorSelect}
+            >
+              Devam Et
             </button>
           </div>
         </div>

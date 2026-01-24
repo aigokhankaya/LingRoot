@@ -503,15 +503,23 @@ Generate a JSON roadmap with weekly milestones:
      * Onboarding'i tamamla
      */
     async completeOnboarding(userId, data) {
-        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes, sectors } = data;
+        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes, sectors, positionInfo, sectorGoals } = data;
 
         try {
             // 1. Archetype ayarla
             await this.setArchetype(userId, archetype);
 
-            // 2. Sektörleri kaydet (varsa)
+            // 2. Sektörleri kaydet (varsa) + Sektör gamification entegrasyonu
+            let primarySectorId = null;
             if (sectors && Array.isArray(sectors) && sectors.length > 0) {
                 const sectorService = require('./sectorService');
+                let sectorGamificationService;
+                try {
+                    sectorGamificationService = require('./sectorGamificationService');
+                } catch (e) {
+                    // Service yüklenemediyse devam et
+                }
+
                 let savedCount = 0;
                 for (let i = 0; i < sectors.length; i++) {
                     const sectorId = sectors[i];
@@ -531,7 +539,42 @@ Generate a JSON roadmap with weekly milestones:
 
                     const isPrimary = savedCount === 0; // İlk başarılı kayıt primary
                     try {
-                        await sectorService.addUserSector(userId, sectorId, isPrimary);
+                        // Pozisyon bilgisiyle kaydet (varsa)
+                        if (positionInfo && isPrimary) {
+                            await sectorService.setUserSectorWithPosition(userId, sectorId, {
+                                isPrimary: true,
+                                jobPosition: positionInfo.jobPosition,
+                                jobPositionEn: positionInfo.jobPositionEn,
+                                yearsExperience: positionInfo.yearsExperience,
+                                companyName: positionInfo.companyName,
+                                companySize: positionInfo.companySize
+                            });
+                        } else {
+                            await sectorService.addUserSector(userId, sectorId, isPrimary);
+                        }
+
+                        // İlk sektör için primary_sector_id kaydet
+                        if (isPrimary) {
+                            primarySectorId = sectorId;
+                            await db.query(`
+                                UPDATE user_gamification 
+                                SET primary_sector_id = $1, updated_at = NOW()
+                                WHERE user_id = $2
+                            `, [sectorId, userId]);
+                        }
+
+                        // Sektör quest'lerini oluştur (arka planda)
+                        if (sectorGamificationService) {
+                            sectorGamificationService.generateSectorQuestsForUser(userId, sectorId)
+                                .catch(err => logger.warn('[Onboarding] Sector quest generation failed:', err.message));
+
+                            // Sektör daily quest'leri oluştur
+                            if (isPrimary) {
+                                sectorGamificationService.generateSectorDailyQuests(userId, sectorId, 2)
+                                    .catch(err => logger.warn('[Onboarding] Sector daily quest failed:', err.message));
+                            }
+                        }
+
                         savedCount++;
                     } catch (sectorError) {
                         logger.warn(`[Onboarding] Could not save sector ${sectorId}:`, sectorError.message);
@@ -543,14 +586,13 @@ Generate a JSON roadmap with weekly milestones:
             }
 
             // 3. Roadmap oluştur (sektör varsa bağlamlı)
-            const primarySectorId = sectors && sectors.length > 0 ? sectors[0] : null;
             const roadmapResult = await this.generateRoadmap(
                 userId,
                 assessedCEFR,
                 targetCEFR,
                 archetype,
                 weeklyMinutes,
-                primarySectorId // Yeni parametre
+                primarySectorId
             );
 
             // 4. Onboarding'i tamamlandı olarak işaretle
@@ -571,13 +613,54 @@ Generate a JSON roadmap with weekly milestones:
             // 7. Başlangıç XP ver
             await gamificationService.addXP(userId, 100, 'onboarding', null, 'Yolculuğa hoş geldin!');
 
-            logger.info(`[Onboarding] Completed for user ${userId}`);
+            // 8. Sektör tercihleri kaydet (yeni) - sectorGoals dahil
+            if (primarySectorId) {
+                try {
+                    const goalsData = {
+                        primary_goal: archetype,
+                        focus_areas: sectors,
+                        // Kullanıcının belirlediği sektör hedefleri
+                        vocabulary_goal: sectorGoals?.vocabularyGoal || 50,     // Aylık kelime hedefi
+                        content_goal: sectorGoals?.contentGoal || 5,            // Haftalık içerik hedefi
+                        sector_daily_minutes: sectorGoals?.dailyMinutes || 15   // Günlük sektör çalışması
+                    };
+
+                    await db.query(`
+                        INSERT INTO user_sector_preferences (
+                            user_id,
+                            onboarding_sector_selected,
+                            sector_goals,
+                            daily_sector_time_goal,
+                            weekly_sector_content_goal
+                        )
+                        VALUES ($1, true, $2, $3, $4)
+                        ON CONFLICT (user_id) DO UPDATE SET
+                            onboarding_sector_selected = true,
+                            sector_goals = $2,
+                            daily_sector_time_goal = $3,
+                            weekly_sector_content_goal = $4,
+                            updated_at = NOW()
+                    `, [
+                        userId,
+                        JSON.stringify(goalsData),
+                        sectorGoals?.dailyMinutes || Math.ceil(weeklyMinutes / 7),
+                        sectorGoals?.contentGoal || 5
+                    ]);
+
+                    logger.info(`[Onboarding] Sector goals saved: vocab=${goalsData.vocabulary_goal}, content=${goalsData.content_goal}/week, daily=${goalsData.sector_daily_minutes}min`);
+                } catch (prefError) {
+                    logger.warn('[Onboarding] Could not save sector preferences:', prefError.message);
+                }
+            }
+
+            logger.info(`[Onboarding] Completed for user ${userId} (sector: ${primarySectorId || 'none'})`);
 
             return {
                 success: true,
                 ...roadmapResult,
                 welcomeMessage: this.getWelcomeMessage(archetype, assessedCEFR, targetCEFR),
-                selectedSectors: sectors || []
+                selectedSectors: sectors || [],
+                primarySectorId
             };
 
         } catch (error) {
@@ -585,6 +668,7 @@ Generate a JSON roadmap with weekly milestones:
             throw error;
         }
     }
+
 
     getWelcomeMessage(archetype, currentCEFR, targetCEFR) {
         const archetypeDetails = this.getArchetypeDetails(archetype);

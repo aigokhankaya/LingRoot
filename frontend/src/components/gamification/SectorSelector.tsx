@@ -17,12 +17,26 @@ interface Sector {
     color: string;
 }
 
+interface PositionInfo {
+    jobPosition: string;
+    jobPositionEn?: string;
+    yearsExperience?: number;
+    companyName?: string;
+    companySize?: string;
+}
+
 interface SectorSelectorProps {
     selectedSectors: number[];
     onSelectionChange: (sectors: number[]) => void;
     maxSelections?: number;
     isRequired?: boolean;
+    showPositionForm?: boolean;           // Pozisyon formu gösterilsin mi?
+    positionInfo?: PositionInfo;
+    onPositionChange?: (info: PositionInfo) => void;
+    suggestedSectorCodes?: string[];      // Önerilen sektör kodları (arketipe göre)
+    archetypeCode?: string;               // Kullanıcının arketipi
 }
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -71,10 +85,34 @@ export const SectorSelector: React.FC<SectorSelectorProps> = ({
     selectedSectors,
     onSelectionChange,
     maxSelections = 3,
-    isRequired = false
+    isRequired = false,
+    showPositionForm = false,
+    positionInfo,
+    onPositionChange,
+    suggestedSectorCodes = [],
+    archetypeCode
 }) => {
     const [sectors, setSectors] = useState<Sector[]>(FALLBACK_SECTORS);
     const [isLoading, setIsLoading] = useState(true);
+    const [localPosition, setLocalPosition] = useState<PositionInfo>(positionInfo || {
+        jobPosition: '',
+        yearsExperience: undefined,
+        companyName: '',
+        companySize: ''
+    });
+
+    // Sektörleri sırala: Önerilen sektörler önce
+    const sortedSectors = React.useMemo(() => {
+        if (suggestedSectorCodes.length === 0) return sectors;
+
+        const suggested = sectors.filter(s => suggestedSectorCodes.includes(s.code));
+        const others = sectors.filter(s => !suggestedSectorCodes.includes(s.code));
+        return [...suggested, ...others];
+    }, [sectors, suggestedSectorCodes]);
+
+    // Sektör önerildi mi?
+    const isSuggested = (code: string): boolean => suggestedSectorCodes.includes(code);
+
 
     useEffect(() => {
         fetchSectors();
@@ -137,50 +175,83 @@ export const SectorSelector: React.FC<SectorSelectorProps> = ({
                 </p>
             </div>
 
+            {/* Önerilen Sektörler Başlığı */}
+            {suggestedSectorCodes.length > 0 && (
+                <div className="mb-4">
+                    <p className="text-sm font-semibold text-teal-600 flex items-center gap-2">
+                        <span>✨</span>
+                        Senin için önerilen sektörler
+                    </p>
+                </div>
+            )}
+
             {/* Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {sectors.map((sector) => {
+                {sortedSectors.map((sector, index) => {
                     const isSelected = selectedSectors.includes(sector.id);
                     const primaryLabel = getPrimaryLabel(sector.id);
                     const isDisabled = !isSelected && selectedSectors.length >= maxSelections;
+                    const suggested = isSuggested(sector.code);
+
+                    // Önerilen sektörlerden sonra diğerlerine geçişte ayraç göster
+                    const showDivider = suggestedSectorCodes.length > 0 &&
+                        index === suggestedSectorCodes.length &&
+                        !suggested;
 
                     return (
-                        <button
-                            key={sector.id}
-                            onClick={() => handleSectorClick(sector.id)}
-                            disabled={isDisabled}
-                            className={`
-                                relative p-4 rounded-xl border-2 text-left transition-all duration-200
-                                ${isSelected
-                                    ? 'bg-teal-50 border-teal-500 shadow-md scale-[1.02]'
-                                    : isDisabled
-                                        ? 'bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed'
-                                        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
-                                }
-                            `}
-                        >
-                            {/* Primary Badge */}
-                            {primaryLabel && (
-                                <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-teal-500 text-white text-xs font-bold rounded-full">
-                                    ★
-                                </span>
-                            )}
-
-                            {/* Icon */}
-                            <div className="text-3xl mb-2">{sector.icon}</div>
-
-                            {/* Name */}
-                            <h4 className={`text-sm font-semibold ${isSelected ? 'text-teal-700' : 'text-slate-700'}`}>
-                                {sector.name_tr}
-                            </h4>
-
-                            {/* Checkmark */}
-                            {isSelected && (
-                                <div className="absolute bottom-2 right-2 w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs">✓</span>
+                        <React.Fragment key={sector.id}>
+                            {showDivider && (
+                                <div className="col-span-full my-2 flex items-center gap-2">
+                                    <div className="flex-1 h-px bg-slate-200" />
+                                    <span className="text-xs text-slate-400">Diğer sektörler</span>
+                                    <div className="flex-1 h-px bg-slate-200" />
                                 </div>
                             )}
-                        </button>
+                            <button
+                                onClick={() => handleSectorClick(sector.id)}
+                                disabled={isDisabled}
+                                className={`
+                                    relative p-4 rounded-xl border-2 text-left transition-all duration-200
+                                    ${isSelected
+                                        ? 'bg-teal-50 border-teal-500 shadow-md scale-[1.02]'
+                                        : isDisabled
+                                            ? 'bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed'
+                                            : suggested
+                                                ? 'bg-gradient-to-br from-teal-50/50 to-emerald-50/50 border-teal-200 hover:border-teal-400 hover:shadow-md'
+                                                : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                                    }
+                                `}
+                            >
+                                {/* Suggested Badge */}
+                                {suggested && !isSelected && (
+                                    <span className="absolute -top-2 -left-2 px-2 py-0.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-[10px] font-bold rounded-full shadow-sm">
+                                        ✨ Önerilen
+                                    </span>
+                                )}
+
+                                {/* Primary Badge */}
+                                {primaryLabel && (
+                                    <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-teal-500 text-white text-xs font-bold rounded-full">
+                                        ★
+                                    </span>
+                                )}
+
+                                {/* Icon */}
+                                <div className="text-3xl mb-2">{sector.icon}</div>
+
+                                {/* Name */}
+                                <h4 className={`text-sm font-semibold ${isSelected ? 'text-teal-700' : 'text-slate-700'}`}>
+                                    {sector.name_tr}
+                                </h4>
+
+                                {/* Checkmark */}
+                                {isSelected && (
+                                    <div className="absolute bottom-2 right-2 w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center">
+                                        <span className="text-white text-xs">✓</span>
+                                    </div>
+                                )}
+                            </button>
+                        </React.Fragment>
                     );
                 })}
             </div>
@@ -195,6 +266,88 @@ export const SectorSelector: React.FC<SectorSelectorProps> = ({
                                 (İlk seçtiğin ana sektörün olacak)
                             </span>
                         )}
+                    </p>
+                </div>
+            )}
+
+            {/* Position Form (Onboarding Mode) */}
+            {showPositionForm && selectedSectors.length > 0 && (
+                <div className="mt-6 p-5 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl border border-teal-100">
+                    <h4 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        💼 Pozisyon Bilgisi
+                        <span className="text-xs font-normal text-slate-500">(opsiyonel)</span>
+                    </h4>
+
+                    <div className="space-y-4">
+                        {/* Job Position */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Pozisyonun / Ünvanın
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="örn: Software Developer, Marketing Manager..."
+                                value={localPosition.jobPosition}
+                                onChange={(e) => {
+                                    const updated = { ...localPosition, jobPosition: e.target.value };
+                                    setLocalPosition(updated);
+                                    onPositionChange?.(updated);
+                                }}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                            />
+                        </div>
+
+                        {/* Years Experience */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Bu sektördeki deneyimin
+                            </label>
+                            <div className="flex gap-2 flex-wrap">
+                                {['0-1 yıl', '1-3 yıl', '3-5 yıl', '5-10 yıl', '10+ yıl'].map((exp, idx) => {
+                                    const yearsMap = [0, 2, 4, 7, 12];
+                                    const isSelected = localPosition.yearsExperience === yearsMap[idx];
+                                    return (
+                                        <button
+                                            key={exp}
+                                            type="button"
+                                            onClick={() => {
+                                                const updated = { ...localPosition, yearsExperience: yearsMap[idx] };
+                                                setLocalPosition(updated);
+                                                onPositionChange?.(updated);
+                                            }}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isSelected
+                                                    ? 'bg-teal-500 text-white shadow-md'
+                                                    : 'bg-white text-slate-600 border border-slate-200 hover:border-teal-300'
+                                                }`}
+                                        >
+                                            {exp}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Company Name (Optional) */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Şirket <span className="text-slate-400 font-normal">(opsiyonel)</span>
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="örn: Google, Türk Telekom..."
+                                value={localPosition.companyName || ''}
+                                onChange={(e) => {
+                                    const updated = { ...localPosition, companyName: e.target.value };
+                                    setLocalPosition(updated);
+                                    onPositionChange?.(updated);
+                                }}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    <p className="mt-4 text-xs text-slate-500 leading-relaxed">
+                        💡 Bu bilgiler sana özel içerikler oluşturmamızı sağlar. İstersen bu formu boş bırakabilirsin.
                     </p>
                 </div>
             )}

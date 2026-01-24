@@ -30,6 +30,29 @@ export const DailyQuestsCard: React.FC = () => {
   const handleQuestClick = (quest: DailyQuest) => {
     if (quest.is_completed) return;
 
+    // Sector-specific quests
+    const sectorId = (quest as any).sector_id;
+    if (sectorId) {
+      switch (quest.task_type) {
+        case 'sector_vocab':
+        case 'sector_vocabulary':
+          router.push(`/sectors/${sectorId}?tab=vocabulary`);
+          return;
+        case 'sector_content':
+        case 'sector_article':
+          router.push(`/sectors/${sectorId}?tab=content`);
+          return;
+        case 'sector_roleplay':
+        case 'sector_dialogue':
+          router.push(`/sectors/${sectorId}?tab=roleplay`);
+          return;
+        case 'sector_podcast':
+          router.push(`/sectors/${sectorId}?tab=podcast`);
+          return;
+      }
+    }
+
+    // General quests
     switch (quest.task_type) {
       case 'learn_words':
         router.push('/vocabulary?mode=new');
@@ -109,7 +132,15 @@ const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim, onClick }) => {
       complete_quiz: '🧠',
       review_words: '📝',
       create_content: '✨',
-      listen_content: '👂'
+      listen_content: '👂',
+      // Sector-specific quest icons
+      sector_vocab: '💼',
+      sector_vocabulary: '💼',
+      sector_content: '📰',
+      sector_article: '📰',
+      sector_roleplay: '🎭',
+      sector_dialogue: '🎭',
+      sector_podcast: '🎙️'
     };
     return icons[type] || '📋';
   };
@@ -129,6 +160,15 @@ const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim, onClick }) => {
         <div className="absolute top-1 right-1">
           <span className="text-[9px] bg-teal-500 text-white px-1.5 py-0.5 rounded-full font-medium">
             🗺️
+          </span>
+        </div>
+      )}
+
+      {/* Sector Quest Badge - Sektör ile bağlantılı görevler */}
+      {(quest as any).sector_id && !(quest as any).parent_quest_node_id && (
+        <div className="absolute top-1 right-1">
+          <span className="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-medium">
+            💼
           </span>
         </div>
       )}
