@@ -7,8 +7,8 @@
  */
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 const { v4: uuidv4 } = require('uuid');
 
 // ============================================

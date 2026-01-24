@@ -17,11 +17,12 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService } from '../services/api';
+import { resendVerificationEmail } from '../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isAppleSignInAvailable } from '../services/socialAuth';
 import { COLORS } from '../theme/colors';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -51,6 +52,7 @@ const LoginScreen: React.FC = () => {
 
   useEffect(() => {
     isAppleSignInAvailable().then(setShowAppleSignIn);
+    AnalyticsHelper.logScreenView('Login', 'LoginScreen');
   }, []);
 
   useEffect(() => {
@@ -120,6 +122,11 @@ const LoginScreen: React.FC = () => {
     setErrorCode(null);
     try {
       await signIn(email, password);
+      AnalyticsHelper.logEvent('login', { method: 'email', platform: 'mobile' });
+      // Note: User ID validation happens in AuthContext state change usually.
+      // But we can set a temporary identifier or rely on AuthContext updates.
+      // Ideally AuthContext should handle setUserId on state change.
+      // Proceeding with event logging only here.
     } catch (error: any) {
       if ((error as any)?.code === 'EMAIL_NOT_VERIFIED') {
         setErrorText(error.message || 'E-posta adresiniz doğrulanmamış görünüyor.');
@@ -207,7 +214,7 @@ const LoginScreen: React.FC = () => {
     setResendMessage(null);
     setResendLoading(true);
     try {
-      await apiService.resendVerificationEmail(email);
+      await resendVerificationEmail(email);
       setResendMessage(language === 'tr'
         ? 'Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.'
         : 'Activation email sent. Please check your inbox.');
@@ -224,6 +231,7 @@ const LoginScreen: React.FC = () => {
     if (!signInWithGoogle) return;
     try {
       await signInWithGoogle();
+      AnalyticsHelper.logEvent('login', { method: 'google', platform: 'mobile' });
     } catch (error: any) {
       Alert.alert(
         language === 'tr' ? 'Google Giriş Hatası' : 'Google Sign-In Error',
@@ -236,6 +244,7 @@ const LoginScreen: React.FC = () => {
     if (!signInWithApple) return;
     try {
       await signInWithApple();
+      AnalyticsHelper.logEvent('login', { method: 'apple', platform: 'mobile' });
     } catch (error: any) {
       Alert.alert(
         language === 'tr' ? 'Apple Giriş Hatası' : 'Apple Sign-In Error',

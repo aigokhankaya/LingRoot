@@ -1,4 +1,4 @@
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 

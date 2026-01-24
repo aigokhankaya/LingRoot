@@ -1,7 +1,7 @@
-const { supabase, bucketName } = require("../utils/supabaseClient");
+const { supabase, bucketName } = require('../utils/storage/supabaseClient.js');
 require("dotenv").config();
-const logger = require("../utils/logger"); // Import logger
-const { checkLimits } = require('../utils/usageLimiter');
+const logger = require('../utils/common/logger.js'); // Import logger
+const { checkLimits } = require('../utils/infra/usageLimiter.js');
 
 // Supabase client provided by shared utility
 
@@ -1063,7 +1063,7 @@ exports.getUserAudioHistoryAdmin = async (req, res) => {
       .select(
         `id, user_id, input, input_type, level, mp3_url, translated_text, adapted_text, created_at, words, timepoints,
          openai_prompt_tokens, openai_completion_tokens, openai_total_tokens, openai_cost_usd,
-         tts_characters, tts_category, tts_cost_usd, total_cost_usd`,
+         tts_characters, tts_category, tts_cost_usd, total_cost_usd, processing_duration_ms`,
         { count: 'exact' }
       )
       .eq('user_id', id)
@@ -1546,7 +1546,7 @@ exports.downgradeExpiredSubscriptions = async (req, res) => {
   try {
     logger.info('[ADMIN] Manual trigger: downgrading expired subscriptions to Free Trial');
 
-    const { downgradeAllExpiredSubscriptions } = require('../utils/subscriptionDowngrader');
+    const { downgradeAllExpiredSubscriptions } = require('../utils/infra/subscriptionDowngrader.js');
     const result = await downgradeAllExpiredSubscriptions();
 
     if (result.error) {

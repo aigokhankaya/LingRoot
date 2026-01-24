@@ -15,7 +15,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService } from '../services/api';
+import { requestPasswordReset } from '../services/authService';
 import { COLORS } from '../theme/colors';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -80,7 +80,7 @@ const ForgotPasswordScreen: React.FC = () => {
     Keyboard.dismiss();
 
     try {
-      await apiService.forgotPassword(email.trim());
+      await requestPasswordReset(email.trim());
       // Başarılı isteğin ardından ResetPassword ekranına git
       navigation.navigate('ResetPassword', { email: email.trim() });
     } catch (e: any) {

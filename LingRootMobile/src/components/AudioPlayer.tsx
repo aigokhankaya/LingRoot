@@ -21,13 +21,15 @@ import { createSound } from '../services/audioService';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
-import { addWordToVocabulary, addWordWithTranslation, apiService } from '../services/api';
+import { addWordToVocabulary, addWordWithTranslation, lookupVocabularyWord } from '../services/vocabularyService';
+import { getUserContentById } from '../services/contentService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { SkiaWordHighlight } from './SkiaWordHighlight';
 import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
 import { useCustomAlert } from '../contexts/AlertContext';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -63,9 +65,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence' | 'pattern'>(initialHighlightMode); // Use mode from Library
-  const [showPatterns, setShowPatterns] = useState(false); // Toggle pattern highlighting
+  const [showPatterns, setShowPatterns] = useState(true); // Toggle pattern highlighting - Default true
   const [patterns, setPatterns] = useState<Array<{
     pattern: string;
+    type?: string;
+    translation?: string;        // Backend field name
+    example_text?: string;       // Backend field name
+    example_translation?: string; // Backend field name
+    level?: string;
+    // Keep old field names for backward compatibility
     meaning?: string;
     pattern_tr?: string;
     example_sentence?: string;
@@ -73,46 +81,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }>>([]);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
 
-  // Debug: Log showPatterns changes
-  useEffect(() => {
-    console.log(`🎨 [AudioPlayer] showPatterns changed to: ${showPatterns}`);
-    if (showPatterns && patterns.length === 0) {
-      loadPatterns();
-    }
-  }, [showPatterns]);
 
-  // Load patterns from backend
-  const loadPatterns = async () => {
-    if (loadingPatterns || !textToHighlight || !track.level) return;
-
-    try {
-      setLoadingPatterns(true);
-      console.log(`🔍 [AudioPlayer] Loading patterns for level: ${track.level}`);
-
-      const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
-      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
-
-      const response = await fetch(`${apiUrl}/api/patterns/find`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: textToHighlight, level: track.level })
-      });
-
-      const data = await response.json();
-      console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
-
-      if (data.success && data.patterns) {
-        setPatterns(data.patterns);
-      }
-    } catch (error) {
-      console.error('❌ [AudioPlayer] Error loading patterns:', error);
-    } finally {
-      setLoadingPatterns(false);
-    }
-  };
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
@@ -131,7 +100,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const cleanWord = word.replace(/[.,!?;:]/g, '');
 
     try {
-      const result = await apiService.lookupVocabularyWord(cleanWord);
+      const result = await lookupVocabularyWord(cleanWord);
 
       if (!result.found || !result.data) {
         showAlert(
@@ -190,6 +159,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const pauseFreezePositionMsRef = useRef<number | null>(null);
   const playbackRateRef = useRef(1);
   const lastAutoScrollTsRef = useRef(0);
+  const wasPlayingRef = useRef(false); // Track previous play state to prevent event spam
   const latestWordPositionRef = useRef<{ top: number; bottom: number; height: number } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [originalText, setOriginalText] = useState('');
@@ -249,7 +219,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     (async () => {
       try {
         setOriginalLoading(true);
-        const res = await apiService.getUserContentById(track.id);
+        const res = await getUserContentById(track.id);
         if ((res as any)?.success && (res as any)?.data?.input) {
           setOriginalText((res as any).data.input);
         }
@@ -284,7 +254,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
 
     const textToHighlight = getTextForHighlight();
-    const wordsArray = words.length > 0 ? words : textToHighlight.split(' ');
+    const wordsArray = words.length > 0 ? words : textToHighlight.split(/\s+/).filter(w => w.length > 0);
     const sentences = textToHighlight.split(/[.!?]+/).filter(s => s.trim().length > 0);
 
     // Debug: Check array lengths
@@ -301,6 +271,46 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [track.adapted_text, track.translated_text, track.title, words]);
 
   const { textToHighlight, wordsArray, sentences } = textData;
+
+  // Auto-load patterns when content matches
+  useEffect(() => {
+    // Always reload patterns when article changes
+    if (track.level && textToHighlight && !loadingPatterns) {
+      loadPatterns();
+    }
+  }, [track.level, textToHighlight]);
+
+  // Load patterns from backend
+  const loadPatterns = async () => {
+    if (loadingPatterns || !textToHighlight || !track.level) return;
+
+    try {
+      setLoadingPatterns(true);
+
+      const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
+      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
+
+      const response = await fetch(`${apiUrl}/api/patterns/find`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: textToHighlight, level: track.level })
+      });
+
+      const data = await response.json();
+      console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
+
+      if (data.success && data.patterns) {
+        setPatterns(data.patterns);
+      }
+    } catch (error) {
+      console.error('❌ [AudioPlayer] Error loading patterns:', error);
+    } finally {
+      setLoadingPatterns(false);
+    }
+  };
 
   const isPodcastTranscript = useMemo(() => {
     if (track.input_type === 'podcast') return true;
@@ -503,17 +513,26 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }
 
           const currentScroll = scrollOffsetRef.current || 0;
+          const visibleTop = currentScroll;
           const visibleBottom = currentScroll + textViewportHeight;
-          const bottomTrigger = visibleBottom - 40;
+          const rowTop = y;
           const rowBottom = y + h;
 
-          if (rowBottom < bottomTrigger) {
+          // Check if row is fully visible
+          const topPadding = 40;
+          const bottomPadding = 40;
+          const isAboveViewport = rowTop < visibleTop + topPadding;
+          const isBelowViewport = rowBottom > visibleBottom - bottomPadding;
+
+          // If row is already visible, don't scroll
+          if (!isAboveViewport && !isBelowViewport) {
             return;
           }
 
           lastAutoScrollTsRef.current = now;
           const alignPadding = 16;
-          const desiredOffset = Math.max(0, y - alignPadding);
+          // Center the dialogue in viewport for better UX
+          const desiredOffset = Math.max(0, y - (textViewportHeight / 3));
           scrollViewRef.current?.scrollTo({ y: desiredOffset, animated: true });
           scrollOffsetRef.current = desiredOffset;
         },
@@ -543,6 +562,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     // Only load if visible - prevent duplicate loads
     if (visible) {
       loadAudio();
+
+      // Log content view
+      if (track.id) {
+        AnalyticsHelper.logEvent('content_view', {
+          content_id: track.id,
+          content_title: track.title,
+          content_type: track.input_type || 'unknown',
+          cefr_level: track.level || 'unknown'
+        });
+      }
+
       // Reset elapsed time when new track loads
       setElapsedTime(0);
       accumulatedTimeRef.current = 0;
@@ -697,6 +727,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (status.isLoaded) {
       if (!pauseRequestedRef.current) {
         setPosition(status.positionMillis || 0);
+
+        // Log Play/Pause transitions - use ref to prevent spam
+        if (status.isPlaying && !wasPlayingRef.current) {
+          AnalyticsHelper.logEvent('audio_play_start', {
+            content_id: track.id,
+            audio_url: track.url,
+            duration: duration / 1000 // seconds
+          });
+        }
+        wasPlayingRef.current = status.isPlaying;
+
         setIsPlaying(status.isPlaying);
         lastStatusPositionMsRef.current = status.positionMillis || 0;
         lastStatusTsRef.current = Date.now();
@@ -710,6 +751,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (!pauseRequestedRef.current && status.isPlaying) {
         setCurrentTrack(track);
       } else if (status.didJustFinish) {
+        // Log completion
+        AnalyticsHelper.logEvent('audio_play_complete', {
+          content_id: track.id,
+          duration_listened: duration / 1000
+        });
+
         // Only clear when audio actually finished, not when paused
         setCurrentTrack(null);
       }
@@ -834,26 +881,45 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!scrollViewRef.current || textViewportHeight <= 0) return;
 
     const currentScroll = scrollOffsetRef.current || 0;
-    const visibleBottom = currentScroll + textViewportHeight;
-    const alignPadding = 16; // Small offset so text isn't glued to the top
-    const bottomTrigger = visibleBottom - alignPadding;
+    const alignPadding = 16; // Margin from edges
 
-    if (position.bottom < bottomTrigger) {
-      return; // Highlight still comfortably inside viewport
-    }
+    // Define visible thresholds
+    const visibleTop = currentScroll + alignPadding;
+    const visibleBottom = currentScroll + textViewportHeight - alignPadding;
 
-    const desiredOffset = Math.max(0, position.top - alignPadding);
+    const isBelow = position.bottom > visibleBottom;
+    const isAbove = position.top < visibleTop;
 
-    // Avoid micro-adjustments that cause oscillation
-    if (Math.abs(desiredOffset - currentScroll) < 4) {
+    // If strictly inside the safe zone, do nothing
+    if (!isBelow && !isAbove) {
       return;
     }
 
     const now = Date.now();
+    // Throttle auto-scroll updates
     if (now - lastAutoScrollTsRef.current < 150) {
-      return; // Throttle auto-scroll updates
+      return;
     }
     lastAutoScrollTsRef.current = now;
+
+    let desiredOffset = currentScroll;
+
+    if (isAbove) {
+      // Scroll UP: Put the word at the top + padding
+      desiredOffset = Math.max(0, position.top - alignPadding);
+    } else if (isBelow) {
+      // Scroll DOWN: Put the word near the top (standard reading flow) 
+      // OR keep it at bottom? Usually moving it to top is better for continuous reading.
+      // Current implementation moved it to top: `position.top - alignPadding`.
+      // Let's stick to that for consistency, or maybe center it?
+      // Moving to top is simpler and matches existing logic.
+      desiredOffset = Math.max(0, position.top - alignPadding);
+    }
+
+    // Avoid micro-adjustments
+    if (Math.abs(desiredOffset - currentScroll) < 4) {
+      return;
+    }
 
     scrollViewRef.current.scrollTo({ y: desiredOffset, animated: true });
     scrollOffsetRef.current = desiredOffset;
@@ -1070,10 +1136,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const statusDelayed = await sound.getStatusAsync();
       if (statusDelayed.isLoaded) {
         const delayedPosition = statusDelayed.positionMillis;
-        console.log(`🔊 [AUDIO DELAYED] Position after 500ms: ${(delayedPosition / 1000).toFixed(2)}s (expected: ${(positionMs / 1000).toFixed(2)}s)`);
+        // If audio is playing, expect position to have advanced by ~500ms * playback rate
+        const expectedPositionAfterDelay = isPlaying
+          ? positionMs + (500 * (playbackRate || 1))
+          : positionMs;
+        const tolerance = 1500; // Allow 1.5s tolerance for streaming/buffering delays
 
-        if (Math.abs(delayedPosition - positionMs) > 500) {
-          console.error(`❌ [SEEK ERROR] Position mismatch after 500ms! Expected ${(positionMs / 1000).toFixed(2)}s but got ${(delayedPosition / 1000).toFixed(2)}s (diff: ${Math.abs(delayedPosition - positionMs)}ms)`);
+        console.log(`🔊 [AUDIO DELAYED] Position after 500ms: ${(delayedPosition / 1000).toFixed(2)}s (expected: ~${(expectedPositionAfterDelay / 1000).toFixed(2)}s)`);
+
+        if (Math.abs(delayedPosition - expectedPositionAfterDelay) > tolerance) {
+          console.warn(`⚠️ [SEEK WARNING] Position drift after 500ms: Expected ~${(expectedPositionAfterDelay / 1000).toFixed(2)}s but got ${(delayedPosition / 1000).toFixed(2)}s (diff: ${Math.abs(delayedPosition - expectedPositionAfterDelay).toFixed(0)}ms)`);
         }
       }
 
@@ -1084,7 +1156,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           setCurrentWordIndex(knownWordIndex);
           scrollToWord(knownWordIndex);
         } else {
-          updateWordHighlighting(positionMs / 1000);
+          // For podcast: directly update dialogue index during seek to avoid stale closure issues
+          if (dialogueLineRanges.length > 0) {
+            const foundRange = dialogueLineRanges.find(r => knownWordIndex >= r.startIndex && knownWordIndex <= r.endIndex);
+            const newDialogueIdx = foundRange ? foundRange.lineIndex : -1;
+            console.log(`🎯 [SEEK PODCAST] Setting dialogue index to ${newDialogueIdx} for word index ${knownWordIndex}`);
+            setCurrentDialogueIndex(newDialogueIdx);
+          }
         }
       } else {
         const currentTimeInSeconds = positionMs / 1000;
@@ -1099,7 +1177,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               setCurrentWordIndex(globalIndex);
               scrollToWord(globalIndex);
             } else {
-              updateWordHighlighting(currentTimeInSeconds);
+              // For podcast: directly update dialogue index during seek to avoid stale closure issues
+              if (dialogueLineRanges.length > 0) {
+                const foundRange = dialogueLineRanges.find(r => globalIndex >= r.startIndex && globalIndex <= r.endIndex);
+                const newDialogueIdx = foundRange ? foundRange.lineIndex : -1;
+                console.log(`🎯 [SEEK PODCAST] Setting dialogue index to ${newDialogueIdx} for word index ${globalIndex}`);
+                setCurrentDialogueIndex(newDialogueIdx);
+              }
             }
           } else {
             console.warn(`⚠️ [SEEK] No word found for time ${currentTimeInSeconds.toFixed(2)}s`);
@@ -1115,7 +1199,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     } catch (error) {
       console.error('Seek error:', error);
     }
-  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime, isPodcastTranscript, updateWordHighlighting]);
+  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime, isPodcastTranscript, dialogueLineRanges, playbackRate]);
 
   const handleSpeedChange = async () => {
     const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -1343,7 +1427,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     // CASE 1: Kelime bu kullanıcı için zaten vocabulary + user_vocabulary'de kayıtlıysa
     // doğrudan anlam popup'ı göster ve "Kelime Ekle" opsiyonu sunma
     try {
-      const result = await apiService.lookupVocabularyWord(cleanWord);
+      const result = await lookupVocabularyWord(cleanWord);
       if (result.found && result.data && result.hasUserWord) {
         const w = result.data;
 
@@ -1450,9 +1534,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     const data = patterns.map(p => ({
       pattern: p.pattern.toLowerCase().trim(),
-      pattern_tr: p.pattern_tr || '',
-      example_sentence: p.example_sentence || '',
-      example_sentence_tr: p.example_sentence_tr || ''
+      type: p.type || 'pattern',
+      // Use new backend field names, fallback to old names for backward compatibility
+      translation: p.translation || p.pattern_tr || '',
+      example_text: p.example_text || p.example_sentence || '',
+      example_translation: p.example_translation || p.example_sentence_tr || '',
+      level: p.level || ''
     }));
 
     console.log(`🎨 [AudioPlayer] Total pattern data: ${data.length}`);
@@ -1581,84 +1668,152 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               }}
               style={[
                 styles.podcastDialogueRow,
-                isRight ? styles.podcastDialogueRowRight : styles.podcastDialogueRowLeft,
+                hasOriginal && styles.podcastDialogueRowWithOriginal,
               ]}
             >
-              <View style={[styles.podcastBubbleGroup, isRight ? styles.podcastBubbleGroupRight : styles.podcastBubbleGroupLeft]}>
-                {/* Speaker Avatar */}
-                <View style={styles.podcastSpeakerAvatar}>
-                  <Text style={styles.podcastSpeakerAvatarText}>
-                    {isRight ? 'G' : 'H'}
-                  </Text>
-                </View>
+              {/* Left side: Speaker A (HOST) content or Speaker B (GUEST) original */}
+              <View style={[
+                styles.podcastBubbleColumn,
+                styles.podcastBubbleColumnLeft,
+                hasOriginal && (!isRight ? { flex: 5 } : { flex: 3 })
+              ]}>
+                {!isRight ? (
+                  // HOST: Ana diyalog solda
+                  <View style={styles.podcastBubbleWithAvatar}>
 
-                <View
-                  style={[
-                    styles.podcastBubble,
-                    hasOriginal && styles.podcastBubbleCompact,
-                    isRight ? styles.podcastBubbleRight : styles.podcastBubbleLeft,
-                    isActive && styles.podcastBubbleActive,
-                    isActive && (isRight ? styles.podcastBubbleActiveRight : styles.podcastBubbleActiveLeft),
-                  ]}
-                >
-                  <Text style={[
-                    styles.podcastSpeakerLabel,
-                    isRight && styles.podcastSpeakerLabelRight,
-                    isActive && { color: 'rgba(255,255,255,0.8)' }
-                  ]}>
-                    {speakerLabel}
-                  </Text>
-                  <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
-                    <Text
+                    <View
                       style={[
-                        styles.podcastBubbleText,
-                        isRight && styles.podcastBubbleTextRight,
-                        isActive && styles.podcastBubbleTextActive,
+                        styles.podcastBubble,
+                        styles.podcastBubbleLeft,
+                        isActive && styles.podcastBubbleActive,
+                        isActive && styles.podcastBubbleActiveLeft,
+                        hasOriginal && { maxWidth: '100%' }
                       ]}
                     >
-                      {segment.content
-                        .split(/\s+/)
-                        .filter(word => word.length > 0)
-                        .map((word, wordIndex, arr) => {
-                          const range = dialogueLineRanges.find(r => r.lineIndex === index);
-                          let globalIndex = range ? range.startIndex + wordIndex : -1;
-                          if (globalIndex < 0 || globalIndex >= wordsArray.length) {
-                            globalIndex = wordIndex;
-                          }
-                          return (
-                            <Text
-                              key={`${index}-${wordIndex}`}
-                              onLongPress={() => handleWordLongPress(word, globalIndex)}
-                            >
-                              {word}
-                              {wordIndex < arr.length - 1 ? ' ' : ''}
-                            </Text>
-                          );
-                        })}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {hasOriginal && (
-                <View
-                  style={[
-                    styles.podcastBubble,
-                    styles.podcastBubbleCompact,
-                    styles.podcastBubbleOriginal,
-                    isRight ? styles.podcastBubbleOriginalRight : styles.podcastBubbleOriginalLeft,
-                  ]}
-                >
-                  <Text
+                      <Text style={[
+                        styles.podcastSpeakerLabel,
+                        isActive && { color: 'rgba(255,255,255,0.8)' }
+                      ]}>
+                        {speakerLabel}
+                      </Text>
+                      <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
+                        <Text
+                          style={[
+                            styles.podcastBubbleText,
+                            isActive && styles.podcastBubbleTextActive,
+                          ]}
+                        >
+                          {segment.content
+                            .split(/\s+/)
+                            .filter(word => word.length > 0)
+                            .map((word, wordIndex, arr) => {
+                              const range = dialogueLineRanges.find(r => r.lineIndex === index);
+                              let globalIndex = range ? range.startIndex + wordIndex : -1;
+                              if (globalIndex < 0 || globalIndex >= wordsArray.length) {
+                                globalIndex = wordIndex;
+                              }
+                              return (
+                                <Text
+                                  key={`${index}-${wordIndex}`}
+                                  onLongPress={() => handleWordLongPress(word, globalIndex)}
+                                >
+                                  {word}
+                                  {wordIndex < arr.length - 1 ? ' ' : ''}
+                                </Text>
+                              );
+                            })}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : hasOriginal ? (
+                  // GUEST: Orijinal metin solda (sarı balon)
+                  <View
                     style={[
-                      styles.podcastBubbleOriginalText,
-                      isRight && styles.podcastBubbleOriginalTextRight,
+                      styles.podcastBubble,
+                      styles.podcastBubbleOriginalInline,
+                      hasOriginal && { maxWidth: '100%' }
                     ]}
                   >
-                    {originalContent}
-                  </Text>
-                </View>
-              )}
+                    <Text style={styles.podcastBubbleOriginalText}>
+                      {originalContent}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Right side: Speaker B (GUEST) content or Speaker A (HOST) original */}
+              <View style={[
+                styles.podcastBubbleColumn,
+                styles.podcastBubbleColumnRight,
+                hasOriginal && (isRight ? { flex: 5 } : { flex: 3 })
+              ]}>
+                {isRight ? (
+                  // GUEST: Ana diyalog sağda
+                  <View style={styles.podcastBubbleWithAvatarRight}>
+                    <View
+                      style={[
+                        styles.podcastBubble,
+                        styles.podcastBubbleRight,
+                        isActive && styles.podcastBubbleActive,
+                        isActive && styles.podcastBubbleActiveRight,
+                        hasOriginal && { maxWidth: '100%' }
+                      ]}
+                    >
+                      <Text style={[
+                        styles.podcastSpeakerLabel,
+                        styles.podcastSpeakerLabelRight,
+                        isActive && { color: 'rgba(255,255,255,0.8)' }
+                      ]}>
+                        {speakerLabel}
+                      </Text>
+                      <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
+                        <Text
+                          style={[
+                            styles.podcastBubbleText,
+                            styles.podcastBubbleTextRight,
+                            isActive && styles.podcastBubbleTextActive,
+                          ]}
+                        >
+                          {segment.content
+                            .split(/\s+/)
+                            .filter(word => word.length > 0)
+                            .map((word, wordIndex, arr) => {
+                              const range = dialogueLineRanges.find(r => r.lineIndex === index);
+                              let globalIndex = range ? range.startIndex + wordIndex : -1;
+                              if (globalIndex < 0 || globalIndex >= wordsArray.length) {
+                                globalIndex = wordIndex;
+                              }
+                              return (
+                                <Text
+                                  key={`${index}-${wordIndex}`}
+                                  onLongPress={() => handleWordLongPress(word, globalIndex)}
+                                >
+                                  {word}
+                                  {wordIndex < arr.length - 1 ? ' ' : ''}
+                                </Text>
+                              );
+                            })}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                  </View>
+                ) : hasOriginal ? (
+                  // HOST: Orijinal metin sağda (sarı balon)
+                  <View
+                    style={[
+                      styles.podcastBubble,
+                      styles.podcastBubbleOriginalInline,
+                      hasOriginal && { maxWidth: '100%' }
+                    ]}
+                  >
+                    <Text style={styles.podcastBubbleOriginalText}>
+                      {originalContent}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
           );
         })}
@@ -1688,39 +1843,36 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
-          {isTestEnvironment && (
-            <View style={styles.centerBadge}>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log(`🔄 [AudioPlayer] Toggling patterns: ${showPatterns} -> ${!showPatterns}, pageIndex: ${pageIndex}`);
-                  setShowPatterns(!showPatterns);
-                }}
-                style={[styles.patternToggle, showPatterns && styles.patternToggleActive]}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Icon name="highlight" size={18} color={showPatterns ? '#FFF' : '#666'} />
-                <Text style={[styles.patternToggleText, showPatterns && styles.patternToggleTextActive]}>
-                  Patterns
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {isPodcastTranscript ? (
-            <TouchableOpacity
-              style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
-              onPress={() => setShowOriginal(prev => !prev)}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
-                Show Original Text
-              </Text>
+
+          {/* Show Original Text toggle - works for both podcast and text content */}
+          <TouchableOpacity
+            style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
+            onPress={() => {
+              // Toggle showOriginal state
+              setShowOriginal(prev => !prev);
+              // For non-podcast content, also scroll to the original text page
+              // For podcast content, stay on the same page - originals are shown inline
+              if (!isPodcastTranscript) {
+                if (!showOriginal) {
+                  horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+                  setPageIndex(1);
+                } else {
+                  horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+                  setPageIndex(0);
+                }
+              }
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
+              {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
+            </Text>
+            {isPodcastTranscript && (
               <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
                 <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
               </View>
-            </TouchableOpacity>
-          ) : (
-            <View />
-          )}
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Extra floating close button to guarantee tappable area */}
@@ -1738,10 +1890,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </TouchableOpacity>
 
         {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
+        {/* For podcast content, horizontal scroll is disabled - original text shown inline in bubbles */}
         <ScrollView
           ref={horizontalScrollRef}
           horizontal
           pagingEnabled
+          scrollEnabled={!isPodcastTranscript}
           showsHorizontalScrollIndicator={false}
           directionalLockEnabled={true}
           scrollEventThrottle={16}
@@ -1762,7 +1916,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               // Eğer track.original_turkish yoksa, backend'den içeriği çekmeye çalış
               try {
                 setOriginalLoading(true);
-                const res = await apiService.getUserContentById(track.id);
+                const res = await getUserContentById(track.id);
                 if ((res as any)?.success && (res as any)?.data?.input) {
                   setOriginalText((res as any).data.input);
                 }
@@ -2653,12 +2807,36 @@ const styles = StyleSheet.create({
   podcastDialogueRow: {
     flexDirection: 'row',
     marginBottom: 16,
+    gap: 4,
+  },
+  podcastDialogueRowWithOriginal: {
+    // Orijinal metin gösterildiğinde satır genişliğini ayarla
   },
   podcastDialogueRowLeft: {
     justifyContent: 'flex-start',
   },
   podcastDialogueRowRight: {
     justifyContent: 'flex-end',
+  },
+  podcastBubbleColumn: {
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
+  podcastBubbleColumnLeft: {
+    alignItems: 'flex-start',
+  },
+  podcastBubbleColumnRight: {
+    alignItems: 'flex-end',
+  },
+  podcastBubbleWithAvatar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  podcastBubbleWithAvatarRight: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
   },
   podcastBubbleGroup: {
     flexDirection: 'row',
@@ -2716,6 +2894,13 @@ const styles = StyleSheet.create({
     marginRight: 32,
     borderTopRightRadius: 6,
     marginLeft: 0,
+  },
+  podcastBubbleOriginalInline: {
+    backgroundColor: 'rgba(255, 237, 213, 0.9)', // Sarı/bej arka plan (eski tasarımdaki gibi)
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+    maxWidth: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   podcastBubbleActive: {
     shadowColor: COLORS.brandIndigo,

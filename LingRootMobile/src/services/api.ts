@@ -4,6 +4,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiBaseUrl } from './environmentConfig';
 import { EXPO_PUBLIC_MFA_API_URL } from '@env';
 
+// Import from unified apiClient wrapper
+import {
+  getApiClientAsync,
+  getApiClientWithWake,
+  wakeBackendIfNeeded as wakeBackendFromClient,
+  isUsageLimitError,
+  isTimeoutError,
+  isNetworkError,
+  extractErrorMessage,
+  type LingRootApiClient,
+} from './apiClient';
+
 // Backend URL - Will be set dynamically based on environment setting
 let API_BASE_URL = 'https://lingloops-backend.onrender.com';
 let MFA_API_BASE_URL = 'https://lingloops-backend.onrender.com'; // Default to same as main API
@@ -348,23 +360,19 @@ export const apiService = {
     }
   },
 
-  // Text-to-Speech API (Sync)
+  // Text-to-Speech API (Sync) - Uses @lingroot/api-client
   async processTextToSpeech(request: TTSRequest): Promise<TTSResponse> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<TTSResponse>('/api/tts/process', request, {
-        // Büyük metinlerde çeviri/uyarlama+TTS uzun sürebilir
-        timeout: 600000, // 10 dakika
-      });
-      return response.data;
+      const client = await getApiClientWithWake();
+      // apiClient.tts.process has same timeout (600000ms) configured
+      // Cast to local TTSResponse type (minor type differences in 'level' field)
+      return await client.tts.process(request) as unknown as TTSResponse;
     } catch (error: any) {
-      // Network hatası kontrolü - detaylı log öncesi
-      const isNetworkError = error.message === 'Network Error' || error.code === 'ERR_NETWORK';
-
-      if (isNetworkError) {
+      // Network error check - detailed log before
+      if (isNetworkError(error)) {
         console.log('⚠️ [TTS] Network connection interrupted (likely backgrounded). Server processing may continue.');
       } else {
-        // Detaylı hata logu (sadece network hatası değilse)
+        // Detailed error log (only if not network error)
         console.error('🔴 [TTS ERROR] Full error:', {
           message: error.message,
           code: error.code,
@@ -372,70 +380,68 @@ export const apiService = {
           statusText: error.response?.statusText,
           data: error.response?.data,
           hasResponse: !!error.response,
-          isTimeout: error.code === 'ECONNABORTED',
-          isNetworkError: error.message === 'Network Error'
+          isTimeout: isTimeoutError(error),
+          isNetworkError: isNetworkError(error)
         });
       }
 
-      const code = error?.response?.data?.code;
-      if (code === 'USAGE_LIMIT_EXCEEDED') {
+      if (isUsageLimitError(error)) {
         throw new Error('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.');
       }
 
-      // Timeout hatası
-      if (error.code === 'ECONNABORTED') {
+      // Timeout error
+      if (isTimeoutError(error)) {
         throw new Error('TTS işlemi zaman aşımına uğradı. Lütfen daha kısa bir metin deneyin.');
       }
 
-      // Network hatası
-      if (error.message === 'Network Error') {
+      // Network error
+      if (isNetworkError(error)) {
         throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.');
       }
 
-      throw new Error(error.response?.data?.message || 'TTS işlemi başarısız');
+      throw new Error(extractErrorMessage(error, 'TTS işlemi başarısız'));
     }
   },
 
-  // Topic narration generation (text only, no TTS) from a short subject/topic
+  // Topic narration generation (text only, no TTS) - Uses @lingroot/api-client
   async generateTopicNarrationFromSubject(
     subject: string,
     level: string
   ): Promise<APIResponse<{ adapted_text: string; translated_text: string; level: string }>> {
     try {
-      await wakeBackendIfNeeded();
-      const payload: any = {
+      const client = await getApiClientWithWake();
+      const payload = {
         input: subject,
         type: 'subject',
         level,
         no_tts: true,
       };
-
-      const response = await apiClient.post<
-        APIResponse<{ adapted_text: string; translated_text: string; level: string }>
-      >('/api/tts/process', payload, {
-        timeout: 600000,
-      });
-
-      return response.data as any;
+      const response = await client.http.post<APIResponse<{ adapted_text: string; translated_text: string; level: string }>>(
+        '/api/tts/process',
+        payload,
+        { timeout: 600000 }
+      );
+      return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Metin oluşturulamadı');
+      throw new Error(extractErrorMessage(error, 'Metin oluşturulamadı'));
     }
   },
 
+  // Topic suggestions - Uses @lingroot/api-client
   async getTopicSuggestions(topic: string, level?: string): Promise<any> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post('/api/topic-pipeline/suggestions', {
+      const client = await getApiClientWithWake();
+      const response = await client.http.post('/api/topic-pipeline/suggestions', {
         topic,
         level,
       });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Öneriler alınamadı');
+      throw new Error(extractErrorMessage(error, 'Öneriler alınamadı'));
     }
   },
 
-  // Podcast creation API (Sync) - mirrors web podcast flow
+  // Podcast creation API (Sync) - Uses @lingroot/api-client
   // Supports both n8n webhook and Google TTS multi-speaker
   async createPodcast(params: {
     topic: string;
@@ -453,12 +459,13 @@ export const apiService = {
     includeFiller?: boolean;
   }): Promise<any> {
     try {
-      await wakeBackendIfNeeded();
-      const body = {
+      const client = await getApiClientWithWake();
+      // Map params to PodcastParams type
+      const podcastParams = {
         topic: params.topic,
         level: params.level,
         duration: params.duration,
-        ttsProvider: params.ttsProvider || 'n8n',
+        ttsProvider: (params.ttsProvider || 'n8n') as 'n8n' | 'google',
         hostSpeakerId: params.ttsProvider === 'google' ? params.hostSpeakerId : undefined,
         guestSpeakerId: params.ttsProvider === 'google' ? params.guestSpeakerId : undefined,
         ttsModel: params.ttsProvider === 'google' ? params.ttsModel : undefined,
@@ -469,21 +476,18 @@ export const apiService = {
         includeHumor: params.includeHumor,
         includeFiller: params.includeFiller,
       };
-      const response = await apiClient.post('/api/tts/create-podcast', body, {
-        timeout: 600000, // Uzun podcast üretimleri için geniş timeout
-      });
-      return response.data;
+      return await client.tts.createPodcast(podcastParams);
     } catch (error: any) {
       console.error('🔴 [PODCAST API ERROR]:', {
         message: error?.message,
         status: error?.response?.status,
         data: error?.response?.data,
       });
-      throw new Error(error.response?.data?.message || 'Podcast oluşturma işlemi başarısız');
+      throw new Error(extractErrorMessage(error, 'Podcast oluşturma işlemi başarısız'));
     }
   },
 
-  // Podcast creation API (Async - with notification)
+  // Podcast creation API (Async - with notification) - Uses @lingroot/api-client
   async createPodcastAsync(params: {
     topic: string;
     level: string;
@@ -499,12 +503,12 @@ export const apiService = {
     includeFiller?: boolean;
   }): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
     try {
-      await wakeBackendIfNeeded();
-      const body = {
+      const client = await getApiClientWithWake();
+      const podcastParams = {
         topic: params.topic,
         level: params.level,
         duration: params.duration,
-        ttsProvider: params.ttsProvider || 'google',
+        ttsProvider: (params.ttsProvider || 'google') as 'n8n' | 'google',
         hostSpeakerId: params.hostSpeakerId,
         guestSpeakerId: params.guestSpeakerId,
         ttsModel: params.ttsModel,
@@ -514,13 +518,47 @@ export const apiService = {
         includeHumor: params.includeHumor,
         includeFiller: params.includeFiller,
       };
-      const response = await apiClient.post('/api/tts/create-podcast-async', body, {
+      return await client.tts.createPodcastAsync(podcastParams);
+    } catch (error: any) {
+      console.error('🔴 [ASYNC PODCAST ERROR]:', error);
+      const msg = extractErrorMessage(error, 'Async podcast işlemi başlatılamadı');
+      const err: any = new Error(msg);
+      if (error.response?.data?.code) {
+        err.code = error.response.data.code;
+      }
+      throw err;
+    }
+  },
+
+  // Text-to-Speech API (Async - with notification) - Uses @lingroot/api-client
+  async processTextToSpeechAsync(request: TTSRequest): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
+    try {
+      const client = await getApiClientWithWake();
+      return await client.tts.processAsync(request);
+    } catch (error: any) {
+      console.error('🔴 [ASYNC TTS ERROR]:', error);
+      const msg = extractErrorMessage(error, 'Async TTS işlemi başlatılamadı');
+      const err: any = new Error(msg);
+      if (error.response?.data?.code) {
+        err.code = error.response.data.code;
+      }
+      throw err;
+    }
+  },
+
+  // File Upload for TTS (Async) - Uses @lingroot/api-client
+  async processFileToSpeechAsync(file: FormData): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
+    try {
+      const client = await getApiClientWithWake();
+      const response = await client.http.post('/api/tts/process-async', file, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
         timeout: 30000,
       });
       return response.data;
     } catch (error: any) {
-      console.error('🔴 [ASYNC PODCAST ERROR]:', error);
-      const msg = error.response?.data?.message || 'Async podcast işlemi başlatılamadı';
+      const msg = extractErrorMessage(error, 'Async dosya TTS işlemi başlatılamadı');
       const err: any = new Error(msg);
       if (error.response?.data?.code) {
         err.code = error.response.data.code;
@@ -529,62 +567,21 @@ export const apiService = {
     }
   },
 
-  // Text-to-Speech API (Async - with notification)
-  async processTextToSpeechAsync(request: TTSRequest): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
-    try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post('/api/tts/process-async', request, {
-        timeout: 30000, // 30 saniye - sadece job oluşturma için
-      });
-      return response.data;
-    } catch (error: any) {
-      console.error('🔴 [ASYNC TTS ERROR]:', error);
-      const msg = error.response?.data?.message || 'Async TTS işlemi başlatılamadı';
-      const err: any = new Error(msg);
-      if (error.response?.data?.code) {
-        err.code = error.response.data.code;
-      }
-      throw err;
-    }
-  },
-
-  // File Upload için TTS (Async)
-  async processFileToSpeechAsync(file: FormData): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
-    try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post('/api/tts/process-async', file, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 30000, // 30 saniye - sadece job oluşturma için
-      });
-      return response.data;
-    } catch (error: any) {
-      const msg = error.response?.data?.message || 'Async dosya TTS işlemi başlatılamadı';
-      const err: any = new Error(msg);
-      if (error.response?.data?.code) {
-        err.code = error.response.data.code;
-      }
-      throw err;
-    }
-  },
-
-  // Get job status
+  // Get job status - Uses @lingroot/api-client
   async getJobStatus(jobId: string): Promise<any> {
     try {
-      const response = await apiClient.get(`/api/tts/job/${jobId}`);
-      return response.data;
+      const client = await getApiClientAsync();
+      return await client.tts.getJobStatus(jobId);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Job durumu alınamadı');
+      throw new Error(extractErrorMessage(error, 'Job durumu alınamadı'));
     }
   },
 
-  // Get active async TTS job for current user (if any)
+  // Get active async TTS job for current user (if any) - Uses @lingroot/api-client
   async getActiveTtsJob(): Promise<{ success: boolean; hasActiveJob: boolean; job?: any }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get('/api/tts/job/active');
-      return response.data;
+      const client = await getApiClientWithWake();
+      return await client.tts.getActiveJob();
     } catch (error: any) {
       // If endpoint is not available or returns 404, treat as no active job
       if (error.response && error.response.status === 404) {
@@ -594,58 +591,60 @@ export const apiService = {
     }
   },
 
-  // Get unread notifications
-  // Get unread notifications
+  // Get unread notifications - Uses @lingroot/api-client
   async getUnreadNotifications(): Promise<any[]> {
     try {
-      const response = await apiClient.get('/api/tts/notifications/unread');
+      const client = await getApiClientAsync();
+      const response = await client.http.get('/api/tts/notifications/unread');
       return response.data.notifications || [];
     } catch (error: any) {
       // If 404, it likely means no notifications found or endpoint not ready for this user
       if (error.response && error.response.status === 404) {
         return [];
       }
-      console.error('Error fetching notifications:', error);
+      // Silent fail for polling - don't spam console with 401 errors
       return [];
     }
   },
 
-  // Mark notification as read
+  // Mark notification as read - Uses @lingroot/api-client
   async markNotificationAsRead(notificationId: string): Promise<void> {
     try {
-      await apiClient.post(`/api/tts/notifications/${notificationId}/read`);
+      const client = await getApiClientAsync();
+      await client.http.post(`/api/tts/notifications/${notificationId}/read`);
     } catch (error: any) {
       console.error('Error marking notification as read:', error);
     }
   },
 
+  // Usage Summary - Uses @lingroot/api-client
   async getUsageSummary(): Promise<APIResponse<any>> {
     try {
-      await wakeBackendIfNeeded();
-      const res = await apiClient.get<APIResponse<any>>('/api/subscription/usage-summary');
-      return res.data as any;
+      const client = await getApiClientWithWake();
+      const result = await client.subscription.getUsageSummary();
+      return result as unknown as APIResponse<any>;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Kullanım bilgileri alınamadı');
+      throw new Error(extractErrorMessage(error, 'Kullanım bilgileri alınamadı'));
     }
   },
 
-  // File Upload için TTS
+  // File Upload for TTS - Uses @lingroot/api-client
   async processFileToSpeech(file: FormData): Promise<TTSResponse> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<TTSResponse>('/api/tts/process', file, {
+      const client = await getApiClientWithWake();
+      const response = await client.http.post<TTSResponse>('/api/tts/process', file, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        timeout: 300000, // 5 dakika timeout (dosya işleme uzun sürebilir)
+        timeout: 300000,
       });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Dosya TTS işlemi başarısız');
+      throw new Error(extractErrorMessage(error, 'Dosya TTS işlemi başarısız'));
     }
   },
 
-  // Sync Feedback - Senkronizasyon test için
+  // Sync Feedback - Uses @lingroot/api-client
   async sendSyncFeedback(feedbackData: {
     trackId: string;
     currentWordIndex: number;
@@ -656,82 +655,90 @@ export const apiService = {
     timestamp: string;
   }): Promise<APIResponse<any>> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<APIResponse<any>>('/api/tts/sync-feedback', feedbackData);
+      const client = await getApiClientWithWake();
+      const response = await client.http.post<APIResponse<any>>('/api/tts/sync-feedback', feedbackData);
       return response.data;
     } catch (error: any) {
       console.error('Error sending sync feedback:', error);
-      throw new Error(error.response?.data?.message || 'Feedback gönderilemedi');
+      throw new Error(extractErrorMessage(error, 'Feedback gönderilemedi'));
     }
   },
 
-  // Kullanıcı profili güncelleme
+  // User profile update - Uses @lingroot/api-client
   async updateProfile(userId: string, data: any): Promise<APIResponse> {
     try {
-      // Ensure backend is awake (Render cold start protection)
-      await wakeBackendIfNeeded();
-      const response = await apiClient.put<APIResponse>(`/api/users/${userId}`, data, {
-        timeout: 60000, // 60s per-request timeout for profile update
+      const client = await getApiClientWithWake();
+      const response = await client.http.put<APIResponse>(`/api/users/${userId}`, data, {
+        timeout: 60000,
       });
       return response.data;
     } catch (error: any) {
-      const msg = error?.code === 'ECONNABORTED' ? 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.' : (error.response?.data?.message || 'Profil güncellenemedi');
+      const msg = isTimeoutError(error) ? 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.' : extractErrorMessage(error, 'Profil güncellenemedi');
       throw new Error(msg);
     }
   },
 
-  // Kullanıcının audio geçmişini getirme
-  async getUserAudioHistory(userId: string, page?: number, limit?: number): Promise<APIResponse> {
+  // User audio history - Uses @lingroot/api-client
+  async getUserAudioHistory(
+    userId: string,
+    page?: number,
+    limit?: number,
+    search?: string,
+    level?: string,
+    inputType?: string
+  ): Promise<APIResponse> {
     try {
+      const client = await getApiClientAsync();
       const params = new URLSearchParams();
       if (page && page > 0) params.append('page', String(page));
       if (limit && limit > 0) params.append('limit', String(limit));
+      if (search && search.trim()) params.append('search', search.trim());
+      if (level && level !== 'all') params.append('level', level);
+      if (inputType && inputType !== 'all') params.append('input_type', inputType);
       const qs = params.toString();
       const url = qs ? `/api/users/${userId}/audio-history?${qs}` : `/api/users/${userId}/audio-history`;
-      const response = await apiClient.get<APIResponse>(url);
+      const response = await client.http.get<APIResponse>(url);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Geçmiş yüklenemedi');
+      throw new Error(extractErrorMessage(error, 'Geçmiş yüklenemedi'));
     }
   },
 
-  // Tekil içerik kaydı (kullanıcının) - input/original metin için
+  // Get single content by ID - Uses @lingroot/api-client
   async getUserContentById(id: string): Promise<APIResponse> {
     try {
-      const response = await apiClient.get<APIResponse>(`/api/users/content/${id}`);
+      const client = await getApiClientAsync();
+      const response = await client.http.get<APIResponse>(`/api/users/content/${id}`);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'İçerik yüklenemedi');
+      throw new Error(extractErrorMessage(error, 'İçerik yüklenemedi'));
     }
   },
 
-  // Fast audio count for Home statistics
+  // Fast audio count for Home statistics - Uses @lingroot/api-client
   async getUserAudioCount(userId: string): Promise<number> {
     try {
-      const response = await apiClient.get(`/api/users/${userId}/audio-count`);
-      const data: any = response.data;
-      if (data && data.success === true && typeof data.count === 'number') {
-        return data.count;
-      }
-      return 0;
+      const client = await getApiClientAsync();
+      return await client.content.getUserAudioCount();
     } catch (error) {
       console.error('Error fetching audio count:', error);
       return 0;
     }
   },
 
-  // Full content history for fallback counting when page is capped
+  // Full content history for fallback counting when page is capped - Uses @lingroot/api-client
   async getFullContentHistory(): Promise<APIResponse> {
     try {
-      const response = await apiClient.get<APIResponse>('/api/content/history');
-      return response.data;
+      const client = await getApiClientAsync();
+      const result = await client.content.getFullHistory();
+      return result as unknown as APIResponse;
     } catch (error: any) {
       console.error('Error fetching full content history:', error?.response?.data || error?.message || error);
       return { success: false, data: [] } as any;
     }
   },
 
-  // İçerik ve ses dosyasını contenthistory tablosuna kaydet (web submitContent ile aynı endpoint)
+  // Save content and audio file to contenthistory table - Uses @lingroot/api-client
   async submitContent(
     input: string,
     inputType: string,
@@ -744,24 +751,6 @@ export const apiService = {
     words?: any[]
   ): Promise<APIResponse> {
     try {
-      const payload: any = {
-        input,
-        input_type: inputType,
-        level,
-        mp3_url: mp3Url,
-        translated_text: translatedText || '',
-        adapted_text: adaptedText || '',
-        chapter_id: chapterId ?? null,
-      };
-
-      // Podcast senaryosunda MFA timepoints/words varsa backend'e ilet
-      if (Array.isArray(timepoints) && timepoints.length > 0) {
-        payload.timepoints = timepoints;
-      }
-      if (Array.isArray(words) && words.length > 0) {
-        payload.words = words;
-      }
-
       console.log('[Mobile][submitContent] Sending payload to /api/content/submit', {
         inputPreview: input ? input.substring(0, 80) : 'EMPTY',
         inputType,
@@ -772,71 +761,87 @@ export const apiService = {
         chapterId: chapterId ?? null,
       });
 
-      const response = await apiClient.post<APIResponse>('/api/content/submit', payload);
-      return response.data;
+      const client = await getApiClientAsync();
+      const request = {
+        input,
+        inputType: inputType as any, // Cast to TTSInputType
+        level: level as any, // Cast to CEFRLevel
+        mp3Url,
+        translatedText: translatedText || '',
+        adaptedText: adaptedText || '',
+        chapterId: chapterId ?? undefined,
+        timepoints: (Array.isArray(timepoints) && timepoints.length > 0) ? timepoints : undefined,
+        words: (Array.isArray(words) && words.length > 0) ? words : undefined,
+      };
+
+      const result = await client.content.submit(request);
+      return result as unknown as APIResponse;
     } catch (error: any) {
       console.error('[Mobile][submitContent] Error while saving contenthistory:', {
         message: error?.message,
         status: error?.response?.status,
         data: error?.response?.data,
       });
-      throw new Error(error.response?.data?.message || 'İçerik kaydedilemedi');
+      throw new Error(extractErrorMessage(error, 'İçerik kaydedilemedi'));
     }
   },
 
   // Health check
+  // Health check - Uses @lingroot/api-client
   async healthCheck(): Promise<APIResponse> {
     try {
-      const response = await apiClient.get<APIResponse>('/api/health');
+      const client = await getApiClientAsync();
+      const response = await client.http.get<APIResponse>('/api/health');
       return response.data;
     } catch (error: any) {
       throw new Error('API bağlantısı başarısız');
     }
   },
 
-  // Vocabulary lookup - sadece sözlükteki kaydı döndürür, kullanıcıya ekleme yapmaz
+  // Vocabulary lookup - Uses @lingroot/api-client
   async lookupVocabularyWord(word: string): Promise<{ success: boolean; found: boolean; data?: any; hasUserWord?: boolean }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get('/api/vocabulary/lookup', {
-        params: { word },
-      });
-      return response.data;
+      const client = await getApiClientWithWake();
+      const result = await client.vocabulary.lookup(word);
+      return result as unknown as { success: boolean; found: boolean; data?: any; hasUserWord?: boolean };
     } catch (error: any) {
       const msg = error?.response?.data?.error || error?.message || 'Kelime aranırken hata oluştu';
       throw new Error(msg);
     }
   },
 
+  // Topic Tree - Uses @lingroot/api-client
   async getTopicTree(): Promise<APIResponse<{ topics: Topic[]; total: number }>> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get<APIResponse<{ topics: Topic[]; total: number }>>(
+      const client = await getApiClientWithWake();
+      const response = await client.http.get<APIResponse<{ topics: Topic[]; total: number }>>(
         '/api/topic-hierarchy/topics/tree'
       );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Konu ağacı alınamadı');
+      throw new Error(extractErrorMessage(error, 'Konu ağacı alınamadı'));
     }
   },
 
+  // Create main topic - Uses @lingroot/api-client
   async createMainTopic(data: {
     title: string;
     description?: string;
     level?: string;
   }): Promise<APIResponse<{ topic: Topic }>> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<APIResponse<{ topic: Topic }>>(
+      const client = await getApiClientWithWake();
+      const response = await client.http.post<APIResponse<{ topic: Topic }>>(
         '/api/topic-hierarchy/topics',
         data
       );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Ana konu oluşturulamadı');
+      throw new Error(extractErrorMessage(error, 'Ana konu oluşturulamadı'));
     }
   },
 
+  // Generate subtopics - Uses @lingroot/api-client
   async generateSubtopics(
     topicId: string,
     data: {
@@ -846,17 +851,18 @@ export const apiService = {
     }
   ): Promise<APIResponse<{ subtopics: Topic[] }>> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<APIResponse<{ subtopics: Topic[] }>>(
+      const client = await getApiClientWithWake();
+      const response = await client.http.post<APIResponse<{ subtopics: Topic[] }>>(
         `/api/topic-hierarchy/topics/${topicId}/subtopics`,
         data
       );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Alt konular oluşturulamadı');
+      throw new Error(extractErrorMessage(error, 'Alt konular oluşturulamadı'));
     }
   },
 
+  // Add manual subtopic - Uses @lingroot/api-client
   async addManualSubtopic(
     topicId: string,
     data: {
@@ -865,41 +871,44 @@ export const apiService = {
     }
   ): Promise<APIResponse<{ subtopic: Topic }>> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<APIResponse<{ subtopic: Topic }>>(
+      const client = await getApiClientWithWake();
+      const response = await client.http.post<APIResponse<{ subtopic: Topic }>>(
         `/api/topic-hierarchy/topics/${topicId}/subtopics/manual`,
         data
       );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Alt konu eklenemedi');
+      throw new Error(extractErrorMessage(error, 'Alt konu eklenemedi'));
     }
   },
 
+  // Delete topic and children - Uses @lingroot/api-client
   async deleteTopicAndChildren(topicId: string): Promise<APIResponse> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.delete<APIResponse>(
+      const client = await getApiClientWithWake();
+      const response = await client.http.delete<APIResponse>(
         `/api/topic-hierarchy/topics/${topicId}`
       );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Konu silinemedi');
+      throw new Error(extractErrorMessage(error, 'Konu silinemedi'));
     }
   },
 
+  // Get topic path - Uses @lingroot/api-client
   async getTopicPath(topicId: string): Promise<APIResponse<{ path: Topic[] }>> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get<APIResponse<{ path: Topic[] }>>(
+      const client = await getApiClientWithWake();
+      const response = await client.http.get<APIResponse<{ path: Topic[] }>>(
         `/api/topic-hierarchy/topics/${topicId}/path`
       );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Konu yolu alınamadı');
+      throw new Error(extractErrorMessage(error, 'Konu yolu alınamadı'));
     }
   },
 
+  // Create content from topic - Uses @lingroot/api-client
   async createContentFromTopic(
     topicId: string,
     data?: {
@@ -908,250 +917,291 @@ export const apiService = {
     }
   ): Promise<APIResponse<{ topic: Topic; suggested_input: string }>> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<APIResponse<{ topic: Topic; suggested_input: string }>>(
+      const client = await getApiClientWithWake();
+      const response = await client.http.post<APIResponse<{ topic: Topic; suggested_input: string }>>(
         `/api/topic-hierarchy/topics/${topicId}/create-content`,
         data || {}
       );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Konu içeriği alınamadı');
+      throw new Error(extractErrorMessage(error, 'Konu içeriği alınamadı'));
     }
   },
 
+  // Mark topic audio listened - Uses @lingroot/api-client
   async markTopicAudioListened(mp3Url: string): Promise<APIResponse> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<APIResponse>(
+      const client = await getApiClientWithWake();
+      const response = await client.http.post<APIResponse>(
         '/api/topic-hierarchy/topics/mark-listened',
         { mp3_url: mp3Url }
       );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Ses kaydı dinlenmiş olarak işaretlenemedi');
+      throw new Error(extractErrorMessage(error, 'Ses kaydı dinlenmiş olarak işaretlenemedi'));
     }
   },
 
+  // Get available voices - Uses @lingroot/api-client
   async getAvailableVoices(): Promise<APIResponse> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get('/api/tts/voices/filter');
-      return response.data;
+      const client = await getApiClientWithWake();
+      const result = await client.tts.listVoices();
+      // Map to legacy APIResponse format
+      return { success: true, data: result } as unknown as APIResponse;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Ses listesi yüklenemedi');
+      throw new Error(extractErrorMessage(error, 'Ses listesi yüklenemedi'));
     }
   },
 
-  // Filtrelenmiş sesleri getirme
+  // Filtered voices - Uses @lingroot/api-client
   async getFilteredVoices(accent?: string, gender?: string, emotion?: string, category?: string): Promise<APIResponse> {
     try {
-      const params = new URLSearchParams();
-      // "all" değerlerini göndermeyelim; backend'de bunlar filtre olarak algılanmamalı
-      if (accent && accent !== 'all') params.append('accent', accent);
-      // ... (rest of the code remains the same)
-      if (gender && gender !== 'all') params.append('gender', gender);
-      if (emotion && emotion !== 'all') params.append('emotion', emotion);
-      if (category && category !== 'all') params.append('category', category);
+      const client = await getApiClientAsync();
+      // Build filters object, excluding 'all' values
+      const filters: { gender?: string; accent?: string; category?: string } = {};
+      if (accent && accent !== 'all') filters.accent = accent;
+      if (gender && gender !== 'all') filters.gender = gender;
+      if (category && category !== 'all') filters.category = category;
+      // Note: emotion is not directly supported in the api-client filter, kept for backward compat
 
-      const url = `/api/tts/voices/filter?${params.toString()}`;
-      const response = await apiClient.get(url);
-      return response.data;
+      const result = await client.tts.getFilteredVoices(filters);
+      return { success: true, data: result } as unknown as APIResponse;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Filtrelenmiş sesler yüklenemedi');
+      throw new Error(extractErrorMessage(error, 'Filtrelenmiş sesler yüklenemedi'));
     }
   },
 
-  // Narration rewrite (like web): turn a topic/suggestion into a full narration text
+  // Narration rewrite (like web): turn a topic/suggestion into a full narration text - Uses @lingroot/api-client
   async rewriteToNarration(inputText: string, level: string): Promise<{ success: boolean; data?: { narration_text: string } }> {
     try {
-      const response = await apiClient.post('/api/narration/rewrite', {
+      const client = await getApiClientAsync();
+      const response = await client.http.post('/api/narration/rewrite', {
         input_text: inputText,
         level,
       });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Öneri metne dönüştürülemedi');
+      throw new Error(extractErrorMessage(error, 'Öneri metne dönüştürülemedi'));
     }
   },
 
-  // Books API
+  // Books API - Uses @lingroot/api-client
   async searchBooks(params: { q?: string; title?: string; author?: string; page?: number; per_page?: number }): Promise<BookSearchResponse> {
     try {
-      const sp = new URLSearchParams();
-      if (params.q && params.q.trim()) sp.append('q', params.q.trim());
-      if (params.title && params.title.trim()) sp.append('title', params.title.trim());
-      if (params.author && params.author.trim()) sp.append('author', params.author.trim());
-      if (params.page) sp.append('page', String(params.page));
-      if (params.per_page) sp.append('per_page', String(params.per_page));
-      if (!sp.toString()) {
+      const query = params.q || params.title || params.author || '';
+      if (!query.trim()) {
         throw new Error('En az bir arama kriteri gerekli');
       }
-      const response = await apiClient.get(`/api/books/search?${sp.toString()}`);
-      return response.data as BookSearchResponse;
+
+      const client = await getApiClientAsync();
+      const result = await client.book.search(query.trim(), params.page, params.per_page);
+      return result as unknown as BookSearchResponse;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || error.message || 'Kitap arama başarısız');
     }
   },
 
+  // Get book chapters - Uses @lingroot/api-client
   async getBookChapters(bookId: number): Promise<BookChapter[]> {
     try {
-      const response = await apiClient.get(`/api/books/${bookId}/chapters`);
-      return response.data as BookChapter[];
+      const client = await getApiClientAsync();
+      const result = await client.book.getChapters(bookId);
+      return (result.data || []) as unknown as BookChapter[];
     } catch (error: any) {
       throw new Error(error.response?.data?.error || error.message || 'Bölümler alınamadı');
     }
   },
 
+  // Get single book chapter - Uses @lingroot/api-client
   async getBookChapter(bookId: number, chapterId: number): Promise<BookChapter & { book_title?: string; book_authors?: string }> {
     try {
-      const response = await apiClient.get(`/api/books/${bookId}/chapters/${chapterId}`);
-      return response.data;
+      const client = await getApiClientAsync();
+      const result = await client.book.getChapter(bookId, chapterId);
+      return (result.data || result) as unknown as (BookChapter & { book_title?: string; book_authors?: string });
     } catch (error: any) {
       throw new Error(error.response?.data?.error || error.message || 'Bölüm alınamadı');
     }
   },
 
-  // Resend verification email
+  // Resend verification email - Uses @lingroot/api-client
   async resendVerificationEmail(email: string): Promise<APIResponse> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post<APIResponse>('/api/auth/resend-verification', { email });
-      return response.data;
+      const client = await getApiClientWithWake();
+      const result = await client.auth.resendVerification(email);
+      return result as unknown as APIResponse;
     } catch (error: any) {
-      // Return generic message to avoid user enumeration differences
-      const msg = error.response?.data?.message || 'Eğer e-posta adresi kayıtlı ise aktivasyon maili gönderildi.';
+      const msg = extractErrorMessage(error, 'Eğer e-posta adresi kayıtlı ise aktivasyon maili gönderildi.');
       throw new Error(msg);
     }
   },
 
-  // Apple IAP receipt verification
+  // Apple IAP receipt verification - Uses @lingroot/api-client
   async verifyAppleReceipt(receiptData: string, productId: string): Promise<{ success: boolean; data?: any; message?: string }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post('/api/iap/apple/verify', { receiptData, productId });
-      return response.data;
+      const client = await getApiClientWithWake();
+      const result = await client.subscription.verifyApplePurchase(receiptData, productId);
+      return result as unknown as { success: boolean; data?: any; message?: string };
     } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Abonelik doğrulaması başarısız';
-      throw new Error(msg);
+      throw new Error(extractErrorMessage(error, 'Abonelik doğrulaması başarısız'));
     }
   },
 
-  // Google Play IAP purchase verification
+  // Google Play IAP purchase verification - Uses @lingroot/api-client
   async verifyGooglePlayPurchase(purchaseToken: string, productId: string, packageName: string): Promise<{ success: boolean; data?: any; message?: string }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post('/api/iap/google/verify', { purchaseToken, productId, packageName });
-      return response.data;
+      const client = await getApiClientWithWake();
+      // Note: packageName not used in api-client, but kept for signature compatibility
+      const result = await client.subscription.verifyGooglePurchase(purchaseToken, productId);
+      return result as unknown as { success: boolean; data?: any; message?: string };
     } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Abonelik doğrulaması başarısız';
-      throw new Error(msg);
+      throw new Error(extractErrorMessage(error, 'Abonelik doğrulaması başarısız'));
     }
   },
 
-  // Get subscription plans (public endpoint)
+  // Get subscription plans - Uses @lingroot/api-client
   async getSubscriptionPlans(): Promise<{ success: boolean; data?: any[] }> {
     try {
-      const response = await apiClient.get('/api/subscription/plans');
-      return response.data;
+      const client = await getApiClientAsync();
+      const result = await client.subscription.getPlans();
+      return result as unknown as { success: boolean; data?: any[] };
     } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Paketler yüklenemedi';
-      throw new Error(msg);
+      throw new Error(extractErrorMessage(error, 'Paketler yüklenemedi'));
     }
   },
 
-  // Account deletion endpoints
+  // Account deletion info - Uses @lingroot/api-client
   async getAccountDeletionInfo(): Promise<{ success: boolean; data?: any }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get('/api/account/deletion-info');
+      const client = await getApiClientWithWake();
+      const response = await client.http.get('/api/account/deletion-info');
       return response.data;
     } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Hesap bilgileri alınamadı';
-      throw new Error(msg);
+      throw new Error(extractErrorMessage(error, 'Hesap bilgileri alınamadı'));
     }
   },
 
+  // Delete account - Uses @lingroot/api-client
   async deleteAccount(): Promise<{ success: boolean; message?: string }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.delete('/api/account/delete');
+      const client = await getApiClientWithWake();
+      const response = await client.http.delete('/api/account/delete');
       return response.data;
     } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Hesap silme işlemi başarısız';
-      throw new Error(msg);
+      throw new Error(extractErrorMessage(error, 'Hesap silme işlemi başarısız'));
     }
   },
 
-  // TTS Provider Settings (Public endpoint for all users)
+  // TTS Provider Settings - Uses @lingroot/api-client
   async getTtsProvider(): Promise<{ provider: string }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get('/api/tts/provider');
+      const client = await getApiClientWithWake();
+      const response = await client.http.get('/api/tts/provider');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching TTS provider:', error);
-      // Return default provider if error
       return { provider: 'amazon' };
     }
   },
 
-  // Admin-only TTS provider update (kept for backward compatibility)
+  // Admin-only TTS provider update - Uses @lingroot/api-client
   async updateTtsProvider(provider: string): Promise<void> {
     try {
-      await wakeBackendIfNeeded();
-      await apiClient.put('/api/admin/settings/tts_provider', { value: provider });
+      const client = await getApiClientWithWake();
+      await client.http.put('/api/admin/settings/tts_provider', { value: provider });
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'TTS provider güncellenemedi');
+      throw new Error(extractErrorMessage(error, 'TTS provider güncellenemedi'));
     }
   },
 
-  // Daily Usage Patterns API
+  // Daily Usage Patterns API - Uses @lingroot/api-client
   async getPatternsByLevel(level: string): Promise<{ success: boolean; patterns: any[]; count: number }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get(`/api/patterns/level/${level}`);
+      const client = await getApiClientWithWake();
+      const response = await client.http.get(`/api/patterns/level/${level}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching patterns by level:', error);
-      throw new Error(error.response?.data?.message || 'Pattern verisi alınamadı');
+      throw new Error(extractErrorMessage(error, 'Pattern verisi alınamadı'));
     }
   },
 
+  // Find patterns in text - Uses @lingroot/api-client
   async findPatternsInText(text: string, level: string): Promise<{ success: boolean; patterns: any[]; count: number }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post('/api/patterns/find', { text, level });
+      const client = await getApiClientWithWake();
+      const response = await client.http.post('/api/patterns/find', { text, level });
       return response.data;
     } catch (error: any) {
       console.error('Error finding patterns in text:', error);
-      throw new Error(error.response?.data?.message || 'Pattern eşleştirme başarısız');
+      throw new Error(extractErrorMessage(error, 'Pattern eşleştirme başarısız'));
     }
   },
 
+  // Get user pattern history - Uses @lingroot/api-client
   async getUserPatternHistory(): Promise<{ success: boolean; patterns: any[]; count: number }> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get('/api/patterns/history');
+      const client = await getApiClientWithWake();
+      const response = await client.http.get('/api/patterns/history');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching user pattern history:', error);
-      throw new Error(error.response?.data?.message || 'Pattern geçmişi yüklenemedi');
+      throw new Error(extractErrorMessage(error, 'Pattern geçmişi yüklenemedi'));
     }
   },
 
+  // Register device token - Uses @lingroot/api-client
   async registerDeviceToken(payload: { platform: 'android' | 'ios'; token: string; deviceId?: string | null; appVersion?: string }): Promise<boolean> {
     try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.post('/api/device-tokens', payload);
+      const client = await getApiClientWithWake();
+      const response = await client.http.post('/api/device-tokens', payload);
       return !!response.data?.success;
     } catch (error: any) {
-      // Push token kaydı başarısız olursa uygulamayı bozmayalım
       try {
         console.error('Error registering device token:', error);
       } catch { }
       return false;
     }
   },
+
+  // Favorites Management - Uses @lingroot/api-client
+  async getUserFavorites(): Promise<string[]> {
+    try {
+      const client = await getApiClientAsync();
+      const response = await client.http.get('/api/favorites');
+      if (response.data?.success && Array.isArray(response.data?.favorites)) {
+        return response.data.favorites.map((f: any) => String(f.item_id));
+      }
+      return [];
+    } catch (error) {
+      console.warn('Error fetching favorites:', error);
+      return [];
+    }
+  },
+
+  // Toggle favorite - Uses @lingroot/api-client
+  async toggleUserFavorite(itemId: string, itemType: string = 'content_item'): Promise<boolean> {
+    try {
+      const client = await getApiClientAsync();
+      const response = await client.http.post('/api/favorites/toggle', {
+        itemType,
+        itemId
+      });
+      return response.data?.success || false;
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      return false;
+    }
+  },
+
+  async getUserFavoriteDetails(): Promise<any[]> {
+    return [];
+  },
+
+  async saveUserFavorites(ids: string[]): Promise<boolean> {
+    console.warn('saveUserFavorites is deprecated. Use toggleUserFavorite instead.');
+    return true;
+  }
 };
 
 // Vocabulary API functions
@@ -1170,16 +1220,18 @@ export interface VocabularyWord {
   updated_at?: string;
 }
 
+// Get user vocabulary words - Uses @lingroot/api-client
 export const getVocabulary = async (): Promise<VocabularyWord[]> => {
   try {
-    const response = await apiClient.get('/api/vocabulary');
-    return response.data.success ? response.data.data : [];
+    const client = await getApiClientAsync();
+    const result = await client.vocabulary.getUserWords();
+    return (result.data || []) as unknown as VocabularyWord[];
   } catch (error) {
-
     throw error;
   }
 };
 
+// Add word to vocabulary - Uses @lingroot/api-client
 export const addWordToVocabulary = async (
   word: string,
   definition?: string,
@@ -1187,7 +1239,8 @@ export const addWordToVocabulary = async (
   level?: string
 ): Promise<VocabularyWord> => {
   try {
-    const response = await apiClient.post('/api/vocabulary/add', {
+    const client = await getApiClientAsync();
+    const response = await client.http.post('/api/vocabulary/add', {
       word,
       definition,
       example_sentence: sentence,
@@ -1195,12 +1248,11 @@ export const addWordToVocabulary = async (
     });
     return response.data.data;
   } catch (error) {
-
     throw error;
   }
 };
 
-// Kelime çevirisi ile birlikte ekleme (Web tarafındaki gibi)
+// Add word with translation - Uses @lingroot/api-client
 export const addWordWithTranslation = async (
   word: string,
   context: string,
@@ -1213,7 +1265,8 @@ export const addWordWithTranslation = async (
   translationError?: boolean;
 }> => {
   try {
-    const response = await apiClient.post('/api/vocabulary/add-with-translation', {
+    const client = await getApiClientAsync();
+    const response = await client.http.post('/api/vocabulary/add-with-translation', {
       word,
       context,
       level,
@@ -1221,29 +1274,30 @@ export const addWordWithTranslation = async (
     });
     return response.data;
   } catch (error) {
-
     throw error;
   }
 };
 
+// Delete word from vocabulary - Uses @lingroot/api-client
 export const deleteWordFromVocabulary = async (wordId: number): Promise<void> => {
   try {
-    const response = await apiClient.delete(`/api/vocabulary/${wordId}`);
+    const client = await getApiClientAsync();
+    await client.vocabulary.removeWord(String(wordId));
   } catch (error) {
-
     throw error;
   }
 };
 
+// Update word in vocabulary - Uses @lingroot/api-client
 export const updateWordInVocabulary = async (
   wordId: number,
   updates: Partial<VocabularyWord>
 ): Promise<VocabularyWord> => {
   try {
-    const response = await apiClient.put(`/api/vocabulary/${wordId}`, updates);
+    const client = await getApiClientAsync();
+    const response = await client.http.put(`/api/vocabulary/${wordId}`, updates);
     return response.data.data;
   } catch (error) {
-
     throw error;
   }
 };
@@ -1256,12 +1310,13 @@ export interface ReminderSettings {
   isEnabled: boolean;
 }
 
+// Get reminder settings - Uses @lingroot/api-client
 export const getReminderSettings = async (): Promise<ReminderSettings> => {
   try {
-    const response = await apiClient.get('/api/reminder-settings');
+    const client = await getApiClientAsync();
+    const response = await client.http.get('/api/reminder-settings');
     return response.data.data;
   } catch (error) {
-
     // Return default settings if API fails
     return {
       wordsPerDay: 5,
@@ -1272,22 +1327,23 @@ export const getReminderSettings = async (): Promise<ReminderSettings> => {
   }
 };
 
+// Save reminder settings - Uses @lingroot/api-client
 export const saveReminderSettings = async (settings: ReminderSettings): Promise<void> => {
   try {
-    await apiClient.post('/api/reminder-settings', settings);
+    const client = await getApiClientAsync();
+    await client.http.post('/api/reminder-settings', settings);
   } catch (error) {
-
     throw new Error('Ayarlar kaydedilemedi');
   }
 };
 
-// User settings API
+// User settings API - Uses @lingroot/api-client
 export const getUserSettings = async (): Promise<{ default_voice?: string; settings?: any }> => {
   try {
-    const response = await apiClient.get('/api/user-settings');
+    const client = await getApiClientAsync();
+    const response = await client.http.get('/api/user-settings');
     return response.data.data || {};
   } catch (error) {
-
     // Local fallback: read from AsyncStorage if backend route missing/unavailable
     try {
       const localDefaultVoice = await AsyncStorage.getItem('default_voice_local');
@@ -1299,9 +1355,11 @@ export const getUserSettings = async (): Promise<{ default_voice?: string; setti
   }
 };
 
+// Save default voice setting - Uses @lingroot/api-client
 export const saveDefaultVoiceSetting = async (voice: string): Promise<void> => {
   try {
-    await apiClient.post('/api/user-settings/default-voice', { voice });
+    const client = await getApiClientAsync();
+    await client.http.post('/api/user-settings/default-voice', { voice });
   } catch (error) {
     // Store locally so UX works even if backend route missing
     try {
@@ -1346,10 +1404,11 @@ export interface UserPlanFeatures {
   features: PlanFeatures;
 }
 
-// Get user's plan features
+// Get user's plan features - Uses @lingroot/api-client
 export const getMyPlanFeatures = async (): Promise<UserPlanFeatures> => {
   try {
-    const response = await apiClient.get('/api/subscriptions/my-features');
+    const client = await getApiClientAsync();
+    const response = await client.http.get('/api/subscriptions/my-features');
     if (response.data.success) {
       return response.data.data;
     }
@@ -1395,8 +1454,6 @@ export const getDefaultPlanFeatures = (): UserPlanFeatures => {
   };
 };
 
-// ============================================
-// MFA API Functions (uses separate MFA backend)
 // ============================================
 
 export const mfaService = {

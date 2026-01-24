@@ -14,7 +14,7 @@ export default function Header() {
     <header className="w-full bg-white/90 border-b border-border backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-20">
         {/* Logo */}
-        <Link href="/" className="flex items-center select-none space-x-3">
+        <Link href="/welcome" className="flex items-center select-none space-x-3">
           <Image
             src="/lingroot-logo.svg"
             alt="LingRoot Logo"
@@ -35,6 +35,7 @@ export default function Header() {
           <Link href="#neden" className="hover:text-primary transition-colors">{t('header_why_lingroot')}</Link>
           <Link href="#nasil" className="hover:text-primary transition-colors">{t('header_how_it_works')}</Link>
           <Link href="#yorumlar" className="hover:text-primary transition-colors">{t('header_testimonials')}</Link>
+          <Link href="/pattern-lab" className="hover:text-primary transition-colors text-indigo-600 font-bold">Dil Laboratuvarı</Link>
         </nav>
         {/* Hemen Başla Butonu */}
         <Link href="/login" className="ml-4">

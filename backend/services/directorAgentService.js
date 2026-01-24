@@ -1,5 +1,5 @@
-const openaiClient = require('../utils/openaiClient');
-const logger = require('../utils/logger');
+const openaiClient = require('../utils/ai/openaiClient.js');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Director Agent Service
@@ -55,7 +55,7 @@ class DirectorAgentService {
             // Log cost if userId provided
             if (userId && response.usage) {
                 try {
-                    const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+                    const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
                     const costInfo = calculateOpenAiCost(response.usage, 'gpt-4o-mini');
                     await logApiCost({
                         userId,
@@ -239,7 +239,7 @@ class DirectorAgentService {
             };
 
             // Persist to DB
-            const { supabase } = require('../utils/supabaseClient');
+            const { supabase } = require('../utils/storage/supabaseClient.js');
             await supabase
                 .from('books')
                 .update({ voice_settings: newSettings })

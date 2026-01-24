@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { addWordToVocabulary, addWordWithTranslation, lookupVocabularyWord } from '../lib/api';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { addWordWithTranslation, lookupVocabularyWord, saveListeningProgress } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;
@@ -121,6 +121,64 @@ export default function SyncedTextPlayer({
   const [contextMenu, setContextMenu] = useState<ContextMenu>({ show: false, x: 0, y: 0, word: '', wordIndex: -1 });
   const [isAddingWord, setIsAddingWord] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const lastSavedProgressRef = useRef<number>(0); // Son kaydedilen pozisyon
+  const progressSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Dinleme pozisyonunu backend'e kaydet
+  const saveProgress = useCallback(async (position: number, duration: number, force: boolean = false) => {
+    if (!audioUrl || duration <= 0) return;
+
+    // Pozisyon 0 ise ve force değilse kaydetme (başlangıçta gereksiz kayıt önleme)
+    if (position <= 0 && !force) return;
+
+    // Son kayıttan bu yana en az 5 saniye geçmeli (force değilse)
+    if (!force && Math.abs(position - lastSavedProgressRef.current) < 5) return;
+
+    try {
+      console.log(`📊 [PROGRESS] Saving listening progress: ${position.toFixed(1)}s / ${duration.toFixed(1)}s`);
+      await saveListeningProgress(audioUrl, position, duration);
+      lastSavedProgressRef.current = position;
+      console.log(`✅ [PROGRESS] Progress saved successfully`);
+    } catch (error) {
+      console.error('[PROGRESS] Failed to save progress:', error);
+    }
+  }, [audioUrl]);
+
+  // Periyodik ilerleme kaydetme (her 10 saniyede bir)
+  useEffect(() => {
+    if (!isPlaying || !isAudioLoaded || audioDuration <= 0) {
+      if (progressSaveIntervalRef.current) {
+        clearInterval(progressSaveIntervalRef.current);
+        progressSaveIntervalRef.current = null;
+      }
+      return;
+    }
+
+    progressSaveIntervalRef.current = setInterval(() => {
+      if (audioRef.current && !audioRef.current.paused) {
+        saveProgress(audioRef.current.currentTime, audioDuration);
+      }
+    }, 10000); // Her 10 saniyede bir kaydet
+
+    return () => {
+      if (progressSaveIntervalRef.current) {
+        clearInterval(progressSaveIntervalRef.current);
+        progressSaveIntervalRef.current = null;
+      }
+    };
+  }, [isPlaying, isAudioLoaded, audioDuration, saveProgress]);
+
+  // Component unmount olurken kaydet (beforeunload sorunlu olduğu için sadece unmount'ta)
+  useEffect(() => {
+    return () => {
+      // Component unmount olurken son pozisyonu kaydet
+      if (audioRef.current && audioDuration > 0 && audioRef.current.currentTime > 0) {
+        // Senkron çağrı yapamayız ama en azından deneyelim
+        saveProgress(audioRef.current.currentTime, audioDuration, true);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioDuration]);
 
   // VTT dosyasını fetch et ve parse et
   useEffect(() => {
@@ -547,10 +605,20 @@ export default function SyncedTextPlayer({
     };
 
     const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    const handlePause = () => {
+      setIsPlaying(false);
+      // Duraklatıldığında pozisyonu kaydet
+      if (audio && audioDuration > 0) {
+        saveProgress(audio.currentTime, audioDuration);
+      }
+    };
     const handleEnded = () => {
       setIsPlaying(false);
       setCurrentWordIndex(-1);
+      // Bittiğinde pozisyonu kaydet (tamamlandı olarak)
+      if (audio && audioDuration > 0) {
+        saveProgress(audioDuration, audioDuration);
+      }
     };
 
     // Update frequency - birebir eşleşme için optimize edildi
@@ -581,7 +649,7 @@ export default function SyncedTextPlayer({
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [currentWordIndex, wordTimestamps, vttCues, currentCueIndex, autoHighlight, highlightType, sentenceTimestamps, playbackRate, timingMethod, timingOffset, timepoints]);
+  }, [currentWordIndex, wordTimestamps, vttCues, currentCueIndex, autoHighlight, highlightType, sentenceTimestamps, playbackRate, timingMethod, timingOffset, timepoints, saveProgress, audioDuration]);
 
   const handleWordClick = (wordIndex: number, startTime: number) => {
     const audio = audioRef.current;

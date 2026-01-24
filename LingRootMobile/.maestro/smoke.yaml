@@ -1,0 +1,20 @@
+appId: com.lingroot.mobile
+---
+# LingRoot Mobile - App Launch Smoke Test
+# Bu test uygulamanın başarıyla açılıp açılmadığını kontrol eder
+# Kullanım: maestro test .maestro/smoke.yaml
+
+# 1. Uygulamayı temiz state ile başlat
+- launchApp:
+    clearState: true
+
+# 2. Uygulamanın yüklenmesi için bekle
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# 3. Ekran görünür olana kadar bekle (herhangi bir element)
+# Basit bir bekleme - uygulama crash olursa buraya gelemez
+- scroll
+
+# 4. Ekran capture ile doğrula
+- takeScreenshot: smoke_test_result

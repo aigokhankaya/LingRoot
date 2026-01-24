@@ -10,6 +10,7 @@ import InterestManager from '../src/components/InterestManager';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
 import { useTranslation } from '../src/lib/i18n';
+import AppHeader from '../src/components/AppHeader';
 
 export default function Profile() {
   const { t } = useTranslation();
@@ -61,8 +62,9 @@ export default function Profile() {
 
   useEffect(() => {
     async function fetchHistory() {
+      if (!user) return;
       try {
-        const res = await getContentHistory();
+        const res = await getContentHistory(user.id);
         if (res.success) {
           setContentHistory(res.data || []);
         }
@@ -72,12 +74,15 @@ export default function Profile() {
         setLoadingHistory(false);
       }
     }
-    fetchHistory();
-  }, []);
+    if (user) {
+      fetchHistory();
+    }
+  }, [user]);
 
   // Kullanım özeti ve tahminleri getir
   useEffect(() => {
     async function fetchUsage() {
+      if (!user) return;
       try {
         const res = await getUsageSummary();
         if (res?.success) {
@@ -91,8 +96,10 @@ export default function Profile() {
         setEstimates(null);
       }
     }
-    fetchUsage();
-  }, []);
+    if (user) {
+      fetchUsage();
+    }
+  }, [user]);
 
   // Tercih edilen locale'i ve profil ayarlarını yükle
   useEffect(() => {
@@ -214,35 +221,7 @@ export default function Profile() {
   return (
     <main className="min-h-screen bg-background">
       {/* Üst Bar */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link href="/welcome" className="flex items-center space-x-4 group cursor-pointer">
-              <img src="/lingroot-icon.svg" alt="LingRoot" className="w-12 h-12 transition-transform group-hover:scale-105" />
-              <h1 className="text-xl font-semibold text-gray-900">
-                <BrandWordmark className="text-xl" /> {t('dashboard')}
-              </h1>
-            </Link>
-            <div className="flex items-center space-x-2">
-              <Link href="/profile" className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
-                <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 font-bold text-sm border border-gray-300">
-                  {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                </span>
-                <span className="text-gray-700 text-sm font-medium">{displayName || t('user_default')}</span>
-              </Link>
-              <button
-                onClick={() => {
-                  logout();
-                  router.push('/');
-                }}
-                className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition border border-red-100"
-              >
-                {t('content_selection_logout_button')}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AppHeader />
 
       {/* Hoş geldin mesajı */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">

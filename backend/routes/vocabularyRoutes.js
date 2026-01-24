@@ -1,9 +1,16 @@
+/**
+ * 🗂️ Vocabulary Routes
+ * 
+ * SRS review system endpoints.
+ */
+
 const express = require('express');
 const router = express.Router();
+const vocabularyController = require('../controllers/vocabularyController');
 const { authenticate } = require('../middleware/authMiddleware');
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
-const { processWordForVocabulary } = require('../utils/wordTranslationService');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
+const { processWordForVocabulary } = require('../utils/content/wordTranslationService.js');
 
 // Supabase client provided by shared utility
 
@@ -340,6 +347,26 @@ router.post('/add', authenticate, async (req, res) => {
                 success: false,
                 error: 'Kelime kaydedilirken hata oluştu'
             });
+        }
+
+        // 🔄 Sync to word_reviews for SRS flashcard system
+        try {
+            await supabase
+                .from('word_reviews')
+                .upsert({
+                    user_id: userId,
+                    word: normalizedWord,
+                    definition: vocabularyRow.definition || '',
+                    example_sentence: vocabularyRow.example_sentence || '',
+                    next_review_date: new Date().toISOString().split('T')[0], // Today
+                    interval_days: 1,
+                    ease_factor: 2.5,
+                    repetition_count: 0,
+                    streak_correct: 0
+                }, { onConflict: 'user_id,word' });
+            logger.info(`[Vocabulary Routes] Word "${normalizedWord}" synced to word_reviews for SRS`);
+        } catch (srsError) {
+            logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
         }
 
         const mappedWord = mapUserVocabularyRow(newUserWord);
@@ -693,6 +720,26 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
                 });
             }
 
+            // 🔄 Sync to word_reviews for SRS flashcard system
+            try {
+                await supabase
+                    .from('word_reviews')
+                    .upsert({
+                        user_id: userId,
+                        word: normalizedWord,
+                        definition: existingVocabulary.definition || '',
+                        example_sentence: existingVocabulary.example_sentence || '',
+                        next_review_date: new Date().toISOString().split('T')[0],
+                        interval_days: 1,
+                        ease_factor: 2.5,
+                        repetition_count: 0,
+                        streak_correct: 0
+                    }, { onConflict: 'user_id,word' });
+                logger.info(`[Vocabulary Routes] Existing word "${normalizedWord}" synced to word_reviews`);
+            } catch (srsError) {
+                logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
+            }
+
             const mappedNew = mapUserVocabularyRow(newUserWord);
 
             return res.json({
@@ -810,6 +857,26 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
                 });
             }
 
+            // 🔄 Sync to word_reviews for SRS flashcard system
+            try {
+                await supabase
+                    .from('word_reviews')
+                    .upsert({
+                        user_id: userId,
+                        word: wordData.word.toLowerCase(),
+                        definition: wordData.definition || '',
+                        example_sentence: wordData.example_sentence || '',
+                        next_review_date: new Date().toISOString().split('T')[0],
+                        interval_days: 1,
+                        ease_factor: 2.5,
+                        repetition_count: 0,
+                        streak_correct: 0
+                    }, { onConflict: 'user_id,word' });
+                logger.info(`[Vocabulary Routes] New word "${wordData.word}" synced to word_reviews`);
+            } catch (srsError) {
+                logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
+            }
+
             const mappedNew = mapUserVocabularyRow(newUserWord);
 
             logger.info(`New word with translation added by user ${userId}: ${word}`);
@@ -823,99 +890,10 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
         } catch (translationError) {
             logger.error('Error translating word:', translationError);
 
-            // Çeviri hatası durumunda minimum bilgi ile vocabulary + pivot kaydı oluştur
-            let vocabularyRow = null;
-
-            const { data: existingAfterError, error: existingAfterErrorCheck } = await supabase
-                .from('vocabulary')
-                .select('*')
-                .eq('word', normalizedWord)
-                .single();
-
-            if (existingAfterErrorCheck && existingAfterErrorCheck.code !== 'PGRST116') {
-                logger.error('Error checking vocabulary after translation failure:', existingAfterErrorCheck);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Kelime kaydedilirken hata oluştu'
-                });
-            }
-
-            if (existingAfterError) {
-                vocabularyRow = existingAfterError;
-            } else {
-                const { data: fallbackVocabulary, error: fallbackInsertError } = await supabase
-                    .from('vocabulary')
-                    .insert({
-                        word: normalizedWord,
-                        original_word: word,
-                        definition: '',
-                        example_sentence: '',
-                        example_sentence_turkish: '',
-                        level: (level || 'B1').toUpperCase(),
-                        meanings: null
-                    })
-                    .select()
-                    .single();
-
-                if (fallbackInsertError) {
-                    logger.error('Error inserting fallback vocabulary word:', fallbackInsertError);
-                    return res.status(500).json({
-                        success: false,
-                        error: 'Kelime kaydedilirken hata oluştu'
-                    });
-                }
-
-                vocabularyRow = fallbackVocabulary;
-            }
-
-            const { data: newUserWord, error: insertUserWordError } = await supabase
-                .from('user_vocabulary')
-                .insert({
-                    user_id: userId,
-                    word_id: vocabularyRow.id,
-                    original_sentence: originalSentence || '',
-                    translated_sentence: '',
-                    is_learned: false,
-                    created_at: new Date().toISOString()
-                })
-                .select(`
-                    id,
-                    user_id,
-                    word_id,
-                    original_sentence,
-                    translated_sentence,
-                    is_learned,
-                    created_at,
-                    updated_at,
-                    vocabulary (
-                        id,
-                        word,
-                        original_word,
-                        definition,
-                        example_sentence,
-                        example_sentence_turkish,
-                        level,
-                        meanings,
-                        created_at,
-                        updated_at
-                    )
-                `)
-                .single();
-
-            if (insertUserWordError) {
-                logger.error('Error inserting user_vocabulary word without translation:', insertUserWordError);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Kelime kaydedilirken hata oluştu'
-                });
-            }
-
-            const mappedNew = mapUserVocabularyRow(newUserWord);
-
-            res.json({
-                success: true,
-                data: mappedNew,
-                message: 'Kelime eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.',
+            // Çeviri hatası durumunda hata döndür - kelime eklenmedi
+            return res.status(500).json({
+                success: false,
+                error: 'Kelime çevirisi yapılamadı. Lütfen tekrar deneyin.',
                 translationError: true
             });
         }
@@ -928,5 +906,24 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
         });
     }
 });
+
+// =============================================================================
+// 📊 VOCABULARY CONTROLLER ROUTES (Collection, Stats, Due, etc.)
+// =============================================================================
+
+// Get User Stats (for dashboard)
+router.get('/stats', authenticate, vocabularyController.getStats);
+
+// Get User Collection (all words) - Koleksiyon sekmesi için
+router.get('/collection', authenticate, vocabularyController.getCollection);
+
+// Get Flashcards Due Today (Daily Mix)
+router.get('/due', authenticate, vocabularyController.getDueWords);
+
+// Get Random Words (for variety practice)
+router.get('/random', authenticate, vocabularyController.getRandomWords);
+
+// Submit Review (Flashcard Swipe)
+router.post('/review', authenticate, vocabularyController.submitReview);
 
 module.exports = router;

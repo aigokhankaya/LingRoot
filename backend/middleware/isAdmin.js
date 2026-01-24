@@ -2,7 +2,7 @@
 const jwt = require("jsonwebtoken");
 const { User } = require("../models"); // Assuming Sequelize models are used
 require("dotenv").config();
-const logger = require("../utils/logger"); // Import logger
+const logger = require('../utils/common/logger.js'); // Import logger
 
 /**
  * Middleware to verify if user has admin role

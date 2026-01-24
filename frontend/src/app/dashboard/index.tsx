@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PackageInfo from '@/components/PackageInfo';
 import MembershipBadge from '@/components/user/MembershipBadge';
@@ -7,12 +7,27 @@ import UserProfile from '@/components/user/UserProfile';
 import { useAuth } from '@/lib/auth';
 import { useMembership } from '@/context/MembershipContext';
 import { useRouter } from 'next/navigation';
+import { AnalyticsHelper } from '@/utils/AnalyticsHelper';
+import { NextQuestBanner, JourneyRoadmap, DailyQuestsCard } from '@/components/gamification';
+import { useGamification } from '@/hooks/useGamification';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
+interface RoadmapData {
+  current: any | null;
+  upcoming: any[];
+  completed: any[];
+  lockedPreview: any[];
+  totalLocked: number;
+}
 
 export default function Dashboard() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [tab, setTab] = React.useState<string>('genel');
   const { currentPlanName } = useMembership();
+  const { stats } = useGamification();
+  const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
 
   React.useEffect(() => {
     if (!isAuthenticated) {
@@ -23,6 +38,34 @@ export default function Dashboard() {
       router.push(`/login?next=${encodeURIComponent(next)}`);
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    AnalyticsHelper.logScreenView('Dashboard', 'DashboardScreen');
+  }, []);
+
+  // Roadmap fetch
+  useEffect(() => {
+    const fetchRoadmap = async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/api/gamification/roadmap`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.success) {
+          setRoadmap(data.data);
+        }
+      } catch (error) {
+        console.error('[Dashboard] Roadmap fetch failed:', error);
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchRoadmap();
+    }
+  }, [isAuthenticated]);
 
   // Initialize tab from query (?tab=...) then hash, and keep in sync
   React.useEffect(() => {
@@ -78,8 +121,25 @@ export default function Dashboard() {
   const role = user.role || 'user';
   const membershipStatus = user.membershipStatus || 'free';
 
+  // İlgili günlük görevleri filtrele
+  const relatedDailyQuests = stats?.dailyQuests.filter(
+    q => q.parent_quest_node_id === roadmap?.current?.id
+  ) || [];
+
   return (
     <main className="p-4 max-w-5xl mx-auto">
+      {/* 🎯 Sıradaki Hedef Banner */}
+      {roadmap?.current && (
+        <NextQuestBanner
+          currentQuest={{
+            ...roadmap.current,
+            required_daily_completions: roadmap.current.required_daily_completions || 3,
+            current_daily_completions: roadmap.current.current_daily_completions || 0,
+          }}
+          relatedDailyQuests={relatedDailyQuests}
+        />
+      )}
+
       <h1 className="text-2xl font-bold mb-4">Kullanıcı Paneli</h1>
       <div className="mb-6">
         <div className="flex items-center space-x-4 mb-4">
@@ -97,44 +157,61 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => { 
-        setTab(v); 
-        if (typeof window !== 'undefined') { 
+      <Tabs value={tab} onValueChange={(v) => {
+        setTab(v);
+        if (typeof window !== 'undefined') {
           const url = new URL(window.location.href);
           url.searchParams.set('tab', v);
           // keep hash too for backward-compat
           url.hash = v;
           window.history.replaceState({}, '', url.toString());
-        } 
+        }
       }}>
         <TabsList className="mb-4">
           <TabsTrigger value="genel">Genel</TabsTrigger>
+          <TabsTrigger value="yolculuk">Yolculuk</TabsTrigger>
           <TabsTrigger value="paket-bilgilerim">Paket Bilgilerim</TabsTrigger>
         </TabsList>
 
         <TabsContent value="genel">
-          <section className="mt-4">
-            <h2 className="text-xl font-semibold mb-2">İstatistikler</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-primary/5 p-4 rounded shadow">
-                <div className="text-3xl font-bold text-primary">12</div>
-                <div className="text-gray-600">Oluşturulan İçerik</div>
-              </div>
-              <div className="bg-green-50 p-4 rounded shadow">
-                <div className="text-3xl font-bold text-green-600">5</div>
-                <div className="text-gray-600">Toplam Giriş</div>
-              </div>
-            </div>
-          </section>
+          {/* 🎮 Gamification Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Günlük Görevler */}
+            <DailyQuestsCard />
 
-          <section className="mt-8">
-            <h2 className="text-xl font-semibold mb-2">Son İçerikler</h2>
-            <ul className="list-disc pl-6 text-gray-700">
-              <li>Örnek içerik 1</li>
-              <li>Örnek içerik 2</li>
-              <li>Örnek içerik 3</li>
-            </ul>
-          </section>
+            {/* İstatistikler */}
+            <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-2xl">📊</span>
+                <h2 className="text-xl font-bold text-slate-800">İstatistikler</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-teal-50 p-4 rounded-xl border border-teal-100">
+                  <div className="text-3xl font-bold text-teal-600">{stats?.level || 1}</div>
+                  <div className="text-sm text-teal-700">Seviye</div>
+                </div>
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                  <div className="text-3xl font-bold text-amber-600">{stats?.streak || 0}</div>
+                  <div className="text-sm text-amber-700">Günlük Seri</div>
+                </div>
+                <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                  <div className="text-3xl font-bold text-indigo-600">{stats?.totalXP || 0}</div>
+                  <div className="text-sm text-indigo-700">Toplam XP</div>
+                </div>
+                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                  <div className="text-3xl font-bold text-emerald-600">{stats?.dailyQuestsCompleted || 0}</div>
+                  <div className="text-sm text-emerald-700">Bugün</div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="yolculuk">
+          {/* 🗺️ Yolculuk Haritası */}
+          <JourneyRoadmap
+            onQuestClick={(quest) => console.log('Quest clicked:', quest)}
+          />
         </TabsContent>
 
         <TabsContent value="paket-bilgilerim">
@@ -145,4 +222,4 @@ export default function Dashboard() {
       </Tabs>
     </main>
   );
-} 
+}

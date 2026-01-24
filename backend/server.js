@@ -1,270 +1,240 @@
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const fs = require("fs");
-const cors = require("cors");
-require("dotenv").config({
-  path: path.join(__dirname, ".env"),
-  override: process.env.NODE_ENV === 'development',
-});
+/**
+ * LingRoot Backend Server
+ * Main entry point for the Express API server
+ */
 
-// Import custom modules
-const logger = require("./utils/logger"); // Winston logger
-const { errorHandler, notFound } = require("./middleware/errorHandler");
-const { configureSecurity } = require("./middleware/security");
-const requestIdMiddleware = require("./middleware/requestId");
+require('dotenv').config();
 
-// Import database connection
-// const { sequelize } = require("./models"); // Removed Sequelize
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const hpp = require('hpp');
+const path = require('path');
+const { createServer } = require('http');
+
+// Initialize logger first
+const logger = require('./utils/common/logger.js');
+
+// Import middleware
+const { errorHandler, notFound } = require('./middleware/errorHandler.js');
+const requestIdMiddleware = require('./middleware/requestId.js');
 
 // Import routes
-const authRoutes = require("./routes/authRoutes");
-const contentRoutes = require("./routes/contentRoutes");
-const subscriptionRoutes = require("./routes/subscriptionRoutes");
-const adminRoutes = require("./routes/adminRoutes");
-const ttsRoutes = require("./routes/ttsRoutes");
-const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
-const topicDetailRoutes = require("./routes/topicDetailRoutes");
-const narrationRoutes = require("./routes/narrationRoutes");
-const topicPipelineRoutes = require("./routes/topicPipelineRoutes");
-const hobbySuggestionsRoutes = require("./routes/hobbySuggestionsRoutes");
-const booksRouter = require("./routes/books");
-const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burada bağlandı
-const parameterRoutes = require("./routes/parameterRoutes");
-const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
-const chatRoutes = require("./routes/chat"); // Chat routes (admin-user support)
-const supportChatRoutes = require("./routes/supportChat"); // New Support Chat routes (separate tables)
-const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Liro assistant)
-const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
-const appleNotificationsRoutes = require("./routes/appleNotificationsRoutes"); // Apple Server Notifications
-const googlePlayNotificationsRoutes = require("./routes/googlePlayNotificationsRoutes"); // Google Play RTDN
-const accountRoutes = require("./routes/accountRoutes"); // Account management
-const statsRoutes = require("./routes/statsRoutes"); // User statistics
-const externalServicesRoutes = require("./routes/externalServicesRoutes"); // External services management
-const podcastRoutes = require("./routes/podcastRoutes"); // Podcast upload and management
-const configRoutes = require("./routes/configRoutes"); // Config routes (environment, etc.)
-const patternRoutes = require("./routes/patternRoutes"); // Daily usage patterns
-const mfaRoutes = require("./routes/mfaRoutes"); // MFA alignment routes
-const topicHierarchyRoutes = require("./routes/topicHierarchy"); // Topic Hierarchy (multi-level content tree)
-const documentRoutes = require("./routes/documentRoutes"); // Document/PDF workflow
-const favoritesRoutes = require("./routes/favoritesRoutes"); // Favorites management
-const iyzicoRoutes = require("./routes/iyzicoRoutes"); // iyzico credit card payments
-const stripeRoutes = require("./routes/stripeRoutes"); // Stripe credit card payments
-const libraryRoutes = require("./routes/libraryRoutes"); // Unified Library (Book/PDF/Progress)
-const notificationRoutes = require("./routes/notificationRoutes"); // User notifications
-const apiCostsRoutes = require("./routes/apiCostsRoutes"); // API Costs Analytics (Admin)
+const authRoutes = require('./routes/authRoutes.js');
+const userRoutes = require('./routes/userRoutes.js');
+const adminRoutes = require('./routes/adminRoutes.js');
+const ttsRoutes = require('./routes/ttsRoutes.js');
+const contentRoutes = require('./routes/contentRoutes.js');
+const vocabularyRoutes = require('./routes/vocabularyRoutes.js');
+const chatRoutes = require('./routes/chat.js');
+const aiChatRoutes = require('./routes/aiChat.js');
+const supportChatRoutes = require('./routes/supportChat.js');
+const subscriptionRoutes = require('./routes/subscriptionRoutes.js');
+const stripeRoutes = require('./routes/stripeRoutes.js');
+const iyzicoRoutes = require('./routes/iyzicoRoutes.js');
+const iapRoutes = require('./routes/iapRoutes.js');
+const booksRoutes = require('./routes/books.js');
+const documentRoutes = require('./routes/documentRoutes.js');
+const podcastRoutes = require('./routes/podcastRoutes.js');
+const youtubeRoutes = require('./routes/youtubeRoutes.js');
+const topicHierarchyRoutes = require('./routes/topicHierarchy.js');
+const topicDetailRoutes = require('./routes/topicDetailRoutes.js');
+const topicPipelineRoutes = require('./routes/topicPipelineRoutes.js');
+const topicMasteryRoutes = require('./routes/topicMasteryRoutes.js');
+const topicSuggestRoutes = require('./routes/topicSuggestRoutes.js');
+const gamificationRoutes = require('./routes/gamificationRoutes.js');
+const quizRoutes = require('./routes/quizRoutes.js');
+const patternRoutes = require('./routes/patternRoutes.js');
+const translationRoutes = require('./routes/translationRoutes.js');
+const narrationRoutes = require('./routes/narrationRoutes.js');
+const assessmentRoutes = require('./routes/assessmentRoutes.js');
+const hobbySuggestionsRoutes = require('./routes/hobbySuggestionsRoutes.js');
+const libraryRoutes = require('./routes/libraryRoutes.js');
+const favoritesRoutes = require('./routes/favoritesRoutes.js');
+const contentRatingRoutes = require('./routes/contentRatingRoutes.js');
+const notificationRoutes = require('./routes/notificationRoutes.js');
+const configRoutes = require('./routes/configRoutes.js');
+const parameterRoutes = require('./routes/parameterRoutes.js');
+const healthRoutes = require('./routes/healthRoutes.js');
+const statsRoutes = require('./routes/statsRoutes.js');
+const metricsRoutes = require('./routes/metricsRoutes.js');
+const debugRoutes = require('./routes/debugRoutes.js');
+const srsRoutes = require('./routes/srsRoutes.js');
+const mfaRoutes = require('./routes/mfaRoutes.js');
+const accountRoutes = require('./routes/accountRoutes.js');
+const externalServicesRoutes = require('./routes/externalServicesRoutes.js');
+const recommendationsRoutes = require('./routes/recommendationsRoutes.js');
+const apiCostsRoutes = require('./routes/apiCostsRoutes.js');
+const appleNotificationsRoutes = require('./routes/appleNotificationsRoutes.js');
+const googlePlayNotificationsRoutes = require('./routes/googlePlayNotificationsRoutes.js');
+const userSectorRoutes = require('./routes/userSectorRoutes.js');
 
-// Initialize Express app
+// Create Express app
 const app = express();
-const { initSocket } = require('./utils/socketManager');
+const httpServer = createServer(app);
 
-// Dev-only env diagnostics (no secrets printed)
-if (process.env.NODE_ENV === 'development') {
-  const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
-  logger.info(`[ENV CHECK] OPENAI_API_KEY loaded: ${hasOpenAI ? 'YES' : 'NO'}`);
-}
+// Trust proxy (for rate limiting behind reverse proxy)
+app.set('trust proxy', 1);
 
-logger.info(`[ENV CHECK] USE_MFA_ALIGNMENT=${process.env.USE_MFA_ALIGNMENT || ''} USE_REMOTE_MFA=${process.env.USE_REMOTE_MFA || ''} MFA_DEBUG_DUMP=${process.env.MFA_DEBUG_DUMP || ''}`);
+// Security middleware
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
+}));
+app.use(hpp());
 
-// Increase JSON body size limit to support large document text payloads
-app.use(express.json({ limit: "10mb" }));
+// CORS configuration
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:5001',
+    'https://lingroot.com',
+    'https://www.lingroot.com',
+    'https://lingloops.com',
+    'https://www.lingloops.com',
+    'https://lingloops-frontend.onrender.com',
+    'https://lingloops-backend.onrender.com',
+    process.env.FRONTEND_URL
+].filter(Boolean);
 
-// Configure security middleware
-configureSecurity(app);
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            logger.warn(`CORS blocked origin: ${origin}`);
+            callback(null, true); // Allow anyway for now, log for debugging
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language', 'X-Request-ID']
+}));
 
 // Request ID middleware
 app.use(requestIdMiddleware);
 
-// CORS middleware
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:3001",
-  "https://lingroot.com",
-  "https://www.lingroot.com",
-  "https://lingloops-backend.onrender.com",
-  "https://api.lingroot.com",
-  "https://lingroot.netlify.app",
-  "https://lingroot.netlify.com",
-  // Tüm alt domainler
-  /^https:\/\/.*\.lingroot\.com$/
-];
-
-// CORS Yapılandırması - Geliştirme sırasında daha esnek
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Geliştirme için daha esnek CORS, ancak üretimde dikkatli olun
-      // Development ortamında tüm origins kabul edilir
-      if (process.env.NODE_ENV === 'development') {
-        return callback(null, true);
-      }
-
-      // Production ortamında sadece belirli origins kabul edilir
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        logger.warn(`CORS blocked for origin: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Request-ID', 'Range', 'Origin'],
-    exposedHeaders: ['Content-Disposition', 'Content-Length', 'Content-Type', 'Content-Range', 'Accept-Ranges']
-  })
-);
-
-// Stripe webhook special middleware
-app.use("/subscription/webhook", express.raw({ type: "application/json" }));
-
-// Other middlewares
-
-// Increase URL-encoded body size limit as well (for form submissions)
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// Body parsing middleware
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Static files
-app.use(express.static(path.join(__dirname, "public")));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
-// Create uploads directory if it doesn't exist
-const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) {
-  try {
-    fs.mkdirSync(uploadDir, { recursive: true });
-    logger.info(`Uploads directory created at: ${uploadDir}`);
-  } catch (err) {
-    logger.error(`Failed to create uploads directory: ${err.message}`);
-  }
+// Request logging
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        if (req.path !== '/healthz' && req.path !== '/api/health') {
+            logger.info(`${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+        }
+    });
+    next();
+});
+
+// Health check endpoints (before auth)
+app.get('/healthz', (req, res) => res.status(200).send('OK'));
+app.get('/', (req, res) => res.status(200).send('LingRoot Backend Service'));
+app.use('/api/health', healthRoutes);
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api', userRoutes); // Also mount at /api for /api/user-settings etc.
+app.use('/api/admin', adminRoutes);
+app.use('/api/tts', ttsRoutes);
+app.use('/api/content', contentRoutes);
+app.use('/api/vocabulary', vocabularyRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/ai-chat', aiChatRoutes);
+app.use('/api/support-chat', supportChatRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/stripe', stripeRoutes);
+app.use('/api/iyzico', iyzicoRoutes);
+app.use('/api/iap', iapRoutes);
+app.use('/api/books', booksRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/podcasts', podcastRoutes);
+app.use('/api/youtube', youtubeRoutes);
+app.use('/api/topic-hierarchy', topicHierarchyRoutes);
+app.use('/api/topic-details', topicDetailRoutes);
+app.use('/api/topic-pipeline', topicPipelineRoutes);
+app.use('/api/topic-mastery', topicMasteryRoutes);
+app.use('/api/topic-suggest', topicSuggestRoutes);
+app.use('/api/gamification', gamificationRoutes);
+app.use('/api/quiz', quizRoutes);
+app.use('/api/patterns', patternRoutes);
+app.use('/api/translate', translationRoutes);
+app.use('/api/narration', narrationRoutes);
+app.use('/api/assessment', assessmentRoutes);
+app.use('/api/hobby-suggestions', hobbySuggestionsRoutes);
+app.use('/api/library', libraryRoutes);
+app.use('/api/favorites', favoritesRoutes);
+app.use('/api/content-rating', contentRatingRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/config', configRoutes);
+app.use('/api/parameters', parameterRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/metrics', metricsRoutes);
+app.use('/api/debug', debugRoutes);
+app.use('/api/srs', srsRoutes);
+app.use('/api/mfa', mfaRoutes);
+app.use('/api/account', accountRoutes);
+app.use('/api/external-services', externalServicesRoutes);
+app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/api-costs', apiCostsRoutes);
+app.use('/api/apple-notifications', appleNotificationsRoutes);
+app.use('/api/google-play-notifications', googlePlayNotificationsRoutes);
+app.use('/api/user-sectors', userSectorRoutes);
+
+// Try to load optional routes (may not exist)
+try {
+    const sectorRoutes = require('./routes/sectorRoutes.js');
+    app.use('/api/sectors', sectorRoutes);
+} catch (e) {
+    logger.debug('sectorRoutes not loaded (may be empty or missing)');
 }
 
-// Mount routes
+try {
+    const moduleRoutes = require('./routes/moduleRoutes.js');
+    app.use('/api/modules', moduleRoutes);
+} catch (e) {
+    logger.debug('moduleRoutes not loaded (may be empty or missing)');
+}
 
-app.use("/api/auth", authRoutes);
-app.use("/api/content", contentRoutes);
-app.use(contentRoutes); // legacy fallback
-app.use("/api/subscription", subscriptionRoutes);
-app.use("/api/subscriptions", subscriptionRoutes); // Support both singular and plural
-app.use("/api/admin", adminRoutes);
-app.use("/api/admin", apiCostsRoutes); // API Costs Analytics
-app.use("/api/tts", ttsRoutes);
-app.use("/api/topic-suggest", topicSuggestRoutes);
-app.use("/api/topic-detail", topicDetailRoutes);
-app.use("/api/narration", narrationRoutes);
-app.use("/api/topic-pipeline", topicPipelineRoutes);
-app.use("/api/hobby-suggestions", hobbySuggestionsRoutes);
-app.use("/api/books", booksRouter);
-app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
-app.use("/api/parameters", parameterRoutes);
-app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
-app.use("/api/chat", chatRoutes); // Chat routes (admin-user support)
-app.use("/api/support-chat", supportChatRoutes); // Support Chat routes (separate from LIRO)
-app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Liro assistant)
-app.use('/auth', authRoutes);
-app.use("/api/iap", iapRoutes); // Apple IAP verification
-app.use("/api/iap/apple", appleNotificationsRoutes); // Apple Server Notifications
-app.use("/api/iap/google", googlePlayNotificationsRoutes); // Google Play RTDN
-app.use("/api/account", accountRoutes); // Account management
-app.use("/api/stats", statsRoutes); // User statistics
-app.use("/api/external-services", externalServicesRoutes); // External services management
-app.use("/api/podcast", podcastRoutes); // Podcast upload and management
-app.use("/api/config", configRoutes); // Config routes (environment, etc.)
-app.use("/api/patterns", patternRoutes); // Daily usage patterns
-app.use("/api/mfa", mfaRoutes); // MFA alignment routes
-app.use("/api/topic-hierarchy", topicHierarchyRoutes); // Topic Hierarchy (multi-level content tree)
-app.use("/api/documents", documentRoutes); // Document/PDF workflow
-app.use("/api/favorites", favoritesRoutes); // Favorites management
-app.use("/api/library", libraryRoutes); // Unified Library System
-app.use("/api/iyzico", iyzicoRoutes); // iyzico credit card payments
-app.use("/api/stripe", stripeRoutes); // Stripe credit card payments
-app.use("/api/notifications", notificationRoutes); // User notifications
-
-// Account deletion page (legacy)
-app.get('/delete-account', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'delete-account.html'));
-});
-
-// Legacy account deletion endpoints
-const accountDeletionController = require('./controllers/accountDeletionController');
-app.post('/api/delete-account-request', accountDeletionController.requestAccountDeletion);
-app.delete('/api/admin/users/:userId/delete-account', accountDeletionController.adminDeleteAccount);
-
-// Health check endpoint (Render için)
-app.get("/healthz", (req, res) => {
-  res.status(200).send("OK");
-});
-
-// Health check endpoint for mobile app
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ success: true, message: "API is healthy", timestamp: new Date().toISOString() });
-});
-
-// Root route
-app.get("/", (req, res) => {
-  res.json({ message: "Welcome to LingLoop API" });
-});
-
-// 404 Handler
+// Error handling
 app.use(notFound);
-
-// Global Error Handler
 app.use(errorHandler);
 
-// Port configuration
-const PORT = parseInt(process.env.PORT || "5001", 10);
-logger.info(`Attempting to start server on port ${PORT}`);
-logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
-logger.info(`Process environment PORT variable: ${process.env.PORT || "not set"}`);
+// Start server
+const PORT = process.env.PORT || 5001;
 
-// Start server function
-const startServer = () => {
-  const server = http.createServer(app);
-
-  // Initialize Socket.IO on the same HTTP server
-  try {
-    initSocket(server);
-    logger.info('✅ Socket.IO initialized for real-time support notifications');
-  } catch (socketError) {
-    logger.error('❌ Failed to initialize Socket.IO:', socketError);
-  }
-
-  server.listen(PORT, "0.0.0.0", () => {
-    logger.info(`✅ Server is running on http://0.0.0.0:${PORT} in ${process.env.NODE_ENV || "development"} mode`);
-    logger.info(`✅ Server successfully bound to port ${PORT}`);
-  });
-
-  server.on("error", (err) => {
-    logger.error(`❌ Server failed to start: ${err.message}`);
-    if (err.code === "EADDRINUSE") {
-      logger.error(`❌ Port ${PORT} is already in use`);
-    }
-  });
-};
-
-// Database connection and server start (Removed Sequelize logic)
-logger.info("Starting server...");
-app.set("trust proxy", 1);
-
-// Run migration on production startup
-if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL) {
-  logger.info("Production environment detected, running migration...");
-  const { runMigration } = require('./scripts/migrate');
-  runMigration().catch(error => {
-    logger.error("Migration failed:", error);
-    // Don't exit the process, just log the error
-  });
-}
-
-startServer();
-
-// Global exception handlers
-process.on("uncaughtException", (err) => {
-  logger.error("Uncaught Exception:", err);
+httpServer.listen(PORT, () => {
+    logger.info(`🚀 LingRoot Backend server running on port ${PORT}`);
+    logger.info(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
-process.on("unhandledRejection", (reason, promise) => {
-  const reasonMsg = reason && reason.stack ? reason.stack : reason;
-  logger.error("Unhandled Rejection at:", { reason: reasonMsg });
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    logger.info('SIGTERM received. Shutting down gracefully...');
+    httpServer.close(() => {
+        logger.info('Server closed.');
+        process.exit(0);
+    });
 });
 
-module.exports = app;
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    process.exit(1);
+});
+
+module.exports = { app, httpServer };

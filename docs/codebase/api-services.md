@@ -1,11 +1,13 @@
 # API Services (Backend)
 
-**Last Updated:** December 2025  
+**Last Updated:** January 16, 2026
 **Location:** `/backend`
 
 ## Overview
 
 The backend API is built with Express.js, providing RESTful endpoints for all LingRoot functionality including TTS processing, AI chat, user management, and subscription handling.
+
+> **NEW (2026-01-16):** A shared API client package (`@lingroot/api-client`) is now available at `packages/api-client/`. This provides type-safe API access for both Web and Mobile frontends. See `packages/api-client/README.md` for usage.
 
 ## Technology Stack
 
@@ -26,7 +28,7 @@ backend/
 ├── server.js               # Entry point (10KB)
 ├── config/
 │   └── database.js         # DB configuration
-├── controllers/            # 31 controllers
+├── controllers/            # 42 controllers
 │   ├── authController.js          # (53KB) Auth operations
 │   ├── ttsController.js           # (109KB) TTS processing
 │   ├── aiChatController.js        # (28KB) Liro assistant
@@ -49,13 +51,19 @@ backend/
 │   ├── errorHandler.js
 │   ├── security.js
 │   └── ...
-├── utils/                  # 45 utility modules
-│   ├── openaiClient.js
-│   ├── googleTTS.js
-│   ├── azureTTS.js
-│   ├── amazonPolly.js
+├── utils/                  # 60+ utility modules (Domain-Driven)
+│   ├── ai/                 # AI & LLM clients (openai, claude, cefr)
+│   ├── audio/              # TTS & MFA logic (googleTTS, polly, mfa)
+│   ├── content/            # Text & Content processing
+│   ├── storage/            # DB & File storage (supabase, redis)
+│   ├── infra/              # Queue, Limiter, Settings
+│   ├── notifications/      # Email, Push, Socket
+│   └── common/             # Logger, Helpers
+├── services/               # Business Logic Services (New Layer)
+│   ├── subtitleService.js
+│   ├── voiceModelService.js
 │   └── ...
-├── prompts/                # 49 AI prompts
+├── prompts/                # 75+ AI prompts
 ├── migrations/             # 54 SQL migrations
 ├── models/                 # Data models
 ├── scripts/                # Utility scripts
@@ -142,40 +150,65 @@ Input → Extract → Translate → CEFR Adapt → Clean → TTS → Merge → U
 | `verifyApplePurchase` | POST /iap/verify-apple | Verify Apple receipt |
 | `verifyGooglePurchase` | POST /iap/verify-google | Verify Google purchase |
 
-## Utilities
+### SRS Controller (`controllers/srsController.js`)
 
-### TTS Services
+**Size:** 9KB | **Endpoints:** 4+
 
-| Utility | Size | Provider |
-|---------|------|----------|
-| `googleTTS.js` | 23KB | Google Cloud TTS |
-| `azureTTS.js` | 13KB | Azure Cognitive Services |
-| `amazonPolly.js` | 11KB | AWS Polly |
+| Function | Endpoint | Description |
+|----------|----------|-------------|
+| `getDueWords` | GET /srs/due | Get words due for review |
+| `submitReview` | POST /srs/review | Submit review result (SM-2) |
+| `addWord` | POST /srs/words | Add new word manually |
+| `getStats` | GET /srs/stats | Get SRS statistics |
 
-### AI Utilities
+### Additional Controllers (New in January 2026)
 
-| Utility | Size | Purpose |
-|---------|------|---------|
-| `openaiClient.js` | 9KB | OpenAI API wrapper |
-| `cefrAdapter.js` | 6KB | CEFR level adaptation |
-| `translateAndAdapt.js` | 18KB | Translation + adaptation |
-| `liroPromptGenerator.js` | 16KB | Liro system prompts |
+| Controller | Endpoints | Responsibility |
+|------------|-----------|----------------|
+| `accountDeletionController.js` | 2+ | GDPR-compliant account deletion |
+| `assessmentController.js` | 4+ | CEFR level assessment tests |
+| `contentRatingController.js` | 3+ | User content ratings & feedback |
+| `externalServicesController.js` | 5+ | Third-party service configuration |
+| `googlePlayNotificationsController.js` | 3+ | Google Play RTDN webhooks |
+| `appleNotificationsController.js` | 3+ | Apple App Store Server Notifications |
+| `patternController.js` | 4+ | Daily usage pattern tracking |
+| `topicDetailController.js` | 3+ | Topic detail & metadata |
+| `topicMasteryController.js` | 4+ | Topic mastery progress tracking |
+| `topicSuggestController.js` | 3+ | Smart topic suggestions |
+| `userEmbeddingController.js` | 4+ | User embeddings for recommendations |
 
-### Content Processing
+## Utilities (Reorganized)
+> **Note:** Utilities are now grouped by domain in `backend/utils/`.
 
-| Utility | Size | Purpose |
-|---------|------|---------|
-| `inputExtractor.js` | 19KB | Multi-source extraction |
-| `textProcessor.js` | 15KB | Text cleaning/chunking |
-| `audioMerger.js` | 10KB | FFmpeg audio merging |
-| `bookTextExtractor.js` | 7KB | Book content extraction |
+### AI Utilities (`utils/ai/`)
+- `openaiClient.js`, `claudeClient.js`
+- `cefrAdapter.js`, `translateAndAdapt.js`
+- `liroPromptGenerator.js`
+- `userProfileAnalyzer.js`, `userKnowledgeAnalyzer.js`
+- `semanticAudit.js`, `topicMemoryVerdict.js`
 
-### Storage & Upload
+### Audio Services (`utils/audio/`)
+- `googleTTS.js` (Google Cloud TTS)
+- `azureTTS.js` (Azure Cognitive Services)
+- `amazonPolly.js` (AWS Polly)
+- `mfaAligner.js` (Montreal Forced Aligner)
+- `audioMerger.js` (FFmpeg)
 
-| Utility | Size | Purpose |
-|---------|------|---------|
-| `storageUploader.js` | 5KB | Supabase storage upload |
-| `supabaseClient.js` | 2KB | Supabase client |
+### Content Processing (`utils/content/`)
+- `inputExtractor.js` (Multi-source extraction)
+- `textProcessor.js` (Text cleaning/chunking)
+- `bookTextExtractor.js` (Book parsing)
+- `newsService.js`, `webSearchService.js`
+
+### Storage & Infra (`utils/storage/`, `utils/infra/`)
+- `supabaseClient.js`, `redisClient.js`
+- `storageUploader.js`, `cloudflareR2Client.js`
+- `bullQueue.js`, `usageLimiter.js`
+
+### Notifications (`utils/notifications/`)
+- `mailer.js` (Email)
+- `pushNotification.js` (FCM)
+- `socketManager.js` (Real-time)
 
 ## Middleware
 

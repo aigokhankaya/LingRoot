@@ -72,9 +72,19 @@ const TopicInput: React.FC<TopicInputProps> = ({
             <Button
               type="submit"
               disabled={isLoading || !title.trim()}
-              className="px-6 font-semibold h-auto"
+              className="px-6 font-semibold h-auto min-w-[140px]"
             >
-              {isLoading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-plus"></i>}
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <i className="fas fa-spinner fa-spin"></i>
+                  <span>{t('topics_input_submit_loading') || '...'}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <i className="fas fa-plus"></i>
+                  <span>{t('topics_input_submit_button') || 'Ana Konu Oluştur'}</span>
+                </div>
+              )}
             </Button>
           </div>
 

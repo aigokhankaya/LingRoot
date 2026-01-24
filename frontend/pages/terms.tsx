@@ -17,14 +17,14 @@ export default function Terms() {
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </Head>
-      
+
       {/* Header */}
       <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-3">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12 drop-shadow-lg" />
           <BrandWordmark className="text-2xl" />
         </Link>
-        
+
         <nav className="hidden md:flex items-center space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('about')}
@@ -50,7 +50,7 @@ export default function Terms() {
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('login')}
           </Link>
-          <Link href="/register" 
+          <Link href="/register"
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             {t('register_now')}
           </Link>
@@ -78,7 +78,7 @@ export default function Terms() {
         <section className="py-20 px-6 bg-white">
           <div className="max-w-4xl mx-auto">
             <div className="prose prose-lg max-w-none">
-              
+
               {/* Son Güncellenme */}
               <div className="mb-12 p-6 bg-muted rounded-2xl border border-border shadow-lg">
                 <p className="text-primary mb-0 font-medium">
@@ -104,7 +104,7 @@ export default function Terms() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   1. {t('terms_section1_title')}
                 </h2>
-                
+
                 <div className="space-y-6">
                   <div className="bg-green-50 rounded-lg p-6 border border-green-200">
                     <h3 className="text-lg font-semibold text-green-900 mb-3">✅ {t('terms_section1_allowed_title')}</h3>
@@ -134,7 +134,7 @@ export default function Terms() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   2. {t('terms_section2_title')}
                 </h2>
-                
+
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="bg-muted rounded-lg p-6 border border-primary/20">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">👤 {t('terms_section2_user_title')}</h3>
@@ -163,7 +163,7 @@ export default function Terms() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   3. {t('terms_section3_title')}
                 </h2>
-                
+
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-8 border border-amber-200">
                   <div className="flex items-start space-x-4">
                     <div className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
@@ -196,7 +196,7 @@ export default function Terms() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   4. {t('terms_section4_title')}
                 </h2>
-                
+
                 <div className="space-y-6">
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">💳 {t('terms_section4_payment_title')}</h3>
@@ -225,7 +225,7 @@ export default function Terms() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   5. {t('terms_section5_title')}
                 </h2>
-                
+
                 <div className="bg-muted rounded-xl p-8 border border-border">
                   <div className="grid md:grid-cols-3 gap-6">
                     <div className="text-center">
@@ -266,7 +266,7 @@ export default function Terms() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   6. {t('terms_section6_title')}
                 </h2>
-                
+
                 <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                   <p className="text-gray-600 leading-relaxed mb-4">
                     {t('terms_section6_text')}
@@ -280,9 +280,23 @@ export default function Terms() {
                 </div>
               </div>
 
+              {/* AI Sorumluluk Reddi */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  7. {t('terms_privacy_title')}
+                  7. {t('terms_section7_title')}
+                </h2>
+
+                <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-3">{t('terms_section7_subtitle')}</h3>
+                  <p className="text-blue-800 leading-relaxed mb-4">
+                    {t('terms_ai_disclaimer_text')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  8. {t('terms_privacy_title')}
                 </h2>
 
                 <div className="bg-muted rounded-xl p-8 border border-border">
@@ -297,7 +311,7 @@ export default function Terms() {
 
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  8. {t('terms_termination_title')}
+                  9. {t('terms_termination_title')}
                 </h2>
 
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-8 border border-amber-200">
@@ -314,7 +328,7 @@ export default function Terms() {
 
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  9. {t('terms_governing_law_title')}
+                  10. {t('terms_governing_law_title')}
                 </h2>
 
                 <div className="bg-white border border-gray-200 rounded-xl p-8">
@@ -327,20 +341,20 @@ export default function Terms() {
               {/* İletişim */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  10. {t('terms_section7_title')}
+                  11. {t('terms_section8_title')}
                 </h2>
-                
+
                 <div className="bg-slate-900 rounded-xl p-8 text-white">
-                  <h3 className="text-xl font-semibold mb-4">{t('terms_section7_subtitle')}</h3>
+                  <h3 className="text-xl font-semibold mb-4">{t('terms_section8_subtitle')}</h3>
                   <p className="mb-6 opacity-90">
-                    {t('terms_section7_text')}
+                    {t('terms_section8_text')}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
-                    <Link href="/contact" 
+                    <Link href="/contact"
                       className="px-6 py-3 bg-white text-primary rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
                       {t('terms_contact_button')}
                     </Link>
-                    <a href="mailto:legal@lingroot.com" 
+                    <a href="mailto:legal@lingroot.com"
                       className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-primary transition-colors text-center">
                       legal@lingroot.com
                     </a>

@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
@@ -21,6 +22,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AudioPlayer from '../components/AudioPlayer';
 import { COLORS } from '../theme/colors';
 
+type ContentType = 'all' | 'podcast' | 'text' | 'topic' | 'file' | 'book';
+
 const LibraryScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -28,6 +31,7 @@ const LibraryScreen: React.FC = () => {
   const { t, language } = useLanguage();
   const [searchText, setSearchText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel | 'all'>('all');
+  const [selectedType, setSelectedType] = useState<ContentType>('all');
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,6 +51,15 @@ const LibraryScreen: React.FC = () => {
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word');
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+  const typeOptions: { id: ContentType; labelTr: string; labelEn: string; icon: string }[] = [
+    { id: 'all', labelTr: 'Tümü', labelEn: 'All', icon: 'apps' },
+    { id: 'podcast', labelTr: 'Podcast', labelEn: 'Podcast', icon: 'podcasts' },
+    { id: 'text', labelTr: 'Metin', labelEn: 'Text', icon: 'text-fields' },
+    { id: 'topic', labelTr: 'Konu Ağacı', labelEn: 'Topic Tree', icon: 'account-tree' },
+    { id: 'file', labelTr: 'Doküman', labelEn: 'Document', icon: 'insert-drive-file' },
+    { id: 'book', labelTr: 'Kitap', labelEn: 'Book', icon: 'menu-book' },
+  ];
 
   // Handle navigation from audio_created notification
   useEffect(() => {
@@ -173,8 +186,8 @@ const LibraryScreen: React.FC = () => {
     resolveNotificationAudio();
   }, [route, navigation]);
 
-  // Fetch audio history from API
-  const fetchAudioHistory = async (showLoading = true, nextPage?: number) => {
+  // Fetch audio history from API with search and filter parameters
+  const fetchAudioHistory = async (showLoading = true, nextPage?: number, resetList = false) => {
     if (!user?.id) {
       setLoading(false);
       setAudioTracks([]);
@@ -186,8 +199,16 @@ const LibraryScreen: React.FC = () => {
         setLoading(true);
       }
 
-      const currentPage = nextPage || 1;
-      const response = await apiService.getUserAudioHistory(user.id, currentPage, PAGE_SIZE);
+      const currentPage = resetList ? 1 : (nextPage || 1);
+      // Send search and filter parameters to backend
+      const response = await apiService.getUserAudioHistory(
+        user.id,
+        currentPage,
+        PAGE_SIZE,
+        searchText, // search parameter
+        selectedLevel, // level parameter
+        selectedType // input_type parameter
+      );
 
       if (response.success && response.data) {
 
@@ -292,11 +313,10 @@ const LibraryScreen: React.FC = () => {
     try {
       if (!user?.id) return;
       // pull from backend first
-      const remote = await apiService.getUserFavorites();
-      if (Array.isArray(remote) && remote.length > 0) {
-        const normalized = remote.map((x: any) => String(x));
-        setFavoriteIds(normalized);
-        await AsyncStorage.setItem(favoritesKey, JSON.stringify(normalized));
+      const remoteIds = await apiService.getUserFavorites();
+      if (Array.isArray(remoteIds) && remoteIds.length > 0) {
+        setFavoriteIds(remoteIds);
+        await AsyncStorage.setItem(favoritesKey, JSON.stringify(remoteIds));
         return;
       }
 
@@ -330,11 +350,27 @@ const LibraryScreen: React.FC = () => {
 
   const toggleFavorite = async (track: AudioTrack) => {
     const id = track.id;
-    const next = isFavorite(id)
+    const isCurrentlyFav = isFavorite(id);
+
+    // Optimistic UI update
+    const next = isCurrentlyFav
       ? favoriteIds.filter(fid => fid !== id)
       : [...favoriteIds, id];
     setFavoriteIds(next);
-    await saveFavorites(next);
+    await AsyncStorage.setItem(favoritesKey, JSON.stringify(next));
+
+    // Server update
+    try {
+      await apiService.toggleUserFavorite(id, 'content_item');
+    } catch (error) {
+      // Revert on error
+      console.error('Failed to toggle favorite on server');
+      const revert = isCurrentlyFav
+        ? [...favoriteIds, id] // add back
+        : favoriteIds.filter(fid => fid !== id); // remove again
+      setFavoriteIds(revert);
+      await AsyncStorage.setItem(favoritesKey, JSON.stringify(revert));
+    }
   };
 
   // Favoriler toggle'ı: Favoriler yüklenmemişse önce yükleyip sonra filtreyi aç
@@ -473,25 +509,50 @@ const LibraryScreen: React.FC = () => {
     return colors[level];
   };
 
+  // Client-side filtering: Only filter for favorites since search/level/type are handled by backend
   const filteredTracks = audioTracks.filter((track) => {
-    const matchesSearch = track.title.toLowerCase().includes(searchText.toLowerCase());
-    const matchesLevel = selectedLevel === 'all' || track.level === selectedLevel;
+    // Only apply favorites filter client-side
     const matchesFav = !showFavoritesOnly || isFavorite(track.id);
-    return matchesSearch && matchesLevel && matchesFav;
+    return matchesFav;
   });
 
-  // Favorites görünümünde istemci tarafı sayfalamayı kaldırıyoruz.
-  // Böylece favorileriniz, daha önce sayfalamayı arttırmanıza gerek kalmadan
-  // elde mevcut olanların tamamı hemen listelenir.
-  const displayedTracks = showFavoritesOnly
-    ? filteredTracks
-    : filteredTracks.slice(0, page * PAGE_SIZE);
+  // For favorites view, show all matching tracks
+  // For normal view, backend already handles pagination
+  const displayedTracks = filteredTracks;
+
+  // When search text or filters change, fetch from backend with new parameters
+  // Using debounce for search to avoid too many API calls
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Reset pagination when filters or search change
+    // Reset pagination
     setPage(1);
+    pageRef.current = 1;
     setHasUserScrolled(false);
-  }, [searchText, selectedLevel, showFavoritesOnly]);
+
+    // Clear previous debounce timer
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    // Debounce search (500ms), but filters trigger immediately
+    const debounceMs = searchText ? 500 : 0;
+
+    searchDebounceRef.current = setTimeout(() => {
+      // Fetch new data with current search/filter parameters
+      // resetList=true will reset to page 1 and clear existing data
+      if (!showFavoritesOnly) {
+        fetchAudioHistory(true, 1, true);
+      }
+    }, debounceMs);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, selectedLevel, selectedType]);
 
   // Favoriler görünümüne geçildiğinde, eksik favorileri arka planda hydrate et
   // ve sayfalamayı başlatmak için scroll gating'i aç.
@@ -609,19 +670,8 @@ const LibraryScreen: React.FC = () => {
     );
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>
-            {language === 'tr' ? 'Ses kütüphanesi yükleniyor...' : 'Loading audio library...'}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Loading state handled inline now
+  // if (loading) { ... } removed to prevent full screen block
 
   // Not authenticated state
   if (!user?.id) {
@@ -651,20 +701,16 @@ const LibraryScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-          <Icon name="refresh" size={24} color={COLORS.primary} />
+        <Text style={styles.headerTitle}>{language === 'tr' ? 'Kütüphane' : 'Library'}</Text>
+        <TouchableOpacity
+          style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
+          onPress={handleToggleFavorites}
+        >
+          <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#FFFFFF' : '#FFFFFF'} />
+          <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
+            {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
+          </Text>
         </TouchableOpacity>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
-            onPress={handleToggleFavorites}
-          >
-            <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : COLORS.primary} />
-            <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
-              {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       <View style={styles.searchContainer}>
@@ -678,6 +724,41 @@ const LibraryScreen: React.FC = () => {
             onChangeText={setSearchText}
           />
         </View>
+      </View>
+
+      {/* Type Filters */}
+      <View style={styles.typeFilterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.typeFilterContent}
+        >
+          {typeOptions.map((opt) => (
+            <TouchableOpacity
+              key={opt.id}
+              style={[
+                styles.typeChip,
+                selectedType === opt.id && styles.typeChipActive,
+              ]}
+              onPress={() => setSelectedType(opt.id)}
+            >
+              <Icon
+                name={opt.icon}
+                size={16}
+                color={selectedType === opt.id ? '#FFFFFF' : COLORS.slate500}
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={[
+                  styles.typeChipText,
+                  selectedType === opt.id && styles.typeChipTextActive,
+                ]}
+              >
+                {language === 'tr' ? opt.labelTr : opt.labelEn}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       <View style={styles.levelFilter}>
@@ -728,7 +809,14 @@ const LibraryScreen: React.FC = () => {
         </View>
       </View>
 
-      {filteredTracks.length > 0 ? (
+      {loading && filteredTracks.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.loadingText}>
+            {language === 'tr' ? 'Yükleniyor...' : 'Loading...'}
+          </Text>
+        </View>
+      ) : filteredTracks.length > 0 ? (
         <FlatList
           data={displayedTracks}
           keyExtractor={(item) => item.id}
@@ -744,6 +832,13 @@ const LibraryScreen: React.FC = () => {
           initialNumToRender={PAGE_SIZE}
           windowSize={5}
           removeClippedSubviews
+          ListHeaderComponent={
+            loading ? (
+              <View style={{ paddingVertical: 10, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              </View>
+            ) : null
+          }
           ListFooterComponent={
             isLoadingMore ? (
               <View style={styles.footerLoadingContainer}>
@@ -814,11 +909,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
     backgroundColor: 'transparent',
+    zIndex: 10,
+    elevation: 5,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
     color: COLORS.slate700,
+    letterSpacing: -0.3,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.slate800,
     letterSpacing: -0.3,
   },
   refreshButton: {
@@ -867,25 +970,29 @@ const styles = StyleSheet.create({
   favoritesToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: COLORS.surface,
-    borderWidth: 2,
-    borderColor: COLORS.brandTeal,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: COLORS.brandTeal, // Koyu teal arka plan
+    borderWidth: 0,
     borderRadius: 24,
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   favoritesToggleActive: {
-    borderColor: '#E91E63',
-    backgroundColor: '#FFF0F5',
+    backgroundColor: '#E91E63', // Pembe aktif arka plan
+    shadowColor: '#E91E63',
   },
   favoritesToggleText: {
     marginLeft: 6,
-    color: COLORS.brandTeal,
+    color: '#FFFFFF', // Beyaz yazı
     fontWeight: '700',
     fontSize: 13,
   },
   favoritesToggleTextActive: {
-    color: '#E91E63',
+    color: '#FFFFFF', // Aktif durumda da beyaz
   },
   searchContainer: {
     paddingHorizontal: 24,
@@ -908,6 +1015,39 @@ const styles = StyleSheet.create({
     color: COLORS.slate700,
     padding: 0,
     fontWeight: '500',
+  },
+  typeFilterContainer: {
+    height: 50,
+    marginBottom: 8,
+  },
+  typeFilterContent: {
+    paddingHorizontal: 24,
+    gap: 8,
+    alignItems: 'center',
+  },
+  typeChip: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.slate200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  typeChipActive: {
+    backgroundColor: COLORS.brandTeal,
+    borderColor: COLORS.brandTeal,
+  },
+  typeChipText: {
+    fontSize: 13,
+    color: COLORS.slate500,
+    fontWeight: '600',
+  },
+  typeChipTextActive: {
+    color: '#FFFFFF',
   },
   levelFilter: {
     paddingHorizontal: 20,

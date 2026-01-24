@@ -1,19 +1,39 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const { supabase } = require("../utils/supabaseClient");
+const { supabase } = require('../utils/storage/supabaseClient.js');
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
-const logger = require("../utils/logger");
-const { logStep } = require('../utils/stepLogger');
+const logger = require('../utils/common/logger.js');
+const { logStep } = require('../utils/common/stepLogger.js');
 const { v4: uuidv4 } = require('uuid');
-const { sendRegistrationNotification } = require('../utils/registrationNotifier');
-const { sendMail } = require('../utils/mailer');
+const { sendRegistrationNotification } = require('../utils/notifications/registrationNotifier.js');
+const { sendMail } = require('../utils/notifications/mailer.js');
 
-const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
+const _JWT_SECRET = process.env.JWT_SECRET;
+const _JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+// CRITICAL SECURITY CHECK
+if (process.env.NODE_ENV === 'production') {
+  if (!_JWT_SECRET || _JWT_SECRET === "lingroot-secret-key-for-development") {
+    logger.error('🚨 [SECURITY_CRITICAL] JWT_SECRET is not set or using default insecure key in PRODUCTION! Exiting...');
+    process.exit(1);
+  }
+  if (!_JWT_REFRESH_SECRET || _JWT_REFRESH_SECRET === "lingroot-refresh-secret-key") {
+    logger.error('🚨 [SECURITY_CRITICAL] JWT_REFRESH_SECRET is not set or using default insecure key in PRODUCTION! Exiting...');
+    process.exit(1);
+  }
+} else {
+  // Development fallbacks
+  if (!_JWT_SECRET) logger.warn('⚠️ [SECURITY_WARN] JWT_SECRET not set, using insecure dev default.');
+  if (!_JWT_REFRESH_SECRET) logger.warn('⚠️ [SECURITY_WARN] JWT_REFRESH_SECRET not set, using insecure dev default.');
+}
+
+const JWT_SECRET = _JWT_SECRET || "lingroot-secret-key-for-development";
+const JWT_REFRESH_SECRET = _JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
+
 // Make tokens effectively non-expiring by default (very long lifetime)
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "3650d"; // ~10 years
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "3650d"; // ~10 years
 
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
@@ -336,7 +356,7 @@ exports.register = async (req, res) => {
           : `${req.protocol}://${req.get('host')}/api/auth/verify-email/${encodeURIComponent(verificationCode)}`;
 
         try {
-          const { sendMail } = require('../utils/mailer');
+          const { sendMail } = require('../utils/notifications/mailer.js');
           const fullName = [newUser[0].firstname, newUser[0].lastname].filter(Boolean).join(' ').trim() || 'LingRoot Kullanıcısı';
           await sendMail({
             to: newUser[0].email,
@@ -1001,7 +1021,7 @@ exports.appleLogin = async (req, res) => {
 
       // Send registration notification
       try {
-        const registrationNotifier = require('../utils/registrationNotifier');
+        const registrationNotifier = require('../utils/notifications/registrationNotifier.js');
         await registrationNotifier.sendRegistrationNotification(user);
       } catch (notifError) {
         logger.error('[APPLE_LOGIN] Registration notification failed:', notifError);
@@ -1133,6 +1153,60 @@ exports.changePassword = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/auth/update-level
+ * Update user's content level and vocabulary level
+ */
+exports.updateLevel = async (req, res) => {
+  try {
+    const { contentLevel, vocabularyLevel } = req.body;
+    const userId = req.user.id;
+
+    const validLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+    if (contentLevel && !validLevels.includes(contentLevel)) {
+      return res.status(400).json({ success: false, message: "Geçersiz içerik seviyesi" });
+    }
+
+    if (vocabularyLevel && !validLevels.includes(vocabularyLevel)) {
+      return res.status(400).json({ success: false, message: "Geçersiz kelime seviyesi" });
+    }
+
+    const updateData = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (contentLevel) {
+      updateData.default_level = contentLevel;
+    }
+
+    if (vocabularyLevel) {
+      updateData.cefr_level = vocabularyLevel;
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq("id", userId);
+
+    if (error) {
+      logger.error('[UPDATE_LEVEL] Database error:', error);
+      return res.status(500).json({ success: false, message: "Seviyeler güncellenemedi" });
+    }
+
+    logger.info(`[UPDATE_LEVEL] User ${userId} levels updated: content=${contentLevel}, vocabulary=${vocabularyLevel}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Seviyeler başarıyla güncellendi",
+      data: { contentLevel, vocabularyLevel }
+    });
+  } catch (error) {
+    logger.error("Update level error", error);
+    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
+};
+
 exports.logout = async (req, res) => {
   try {
     return res.status(200).json({ success: true, message: "Çıkış yapıldı" });
@@ -1196,7 +1270,7 @@ exports.forgotPassword = async (req, res) => {
 
     // Mail gönder (SMTP varsa), yoksa logla
     try {
-      const { sendMail } = require('../utils/mailer');
+      const { sendMail } = require('../utils/notifications/mailer.js');
       await sendMail({
         to: email,
         subject: 'Şifre Sıfırlama Kodu',
@@ -1414,7 +1488,7 @@ exports.resendVerificationEmail = async (req, res) => {
       : `${req.protocol}://${req.get('host')}/api/auth/verify-email/${encodeURIComponent(code)}`;
 
     try {
-      const { sendMail } = require('../utils/mailer');
+      const { sendMail } = require('../utils/notifications/mailer.js');
       const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ').trim() || 'LingRoot Kullanıcısı';
       await sendMail({
         to: email,

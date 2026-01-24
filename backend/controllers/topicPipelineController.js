@@ -7,15 +7,16 @@ if (process.env.OPENAI_API_KEY) {
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   } catch { }
 }
-const { logRequestStep } = require('../utils/requestLogger');
+const { logRequestStep } = require('../utils/common/requestLogger.js');
 const { v4: uuidv4 } = require('uuid');
-const logger = require('../utils/logger');
-const { chunkText } = require('../utils/textProcessor');
-const { simplifyLexically, getComplexWordStats } = require('../utils/lexicalSimplifier');
-const { auditSemanticPreservation } = require('../utils/semanticAudit');
-const { extractDailyUsagePatterns } = require('../utils/dailyPatternExtractor');
-const { supabase } = require('../utils/supabaseClient');
-const { generateBilingualContent } = require('../utils/translateAndAdapt');
+const logger = require('../utils/common/logger.js');
+const { chunkText } = require('../utils/content/textProcessor.js');
+const { simplifyLexically, getComplexWordStats } = require('../utils/ai/lexicalSimplifier.js');
+const { auditSemanticPreservation } = require('../utils/ai/semanticAudit.js');
+const { extractDailyUsagePatterns } = require('../utils/content/dailyPatternExtractor.js');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const { generateBilingualContent } = require('../utils/ai/translateAndAdapt.js');
+const { validateContent, generateFeedbackPrompt } = require('../utils/content/contentQualityValidator.js');
 
 /**
  * Helper function to get the correct content generation prompt file by CEFR level
@@ -89,15 +90,18 @@ exports.processTopicToEnglishText = async (req, res) => {
     // ==========================================
     if (!selected_subtopic) {
       logger.info(`[${requestId}] Step 1: Generating topic suggestions`);
-      const suggestionsPromptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
-      logger.info(`[${requestId}] 📄 Using prompt file: topic_detail_suggestions.txt`);
 
-      const suggestionsTemplate = fs.readFileSync(suggestionsPromptPath, 'utf8');
-
-      const suggestionsPrompt = suggestionsTemplate
-        .split('{{topic}}').join(topic)
-        .split('{{level}}').join(level)
-        .split('{{input_language}}').join('Türkçe');
+      let suggestionsPrompt;
+      try {
+        suggestionsPrompt = promptService.getPrompt('topic/suggestions', {
+          topic,
+          input_language: 'Türkçe'
+        });
+        logger.info(`[${requestId}] 📄 Using template: topic/suggestions`);
+      } catch (err) {
+        logger.error(`[${requestId}] Failed to generate suggestions prompt:`, err);
+        throw err;
+      }
 
       logger.info(`[${requestId}] 📋 Prompt: ${suggestionsPrompt.substring(0, 500)}${suggestionsPrompt.length > 500 ? '...' : ''}`);
 
@@ -132,7 +136,7 @@ exports.processTopicToEnglishText = async (req, res) => {
 
       // Log cost for topic suggestions
       try {
-        const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+        const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
         const usage = result.usage.suggestions;
         if (usage && req.user?.id) {
           const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');
@@ -200,7 +204,7 @@ exports.processTopicToEnglishText = async (req, res) => {
 
         // Log cost for bilingual generation
         try {
-          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
           const usage = bilingualResult.usage;
           if (usage && req.user?.id) {
             const costInfo = calculateOpenAiCost(usage, bilingualResult.model || 'gpt-4o-mini');
@@ -217,6 +221,29 @@ exports.processTopicToEnglishText = async (req, res) => {
           }
         } catch (costErr) {
           logger.warn(`[${requestId}] Failed to log bilingual generation cost:`, costErr?.message);
+        }
+
+        // ==========================================
+        // Quality Validation (Post-Generation Check)
+        // ==========================================
+        const qualityValidation = validateContent(result.adapted_text);
+        result.qualityScore = qualityValidation.score;
+        result.qualityIssues = qualityValidation.issues;
+
+        if (!qualityValidation.valid) {
+          logger.warn(`[${requestId}] ⚠️ Content quality validation failed`, {
+            score: qualityValidation.score,
+            issues: qualityValidation.issues.map(i => i.type)
+          });
+          logRequestStep(requestId, 'topic-pipeline:quality-validation:warning', {
+            score: qualityValidation.score,
+            issueCount: qualityValidation.issues.length,
+            issues: qualityValidation.issues
+          });
+          // Note: Content is still returned, but quality warning is logged
+          // Future: Implement auto-regeneration with feedback
+        } else {
+          logger.info(`[${requestId}] ✅ Content quality validation passed (score: ${qualityValidation.score})`);
         }
       } else {
         throw new Error('Bilingual generation returned incomplete result');
@@ -288,7 +315,7 @@ exports.processTopicToEnglishText = async (req, res) => {
       // Log cost for daily patterns extraction (if not skipped)
       if (patternExtraction.usage && !patternExtraction.skipped && req.user?.id) {
         try {
-          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
           const usage = patternExtraction.usage;
           const costInfo = calculateOpenAiCost(usage, usage.model || 'gpt-4o-mini');
           await logApiCost({

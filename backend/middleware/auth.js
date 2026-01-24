@@ -2,8 +2,8 @@
 const jwt = require("jsonwebtoken");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
-const { supabase } = require("../utils/supabaseClient");
-const logger = require("../utils/logger"); // Import logger
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js'); // Import logger
 
 // Supabase client comes from shared client; if missing, middleware will respond 500 on protected routes
 
@@ -24,39 +24,40 @@ const measureTime = async (operation, description) => {
 exports.authenticate = async (req, res, next) => {
   const path = req.originalUrl;
   const startTime = process.hrtime();
-  logger.debug(`Authentication middleware triggered for path: ${path}`);
-  
+  // Reduce debug noise for polling endpoints unless it's an error
+  const isPolling = path.includes('/notifications/unread');
+
+  if (!isPolling) {
+    logger.debug(`Authentication middleware triggered for path: ${path}`);
+  }
+
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
-    logger.debug(`Auth header: ${authHeader ? 'present' : 'missing'}`);
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      logger.warn(`Authentication failed: No token provided or invalid format for path ${path}. Header: ${authHeader}`);
+      logger.warn(`[AUTH_FAIL] No token or invalid format. Path: ${path}. Header: ${authHeader || 'MISSING'}`);
       return res.status(401).json({
         success: false,
         message: "Authentication failed. No token provided or invalid format.",
+        code: "NO_TOKEN"
       });
     }
 
     const token = authHeader.split(" ")[1];
-    logger.debug(`Token extracted for path: ${path}, token length: ${token ? token.length : 0}`);
-    logger.debug(`JWT_SECRET in use: ${JWT_SECRET ? 'defined' : 'undefined'}`);
 
     // Verify token with performance measurement
     const decoded = await measureTime(
       () => jwt.verify(token, JWT_SECRET),
       'JWT Verification'
     );
-    logger.debug(`Token verified for user ID: ${decoded.id}, path: ${path}`);
-
 
     // Ensure Supabase is configured
     if (!supabase) {
-      logger.error("Authentication failed: Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.");
+      logger.error("[AUTH_FAIL] Supabase config missing");
       return res.status(500).json({
         success: false,
-        message: "Server auth not configured. Please contact support.",
+        message: "Server auth not configured.",
       });
     }
 
@@ -71,37 +72,44 @@ exports.authenticate = async (req, res, next) => {
     );
 
     if (error || !user) {
-      logger.warn(`Authentication failed: User ID ${decoded.id} not found in Supabase or DB error for path ${path}:`, error);
+      logger.warn(`[AUTH_FAIL] User not found in DB. ID: ${decoded.id}, Path: ${path}`, error);
       return res.status(401).json({
         success: false,
         message: "Authentication failed. User not found.",
+        code: "USER_NOT_FOUND"
       });
     }
 
     // Add user info to request
     req.user = user;
-    
-    // Log total authentication time
+
+    // Log total authentication time only for non-polling or slow requests
     const [totalSeconds, totalNanoseconds] = process.hrtime(startTime);
     const totalDuration = totalSeconds * 1000 + totalNanoseconds / 1000000;
-    logger.info(`Total authentication time for user ${user.email}: ${totalDuration.toFixed(2)}ms`);
+
+    if (!isPolling || totalDuration > 500) {
+      logger.info(`[AUTH_SUCCESS] User: ${user.email}, Path: ${path}, Time: ${totalDuration.toFixed(2)}ms`);
+    }
 
     next();
   } catch (error) {
-    logger.error(`Authentication error for path ${path}:`, error);
+    logger.error(`[AUTH_ERROR] Path: ${path}`, error.message);
 
     if (error.name === "JsonWebTokenError") {
-      logger.error(`JWT verification failed: ${error.message}`);
+      logger.warn(`[AUTH_FAIL] Invalid Token. Path: ${path}, Error: ${error.message}`);
       return res.status(401).json({
         success: false,
         message: "Invalid token. Please log in again.",
+        code: "INVALID_TOKEN"
       });
     }
 
     if (error.name === "TokenExpiredError") {
+      logger.warn(`[AUTH_FAIL] Token Expired. Path: ${path}`);
       return res.status(401).json({
         success: false,
         message: "Token expired. Please log in again.",
+        code: "TOKEN_EXPIRED"
       });
     }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService } from '../services/api';
+import { getUsageSummary } from '../services/subscriptionService';
 import { computeCostAwareEstimates, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory, formatNumberTR, type UsageSummary } from '../utils/usageEstimates';
 import { useLanguage } from '../contexts/LanguageContext';
 import { COLORS } from '../theme/colors';
@@ -20,7 +20,7 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
     (async () => {
       try {
         setLoading(true);
-        const res: any = await apiService.getUsageSummary();
+        const res: any = await getUsageSummary();
         if (mounted && res?.success) {
           setSummary(res.data || null);
         }

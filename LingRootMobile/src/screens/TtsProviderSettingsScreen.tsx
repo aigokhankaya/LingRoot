@@ -12,7 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
-import { apiService } from '../services/api';
+import { getTtsProvider, updateTtsProvider } from '../services/ttsService';
 import { COLORS } from '../theme/colors';
 
 interface TtsProvider {
@@ -34,7 +34,7 @@ const TtsProviderSettingsScreen: React.FC = () => {
     {
       id: 'google',
       name: 'Google Cloud TTS',
-      description: language === 'tr' 
+      description: language === 'tr'
         ? 'Yüksek kaliteli doğal sesler ve SSML desteği'
         : 'High-quality natural voices with SSML support',
       icon: 'cloud',
@@ -73,7 +73,7 @@ const TtsProviderSettingsScreen: React.FC = () => {
   const fetchCurrentProvider = async () => {
     try {
       setIsLoading(true);
-      const response = await apiService.getTtsProvider();
+      const response = await getTtsProvider();
       if (response?.value) {
         setSelectedProvider(response.value);
       }
@@ -81,7 +81,7 @@ const TtsProviderSettingsScreen: React.FC = () => {
       console.error('Failed to fetch TTS provider:', error);
       Alert.alert(
         language === 'tr' ? 'Hata' : 'Error',
-        language === 'tr' 
+        language === 'tr'
           ? 'TTS sağlayıcı bilgisi alınamadı'
           : 'Failed to fetch TTS provider'
       );
@@ -93,7 +93,7 @@ const TtsProviderSettingsScreen: React.FC = () => {
   const handleSaveProvider = async (providerId: string) => {
     try {
       setIsSaving(true);
-      await apiService.updateTtsProvider(providerId);
+      await updateTtsProvider(providerId);
       setSelectedProvider(providerId);
       Alert.alert(
         language === 'tr' ? 'Başarılı' : 'Success',

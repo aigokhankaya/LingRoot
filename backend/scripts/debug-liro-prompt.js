@@ -3,8 +3,8 @@
  * Generates the full personalized system prompt for a user to verify smart suggestion injection
  */
 require('dotenv').config();
-const userProfileAnalyzer = require('../utils/userProfileAnalyzer');
-const liroPromptGenerator = require('../utils/liroPromptGenerator');
+const userProfileAnalyzer = require('../utils/ai/userProfileAnalyzer.js');
+const liroPromptGenerator = require('../utils/ai/liroPromptGenerator.js');
 
 async function main() {
     const userId = '153fe018-0124-43e4-b2e8-dca91f1eb9d4'; // egokhankaya

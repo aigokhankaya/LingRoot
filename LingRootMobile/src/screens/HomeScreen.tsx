@@ -15,7 +15,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService, getMyPlanFeatures, PlanFeatures } from '../services/api';
+import { getUserAudioCount, getUserAudioHistory } from '../services/contentService';
+import { getMyPlanFeatures, PlanFeatures } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 import { AudioTrack } from '../types';
 import AudioPlayer from '../components/AudioPlayer';
@@ -159,27 +160,22 @@ const HomeScreen: React.FC = () => {
       return;
     }
     try {
-      const [countOrNull, response] = await Promise.all([
-        apiService.getUserAudioCount(user.id),
-        apiService.getUserAudioHistory(user.id),
+      const [countResult, response] = await Promise.all([
+        getUserAudioCount(user.id),
+        getUserAudioHistory(user.id),
       ]);
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
-        let finalCount = (typeof countOrNull === 'number' && countOrNull >= 0)
-          ? countOrNull
-          : ((response as any).total_count ?? audioTracks.length);
-        if (typeof (response as any).total_count !== 'number' && finalCount === 50) {
-          try {
-            const full = await apiService.getFullContentHistory();
-            if (full?.success && Array.isArray(full.data)) {
-              finalCount = full.data.length;
-            }
-          } catch { }
-        }
-        const apiTotal = typeof (response as any).total_duration_seconds === 'number' ? (response as any).total_duration_seconds : null;
-        const pageSum = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
-        const totalDuration = apiTotal != null ? apiTotal : pageSum;
-        setStats({ audioCount: finalCount, totalDuration: Math.round(totalDuration / 60), loading: false });
+        // Use count and duration from count endpoint
+        const finalCount = countResult.count || audioTracks.length;
+        const totalDurationSeconds = countResult.totalDurationSeconds || 0;
+
+        // Convert to minutes
+        setStats({
+          audioCount: finalCount,
+          totalDuration: Math.round(totalDurationSeconds / 60),
+          loading: false
+        });
 
         // Set recent tracks for Jump Back In (last 5)
         setRecentTracks(audioTracks.slice(0, 5));
@@ -607,7 +603,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 70,
     paddingBottom: 100,
   },
 

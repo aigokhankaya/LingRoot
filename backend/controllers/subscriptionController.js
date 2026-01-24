@@ -1,10 +1,10 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 require("dotenv").config();
-const logger = require("../utils/logger"); // Import logger
-const { supabase } = require("../utils/supabaseClient");
-// const { logStep } = require('../utils/stepLogger');
+const logger = require('../utils/common/logger.js'); // Import logger
+const { supabase } = require('../utils/storage/supabaseClient.js');
+// const { logStep } = require('../utils/common/stepLogger.js');
 const { v4: uuidv4 } = require('uuid');
-const { checkLimits } = require('../utils/usageLimiter');
+const { checkLimits } = require('../utils/infra/usageLimiter.js');
 
 // Supabase client is provided by utils/supabaseClient (guarded init)
 

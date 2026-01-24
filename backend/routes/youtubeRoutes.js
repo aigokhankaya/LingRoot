@@ -2,8 +2,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { fetchYoutubeTranscript } = require('../utils/youtubeTranscriptService');
-const logger = require('../utils/logger');
+const { fetchYoutubeTranscript } = require('../utils/content/youtubeTranscriptService.js');
+const logger = require('../utils/common/logger.js');
 
 /**
  * POST /api/youtube-transcript
@@ -69,7 +69,7 @@ router.post('/youtube-transcript', async (req, res) => {
  */
 router.get('/youtube-transcript/health', async (req, res) => {
   try {
-    const { checkTranscriptServiceHealth } = require('../utils/youtubeTranscriptService');
+    const { checkTranscriptServiceHealth } = require('../utils/content/youtubeTranscriptService.js');
     const isHealthy = await checkTranscriptServiceHealth();
     
     if (isHealthy) {

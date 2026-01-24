@@ -13,9 +13,13 @@ Topic generation prompts handle the creation of personalized learning content ba
 |------|---------|
 | `topic_extractor.txt` | Extract learning topics from conversations |
 | `topic_detail_suggestions.txt` | Generate detailed topic suggestions |
-| `topic_hierarchy/topic_generation.txt` | Create topic tree structure |
+| `topic_hierarchy/generate_subtopics.txt` | Generate subtopics with anti-repetition rules |
+| `templates/topic/suggestions.hbs` | **Context-aware subtopic suggestions (EXAMPLES vs CATEGORIES)** |
 | `liro_daily_suggestions.txt` | Daily personalized topic recommendations |
 | `hobby_200_suggestions.txt` | Hobby-based topic suggestions |
+| `content/content_generation_A1.txt` | A1 level content with quality rules |
+| `content/content_generation_A2.txt` | A2 level content with anti-repetition |
+| `cefr_A1.txt` | CEFR A1 adaptation with pronoun rules |
 
 ## Topic Hierarchy System
 
@@ -48,6 +52,92 @@ Daily Life
 ```
 
 ## Prompt Details
+
+### templates/topic/suggestions.hbs (Context-Aware Suggestions)
+
+**Updated:** January 2026
+
+This prompt uses **context-aware mode detection** to generate either specific examples or thematic categories based on the topic title.
+
+#### Detection Logic
+
+The prompt analyzes keywords in the topic title to determine the generation mode:
+
+**EXAMPLES MODE** triggers when topic contains:
+- Turkish: "Popüler", "En İyi", "En Ünlü", "Örnekler", "Liste", "Ülkeler", "Şehirler", "İnsanlar", "Kitaplar"
+- English: "Popular", "Best", "Top", "Examples", "List", "Countries", "Cities", "People", "Books"
+
+**CATEGORY MODE** triggers when topic contains:
+- Turkish: "Süreç", "Yaklaşım", "Yöntem", "Stratejiler", "Faktörler"
+- English: "Process", "Approaches", "Methods", "Strategies", "Factors"
+
+#### Mode Behaviors
+
+**MODE 1 - EXAMPLES:**
+Generates 5 **specific named instances** (concrete items):
+```
+Input: "Taşınmak İçin Popüler Ülkeler"
+Output: 
+1. Kanada, yüksek yaşam kalitesi ve kolay göç politikası sunar.
+2. Almanya, güçlü ekonomisi ve iş fırsatları ile öne çıkar.
+3. Hollanda, İngilizce konuşulan şehirleri ve liberal kültürü ile bilinir.
+4. İsveç, sosyal güvenlik sistemi ve eğitim kalitesi ile tercih edilir.
+5. Portekiz, düşük yaşam maliyeti ve sıcak iklimi ile caziptir.
+```
+
+**MODE 2 - CATEGORIES:**
+Generates 5 **thematic subtopics** (abstract concepts):
+```
+Input: "Yurtdışına Taşınma Süreçleri"
+Output:
+1. Vize İşlemleri ve Başvuru Aşamaları, gerekli belgeler ve süreç adımları.
+2. İkamet İzni Alma Koşulları, farklı ülkelerdeki izin türleri.
+3. İş Bulma ve Kariyer Planlaması, yabancı ülkelerde iş arama stratejileri.
+4. Dil Sınavları ve Yeterlilik Belgeleri, gerekli dil seviyesi testleri.
+5. Konut Arama ve Kira Sözleşmeleri, yerleşim için gerekli adımlar.
+```
+
+#### Prompt Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `topic` | string | User's input topic |
+| `input_language` | string | Language code (tr, en) |
+
+#### Output Format
+
+```
+1. Title, explanation.
+2. Title, explanation.
+3. Title, explanation.
+4. Title, explanation.
+5. Title, explanation.
+```
+
+#### Quality Constraints
+
+- Titles: 3-6 words
+- No consecutive titles starting with the same word
+- No markdown formatting
+- Strictly relevant to main topic
+- No fictional content
+
+#### Usage Example
+
+```javascript
+const Handlebars = require('handlebars');
+const template = Handlebars.compile(fs.readFileSync('prompts/templates/topic/suggestions.hbs', 'utf-8'));
+
+const prompt = template({
+  topic: "Taşınmak İçin Popüler Ülkeler",
+  input_language: "tr"
+});
+
+const response = await openai.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: prompt }]
+});
+```
 
 ### topic_extractor.txt
 
@@ -332,6 +422,70 @@ async function findSimilarTopics(userProfile, limit = 5) {
 | B2 | 250-400 | 25-35 |
 | C1 | 400-600 | 35-50 |
 | C2 | 600+ | 50+ |
+
+## Content Quality Validation
+
+**Last Updated:** January 2026  
+**Location:** `/backend/utils/`
+
+### Overview
+
+Content quality is enforced at two levels:
+1. **Prompt-level:** Anti-repetition rules embedded in prompts
+2. **Code-level:** Post-generation validation utilities
+
+### Quality Validator (`contentQualityValidator.js`)
+
+Validates generated content for common quality issues:
+
+| Check | Severity | Threshold |
+|-------|----------|-----------|
+| Consecutive same-starter | HIGH | Max 2 sentences |
+| Forbidden patterns | MEDIUM | Max 1 occurrence |
+| Filler ratio | MEDIUM | Max 15% |
+
+```javascript
+const { validateContent } = require('../utils/contentQualityValidator');
+
+const result = validateContent(generatedText);
+// { valid: boolean, score: 0-100, issues: [...] }
+```
+
+**Forbidden Patterns:**
+- "It is good" / "It is important" / "It is nice"
+- "People like it" / "People are happy"
+- "This is good for..." / "Everyone can..."
+
+### Cross-Topic Duplicate Checker (`crossTopicDuplicateChecker.js`)
+
+Detects content overlap between sibling subtopics:
+
+```javascript
+const { checkCrossTopicDuplicates } = require('../utils/crossTopicDuplicateChecker');
+
+const result = await checkCrossTopicDuplicates(supabase, topicId, parentId, contentText);
+// { hasDuplicates: boolean, duplicates: [...], entities: [...] }
+```
+
+**Detected Entities:**
+- Hagia Sophia, Topkapi Palace, Blue Mosque, Galata Tower
+- Grand Bazaar, Bosphorus
+- Proper nouns (2+ word capitalized phrases)
+
+### Pipeline Integration
+
+Quality validation runs automatically in `topicPipelineController.js`:
+
+```javascript
+// After bilingual content generation
+const qualityValidation = validateContent(result.adapted_text);
+result.qualityScore = qualityValidation.score;
+result.qualityIssues = qualityValidation.issues;
+
+if (!qualityValidation.valid) {
+  logger.warn('Content quality validation failed', qualityValidation.issues);
+}
+```
 
 ## Related Documentation
 

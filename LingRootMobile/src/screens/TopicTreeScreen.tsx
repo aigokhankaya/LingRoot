@@ -3,12 +3,21 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService } from '../services/api';
-import { Topic, AudioTrack, Timepoint, CEFRLevel } from '../types';
+import {
+  getTopicTree,
+  createMainTopic,
+  deleteTopicAndChildren,
+  generateSubtopics,
+  addManualSubtopic,
+  generateTopicNarrationFromSubject,
+  Topic
+} from '../services/topicService';
+import { AudioTrack, Timepoint, CEFRLevel } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import AudioPlayer from '../components/AudioPlayer';
 import CustomAlert, { CustomAlertButton } from '../components/CustomAlert';
 import { COLORS } from '../theme/colors';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const TopicTreeScreen: React.FC = () => {
   const { language } = useLanguage();
@@ -68,7 +77,7 @@ const TopicTreeScreen: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await apiService.getTopicTree();
+      const res = await getTopicTree();
       if (res.success && res.data) {
         setTopics(res.data.topics || []);
       }
@@ -79,7 +88,10 @@ const TopicTreeScreen: React.FC = () => {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadTopics(); }, [loadTopics]));
+  useFocusEffect(useCallback(() => {
+    loadTopics();
+    AnalyticsHelper.logScreenView('TopicTree', 'TopicTreeScreen');
+  }, [loadTopics]));
 
   // --- Helpers ---
   const getTopicAtPath = (path: string[]): Topic | null => {
@@ -126,7 +138,7 @@ const TopicTreeScreen: React.FC = () => {
     if (!mainTitle.trim() || isCreatingMain) return;
     try {
       setIsCreatingMain(true);
-      await apiService.createMainTopic({ title: mainTitle.trim(), level: selectedLevel });
+      await createMainTopic({ title: mainTitle.trim(), level: selectedLevel });
       setMainTitle('');
       await loadTopics();
     } catch (e: any) {
@@ -154,7 +166,7 @@ const TopicTreeScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await apiService.deleteTopicAndChildren(activeTopic.id);
+              await deleteTopicAndChildren(activeTopic.id);
               setActivePath(prev => prev.slice(0, prev.indexOf(activeTopic.id)));
               await loadTopics();
             } catch (e: any) {
@@ -178,7 +190,7 @@ const TopicTreeScreen: React.FC = () => {
     if (!aiModalTopic || aiModalLoading) return;
     try {
       setAiModalLoading(true);
-      await apiService.generateSubtopics(aiModalTopic.id, { count: aiCount, language: language === 'tr' ? 'Turkish' : 'English' });
+      await generateSubtopics(aiModalTopic.id, { count: aiCount, language: language === 'tr' ? 'Turkish' : 'English' });
       await loadTopics();
       setAiModalVisible(false);
     } catch (e: any) {
@@ -192,7 +204,7 @@ const TopicTreeScreen: React.FC = () => {
     if (!manualModalTopic || !manualTitle.trim() || manualModalLoading) return;
     try {
       setManualModalLoading(true);
-      await apiService.addManualSubtopic(manualModalTopic.id, { title: manualTitle.trim() });
+      await addManualSubtopic(manualModalTopic.id, { title: manualTitle.trim() });
       await loadTopics();
       setManualTitle('');
       setManualModalVisible(false);
@@ -323,7 +335,7 @@ const TopicTreeScreen: React.FC = () => {
                   setIsGeneratingNarration(true);
                   try {
                     // First generate the narration text from subject
-                    const res = await apiService.generateTopicNarrationFromSubject(topicSubject, lvl);
+                    const res = await generateTopicNarrationFromSubject(topicSubject, lvl);
                     const data = (res as any)?.data || res;
 
                     // Get the Turkish text to put in the input field
@@ -478,7 +490,7 @@ const TopicTreeScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 100 },
+  scrollContent: { paddingTop: 70, paddingHorizontal: 20, paddingBottom: 100 },
 
   // Card
   card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },

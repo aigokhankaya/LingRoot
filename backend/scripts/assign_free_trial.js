@@ -2,7 +2,7 @@
 // Usage: node backend/scripts/assign_free_trial.js mobile.androdi.tr@gmail.com
 
 require('dotenv').config();
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function assignFreeTrial(email) {
   try {

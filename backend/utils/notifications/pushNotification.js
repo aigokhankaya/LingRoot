@@ -1,0 +1,205 @@
+// Push notification utility for sending notifications to mobile devices
+const logger = require('../common/logger.js');
+const { supabase } = require('../storage/supabaseClient.js');
+const { getMessaging } = require('./firebaseAdmin.js');
+
+/**
+ * Send push notification to user's device
+ * @param {string} userId - User ID
+ * @param {object} notification - Notification data
+ * @param {string} notification.title - Notification title
+ * @param {string} notification.body - Notification body
+ * @param {object} notification.data - Additional data
+ */
+async function sendPushNotification(userId, notification) {
+  try {
+    logger.info(`[PushNotification] Sending notification to user ${userId}:`, notification);
+
+    // Store notification in database for the user to retrieve
+    // Mobile app will poll for notifications or use real-time subscriptions
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title: notification.title,
+        body: notification.body,
+        data: notification.data || {},
+        type: notification.type || 'audio_created',
+        is_read: false,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      logger.error(`[PushNotification] Error storing notification:`, error);
+      return { success: false, error };
+    }
+
+    logger.info(`[PushNotification] Notification stored successfully:`, data);
+
+    // Send real-time push via FCM to all active device tokens for this user
+    try {
+      const messaging = getMessaging();
+      if (!messaging) {
+        logger.warn('[PushNotification] Firebase messaging not available; skipping FCM send');
+        return { success: true, data };
+      }
+
+      const { data: tokens, error: tokensError } = await supabase
+        .from('device_tokens')
+        .select('id, platform, token, is_active')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      if (tokensError) {
+        logger.error('[PushNotification] Error fetching device tokens for FCM:', tokensError);
+        return { success: true, data };
+      }
+
+      const registrationTokens = (tokens || [])
+        .map((t) => t && t.token)
+        .filter((t) => typeof t === 'string' && t.trim().length > 0);
+
+      if (!registrationTokens.length) {
+        logger.info('[PushNotification] No active device tokens found for user; skipping FCM send');
+        return { success: true, data };
+      }
+
+      const dataPayload = {
+        type: notification.type || 'general',
+      };
+
+      if (notification.data) {
+        if (notification.type === 'audio_created' || notification.type === 'audio_failed') {
+          // FCM data payload 4KB limitine takılmamak için sadece özet alanları gönder
+          const {
+            jobId,
+            audioId,
+            mp3_url,
+            title,
+            level,
+            duration,
+          } = notification.data || {};
+
+          dataPayload.audioData = JSON.stringify({
+            jobId,
+            audioId,
+            mp3_url,
+            title,
+            level,
+            duration,
+          });
+        } else {
+          // Diğer tipler için de payload'ı küçük tutmaya çalış
+          dataPayload.payload = JSON.stringify(notification.data);
+        }
+      }
+
+      const message = {
+        tokens: registrationTokens,
+        notification: {
+          title: notification.title,
+          body: notification.body,
+        },
+        data: dataPayload,
+      };
+
+      const fcmResult = await messaging.sendEachForMulticast(message);
+      logger.info('[PushNotification] FCM send result: ' + JSON.stringify({
+        successCount: fcmResult.successCount,
+        failureCount: fcmResult.failureCount,
+      }));
+      try {
+        logger.info('[PushNotification] FCM raw result: ' + JSON.stringify(fcmResult));
+      } catch (jsonErr) {
+        logger.warn('[PushNotification] Failed to stringify FCM result:', jsonErr);
+      }
+
+      if (fcmResult.failureCount > 0 && Array.isArray(fcmResult.responses)) {
+        const failures = fcmResult.responses
+          .map((resp, index) => {
+            if (!resp.error) return null;
+            return {
+              index,
+              token: registrationTokens[index],
+              code: resp.error.code,
+              message: resp.error.message,
+            };
+          })
+          .filter(Boolean);
+
+        if (failures.length > 0) {
+          try {
+            logger.warn('[PushNotification] FCM send failures (detailed): ' + JSON.stringify(failures));
+          } catch (jsonErr) {
+            logger.warn('[PushNotification] FCM send failures (raw object):', failures);
+          }
+        }
+      }
+    } catch (fcmError) {
+      logger.error('[PushNotification] Error sending FCM notification:', fcmError);
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    logger.error(`[PushNotification] Error sending notification:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get unread notifications for a user
+ * @param {string} userId - User ID
+ */
+async function getUnreadNotifications(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_read', false)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      logger.error(`[PushNotification] Error fetching notifications:`, error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    logger.error(`[PushNotification] Error fetching notifications:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Mark notification as read
+ * @param {string} notificationId - Notification ID
+ */
+async function markNotificationAsRead(notificationId) {
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+      .select()
+      .single();
+
+    if (error) {
+      logger.error(`[PushNotification] Error marking notification as read:`, error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    logger.error(`[PushNotification] Error marking notification as read:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+module.exports = {
+  sendPushNotification,
+  getUnreadNotifications,
+  markNotificationAsRead
+};

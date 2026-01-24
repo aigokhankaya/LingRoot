@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { apiService } from '../services/api';
+import { getMe, getAccountDeletionInfo, deleteAccount } from '../services/userService';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../theme/colors';
+import { useCustomAlert } from '../contexts/AlertContext';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
@@ -36,6 +37,7 @@ const formatTRPhone = (value: string) => {
 const AccountSettingsScreen: React.FC = () => {
   const { user, updateUserProfile, signOut } = useAuth();
   const { t, language } = useLanguage();
+  const { showAlert } = useCustomAlert();
 
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [email] = useState(user?.email || '');
@@ -43,12 +45,17 @@ const AccountSettingsScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Delete Account Modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteEmailInput, setDeleteEmailInput] = useState('');
+  const [deletionInfo, setDeletionInfo] = useState<any>(null);
+
   // Load current phone from backend and prefill
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const me = await apiService.getMe();
+        const me = await getMe();
         const backendPhone: string | undefined = me?.phonenumber || me?.phoneNumber || me?.phone;
         if (mounted && backendPhone) {
           setPhone(formatTRPhone(backendPhone));
@@ -104,65 +111,96 @@ const AccountSettingsScreen: React.FC = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
+  // Open Delete Account Modal
+  const openDeleteModal = async () => {
     try {
-      // First, get account deletion info
-      const info = await apiService.getAccountDeletionInfo();
-
-      const warningMessage = language === 'tr'
-        ? `Bu işlem geri alınamaz!\n\nSilinecek veriler:\n• ${info.data?.contentCount || 0} içerik\n• ${info.data?.vocabularyCount || 0} kelime\n${info.data?.hasActiveSubscription ? '• Aktif abonelik\n' : ''}\nDevam etmek istediğinizden emin misiniz?`
-        : `This action cannot be undone!\n\nData to be deleted:\n• ${info.data?.contentCount || 0} content items\n• ${info.data?.vocabularyCount || 0} vocabulary words\n${info.data?.hasActiveSubscription ? '• Active subscription\n' : ''}\nAre you sure you want to continue?`;
-
-      Alert.alert(
-        language === 'tr' ? '⚠️ Hesabı Sil' : '⚠️ Delete Account',
-        warningMessage,
-        [
-          {
-            text: language === 'tr' ? 'İptal' : 'Cancel',
-            style: 'cancel'
-          },
-          {
-            text: language === 'tr' ? 'Evet, Sil' : 'Yes, Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                setIsDeleting(true);
-                await apiService.deleteAccount();
-
-                Alert.alert(
-                  language === 'tr' ? 'Başarılı' : 'Success',
-                  language === 'tr'
-                    ? 'Hesabınız başarıyla silindi.'
-                    : 'Your account has been successfully deleted.',
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => signOut()
-                    }
-                  ]
-                );
-              } catch (error: any) {
-                Alert.alert(
-                  language === 'tr' ? 'Hata' : 'Error',
-                  error.message || (language === 'tr'
-                    ? 'Hesap silme işlemi başarısız oldu.'
-                    : 'Account deletion failed.')
-                );
-              } finally {
-                setIsDeleting(false);
-              }
-            }
-          }
-        ]
-      );
+      const info = await getAccountDeletionInfo();
+      setDeletionInfo(info.data);
+      setDeleteEmailInput('');
+      setShowDeleteModal(true);
     } catch (error: any) {
-      Alert.alert(
+      showAlert(
         language === 'tr' ? 'Hata' : 'Error',
         error.message || (language === 'tr'
           ? 'Hesap bilgileri alınamadı.'
-          : 'Failed to get account information.')
+          : 'Failed to get account information.'),
+        [{ text: 'OK', style: 'default' }],
+        'error-outline',
+        '#EF4444'
       );
     }
+  };
+
+  // Handle permanent deletion after email confirmation
+  const handlePermanentDelete = () => {
+    // Check if email matches
+    if (deleteEmailInput.trim().toLowerCase() !== email.toLowerCase()) {
+      showAlert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr'
+          ? 'Girdiğiniz e-posta adresi hesabınızla eşleşmiyor.'
+          : 'The email address you entered does not match your account.',
+        [{ text: 'OK', style: 'default' }],
+        'error-outline',
+        '#EF4444'
+      );
+      return;
+    }
+
+    // Show final confirmation
+    const warningMessage = language === 'tr'
+      ? `Bu işlem geri alınamaz!\n\nSilinecek veriler:\n• ${deletionInfo?.contentCount || 0} içerik\n• ${deletionInfo?.vocabularyCount || 0} kelime\n${deletionInfo?.hasActiveSubscription ? '• Aktif abonelik\n' : ''}\nDevam etmek istediğinizden emin misiniz?`
+      : `This action cannot be undone!\n\nData to be deleted:\n• ${deletionInfo?.contentCount || 0} content items\n• ${deletionInfo?.vocabularyCount || 0} vocabulary words\n${deletionInfo?.hasActiveSubscription ? '• Active subscription\n' : ''}\nAre you sure you want to continue?`;
+
+    Alert.alert(
+      language === 'tr' ? '⚠️ Son Onay' : '⚠️ Final Confirmation',
+      warningMessage,
+      [
+        {
+          text: language === 'tr' ? 'İptal' : 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: language === 'tr' ? 'Evet, Sil' : 'Yes, Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              setShowDeleteModal(false);
+              await deleteAccount();
+
+              showAlert(
+                language === 'tr' ? 'Başarılı' : 'Success',
+                language === 'tr'
+                  ? 'Hesabınız başarıyla silindi.'
+                  : 'Your account has been successfully deleted.',
+                [
+                  {
+                    text: 'OK',
+                    style: 'default',
+                    onPress: () => signOut()
+                  }
+                ],
+                'check-circle',
+                COLORS.primary
+              );
+            } catch (error: any) {
+              showAlert(
+                language === 'tr' ? 'Hata' : 'Error',
+                error.message || (language === 'tr'
+                  ? 'Hesap silme işlemi başarısız oldu.'
+                  : 'Account deletion failed.'),
+                [{ text: 'OK', style: 'default' }],
+                'error-outline',
+                '#EF4444'
+              );
+            } finally {
+              setIsDeleting(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -212,7 +250,7 @@ const AccountSettingsScreen: React.FC = () => {
           </Text>
           <TouchableOpacity
             style={[styles.deleteButton, isDeleting && styles.buttonDisabled]}
-            onPress={handleDeleteAccount}
+            onPress={openDeleteModal}
             disabled={isDeleting}
           >
             {isDeleting ? (
@@ -221,13 +259,71 @@ const AccountSettingsScreen: React.FC = () => {
               <>
                 <Icon name="delete-forever" size={20} color="#FFF" />
                 <Text style={styles.deleteButtonText}>
-                  {language === 'tr' ? 'Hesabı Kalıcı Olarak Sil' : 'Permanently Delete Account'}
+                  {language === 'tr' ? 'Kullanıcı Verilerinin Silinmesini Talep Et' : 'Request to delete user data'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Modal Header */}
+            <Text style={styles.modalTitle}>
+              {language === 'tr' ? 'Hesabı Sil' : 'Delete Account'}
+            </Text>
+            <Text style={styles.modalDescription}>
+              {language === 'tr'
+                ? 'Hesap silme işlemini onaylamak için lütfen e-posta adresinizi girin.'
+                : 'Please enter your email address to confirm account deletion.'}
+            </Text>
+
+            {/* Email Input */}
+            <TextInput
+              style={styles.modalInput}
+              value={deleteEmailInput}
+              onChangeText={setDeleteEmailInput}
+              placeholder={language === 'tr' ? 'E-posta adresinizi girin' : 'Enter your email'}
+              placeholderTextColor={COLORS.slate400}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            {/* Permanently Delete Button */}
+            <TouchableOpacity
+              style={[
+                styles.modalDeleteButton,
+                !deleteEmailInput.trim() && styles.modalDeleteButtonDisabled
+              ]}
+              onPress={handlePermanentDelete}
+              disabled={!deleteEmailInput.trim()}
+            >
+              <Text style={styles.modalDeleteButtonText}>
+                {language === 'tr' ? 'Hesabı kalıcı olarak sil' : 'Permanently delete account'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Cancel Link */}
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowDeleteModal(false)}
+            >
+              <Text style={styles.modalCancelText}>
+                {language === 'tr' ? 'İptal' : 'Cancel'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -354,6 +450,74 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginLeft: 8,
   },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 28,
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.slate800,
+    marginBottom: 12,
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: COLORS.slate500,
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalInput: {
+    backgroundColor: COLORS.slate50,
+    borderRadius: 16,
+    padding: 16,
+    paddingHorizontal: 20,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: COLORS.slate200,
+    color: COLORS.slate700,
+    marginBottom: 16,
+  },
+  modalDeleteButton: {
+    backgroundColor: COLORS.brandTeal,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalDeleteButtonDisabled: {
+    backgroundColor: COLORS.slate300,
+  },
+  modalDeleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalCancelButton: {
+    alignItems: 'center',
+    padding: 12,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.brandTeal,
+  },
 });
 
 export default AccountSettingsScreen;
+

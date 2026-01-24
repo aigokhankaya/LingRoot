@@ -4,7 +4,7 @@
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function checkSchema() {
     console.log('🔍 Checking database schema for voice settings (v2)...');

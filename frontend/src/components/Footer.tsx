@@ -120,6 +120,14 @@ export default function Footer() {
                   KVKK
                 </Link>
               </li>
+              <li>
+                <button
+                  onClick={() => window.dispatchEvent(new Event('open-cookie-settings'))}
+                  className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer text-left"
+                >
+                  {t('cookie_settings') || 'Çerez Ayarları'}
+                </button>
+              </li>
             </ul>
           </div>
 

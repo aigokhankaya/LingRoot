@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { lookupVocabularyWord, addWordWithTranslation } from '@/lib/api';
 
 interface Timepoint {
   timeSeconds: number;
@@ -39,6 +40,21 @@ export default function PaginatedBookReader({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showTranslation, setShowTranslation] = useState(false);
   const [fontSize, setFontSize] = useState(18);
+
+  // Word popup state for vocabulary features
+  const [wordPopup, setWordPopup] = useState<{
+    mode: 'info' | 'confirm';
+    word: string;
+    data?: {
+      original_word?: string;
+      word?: string;
+      definition?: string;
+      example_sentence?: string;
+      example_sentence_turkish?: string;
+      level?: string;
+    } | null;
+  } | null>(null);
+  const [isAddingWord, setIsAddingWord] = useState(false);
 
   // Parse text into words
   const allWords = useMemo(() => {
@@ -93,7 +109,7 @@ export default function PaginatedBookReader({
 
     if (wordIndex >= 0 && wordIndex !== activeWordIndex) {
       setActiveWordIndex(wordIndex);
-      
+
       // Auto-navigate to the page containing this word
       const targetPage = getPageForWordIndex(wordIndex);
       if (targetPage !== currentPage) {
@@ -166,7 +182,7 @@ export default function PaginatedBookReader({
   const goToPage = (pageIndex: number) => {
     if (pageIndex >= 0 && pageIndex < totalPages) {
       setCurrentPage(pageIndex);
-      
+
       // If we have timepoints, seek audio to the start of this page
       if (timepoints.length > 0) {
         const { start } = getWordRangeForPage(pageIndex);
@@ -187,11 +203,122 @@ export default function PaginatedBookReader({
   // Get Turkish text for current page (approximate by sentence count)
   const getTurkishForPage = (pageIndex: number) => {
     if (!translatedText || turkishSentences.length === 0) return '';
-    
+
     const sentencesPerPage = Math.ceil(turkishSentences.length / totalPages);
     const start = pageIndex * sentencesPerPage;
     const end = Math.min(start + sentencesPerPage, turkishSentences.length);
     return turkishSentences.slice(start, end).join(' ');
+  };
+
+  // Handle word click (tıklama veya sağ tıklama)
+  const handleWordClick = async (rawWord: string) => {
+    const cleanWord = (rawWord || '').replace(/[.,!?;:]/g, '').trim();
+    if (!cleanWord) return;
+
+    console.log('📚 [BOOK WORD CLICK] Word:', cleanWord);
+
+    let result: any = null;
+    try {
+      result = await lookupVocabularyWord(cleanWord);
+    } catch (err) {
+      console.error('Error during vocabulary lookup (PaginatedBookReader):', err);
+    }
+
+    // Eğer kelime zaten kullanıcının listesinde varsa bilgi popup'ı göster
+    if (result && result.found && result.data && result.hasUserWord) {
+      const w = result.data;
+      setWordPopup({
+        mode: 'info',
+        word: cleanWord,
+        data: {
+          original_word: w.original_word,
+          word: w.word,
+          definition: w.definition,
+          example_sentence: w.example_sentence,
+          example_sentence_turkish: w.example_sentence_turkish,
+          level: w.level,
+        },
+      });
+      return;
+    }
+
+    // Kelime listede yoksa ekleme onay popup'ı göster
+    setWordPopup({
+      mode: 'confirm',
+      word: cleanWord,
+      data: result?.data || null,
+    });
+  };
+
+  // Add word to vocabulary from popup
+  const handleAddWordFromPopup = async () => {
+    if (!wordPopup?.word || isAddingWord) return;
+
+    setIsAddingWord(true);
+    try {
+      const cleanWord = wordPopup.word;
+      let context = '';
+      let originalSentence = '';
+
+      if (adaptedText) {
+        const lower = adaptedText.toLowerCase();
+        const pos = lower.indexOf(cleanWord.toLowerCase());
+        if (pos >= 0) {
+          const start = Math.max(0, pos - 50);
+          const end = Math.min(adaptedText.length, pos + 50);
+          context = adaptedText.substring(start, end).trim();
+        }
+
+        const sentences = adaptedText
+          .split(/[.!?;]+/)
+          .map(s => s.trim())
+          .filter(s => s.length > 5);
+        originalSentence =
+          sentences.find(s => s.toLowerCase().includes(cleanWord.toLowerCase())) || context;
+      }
+
+      if (!context) {
+        context = `The word "${cleanWord}" appears in an English text.`;
+      }
+
+      const result = await addWordWithTranslation(cleanWord, context, '', originalSentence);
+
+      if (result.isExisting) {
+        // Zaten var, bilgi popup'ına dönüştür
+        setWordPopup({
+          mode: 'info',
+          word: cleanWord,
+          data: {
+            original_word: result.data?.original_word || result.data?.word,
+            word: result.data?.word,
+            definition: result.data?.definition || 'Belirtilmemiş',
+            example_sentence: result.data?.example_sentence || 'Belirtilmemiş',
+            example_sentence_turkish: result.data?.example_sentence_turkish,
+            level: result.data?.level,
+          },
+        });
+      } else {
+        // Başarıyla eklendi, bilgi popup'ı göster
+        setWordPopup({
+          mode: 'info',
+          word: cleanWord,
+          data: {
+            original_word: result.data?.original_word || result.data?.word,
+            word: result.data?.word,
+            definition: result.data?.definition,
+            example_sentence: result.data?.example_sentence,
+            example_sentence_turkish: result.data?.example_sentence_turkish,
+            level: result.data?.level,
+          },
+        });
+      }
+    } catch (error: any) {
+      console.error('Word add error:', error);
+      alert(`Kelime eklenirken hata oluştu: ${error?.message || 'Bilinmeyen hata'}`);
+      setWordPopup(null);
+    } finally {
+      setIsAddingWord(false);
+    }
   };
 
   const currentPageWords = pages[currentPage] || [];
@@ -207,10 +334,10 @@ export default function PaginatedBookReader({
 
       {/* E-Reader Container */}
       <div className="relative bg-gradient-to-b from-amber-50 to-orange-50 rounded-2xl shadow-2xl overflow-hidden border border-amber-200/50">
-        
+
         {/* Book Spine Effect (left edge) */}
         <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-amber-300/40 to-transparent z-10" />
-        
+
         {/* Top Bar - Minimal e-reader style */}
         <div className="flex items-center justify-between px-6 py-3 bg-gradient-to-b from-amber-100/80 to-transparent">
           <div className="flex items-center gap-3">
@@ -222,7 +349,7 @@ export default function PaginatedBookReader({
               Seviye {level}
             </span>
           </div>
-          
+
           <div className="flex items-center gap-4">
             {/* Font Size Controls */}
             <div className="flex items-center gap-1 bg-white/50 rounded-lg px-2 py-1">
@@ -240,15 +367,14 @@ export default function PaginatedBookReader({
                 A+
               </button>
             </div>
-            
+
             {/* Translation Toggle - Always clickable */}
             <button
               onClick={() => setShowTranslation(!showTranslation)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                showTranslation 
-                  ? 'bg-amber-600 text-white shadow-md' 
-                  : 'bg-white/60 text-amber-700 hover:bg-white/80'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showTranslation
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'bg-white/60 text-amber-700 hover:bg-white/80'
+                }`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
@@ -260,12 +386,12 @@ export default function PaginatedBookReader({
 
         {/* Book Pages Container */}
         <div className={`grid ${showTranslation ? 'grid-cols-2 divide-x divide-amber-200/50' : 'grid-cols-1'}`}>
-          
+
           {/* Left Page - English */}
           <div className="relative">
             {/* Page curl effect */}
             <div className="absolute top-0 right-0 w-8 h-8 bg-gradient-to-bl from-amber-200/30 to-transparent rounded-bl-2xl" />
-            
+
             <div className="px-10 py-8 min-h-[500px] flex flex-col">
               {/* Page Header */}
               <div className="flex items-center justify-between mb-6 pb-3 border-b border-amber-200/40">
@@ -276,30 +402,39 @@ export default function PaginatedBookReader({
                   {currentPage + 1} / {totalPages}
                 </span>
               </div>
-              
+
               {/* Text Content */}
-              <div 
+              <div
                 className="flex-1 text-stone-800 leading-[1.9] font-serif"
                 style={{ fontSize: `${fontSize}px`, wordBreak: 'break-word' }}
               >
                 {currentPageWords.map((word, idx) => {
                   const globalIndex = pageStartIndex + idx;
-                  const isCurrentWord = isPlaying && globalIndex === activeWordIndex;
+                  const isCurrentWord = globalIndex === activeWordIndex && activeWordIndex >= 0;
                   return (
                     <span
                       key={idx}
-                      className={`transition-all duration-200 ${
-                        isCurrentWord
-                          ? 'bg-amber-300 text-amber-900 px-1 py-0.5 rounded-sm shadow-sm font-medium'
-                          : 'hover:bg-amber-100/50 rounded-sm cursor-default'
-                      }`}
+                      className={`transition-all duration-200 cursor-pointer ${isCurrentWord
+                        ? 'bg-amber-300 text-amber-900 px-1 py-0.5 rounded-sm shadow-sm font-medium'
+                        : 'hover:bg-amber-200/70 rounded-sm'
+                        }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleWordClick(word);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleWordClick(word);
+                      }}
+                      title="Kelimeye tıklayarak bilgi alın veya ekleyin"
                     >
                       {word}{' '}
                     </span>
                   );
                 })}
               </div>
-              
+
               {/* Page Footer */}
               <div className="mt-6 pt-3 border-t border-amber-200/40 flex justify-center">
                 <span className="text-xs text-amber-400 italic">— {currentPage + 1} —</span>
@@ -312,7 +447,7 @@ export default function PaginatedBookReader({
             <div className="relative bg-gradient-to-b from-amber-50/50 to-orange-50/50">
               {/* Page curl effect */}
               <div className="absolute top-0 left-0 w-8 h-8 bg-gradient-to-br from-amber-200/30 to-transparent rounded-br-2xl" />
-              
+
               <div className="px-10 py-8 min-h-[500px] flex flex-col">
                 {/* Page Header */}
                 <div className="flex items-center justify-between mb-6 pb-3 border-b border-amber-200/40">
@@ -320,9 +455,9 @@ export default function PaginatedBookReader({
                     {translatedText ? 'TÜRKÇE' : 'ORIGINAL LANGUAGE'}
                   </span>
                 </div>
-                
+
                 {/* Text Content */}
-                <div 
+                <div
                   className="flex-1 text-stone-700 leading-[1.9] font-serif"
                   style={{ fontSize: `${fontSize}px`, wordBreak: 'break-word' }}
                 >
@@ -334,7 +469,7 @@ export default function PaginatedBookReader({
                     </div>
                   )}
                 </div>
-                
+
                 {/* Page Footer */}
                 <div className="mt-6 pt-3 border-t border-amber-200/40 flex justify-center">
                   <span className="text-xs text-amber-400 italic">— {currentPage + 1} —</span>
@@ -371,18 +506,17 @@ export default function PaginatedBookReader({
               } else {
                 pageNum = currentPage - 4 + i;
               }
-              
+
               const isActive = pageNum === currentPage;
-              
+
               return (
                 <button
                   key={i}
                   onClick={() => goToPage(pageNum)}
-                  className={`transition-all duration-200 ${
-                    isActive
-                      ? 'w-8 h-2 bg-amber-600 rounded-full'
-                      : 'w-2 h-2 bg-amber-300 rounded-full hover:bg-amber-400'
-                  }`}
+                  className={`transition-all duration-200 ${isActive
+                    ? 'w-8 h-2 bg-amber-600 rounded-full'
+                    : 'w-2 h-2 bg-amber-300 rounded-full hover:bg-amber-400'
+                    }`}
                   title={`Sayfa ${pageNum + 1}`}
                 />
               );
@@ -407,12 +541,12 @@ export default function PaginatedBookReader({
       <div className="mt-4 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         {/* Progress Bar - Thin line at top */}
         <div className="h-1 bg-gray-100 relative">
-          <div 
+          <div
             className="absolute left-0 top-0 h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-        
+
         <div className="px-6 py-4">
           {/* Time & Seek */}
           <div className="flex items-center gap-4 mb-4">
@@ -496,6 +630,75 @@ export default function PaginatedBookReader({
           </div>
         </div>
       </div>
+
+      {/* Word Popup Modal */}
+      {wordPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+          onClick={() => setWordPopup(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 text-sm text-gray-500">Seçilen kelime</div>
+            <div className="mb-4 text-lg font-semibold text-gray-900">
+              &quot;{wordPopup.data?.original_word || wordPopup.data?.word || wordPopup.word}&quot;
+            </div>
+
+            {wordPopup.mode === 'info' ? (
+              <div className="space-y-3 text-sm text-gray-800">
+                <div>
+                  <span className="font-semibold">Anlam: </span>
+                  <span>{wordPopup.data?.definition || '-'}</span>
+                </div>
+                <div>
+                  <span className="font-semibold">Seviye: </span>
+                  <span>{(wordPopup.data?.level || '').toUpperCase() || '-'}</span>
+                </div>
+                <div>
+                  <span className="font-semibold">Örnek Cümle: </span>
+                  <span>{wordPopup.data?.example_sentence || '-'}</span>
+                </div>
+                <div>
+                  <span className="font-semibold">Türkçe Örnek: </span>
+                  <span>{wordPopup.data?.example_sentence_turkish || '-'}</span>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={() => setWordPopup(null)}
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    Kapat
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 text-sm text-gray-800">
+                <p>
+                  &quot;{wordPopup.word}&quot; kelimesini kelime listenize eklemek istiyor musunuz?
+                </p>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => setWordPopup(null)}
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    onClick={handleAddWordFromPopup}
+                    disabled={isAddingWord}
+                    className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {isAddingWord ? 'Ekleniyor...' : 'Kelimeyi Ekle'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

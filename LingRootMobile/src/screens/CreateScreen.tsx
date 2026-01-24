@@ -22,10 +22,14 @@ import { pick, keepLocalCopy } from '@react-native-documents/picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
-import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures, PlanFeatures } from '../services/api';
+import * as ttsService from '../services/ttsService';
+import * as bookService from '../services/bookService';
+import { submitContent } from '../services/contentService';
+import { getMyPlanFeatures, PlanFeatures, getUsageSummary } from '../services/subscriptionService';
 import AudioPlayer from '../components/AudioPlayer';
 import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
 import { COLORS } from '../theme/colors';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -66,7 +70,7 @@ const CreateScreen: React.FC = () => {
     React.useCallback(() => {
       const checkActiveJob = async () => {
         try {
-          const res = await apiService.getActiveTtsJob();
+          const res = await ttsService.getActiveTtsJob();
           if (res && res.hasActiveJob) {
             setIsTtsJobLocked(true);
             setIsCreatingVoice(true);
@@ -113,6 +117,9 @@ const CreateScreen: React.FC = () => {
 
       // Ekrana her odaklanıldığında aktif job durumunu kontrol et
       checkActiveJob();
+
+      // Firebase Analytics: Screen View
+      AnalyticsHelper.logScreenView('Create', 'CreateScreen');
 
       // Topic Tree'den gelen hazır uzun metni sadece text modunda ve input boşken uygula
       if (
@@ -250,6 +257,7 @@ const CreateScreen: React.FC = () => {
       Alert.alert(t('common.info'), msg);
       return;
     }
+    AnalyticsHelper.logEvent('action_fetch_youtube_click_mobile', { url: youtubeUrl });
     if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
       Alert.alert(t('common.error'), 'Geçerli bir YouTube linki girin');
       return;
@@ -311,7 +319,7 @@ const CreateScreen: React.FC = () => {
     }
     setIsLoadingSuggestions(true);
     try {
-      const res = await apiService.getTopicSuggestions(suggestion, selectedLevel);
+      const res = await ttsService.getTopicSuggestions(suggestion, selectedLevel);
 
       if (res?.success) {
         const suggestions = res.suggestions || [];
@@ -494,7 +502,7 @@ const CreateScreen: React.FC = () => {
   useEffect(() => {
     const fetchProvider = async () => {
       try {
-        const response = await apiService.getTtsProvider();
+        const response = await ttsService.getTtsProvider();
         if (response?.provider) {
           console.log('🎙️ TTS Provider from admin settings:', response.provider);
           setCurrentProvider(response.provider);
@@ -514,7 +522,7 @@ const CreateScreen: React.FC = () => {
   const fetchAvailableVoices = async () => {
     setLoadingVoices(true);
     try {
-      const response = await apiService.getAvailableVoices();
+      const response = await ttsService.getAvailableVoices();
 
 
       // Backend'den { provider: 'google', voices: [...] } formatında geliyor
@@ -589,7 +597,7 @@ const CreateScreen: React.FC = () => {
 
       console.log('🎙️ [FETCH FILTERED] Request params:', { accent, gender, category, backendCategory });
 
-      const response = await apiService.getFilteredVoices(accent, gender, undefined, backendCategory);
+      const response = await ttsService.getFilteredVoices(accent, gender, undefined, backendCategory);
 
       console.log('🎙️ [FETCH FILTERED] Raw response:', JSON.stringify(response, null, 2));
 
@@ -791,7 +799,7 @@ const CreateScreen: React.FC = () => {
     if (!hasCriteria) return;
     setIsSearchingBooks(true);
     try {
-      const res = await apiService.searchBooks({ q: bookQ, title: bookTitle, author: bookAuthor, page: nextPage || 1, per_page: 10 });
+      const res = await bookService.searchBooks({ q: bookQ, title: bookTitle, author: bookAuthor, page: nextPage || 1, per_page: 10 });
       setBookResults(res.books || []);
       setBookPage(res.page || 1);
       setBookTotalPages(res.total_pages || 1);
@@ -810,7 +818,7 @@ const CreateScreen: React.FC = () => {
     setSelectedBook(book);
     setIsLoadingChapters(true);
     try {
-      const list = await apiService.getBookChapters(book.id);
+      const list = await bookService.getBookChapters(book.id);
       setBookChapters(list || []);
       // Auto-select first chapter text if available
       if (Array.isArray(list) && list.length > 0) {
@@ -833,7 +841,7 @@ const CreateScreen: React.FC = () => {
     (async () => {
       try {
         await fetchAvailableVoices();
-        const settings = await getUserSettings();
+        const settings = await ttsService.getUserSettings();
         const dv = settings?.default_voice;
         // Only apply default voice automatically if it looks like a Lingroot ID
         if (dv && typeof dv === 'string' && dv.startsWith('lr_')) {
@@ -879,6 +887,13 @@ const CreateScreen: React.FC = () => {
   }, [selectedAccent, selectedGender, selectedVoiceCategory]);
 
   const handleCreateAudio = async () => {
+    // Log analytics event
+    AnalyticsHelper.logEvent('action_generate_audio_click_mobile', {
+      content_type: mode,
+      level: selectedLevel,
+      voice: selectedVoice,
+      speaking_rate: speechRate
+    });
     if (isTtsJobLocked) {
       if (ttsJobMessage) {
         Alert.alert(t('common.info'), ttsJobMessage);
@@ -887,7 +902,7 @@ const CreateScreen: React.FC = () => {
     }
     try {
       // Usage limit pre-check
-      const summary = await apiService.getUsageSummary();
+      const summary = await getUsageSummary();
       const sData: any = (summary as any)?.data || {};
       if (summary?.success && (sData?.isExceeded || sData?.hasPlan === false)) {
         Alert.alert(
@@ -936,7 +951,7 @@ const CreateScreen: React.FC = () => {
       }
       try {
         setIsLoading(true);
-        const rr = await apiService.rewriteToNarration(base, selectedLevel);
+        const rr = await ttsService.rewriteToNarration(base, selectedLevel);
         const narration = rr?.data?.narration_text || base;
         effectiveInputText = narration;
         setInputText(narration);
@@ -980,7 +995,7 @@ const CreateScreen: React.FC = () => {
         formData.append('gender', selectedGender);
         formData.append('accent', selectedAccent);
 
-        const response = await apiService.processFileToSpeechAsync(formData);
+        const response = await ttsService.processFileToSpeechAsync(formData);
 
         if (response.success) {
           setSelectedFile(null);
@@ -1011,8 +1026,17 @@ const CreateScreen: React.FC = () => {
           engine: mapCategoryForBackend(selectedVoiceCategory),
         };
 
+        // Firebase Analytics: Content creation started
+        AnalyticsHelper.logEvent('content_creation_start', {
+          type: 'narration',
+          content_type: mode,
+          level: selectedLevel,
+          voice: selectedVoice,
+          text_length: textToProcess.length,
+        });
+
         console.log('🎯 [CREATE] Calling processTextToSpeechAsync...');
-        const response = await apiService.processTextToSpeechAsync(request);
+        const response = await ttsService.processTextToSpeechAsync(request);
 
         if (response.success) {
           if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
@@ -1026,6 +1050,15 @@ const CreateScreen: React.FC = () => {
           setSuccessAlertEstimatedTime(response.estimatedTime || '2-5 minutes');
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
+
+          // Firebase Analytics: Content creation completed (async job started successfully)
+          AnalyticsHelper.logEvent('content_creation_complete', {
+            type: 'narration',
+            content_type: mode,
+            level: selectedLevel,
+            voice: selectedVoice,
+            status: 'async_started',
+          });
         } else {
           Alert.alert(t('common.error'), t('create.alerts.audioCreateFailed'));
         }
@@ -1078,6 +1111,13 @@ const CreateScreen: React.FC = () => {
   };
 
   const handleCreatePodcast = async () => {
+    // Podcast Log
+    AnalyticsHelper.logEvent('action_create_podcast_click_mobile', {
+      topic: podcastTopic,
+      level: selectedLevel,
+      duration: podcastDuration,
+    });
+
     if (!podcastTopic || podcastTopic.trim().length === 0) {
       Alert.alert(
         t('common.error'),
@@ -1096,10 +1136,19 @@ const CreateScreen: React.FC = () => {
     setIsCreatingPodcast(true);
     setPodcastError(null);
 
+    // Firebase Analytics: Podcast creation started
+    AnalyticsHelper.logEvent('content_creation_start', {
+      type: 'podcast',
+      topic: podcastTopic.trim(),
+      level: selectedLevel,
+      duration: podcastDuration,
+      tts_provider: podcastTtsProvider,
+    });
+
     try {
       // Google podcast: run async in background and notify when ready
       if (podcastTtsProvider === 'google') {
-        const response: any = await apiService.createPodcastAsync({
+        const response: any = await ttsService.createPodcastAsync({
           topic: podcastTopic.trim(),
           level: selectedLevel,
           duration: podcastDuration,
@@ -1127,7 +1176,7 @@ const CreateScreen: React.FC = () => {
         );
       }
 
-      const response: any = await apiService.createPodcast({
+      const response: any = await ttsService.createPodcast({
         topic: podcastTopic.trim(),
         level: selectedLevel,
         duration: podcastDuration,
@@ -1190,17 +1239,16 @@ const CreateScreen: React.FC = () => {
         const topicForHistory = topicForTrack;
         const transcriptText = transcriptForTrack;
 
-        await apiService.submitContent(
-          topicForHistory,
-          'podcast',
-          selectedLevel,
-          audioUrl,
-          transcriptText,
-          transcriptText,
-          undefined,
-          safeTimepoints,
-          safeWords
-        );
+        await submitContent({
+          input: topicForHistory,
+          input_type: 'podcast',
+          level: selectedLevel,
+          mp3_url: audioUrl,
+          translated_text: transcriptText,
+          adapted_text: transcriptText,
+          timepoints: safeTimepoints,
+          words: safeWords
+        });
         console.log('[Mobile][PODCAST] Podcast submitted to contenthistory via submitContent (with timings)');
       } catch (submitErr) {
         console.error('[Mobile][PODCAST] submitContent failed for podcast:', submitErr);
@@ -1247,6 +1295,16 @@ const CreateScreen: React.FC = () => {
 
       setCreatedTrack(newTrack);
       setShowPlayer(true);
+
+      // Firebase Analytics: Podcast creation completed
+      AnalyticsHelper.logEvent('content_creation_complete', {
+        type: 'podcast',
+        topic: podcastTopic.trim(),
+        level: selectedLevel,
+        duration: podcastDuration,
+        tts_provider: podcastTtsProvider,
+        status: 'completed',
+      });
     } catch (e: any) {
       const msg =
         e?.message ||
@@ -1372,7 +1430,6 @@ const CreateScreen: React.FC = () => {
         keyboardDismissMode="on-drag"
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{t('create.title')}</Text>
           <Text style={styles.subtitle}>
             {t('create.subtitle')}
           </Text>
@@ -1434,7 +1491,7 @@ const CreateScreen: React.FC = () => {
                         </TouchableOpacity>
                       </View>
                       <ScrollView style={styles.voiceList} keyboardShouldPersistTaps="handled">
-                        {GEMINI_PODCAST_SPEAKERS.map((opt) => (
+                        {GEMINI_PODCAST_SPEAKERS.filter(s => s.label.includes('(F)')).map((opt) => (
                           <TouchableOpacity
                             key={`host_${opt.value}`}
                             style={[styles.voiceItem, podcastHostSpeakerId === opt.value && styles.voiceItemActive]}
@@ -1473,7 +1530,7 @@ const CreateScreen: React.FC = () => {
                         </TouchableOpacity>
                       </View>
                       <ScrollView style={styles.voiceList} keyboardShouldPersistTaps="handled">
-                        {GEMINI_PODCAST_SPEAKERS.map((opt) => (
+                        {GEMINI_PODCAST_SPEAKERS.filter(s => s.label.includes('(M)')).map((opt) => (
                           <TouchableOpacity
                             key={`guest_${opt.value}`}
                             style={[styles.voiceItem, podcastGuestSpeakerId === opt.value && styles.voiceItemActive]}
@@ -1606,7 +1663,7 @@ const CreateScreen: React.FC = () => {
                         setIsConvertingSuggestion(true);
                         setConvertingText(language === 'tr' ? 'Öneri metne dönüştürülüyor...' : 'Converting suggestion to text...');
 
-                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
+                        const rr = await ttsService.rewriteToNarration(s, selectedLevel);
                         const narration = rr?.data?.narration_text || s;
                         setInputText(narration);
 
@@ -1830,7 +1887,10 @@ const CreateScreen: React.FC = () => {
                   styles.levelButton,
                   selectedLevel === level && styles.levelButtonActive,
                 ]}
-                onPress={() => setSelectedLevel(level)}
+                onPress={() => {
+                  setSelectedLevel(level);
+                  AnalyticsHelper.logEvent('interaction_setting_level_mobile', { level });
+                }}
               >
                 <Text
                   style={[
@@ -1930,7 +1990,10 @@ const CreateScreen: React.FC = () => {
                         styles.filterButton,
                         selectedAccent === accent.value && styles.filterButtonActive,
                       ]}
-                      onPress={() => setSelectedAccent(accent.value)}
+                      onPress={() => {
+                        setSelectedAccent(accent.value);
+                        AnalyticsHelper.logEvent('interaction_setting_accent_mobile', { accent: accent.value });
+                      }}
                     >
                       <Text style={[
                         styles.filterButtonText,
@@ -1953,7 +2016,10 @@ const CreateScreen: React.FC = () => {
                         styles.filterButton,
                         selectedGender === gender.value && styles.filterButtonActive,
                       ]}
-                      onPress={() => setSelectedGender(gender.value)}
+                      onPress={() => {
+                        setSelectedGender(gender.value);
+                        AnalyticsHelper.logEvent('interaction_setting_gender_mobile', { gender: gender.value });
+                      }}
                     >
                       <Text style={[
                         styles.filterButtonText,
@@ -1987,7 +2053,7 @@ const CreateScreen: React.FC = () => {
               <Icon name="record-voice-over" size={24} color={COLORS.primary} />
               <View style={styles.voiceSelectionInfo}>
                 <Text style={styles.voiceSelectionText}>
-                  {selectedVoice || t('create.voice.selectPrompt')}
+                  {selectedVoice ? `${getVoiceDisplayName(selectedVoice, language)} (${selectedVoice})` : t('create.voice.selectPrompt')}
                 </Text>
                 <Text style={styles.voiceSelectionSubtext}>
                   {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
@@ -2036,7 +2102,7 @@ const CreateScreen: React.FC = () => {
                       >
                         <View style={styles.voiceItemInfo}>
                           <Text style={styles.voiceItemName}>
-                            {item.name}
+                            {`${getVoiceDisplayName(item.name, language, item.name)} (${item.name})`}
                           </Text>
                           <Text style={styles.voiceItemDescription}>
                             {(item.accent === 'american' && t('create.voice.accents.american')) ||
@@ -2061,7 +2127,7 @@ const CreateScreen: React.FC = () => {
                       style={[styles.defaultVoiceButton, !selectedVoice && styles.createButtonDisabled]}
                       onPress={async () => {
                         try {
-                          await saveDefaultVoiceSetting(selectedVoice);
+                          await ttsService.saveDefaultVoiceSetting(selectedVoice);
                           setShouldPromoteSelectedVoiceTop(true);
                           Alert.alert(
                             t('common.success'),
@@ -2317,6 +2383,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 24,
     paddingVertical: 20,
+    paddingTop: 60,
     backgroundColor: 'transparent',
   },
   title: {

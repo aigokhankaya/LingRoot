@@ -8,13 +8,15 @@ import { Alert, View, ActivityIndicator, TouchableOpacity, Text, StyleSheet } fr
 import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
+import BlurHeader from '../components/BlurHeader';
 
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
-import { apiService } from '../services/api';
+import { getUnreadNotifications, markNotificationAsRead } from '../services/userService';
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
+import { logScreenView } from '../services/analytics';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -74,7 +76,7 @@ const MainTabs = () => {
     // Poll for notifications every 30 seconds
     const pollNotifications = async () => {
       try {
-        const notifications = await apiService.getUnreadNotifications();
+        const notifications = await getUnreadNotifications();
 
         if (!Array.isArray(notifications) || notifications.length === 0) {
           return;
@@ -133,7 +135,7 @@ const MainTabs = () => {
         try {
           await Promise.all(
             audioNotifications.map((notification: any) =>
-              apiService.markNotificationAsRead(notification.id).catch(() => { })
+              markNotificationAsRead(notification.id).catch(() => { })
             )
           );
         } catch {
@@ -213,14 +215,12 @@ const MainTabs = () => {
           marginVertical: 8,
         },
         headerShown: true,
-        headerStyle: {
-          backgroundColor: COLORS.brandTeal,
-          shadowColor: 'transparent',
-          elevation: 0,
-        },
-        headerTintColor: '#fff',
+        headerTransparent: true,
+        headerBackground: () => <BlurHeader />,
+        headerTintColor: COLORS.slate900,
         headerTitleStyle: {
           fontWeight: '700',
+          color: COLORS.slate900,
         },
         headerRight: () => <TestBadge />,
       })}
@@ -238,7 +238,7 @@ const MainTabs = () => {
         component={LibraryScreen}
         options={{
           tabBarLabel: t('library.title'),
-          headerTitle: t('library.title')
+          headerShown: false,
         }}
       />
       <Tab.Screen
@@ -522,7 +522,25 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        setNavReady(true);
+        const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+        if (currentRouteName) {
+          logScreenView(currentRouteName, currentRouteName);
+        }
+      }}
+      onStateChange={async () => {
+        const previousRouteName = (global as any).__currentRouteName;
+        const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+
+        if (previousRouteName !== currentRouteName && currentRouteName) {
+          await logScreenView(currentRouteName, currentRouteName);
+        }
+        (global as any).__currentRouteName = currentRouteName;
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
@@ -532,9 +550,10 @@ const AppNavigator = () => {
               component={TopicTreeScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Konu Ağacım' : 'My Topic Tree',
               }}
             />
@@ -543,9 +562,10 @@ const AppNavigator = () => {
               component={VocabularyScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Kelimelerim' : 'My Vocabulary',
               }}
             />
@@ -554,9 +574,10 @@ const AppNavigator = () => {
               component={LiroScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: 'LIRO',
               }}
             />
@@ -565,9 +586,10 @@ const AppNavigator = () => {
               component={AccountSettingsScreen}
               options={({ navigation }) => ({
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: t('profile.accountSettings'),
               })}
             />
@@ -576,9 +598,10 @@ const AppNavigator = () => {
               component={MembershipScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
               }}
             />
             <Stack.Screen
@@ -593,9 +616,10 @@ const AppNavigator = () => {
               component={ChatScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Destek' : 'Support',
               }}
             />
@@ -611,9 +635,10 @@ const AppNavigator = () => {
               component={PrivacyPolicyScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy',
               }}
             />
@@ -622,9 +647,10 @@ const AppNavigator = () => {
               component={TermsOfServiceScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
               }}
             />
@@ -633,9 +659,10 @@ const AppNavigator = () => {
               component={ReminderSettingsScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
               }}
             />

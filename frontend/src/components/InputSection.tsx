@@ -1,10 +1,11 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
 import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, getGeneratedSuggestions, fetchYoutubeTranscript, getMyPlanFeatures, PlanFeatures, getHashtagNews, HashtagNewsItem } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 import InterestManager from './InterestManager';
-import { FaCog } from 'react-icons/fa';
+import { FaCog, FaBook, FaPodcast, FaYoutube, FaFileAlt, FaBriefcase, FaLightbulb, FaKeyboard, FaTree, FaGamepad } from 'react-icons/fa';
 
 type InputType = ProcessInputData['type'] | 'suggestion' | 'hashtag';
 type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -13,8 +14,6 @@ interface InputSectionProps {
   onSubmit: (data: ProcessInputData) => void;
   isLoading: boolean;
 }
-
-
 
 // Kitap metnini bölümlere ayıran fonksiyon (örnek: Chapter/Letter başlıkları)
 function splitBookIntoChapters(bookText: string) {
@@ -49,6 +48,7 @@ function splitBookIntoChapters(bookText: string) {
 
 export default function InputSection({ onSubmit, isLoading }: InputSectionProps): React.ReactElement {
   const { t } = useTranslation();
+  const router = useRouter();
 
   // Debug mesajı
   console.log("🔍 InputSection render - şu anki inputType:", useState<InputType>('suggestion')[0]);
@@ -356,10 +356,6 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     }
   };
 
-
-
-
-
   // Form submit fonksiyonu
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -400,14 +396,14 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         console.log("YouTube transkript başarıyla alındı.");
 
         // Transkripti topic_instructions alanına yerleştir
-        setText(transcript);
+        setText(transcript.text || '');
         setLoadingTranscript(false);
 
         // Input değeri olarak YouTube linkini kullan
         const inputData: ProcessInputData = {
           type: 'youtube',
           input: youtubeLink,
-          text: transcript,
+          text: transcript.text || '',
           level,
           SesHızı: speakingRate,
           voice
@@ -449,10 +445,6 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
     onSubmit(inputData);
   };
-
-
-
-
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -589,61 +581,222 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     fetchGeneratedSuggestions();
   }, []);
 
+  const handleModeSelect = (mode: string) => {
+    console.log('Mode selected:', mode);
+    if (mode === 'book') {
+      router.push('/dashboard/library');
+      return;
+    }
+    // Map mode to inputType
+    const modeMap: Record<string, InputType> = {
+      'topic_tree': 'topic',
+      'podcast': 'podcast',
+      'hobby': 'suggestion', // Map hobby to suggestion for now
+      'youtube': 'youtube',
+      'file': 'file',
+      'text': 'text',
+      'weblink': 'weblink',
+      'topic': 'topic',
+      'suggestion': 'suggestion'
+    };
+
+    if (modeMap[mode]) {
+      setInputType(modeMap[mode]);
+      // Reset relevant states
+      setText('');
+      setTopic('');
+      setYoutubeLink('');
+      setWebLink('');
+      setPodcastLink('');
+      setFile(null);
+    }
+  };
+
   return (
-    <div className="w-full max-w-3xl mx-auto animate-in fade-in duration-700">
+    <div className="w-full max-w-5xl mx-auto animate-in fade-in duration-700 pb-20">
 
       {/* ZERO-UI HERO CONTAINER */}
-      <div className="flex flex-col items-center justify-center min-h-[60vh] sm:min-h-[50vh] space-y-8">
+      <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-8 pt-10">
 
         {/* 1. The Big Question */}
         <div className="text-center space-y-4">
-          {/* Dynamic Greeting based on time could go here */}
           <h1 className="text-4xl sm:text-6xl font-serif font-bold text-slate-900 dark:text-amber-50 tracking-tight leading-tight">
             {t('what_to_learn_today') || "What do you want to learn?"}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xl font-light">
-            {t('curiosity_prompt') || "Type a topic, and we'll turn it into a lesson."}
+            {t('curiosity_prompt') || "Select a mode or type a topic to start."}
           </p>
         </div>
 
-        {/* 2. The Focus Input */}
-        <form onSubmit={handleSubmit} className="w-full relative group z-20">
-          <div className="relative transform transition-all duration-300 group-hover:-translate-y-1">
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => {
-                setTopic(e.target.value);
-                setInputType('topic'); // Ensure we are in topic mode when typing here
-              }}
-              placeholder={t('topic_placeholder_minimal') || "e.g. The history of Jazz..."}
-              className="w-full pl-8 pr-36 py-6 text-2xl font-serif bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-all outline-none text-slate-800 dark:text-slate-100"
-              autoFocus
-            />
+        {/* 2. Mode Selection Grid */}
+        <div className="w-full grid grid-cols-2 md:grid-cols-5 gap-4 px-4 font-sans">
 
-            {/* Action Button (Dynamic) */}
-            <div className="absolute right-3 top-3 bottom-3">
-              <button
-                type="submit"
-                disabled={!topic && !text && !file}
-                className="h-full px-8 rounded-xl bg-slate-900 dark:bg-amber-500 text-white font-medium hover:bg-slate-800 dark:hover:bg-amber-600 transition-all disabled:opacity-0 disabled:scale-95 transform duration-200 shadow-lg"
-              >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                    <span>{t('creating') || "Creating..."}</span>
-                  </div>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <span>{t('listen') || "Listen"}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
-                  </span>
-                )}
-              </button>
-            </div>
+          <button onClick={() => handleModeSelect('topic_tree')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'topic' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
+            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><FaTree size={20} /></div>
+            <span className="font-medium text-sm">Konu Ağacı</span>
+          </button>
+
+          <button onClick={() => handleModeSelect('book')} className="p-4 rounded-xl flex flex-col items-center justify-center gap-3 bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all">
+            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><FaBook size={20} /></div>
+            <span className="font-medium text-sm">Kitap</span>
+          </button>
+
+          <button onClick={() => handleModeSelect('podcast')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'podcast' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
+            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><FaPodcast size={20} /></div>
+            <span className="font-medium text-sm">Podcast</span>
+          </button>
+
+          <button onClick={() => handleModeSelect('hobby')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'suggestion' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
+            <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center"><FaGamepad size={20} /></div>
+            <span className="font-medium text-sm">Hobi</span>
+          </button>
+
+          <button onClick={() => handleModeSelect('youtube')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'youtube' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
+            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center"><FaYoutube size={20} /></div>
+            <span className="font-medium text-sm">YouTube</span>
+          </button>
+
+          <button onClick={() => handleModeSelect('file')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'file' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
+            <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center"><FaFileAlt size={20} /></div>
+            <span className="font-medium text-sm">Belge</span>
+          </button>
+
+          <button onClick={() => handleModeSelect('text')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'text' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
+            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"><FaKeyboard size={20} /></div>
+            <span className="font-medium text-sm">Metin</span>
+          </button>
+
+          <button onClick={() => router.push('/sectors')} className="p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md">
+            <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center"><FaBriefcase size={20} /></div>
+            <span className="font-medium text-sm">Sektör İngilizcesi</span>
+          </button>
+
+          <button onClick={() => handleModeSelect('topic')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'topic' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
+            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><FaLightbulb size={20} /></div>
+            <span className="font-medium text-sm">Konu</span>
+          </button>
+
+          <button onClick={() => handleModeSelect('suggestion')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'suggestion' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
+            <div className="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center"><FaLightbulb size={20} /></div>
+            <span className="font-medium text-sm">Öneriler</span>
+          </button>
+
+        </div>
+
+        {/* 3. Dynamic Input Form */}
+        <form onSubmit={handleSubmit} className="w-full max-w-3xl relative group z-20 px-4">
+          <div className="relative transform transition-all duration-300 group-hover:-translate-y-1">
+
+            {/* Context-aware Input Field */}
+            {inputType === 'topic' && (
+              <input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder={t('topic_placeholder_minimal') || "e.g. The history of Jazz..."}
+                className="w-full pl-8 pr-36 py-6 text-2xl font-serif bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-all outline-none text-slate-800 dark:text-slate-100"
+                autoFocus
+              />
+            )}
+
+            {inputType === 'youtube' && (
+              <input
+                type="text"
+                value={youtubeLink}
+                onChange={(e) => setYoutubeLink(e.target.value)}
+                placeholder="YouTube video linkini buraya yapıştırın..."
+                className="w-full pl-8 pr-36 py-6 text-lg font-sans bg-white border-2 border-slate-200 rounded-2xl shadow-xl focus:border-red-500 outline-none"
+                autoFocus
+              />
+            )}
+
+            {inputType === 'weblink' && (
+              <input
+                type="text"
+                value={webLink}
+                onChange={(e) => setWebLink(e.target.value)}
+                placeholder="Web sayfası linkini buraya yapıştırın..."
+                className="w-full pl-8 pr-36 py-6 text-lg font-sans bg-white border-2 border-slate-200 rounded-2xl shadow-xl focus:border-cyan-500 outline-none"
+                autoFocus
+              />
+            )}
+
+            {inputType === 'podcast' && (
+              <div className="bg-white p-6 rounded-2xl border-2 border-slate-200 shadow-xl space-y-4">
+                <input
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="Podcast Konusu (Örn: Mars Kolonizasyonu)"
+                  className="w-full p-4 text-lg border border-slate-300 rounded-xl focus:border-purple-500 outline-none"
+                />
+                {/* Additional podcast inputs can be added here or via settings */}
+                <div className="text-sm text-slate-500">Daha fazla ayar için aşağıdaki çark ikonuna tıklayın.</div>
+              </div>
+            )}
+
+            {inputType === 'text' && (
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Metnini buraya yapıştır..."
+                className="w-full p-6 text-lg font-sans bg-white border-2 border-slate-200 rounded-2xl shadow-xl focus:border-slate-500 outline-none min-h-[150px]"
+                autoFocus
+              />
+            )}
+
+            {inputType === 'file' && (
+              <div className="w-full p-8 border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50 text-center hover:bg-slate-100 transition-colors cursor-pointer relative">
+                <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" accept=".pdf,.doc,.docx,.txt" />
+                <div className="flex flex-col items-center">
+                  <FaFileAlt size={48} className="text-slate-400 mb-4" />
+                  <p className="text-lg font-medium text-slate-700">Dosya yüklemek için tıklayın veya sürükleyin</p>
+                  <p className="text-sm text-slate-500 mt-2">PDF, DOCX, TXT</p>
+                  {file && <p className="mt-4 text-green-600 font-bold">{file.name}</p>}
+                </div>
+              </div>
+            )}
+
+
+            {/* Action Button (Dynamic) - Hide for File upload initial view */}
+            {inputType !== 'file' && inputType !== 'podcast' && (
+              <div className="absolute right-3 top-3 bottom-3">
+                <button
+                  type="submit"
+                  disabled={isLoading || (!topic && !text && !youtubeLink && !webLink)}
+                  className="h-full px-8 rounded-xl bg-slate-900 dark:bg-amber-500 text-white font-medium hover:bg-slate-800 dark:hover:bg-amber-600 transition-all disabled:opacity-50 disabled:scale-95 transform duration-200 shadow-lg"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                      <span>{t('creating') || "Creating..."}</span>
+                    </div>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span>{t('listen') || "Listen"}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Special Submit for Podcast */}
+            {inputType === 'podcast' && (
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isLoading || !topic}
+                  className="px-8 py-3 rounded-xl bg-purple-600 text-white font-medium hover:bg-purple-700 transition-all disabled:opacity-50 shadow-lg flex items-center gap-2"
+                >
+                  {isLoading ? "Hazırlanıyor..." : "Podcast Oluştur"}
+                </button>
+              </div>
+            )}
+
           </div>
 
-          {/* 3. Subtle Tools Bar (Secondary Actions) */}
+          {/* 4. Subtle Tools Bar (Secondary Actions & Settings) */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-slate-500">
 
             {/* Settings Toggle */}
@@ -655,34 +808,9 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               <FaCog className={showSettings ? "animate-spin-slow" : ""} />
               <span>{level} • {voice}</span>
             </button>
-
-            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
-
-            {/* File Upload */}
-            {planFeatures?.homepage_features?.file_upload && (
-              <label className="flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-amber-600 transition-colors">
-                <input type="file" onChange={handleFileUpload} className="hidden" accept=".pdf,.doc,.docx,.txt" />
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                <span>{t('upload_file') || "Upload File"}</span>
-              </label>
-            )}
-
-            {/* Web Link Trigger */}
-            <button
-              type="button"
-              onClick={() => {
-                const url = prompt(t('enter_url') || "Enter article URL:");
-                if (url) { setWebLink(url); setInputType('weblink'); setTopic(url); }
-              }}
-              className="flex items-center gap-2 text-sm font-medium hover:text-amber-600 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-              <span>{t('paste_link') || "Paste Link"}</span>
-            </button>
-
           </div>
 
-          {/* 4. Collapsible Settings Panel */}
+          {/* 5. Collapsible Settings Panel */}
           {showSettings && (
             <div className="mt-4 p-6 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 animate-in slide-in-from-top-2 fade-in duration-200">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

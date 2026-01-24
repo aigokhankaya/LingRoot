@@ -3,103 +3,85 @@ const path = require("path");
 const os = require("os");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
-const logger = require("../utils/logger"); // Import Winston logger
-const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
-const { cleanText, chunkText, chunkTextByCharLimit, preChunkTextByByteLimit, chunkTextForChirpVoices, isChirpVoice } = require("../utils/textProcessor");
-const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
-const { translateAndAdaptToCEFR } = require("../utils/translateAndAdapt");
-const { synthesizeWithGoogle, listGoogleVoices, getVoiceGender } = require("../utils/googleTTS");
-const { synthesizeWithAzure, listAzureVoices, isAzureTTSAvailable } = require("../utils/azureTTS");
-const { synthesizeWithPolly, listPollyVoices, isPollyAvailable } = require("../utils/amazonPolly");
-const { synthesizeWithOpenAI, listOpenAIVoices, isOpenAITTSAvailable } = require("../utils/openaiTTS");
-const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
-const { uploadToSupabase } = require("../utils/storageUploader");
-const { analyzeAndAdjustTimings } = require('../utils/audioAnalyzer');
-const { mfaAligner } = require('../utils/mfaAligner');
-const { extractDailyUsagePatterns } = require('../utils/dailyPatternExtractor');
+const logger = require('../utils/common/logger.js'); // Import Winston logger
+const { limiters } = require('../utils/infra/concurrencyLimiter.js');
+const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require('../utils/ai/inputExtractor.js');
+const { cleanText, chunkText, chunkTextByCharLimit, preChunkTextByByteLimit, chunkTextForChirpVoices, isChirpVoice } = require('../utils/content/textProcessor.js');
+const { adaptToCEFR: adaptToCEFRFunc } = require('../utils/ai/cefrAdapter.js');
+const { translateAndAdaptToCEFR } = require('../utils/ai/translateAndAdapt.js');
+const { synthesizeWithGoogle, listGoogleVoices, getVoiceGender } = require('../utils/audio/googleTTS.js');
+const { synthesizeWithAzure, listAzureVoices, isAzureTTSAvailable } = require('../utils/audio/azureTTS.js');
+const { synthesizeWithPolly, listPollyVoices, isPollyAvailable } = require('../utils/audio/amazonPolly.js');
+const { synthesizeWithOpenAI, listOpenAIVoices, isOpenAITTSAvailable } = require('../utils/audio/openaiTTS.js');
+const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require('../utils/audio/audioMerger.js');
+const { uploadToSupabase } = require('../utils/storage/storageUploader.js');
+const { analyzeAndAdjustTimings } = require('../utils/audio/audioAnalyzer.js');
+const { mfaAligner } = require('../utils/audio/mfaAligner.js');
+const { extractDailyUsagePatterns } = require('../utils/content/dailyPatternExtractor.js');
 const tmp = require("tmp");
-const { logStep } = require('../utils/stepLogger');
-const { logRequestStep } = require("../utils/requestLogger");
-const { supabase } = require("../utils/supabaseClient");
-const { checkLimits } = require("../utils/usageLimiter");
-const { getLingrootVoices, getLingrootVoiceById, mapLingrootToProviderVoice, getDefaultLingrootVoiceId } = require("../utils/lingrootVoices");
+const { logStep } = require('../utils/common/stepLogger.js');
+const { logRequestStep } = require('../utils/common/requestLogger.js');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const { checkLimits } = require('../utils/infra/usageLimiter.js');
+const { getLingrootVoices, getLingrootVoiceById, mapLingrootToProviderVoice, getDefaultLingrootVoiceId } = require('../utils/audio/lingrootVoices.js');
 const directorAgentService = require('../services/directorAgentService');
+const {
+  createVTTFile,
+  createWordLevelVTT,
+  createWordLevelVTTFromTimings,
+  createWordLevelVTTFromOptimizedTimings,
+  matchWordsWithTimings
+} = require('../services/subtitleService');
 
 // Store references to temp files so they can be accessed via API
 const tempAudioFiles = new Map();
 const tempVttFiles = new Map();
 
-// Helper function to create VTT file from text
-const createVTTFile = (text, duration = 30) => {
-  const words = text.split(/\s+/).filter(word => word.length > 0);
-  const wordsPerLine = 5; // Kaç kelime per subtitle satırı
+// Concurrent TTS request limiter per user
+// Prevents resource exhaustion when user clicks multiple topics rapidly
+const activeTtsRequests = new Map(); // userId -> count
+const MAX_CONCURRENT_TTS_PER_USER = 2;
 
-  let vttContent = 'WEBVTT\n\n';
+const voiceModelService = require('../services/voiceModelService');
 
-  for (let i = 0; i < words.length; i += wordsPerLine) {
-    const lineWords = words.slice(i, i + wordsPerLine);
-    const startTime = (i / words.length) * duration;
-    const endTime = ((i + wordsPerLine) / words.length) * duration;
+/**
+ * Check and increment active TTS request count for user
+ * @param {string} userId - User ID
+ * @returns {{ allowed: boolean, current: number, max: number }}
+ */
+const acquireTtsSlot = (userId) => {
+  if (!userId) return { allowed: true, current: 0, max: MAX_CONCURRENT_TTS_PER_USER };
 
-    // Format time as MM:SS.mmm
-    const formatTime = (seconds) => {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      const millisecs = Math.floor((seconds % 1) * 1000);
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
-    };
-
-    vttContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
-    vttContent += `${lineWords.join(' ')}\n\n`;
+  const current = activeTtsRequests.get(userId) || 0;
+  if (current >= MAX_CONCURRENT_TTS_PER_USER) {
+    return { allowed: false, current, max: MAX_CONCURRENT_TTS_PER_USER };
   }
 
-  return vttContent;
+  activeTtsRequests.set(userId, current + 1);
+  logger.info(`🔒 [TTS Limiter] User ${userId} acquired slot ${current + 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
+  return { allowed: true, current: current + 1, max: MAX_CONCURRENT_TTS_PER_USER };
 };
 
-// Helper function to create word-level VTT file
-const createWordLevelVTT = (text, duration = 30) => {
-  const words = text.split(/\s+/).filter(word => word.length > 0);
+/**
+ * Release TTS slot for user
+ * @param {string} userId - User ID
+ */
+const releaseTtsSlot = (userId) => {
+  if (!userId) return;
 
-  let vttContent = 'WEBVTT\n\n';
+  const current = activeTtsRequests.get(userId) || 0;
+  if (current > 0) {
+    activeTtsRequests.set(userId, current - 1);
+    logger.info(`🔓 [TTS Limiter] User ${userId} released slot, now ${current - 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
+  }
 
-  words.forEach((word, index) => {
-    const startTime = (index / words.length) * duration;
-    const endTime = ((index + 1) / words.length) * duration;
-
-    // Format time as MM:SS.mmm
-    const formatTime = (seconds) => {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      const millisecs = Math.floor((seconds % 1) * 1000);
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
-    };
-
-    vttContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
-    vttContent += `${word}\n\n`;
-  });
-
-  return vttContent;
+  // Cleanup if no active requests
+  if (current <= 1) {
+    activeTtsRequests.delete(userId);
+  }
 };
 
-// Helper function to create VTT from real word timings
-const createWordLevelVTTFromTimings = (wordTimings, totalDuration) => {
-  let vttContent = 'WEBVTT\n\n';
-
-  // Format time as MM:SS.mmm
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const millisecs = Math.floor((seconds % 1) * 1000);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
-  };
-
-  wordTimings.forEach((timing, index) => {
-    vttContent += `${formatTime(timing.startTime)} --> ${formatTime(timing.endTime)}\n`;
-    vttContent += `${timing.word}\n\n`;
-  });
-
-  return vttContent;
-};
+// Subtitle helper functions moved to services/subtitleService.js
 
 // Helper function for consistent temp file cleanup
 const cleanupTempFile = (filePath) => {
@@ -114,93 +96,10 @@ const cleanupTempFile = (filePath) => {
   }
 };
 
-// Yardımcı: tts_provider'ı settings tablosundan oku (default: google)
-async function getTtsProvider() {
-  const { data, error } = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', 'tts_provider')
-    .single();
-  if (error || !data) return 'google';
-  return data.value;
-}
+// getTtsProvider ve getDefaultVoiceForProvider voiceModelService'e taşındı
+const { getTtsProvider, getDefaultVoiceForProvider } = voiceModelService;
 
-// Yardımcı: Provider'a göre varsayılan sesi getir (ses listesinin ilk sesi)
-async function getDefaultVoiceForProvider(ttsProvider, languageCode = 'en-US') {
-  try {
-    if (ttsProvider === 'polly' || ttsProvider === 'amazon') {
-      // Amazon Polly için ilk sesi al
-      if (isPollyAvailable()) {
-        const pollyVoices = await listPollyVoices(languageCode);
-        if (pollyVoices && pollyVoices.length > 0) {
-          logger.info(`🎯 Default voice for Polly: ${pollyVoices[0].name}`);
-          return pollyVoices[0].name;
-        }
-      }
-      // Fallback
-      return 'Joanna';
-    } else if (ttsProvider === 'azure') {
-      // Azure için ilk sesi al
-      if (isAzureTTSAvailable()) {
-        const locale = languageCode.replace('_', '-');
-        const azureVoices = await listAzureVoices(locale);
-        if (azureVoices && azureVoices.length > 0) {
-          logger.info(`🎯 Default voice for Azure: ${azureVoices[0].name}`);
-          return azureVoices[0].name;
-        }
-      }
-      // Fallback
-      return 'en-US-JennyNeural';
-    } else {
-      // Google TTS için ilk sesi al
-      const googleVoices = await listGoogleVoices(languageCode);
-      if (googleVoices && googleVoices.length > 0) {
-        // Basic paket seslerini önceliklendir
-        const basicVoices = googleVoices.filter(v => v.package === 'Basic');
-        if (basicVoices.length > 0) {
-          logger.info(`🎯 Default voice for Google: ${basicVoices[0].name}`);
-          return basicVoices[0].name;
-        }
-        logger.info(`🎯 Default voice for Google: ${googleVoices[0].name}`);
-        return googleVoices[0].name;
-      }
-      // Fallback
-      return 'en-US-Standard-C';
-    }
-  } catch (error) {
-    logger.error(`Error getting default voice for ${ttsProvider}: ${error.message}`);
-    // Provider'a göre fallback
-    if (ttsProvider === 'polly' || ttsProvider === 'amazon') return 'Joanna';
-    if (ttsProvider === 'azure') return 'en-US-JennyNeural';
-    return 'en-US-Standard-C';
-  }
-}
 
-function enforceTTSByteLimit(text, maxBytes = 4500) {
-  if (Buffer.byteLength(text, "utf-8") <= maxBytes) return [text];
-
-  const safeParts = [];
-  let current = "";
-  let currentBytes = 0;
-  const words = text.split(/\s+/);
-
-  for (const word of words) {
-    const wordBytes = Buffer.byteLength(word, "utf-8");
-    const spaceBytes = current ? 1 : 0;
-
-    if (currentBytes + wordBytes + spaceBytes > maxBytes) {
-      safeParts.push(current.trim());
-      current = word;
-      currentBytes = wordBytes;
-    } else {
-      current += (current ? " " : "") + word;
-      currentBytes += wordBytes + spaceBytes;
-    }
-  }
-
-  if (current) safeParts.push(current.trim());
-  return safeParts;
-}
 
 /**
  * Handles the text-to-speech processing request.
@@ -213,6 +112,34 @@ const processTtsRequest = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
   logger.info(`[${requestId}] Received TTS request.`);
+
+  // Get user ID for rate limiting
+  const userId = req.user?.id || null;
+
+  // 1. Global TTS limiti kontrolü
+  const globalSlot = await limiters.tts.acquire(30000); // 30 saniye timeout
+  if (!globalSlot.acquired) {
+    logger.warn(`[${requestId}] 🚫 Global TTS limit - reason: ${globalSlot.reason}, userId: ${userId}`);
+    return res.status(503).json({
+      success: false,
+      code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
+      message: 'Sunucu şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.',
+      retryAfter: 60
+    });
+  }
+
+  // 2. Per-user TTS limiti (mevcut kod)
+  const slotCheck = acquireTtsSlot(userId);
+  if (!slotCheck.allowed) {
+    limiters.tts.release(); // Global slot'u serbest bırak
+    logger.warn(`[${requestId}] ⚠️ User ${userId} exceeded concurrent TTS limit (${slotCheck.current}/${slotCheck.max})`);
+    return res.status(429).json({
+      success: false,
+      message: `Çok fazla eşzamanlı ses oluşturma isteği. Lütfen mevcut işlemlerin tamamlanmasını bekleyin. (${slotCheck.current}/${slotCheck.max} aktif)`,
+      retryAfter: 30 // Suggest retry after 30 seconds
+    });
+  }
+
   // CRITICAL DEBUG: Log raw request essentials (sanitized)
   try {
     const logBody = {
@@ -780,7 +707,7 @@ const processTtsRequest = async (req, res) => {
       try {
         const userId = req.user?.id;
         if (userId && openaiUsage && openaiUsage.total_tokens > 0) {
-          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
           // Determine model from breakdown or default
           const model = usageBreakdown.length > 0 ? usageBreakdown[0].model : 'gpt-4o-mini';
           const costInfo = calculateOpenAiCost(openaiUsage, model);
@@ -1648,7 +1575,7 @@ const processTtsRequest = async (req, res) => {
       }
       if (userId) {
         // Calculate costs
-        const { calculateOpenAiCost, calculateTtsCost, logApiCost } = require('../utils/costTracker');
+        const { calculateOpenAiCost, calculateTtsCost, logApiCost } = require('../utils/infra/costTracker.js');
         // Sum costs per model using detailed breakdown if available; fallback to total with default model
         let openaiCost = { totalCostUsd: 0 };
         if (usageBreakdown.length > 0) {
@@ -1921,6 +1848,13 @@ const processTtsRequest = async (req, res) => {
   } finally {
     // --- Final Step: Ensure Temporary File Cleanup ---
     logger.info(`[${requestId}] Performing final cleanup.`);
+
+    // Release TTS slot for this user
+    releaseTtsSlot(userId);
+
+    // Release global TTS slot
+    limiters.tts.release();
+
     // Do NOT clean up temp file that we need for API access
     // cleanupTempFile(tempFilePath);
 
@@ -2217,30 +2151,9 @@ const mergeAudioAPI = async (req, res) => {
 // Ses listesi endpointi (Lingroot abstraction) - provider-agnostik liste döner
 const listVoices = async (req, res) => {
   try {
-    const ttsProvider = await getTtsProvider();
     const { languageCode = 'en-US' } = req.query;
-
-    const lingrootVoices = getLingrootVoices().map(v => ({
-      id: v.id,
-      name: v.id,
-      displayName: v.label,
-      gender: v.gender,
-      accent: v.accent,
-      quality: v.quality,
-      // Provider-specific hints for debugging/admin tools
-      providerVoice: mapLingrootToProviderVoice(v.id, ttsProvider),
-    }));
-
-    logger.info(`🎯 [VOICE LIST] Returning ${lingrootVoices.length} Lingroot voices for provider ${ttsProvider} and language ${languageCode}`);
-
-    return res.json({
-      provider: ttsProvider,
-      voices: lingrootVoices,
-      defaultVoice: getDefaultLingrootVoiceId(languageCode),
-      stats: {
-        total: lingrootVoices.length,
-      }
-    });
+    const result = await voiceModelService.listVoices(languageCode);
+    res.json(result);
   } catch (error) {
     logger.error(`🎯 [VOICE LIST] Error building Lingroot voice list: ${error.message}`);
     return res.status(500).json({
@@ -2254,59 +2167,8 @@ const listVoices = async (req, res) => {
 const getFilteredVoices = async (req, res) => {
   try {
     const { accent, gender, category } = req.query;
-    const ttsProvider = await getTtsProvider();
-
-    let voices = getLingrootVoices();
-    logger.info(`🎯 [VOICE FILTER] Starting with ${voices.length} Lingroot voices`);
-
-    // Accent filter (american / british / australian / indian / all)
-    if (accent && accent !== 'all') {
-      const a = String(accent).toLowerCase();
-      voices = voices.filter(v => v.accent === a);
-    }
-
-    // Gender filter
-    if (gender && gender !== 'all') {
-      const g = String(gender).toLowerCase();
-      voices = voices.filter(v => v.gender === g);
-    }
-
-    // Category -> map to Lingroot quality tiers
-    if (category && category !== 'all') {
-      const c = String(category).toLowerCase();
-      if (c === 'standard') {
-        voices = voices.filter(v => v.quality === 'basic');
-      } else if (c === 'neural' || c === 'wavenet' || c === 'neural2') {
-        voices = voices.filter(v => v.quality === 'premium');
-      } else if (c === 'chirp3d' || c === 'gold') {
-        voices = voices.filter(v => v.quality === 'gold');
-      } else if (c === 'studio' || c === 'platinum') {
-        voices = voices.filter(v => v.quality === 'platinum');
-      } else if (c === 'generative' || c === 'ultra') {
-        voices = voices.filter(v => v.quality === 'generative' || v.quality === 'ultra');
-      }
-    }
-
-    const payload = voices.map(v => ({
-      id: v.id,
-      name: v.id,
-      displayName: v.label,
-      gender: v.gender,
-      accent: v.accent,
-      quality: v.quality,
-      providerVoice: mapLingrootToProviderVoice(v.id, ttsProvider),
-    }));
-
-    logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, gender: ${gender}, category: ${category} => ${payload.length} voices`);
-
-    return res.json({
-      provider: ttsProvider,
-      voices: payload,
-      filters: { accent, gender, category },
-      totalCount: getLingrootVoices().length,
-      filteredCount: payload.length
-    });
-
+    const result = await voiceModelService.getFilteredVoices({ accent, gender, category });
+    res.json(result);
   } catch (error) {
     logger.error(`Error filtering Lingroot voices: ${error.message}`);
     return res.status(500).json({ success: false, message: 'Error filtering voices' });
@@ -2320,28 +2182,8 @@ const handleTTSRequest = processTtsRequest;
 const testVoices = async (req, res) => {
   try {
     const { languageCode = 'en-GB' } = req.query;
-    logger.info(`Testing available voices for language: ${languageCode}`);
-
-    const availableVoices = await listGoogleVoices(languageCode);
-
-    // Filter for Neural2 voices specifically
-    const neural2Voices = availableVoices.filter(voice =>
-      voice.name.includes('Neural2') && voice.name.includes(languageCode)
-    );
-
-    logger.info(`Found ${neural2Voices.length} Neural2 voices for ${languageCode}:`);
-    neural2Voices.forEach(voice => {
-      logger.info(`- ${voice.name} (${voice.gender})`);
-    });
-
-    return res.json({
-      success: true,
-      languageCode,
-      totalVoices: availableVoices.length,
-      neural2Voices: neural2Voices,
-      allVoices: availableVoices
-    });
-
+    const result = await voiceModelService.testVoices(languageCode);
+    res.json({ ...result, success: true });
   } catch (error) {
     logger.error(`Error testing voices: ${error.message}`);
     return res.status(500).json({
@@ -2351,195 +2193,7 @@ const testVoices = async (req, res) => {
   }
 };
 
-// Helper function to create word-level VTT file from optimized timings
-const createWordLevelVTTFromOptimizedTimings = (wordTimings, cleanWords, originalWords) => {
-  let vttContent = 'WEBVTT\n\n';
-
-  // Format time as MM:SS.mmm
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const millisecs = Math.floor((seconds % 1) * 1000);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
-  };
-
-  // Her temiz kelime için VTT cue oluştur
-  wordTimings.forEach((timing, index) => {
-    // Timing'de endTimeSeconds kullan
-    const startTime = timing.timeSeconds || timing.startTime || 0;
-    const endTime = timing.endTimeSeconds || timing.endTime || (startTime + 0.5);
-
-    vttContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
-    vttContent += `${timing.word}\n\n`;
-  });
-
-  return vttContent;
-};
-
-// Helper function to match all words with timings (interpolate for missing)
-const matchWordsWithTimings = (allWords, wordTimings, totalDuration) => {
-  const timepoints = [];
-  let timingIndex = 0;
-
-  // Step 1: Sequential matching with hyphenated word handling
-  const matched = new Array(allWords.length).fill(null);
-
-  for (let i = 0; i < allWords.length; i++) {
-    if (timingIndex >= wordTimings.length) break;
-
-    const originalWord = allWords[i];
-    const cleanWord = originalWord.toLowerCase().replace(/[^\w-]/g, '');
-
-    // Check if this is a hyphenated word (e.g., "solid-state")
-    if (cleanWord.includes('-')) {
-      const parts = cleanWord.split('-').filter(p => p.length > 0);
-
-      // Check if next N timings match the parts
-      let allPartsMatch = true;
-      const matchedTimings = [];
-
-      for (let j = 0; j < parts.length; j++) {
-        if (timingIndex + j >= wordTimings.length) {
-          allPartsMatch = false;
-          break;
-        }
-
-        const timingWord = wordTimings[timingIndex + j].word.toLowerCase().replace(/[^\w]/g, '');
-        if (timingWord !== parts[j]) {
-          allPartsMatch = false;
-          break;
-        }
-        matchedTimings.push(wordTimings[timingIndex + j]);
-      }
-
-      if (allPartsMatch && matchedTimings.length > 0) {
-        // Merge timings for hyphenated word
-        const firstTiming = matchedTimings[0];
-        const lastTiming = matchedTimings[matchedTimings.length - 1];
-
-        matched[i] = {
-          timeSeconds: firstTiming.timeSeconds,
-          endTimeSeconds: lastTiming.endTimeSeconds,
-          word: originalWord,
-          index: i,
-          hasRealTiming: true
-        };
-
-        timingIndex += matchedTimings.length;
-        continue;
-      }
-    }
-
-    // Regular word matching
-    const timingWord = wordTimings[timingIndex].word.toLowerCase().replace(/[^\w]/g, '');
-    const cleanWordNoHyphen = cleanWord.replace(/-/g, '');
-
-    if (timingWord === cleanWordNoHyphen || timingWord === cleanWord) {
-      matched[i] = {
-        timeSeconds: wordTimings[timingIndex].timeSeconds,
-        endTimeSeconds: wordTimings[timingIndex].endTimeSeconds,
-        word: originalWord,
-        index: i,
-        hasRealTiming: true
-      };
-      timingIndex++;
-    } else {
-      // Try to find the word in upcoming timings (skip max 3 timings)
-      let found = false;
-      for (let skip = 1; skip <= 3 && timingIndex + skip < wordTimings.length; skip++) {
-        const nextTimingWord = wordTimings[timingIndex + skip].word.toLowerCase().replace(/[^\w]/g, '');
-        if (nextTimingWord === cleanWordNoHyphen || nextTimingWord === cleanWord) {
-          // Found it - skip the mismatched timings
-          logger.warn(`⚠️ Skipped ${skip} timing(s) to match word "${originalWord}" at index ${i}`);
-          timingIndex += skip;
-
-          matched[i] = {
-            timeSeconds: wordTimings[timingIndex].timeSeconds,
-            endTimeSeconds: wordTimings[timingIndex].endTimeSeconds,
-            word: originalWord,
-            index: i,
-            hasRealTiming: true
-          };
-          timingIndex++;
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        logger.warn(`⚠️ No timing match for word "${originalWord}" at index ${i}, timing index ${timingIndex}`);
-      }
-    }
-  }
-
-  // Log matching statistics
-  const matchedCount = matched.filter(m => m !== null).length;
-  logger.info(`📊 Matching stats: ${matchedCount}/${allWords.length} words matched, ${wordTimings.length} timings available`);
-
-  // Step 3: Interpolate missing timings
-  for (let i = 0; i < allWords.length; i++) {
-    if (matched[i]) {
-      timepoints.push(matched[i]);
-    } else {
-      // Find previous and next real timings
-      let prevTiming = null;
-      let nextTiming = null;
-
-      for (let j = i - 1; j >= 0; j--) {
-        if (matched[j]) {
-          prevTiming = matched[j];
-          break;
-        }
-      }
-
-      for (let j = i + 1; j < allWords.length; j++) {
-        if (matched[j]) {
-          nextTiming = matched[j];
-          break;
-        }
-      }
-
-      // Interpolate based on surrounding timings
-      let startTime, endTime;
-
-      if (prevTiming && nextTiming) {
-        // Between two real timings - linear interpolation
-        const gapWords = nextTiming.index - prevTiming.index;
-        const gapDuration = nextTiming.timeSeconds - prevTiming.endTimeSeconds;
-        const wordDuration = gapDuration / gapWords;
-        const wordsFromPrev = i - prevTiming.index;
-
-        startTime = prevTiming.endTimeSeconds + (wordDuration * wordsFromPrev);
-        endTime = startTime + wordDuration;
-      } else if (prevTiming) {
-        // After last real timing
-        const avgDuration = 0.3; // 300ms default
-        startTime = prevTiming.endTimeSeconds + (avgDuration * (i - prevTiming.index - 1));
-        endTime = startTime + avgDuration;
-      } else if (nextTiming) {
-        // Before first real timing
-        const avgDuration = nextTiming.timeSeconds / nextTiming.index;
-        startTime = avgDuration * i;
-        endTime = startTime + avgDuration;
-      } else {
-        // No real timings at all - use average
-        const avgDuration = totalDuration / allWords.length;
-        startTime = avgDuration * i;
-        endTime = startTime + avgDuration;
-      }
-
-      timepoints.push({
-        timeSeconds: startTime,
-        endTimeSeconds: endTime,
-        word: allWords[i],
-        index: i,
-        hasRealTiming: false
-      });
-    }
-  }
-
-  return timepoints;
-};
+// Word timing helpers moved to services/subtitleService.js
 
 // Helper function to create optimized timepoints for frontend (legacy)
 const createOptimizedTimepoints = (wordTimings) => {
