@@ -33,6 +33,10 @@ router.post('/submit', authenticate, contentController.submitContent);
 // Supabase connection test route
 router.get('/test-db', contentController.testSupabaseConnection);
 
+// Count route
+router.get('/count', authenticate, contentController.getContentCount);
+router.get('/audio-count', authenticate, contentController.getContentCount);
+
 // Content history routes
 router.get('/history', authenticate, contentController.getContentHistory);
 router.get('/history/:id', authenticate, contentController.getContentById);

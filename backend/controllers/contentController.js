@@ -257,6 +257,29 @@ exports.getContentHistory = async (req, res) => {
 /**
  * Belirli bir içeriği ID ile getiren fonksiyon. Supabase'den ilgili kaydı çeker.
  */
+/**
+ * Kullanıcının içerik sayısını getiren fonksiyon.
+ */
+exports.getContentCount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { count, error } = await supabase
+      .from('contenthistory')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (error) {
+      logger.error('Error fetching content count:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    return res.json({ success: true, count: count || 0 });
+  } catch (error) {
+    logger.error('Server error getContentCount:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 exports.getContentById = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;

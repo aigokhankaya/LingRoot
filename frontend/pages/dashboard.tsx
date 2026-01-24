@@ -242,7 +242,7 @@ const Dashboard = () => {
       setTopicsError(null);
       const response = await getTopicTree();
       if (response.success && response.data) {
-        setTopics(response.data.topics);
+        setTopics(response.data.topics || []);
       } else if (!response.success) {
         setTopicsError(response.message || t('dashboard_error_topics_load'));
       }
@@ -1393,14 +1393,13 @@ const Dashboard = () => {
                 <div>
                   <h3 className="font-semibold text-gray-800">{resumeItem.topics?.title || t('reading_history_adapted_title')}</h3>
                   <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      resumeItem.topics?.level === 'A1' ? 'bg-green-100 text-green-700' :
-                      resumeItem.topics?.level === 'A2' ? 'bg-lime-100 text-lime-700' :
-                      resumeItem.topics?.level === 'B1' ? 'bg-yellow-100 text-yellow-700' :
-                      resumeItem.topics?.level === 'B2' ? 'bg-orange-100 text-orange-700' :
-                      resumeItem.topics?.level === 'C1' ? 'bg-red-100 text-red-700' :
-                      'bg-purple-100 text-purple-700'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${resumeItem.topics?.level === 'A1' ? 'bg-green-100 text-green-700' :
+                        resumeItem.topics?.level === 'A2' ? 'bg-lime-100 text-lime-700' :
+                          resumeItem.topics?.level === 'B1' ? 'bg-yellow-100 text-yellow-700' :
+                            resumeItem.topics?.level === 'B2' ? 'bg-orange-100 text-orange-700' :
+                              resumeItem.topics?.level === 'C1' ? 'bg-red-100 text-red-700' :
+                                'bg-purple-100 text-purple-700'
+                      }`}>
                       {resumeItem.topics?.level || 'A1'}
                     </span>
                     <span>•</span>

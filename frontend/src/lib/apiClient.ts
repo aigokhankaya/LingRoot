@@ -5,6 +5,7 @@
  * Uses localStorage for token persistence.
  * 
  * Created: 2026-01-16
+ * Updated: 2026-01-24
  */
 
 import axios from 'axios';
@@ -44,7 +45,7 @@ export function getApiClient(): LingRootApiClient {
 
     clientInstance = createApiClient({
         baseUrl: getBaseUrl(),
-        timeout: 180000, // 3 minutes
+        timeout: 1200000, // 20 minutes
 
         getToken: () => {
             if (!isBrowser) return null;
@@ -98,6 +99,9 @@ export const apiClient = {
     get chat() { return getApiClient().chat; },
     get book() { return getApiClient().book; },
     get vocabulary() { return getApiClient().vocabulary; },
+    get topic() { return getApiClient().topic; },
+    get pattern() { return getApiClient().pattern; },
+    get notification() { return getApiClient().notification; },
     get http() { return getApiClient().http; },
     get mfaHttp() { return getApiClient().mfaHttp; },
     refreshTokens: () => getApiClient().refreshTokens(),
@@ -108,3 +112,4 @@ export type { LingRootApiClient } from '@lingroot/api-client';
 export * from '@lingroot/api-client';
 
 export default apiClient;
+
