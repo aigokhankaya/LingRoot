@@ -1,5 +1,15 @@
+/**
+ * Web API Service
+ * 
+ * This file provides API functions that internally use @lingroot/api-client.
+ * Functions are gradually being migrated to use the apiClient wrapper.
+ * 
+ * Updated: 2026-01-24
+ */
 
-// API Base URL
+import { apiClient, getApiClient } from './apiClient';
+
+// API Base URL (kept for backward compatibility)
 export const API_BASE_URL = '/api';
 
 // Common types
@@ -50,7 +60,7 @@ export const getToken = (): string | null => {
     return null;
 };
 
-// --- Helper for standardized fetch calls ---
+// --- Helper for standardized fetch calls (kept for functions not yet migrated) ---
 async function fetchApi<T = any>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = getApiUrl(path);
     const headers = createHeaders();
@@ -76,32 +86,85 @@ async function fetchApi<T = any>(path: string, options: RequestInit = {}): Promi
     }
 }
 
-// --- Auth & User Settings ---
+// --- Auth & User Settings - Uses @lingroot/api-client ---
 
-export const getUserSettings = async () => fetchApi('user-settings');
+export const getUserSettings = async () => {
+    try {
+        const response = await apiClient.http.get('/api/user-settings');
+        return response.data;
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
-export const resendVerificationEmail = async (email: string) =>
-    fetchApi('auth/resend-verification', {
-        method: 'POST',
-        body: JSON.stringify({ email })
-    });
+export const resendVerificationEmail = async (email: string) => {
+    try {
+        const result = await apiClient.auth.resendVerification(email);
+        return result;
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
-// --- Notifications ---
+// --- Notifications - Uses @lingroot/api-client ---
 
-export const getUnreadNotificationCount = async () => fetchApi('notifications/unread-count');
-export const getNotifications = async (limit = 20, offset = 0, unreadOnly = false) =>
-    fetchApi(`notifications?limit=${limit}&offset=${offset}&unreadOnly=${unreadOnly}`);
-export const markNotificationAsRead = async (id: string) => fetchApi(`notifications/${id}/read`, { method: 'PUT' });
-export const markAllNotificationsAsRead = async () => fetchApi('notifications/read-all', { method: 'PUT' });
-export const deleteNotification = async (id: string) => fetchApi(`notifications/${id}`, { method: 'DELETE' });
+export const getUnreadNotificationCount = async (): Promise<any> => {
+    try {
+        const result = await apiClient.notification.getUnreadCount();
+        // NotificationBell.tsx beklentisi: { success: boolean, unreadCount: number }
+        return { success: true, unreadCount: result.count };
+    } catch (error: any) {
+        return { success: false, unreadCount: 0 };
+    }
+};
 
-// --- Vocabulary ---
+export const getNotifications = async (limit = 20, offset = 0, unreadOnly = false): Promise<any> => {
+    try {
+        const result = await apiClient.notification.getAll({ limit, offset, unreadOnly });
+        // NotificationBell.tsx beklentisi: { success: boolean, data: [], unreadCount: number }
+        return {
+            success: true,
+            data: result.notifications || [],
+            unreadCount: result.unreadCount || 0
+        };
+    } catch (error: any) {
+        return { success: false, data: [], unreadCount: 0 };
+    }
+};
 
-export const lookupVocabularyWord = async (word: string, context?: string) =>
-    fetchApi('vocabulary/lookup', {
-        method: 'POST',
-        body: JSON.stringify({ word, context })
-    });
+export const markNotificationAsRead = async (id: string) => {
+    try {
+        return await apiClient.notification.markAsRead(id);
+    } catch (error: any) {
+        return { success: false };
+    }
+};
+
+export const markAllNotificationsAsRead = async () => {
+    try {
+        return await apiClient.notification.markAllAsRead();
+    } catch (error: any) {
+        return { success: false };
+    }
+};
+
+export const deleteNotification = async (id: string) => {
+    try {
+        return await apiClient.notification.delete(id);
+    } catch (error: any) {
+        return { success: false };
+    }
+};
+
+// --- Vocabulary - Uses @lingroot/api-client ---
+
+export const lookupVocabularyWord = async (word: string, context?: string): Promise<any> => {
+    try {
+        return await apiClient.vocabulary.lookup(word);
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
 export const addWordWithTranslation = async (
     dataOrWord: any,
@@ -109,70 +172,96 @@ export const addWordWithTranslation = async (
     translation?: string,
     originalSentence?: string
 ) => {
-    let payload: any;
-    if (typeof dataOrWord === 'object' && dataOrWord !== null && context === undefined) {
-        payload = dataOrWord;
-    } else {
-        payload = { word: dataOrWord, context, translation, originalSentence };
+    try {
+        let payload: any;
+        if (typeof dataOrWord === 'object' && dataOrWord !== null && context === undefined) {
+            payload = dataOrWord;
+        } else {
+            payload = { word: dataOrWord, context, translation, originalSentence };
+        }
+        const response = await apiClient.http.post('/api/vocabulary/add-with-translation', payload);
+        return response.data;
+    } catch (error: any) {
+        return { success: false, message: error.message };
     }
-    return fetchApi('vocabulary/add-with-translation', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-    });
 };
 
-// --- Topic Hierarchy ---
+// --- Topic Hierarchy - Uses @lingroot/api-client ---
 
-export const getTopicTree = async () => fetchApi('topic-hierarchy');
-export const createMainTopic = async (params: { title: string; description?: string; level?: string; mood?: string; language?: string }) =>
-    fetchApi('topic-hierarchy', {
-        method: 'POST',
-        body: JSON.stringify(params)
-    });
-export const generateSubtopics = async (parentId: string, options: { count?: number; language?: string; angle?: string } | string) => {
-    const body = typeof options === 'string'
-        ? { parentId, parentTitle: options }
-        : { parentId, ...options };
-    return fetchApi('topic-hierarchy/generate-subtopics', {
-        method: 'POST',
-        body: JSON.stringify(body)
-    });
+export const getTopicTree = async (): Promise<any> => {
+    try {
+        const result = await apiClient.topic.getTree();
+        // Dashboard beklentisi: { success: boolean, data: { topics: [], total: number } }
+        return { success: true, data: result };
+    } catch (error: any) {
+        return { success: false, data: { topics: [], total: 0 }, message: error.message };
+    }
 };
-export const addManualSubtopic = async (parentId: string, options: { title: string; description?: string } | string) => {
-    const body = typeof options === 'string'
-        ? { parentId, title: options }
-        : { parentId, ...options };
-    return fetchApi('topic-hierarchy/manual', {
-        method: 'POST',
-        body: JSON.stringify(body)
-    });
+
+export const createMainTopic = async (params: { title: string; description?: string; level?: string; mood?: string; language?: string }): Promise<any> => {
+    try {
+        return await apiClient.topic.createTopic(params);
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
 };
-export const deleteTopicAndChildren = async (id: string) =>
-    fetchApi(`topic-hierarchy/${id}`, { method: 'DELETE' });
 
-export const getTopicDetailSuggestions = async (topicTitle: string, language: string) =>
-    fetchApi('topic-suggest/suggestions', {
-        method: 'POST',
-        body: JSON.stringify({ topic: topicTitle, language })
-    });
+export const generateSubtopics = async (parentId: string, options: { count?: number; language?: string; angle?: string } | string): Promise<any> => {
+    try {
+        const params = typeof options === 'string'
+            ? { count: 5, language: 'en' }
+            : options;
+        return await apiClient.topic.generateSubtopics(parentId, params);
+    } catch (error: any) {
+        return { success: false, subtopics: [] };
+    }
+};
 
-// --- Content & TTS ---
+export const addManualSubtopic = async (parentId: string, options: { title: string; description?: string } | string): Promise<any> => {
+    try {
+        const params = typeof options === 'string'
+            ? { title: options }
+            : options;
+        return await apiClient.topic.addManualSubtopic(parentId, params);
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
+
+export const deleteTopicAndChildren = async (id: string): Promise<any> => {
+    try {
+        return await apiClient.topic.deleteTopic(id);
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
+
+export const getTopicDetailSuggestions = async (topicTitle: string, language: string): Promise<any> => {
+    try {
+        return await apiClient.topic.getSuggestions(topicTitle, language);
+    } catch (error: any) {
+        return { success: false, suggestions: [] };
+    }
+};
+
+// --- Content & TTS - Uses @lingroot/api-client ---
 
 export const processTts = async (
     textOrOptions: string | Record<string, any>,
     voiceId?: string,
     speed?: number
-) => {
-    let payload: any;
-    if (typeof textOrOptions === 'object' && textOrOptions !== null) {
-        payload = textOrOptions;
-    } else {
-        payload = { text: textOrOptions, voiceId, speed };
+): Promise<any> => {
+    try {
+        let payload: any;
+        if (typeof textOrOptions === 'object' && textOrOptions !== null) {
+            payload = textOrOptions;
+        } else {
+            payload = { text: textOrOptions, voiceId, speed };
+        }
+        return await apiClient.tts.process(payload);
+    } catch (error: any) {
+        return { success: false, message: error.message };
     }
-    return fetchApi('tts/process', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-    }) as Promise<TtsResponseData>;
 };
 
 export const submitContent = async (
@@ -187,63 +276,101 @@ export const submitContent = async (
     words?: any[],
     detected_mood?: any,
     processing_duration_ms?: number
-) => {
-    let payload: any;
-    if (typeof dataOrInput === 'object' && !Array.isArray(dataOrInput) && input_type === undefined) {
-        payload = dataOrInput;
-    } else {
-        payload = {
-            input: dataOrInput,
-            input_type,
-            level,
-            mp3_url,
-            translated_text,
-            adapted_text,
-            chapter_id,
-            timepoints,
-            words,
-            detected_mood,
-            processing_duration_ms
-        };
+): Promise<any> => {
+    try {
+        let payload: any;
+        if (typeof dataOrInput === 'object' && !Array.isArray(dataOrInput) && input_type === undefined) {
+            payload = dataOrInput;
+        } else {
+            payload = {
+                input: dataOrInput,
+                input_type,
+                level,
+                mp3_url,
+                translated_text,
+                adapted_text,
+                chapter_id,
+                timepoints,
+                words,
+                detected_mood,
+                processing_duration_ms
+            };
+        }
+        return await apiClient.content.submit(payload);
+    } catch (error: any) {
+        return { success: false, message: error.message };
     }
-    return fetchApi('content/submit', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-    });
 };
 
-export const markTopicAudioListened = async (topicId: string, duration: number) =>
-    fetchApi('topic-mastery/listen', {
-        method: 'POST',
-        body: JSON.stringify({ topicId, duration })
-    });
+export const markTopicAudioListened = async (topicId: string, duration: number): Promise<any> => {
+    try {
+        const response = await apiClient.http.post('/api/topic-mastery/listen', { topicId, duration });
+        return response.data;
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
-export const getIncompleteListenings = async () => fetchApi('topic-hierarchy/topics/incomplete');
+export const getIncompleteListenings = async (): Promise<any> => {
+    try {
+        return await apiClient.topic.getIncompleteListenings();
+    } catch (error: any) {
+        return { success: false, items: [] };
+    }
+};
 
-export const saveListeningProgress = async (id: string, progress: number, duration: number) =>
-    fetchApi(`content/${id}/progress`, {
-        method: 'POST',
-        body: JSON.stringify({ progress, duration })
-    });
+export const saveListeningProgress = async (id: string, progress: number, duration: number): Promise<any> => {
+    try {
+        // API client farklı bir endpoint kullanıyor, doğrudan http.post kullanalım
+        const response = await apiClient.http.post(`/api/content/${id}/progress`, { progress, duration });
+        return response.data;
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
-export const getListeningProgress = async (id: string) => fetchApi(`content/${id}/progress`);
+export const getListeningProgress = async (id: string): Promise<any> => {
+    try {
+        const response = await apiClient.http.get(`/api/content/${id}/progress`);
+        return response.data;
+    } catch (error: any) {
+        return { success: false };
+    }
+};
 
-export const getContentHistory = async (userId: string, page = 1) =>
-    fetchApi(`users/${userId}/audio-history?page=${page}`);
+export const getContentHistory = async (userId: string, page = 1): Promise<any> => {
+    try {
+        const result = await apiClient.content.getHistory(page, 20);
+        // Dashboard beklentisi: { success: boolean, data: ContentHistoryItem[] }
+        return { success: true, data: result.data || [] };
+    } catch (error: any) {
+        return { success: false, data: [], message: error.message };
+    }
+};
 
-export const generateContentQuiz = async (contentId: string) => fetchApi(`content/${contentId}/quiz`);
+export const generateContentQuiz = async (contentId: string): Promise<any> => {
+    try {
+        return await apiClient.content.generateQuiz(contentId);
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
-export const submitContentQuiz = async (contentId: string, answers: any) =>
-    fetchApi(`content/${contentId}/quiz/submit`, {
-        method: 'POST',
-        body: JSON.stringify({ answers })
-    });
+export const submitContentQuiz = async (contentId: string, answers: any): Promise<any> => {
+    try {
+        return await apiClient.content.submitQuiz(contentId, answers);
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
-export const createPodcast = async (options: any) =>
-    fetchApi('podcasts/create', {
-        method: 'POST',
-        body: JSON.stringify(options)
-    });
+export const createPodcast = async (options: any): Promise<any> => {
+    try {
+        return await apiClient.tts.createPodcast(options);
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
 export const createDocumentFromText = async (text: string, title?: string) =>
     fetchApi('documents/create-from-text', {
@@ -584,10 +711,18 @@ export const saveBookFavorites = async (bookIds: number[] | string[]) =>
 export const searchBooks = async (query: string, page = 1, limit = 20) =>
     fetchApi<{ books: BookSearchResult[], total: number }>(`books/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
 
-export const rewriteToNarration = async (text: string, level: string) => fetchApi('narration/rewrite', {
-    method: 'POST',
-    body: JSON.stringify({ text, level })
-});
+// Narration rewrite - Uses @lingroot/api-client
+export const rewriteToNarration = async (text: string, level: string) => {
+    try {
+        const response = await apiClient.http.post('/api/narration/rewrite', {
+            input_text: text,
+            level
+        });
+        return response.data;
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+};
 
 export const getBookChapters = async (bookId: number) => fetchApi<BookChapter[]>(`books/${bookId}/chapters`);
 

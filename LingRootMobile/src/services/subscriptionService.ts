@@ -45,25 +45,48 @@ export interface UserPlanFeatures {
     features: PlanFeatures;
 }
 
+// ... types remain same ...
+
 export async function getUsageSummary(): Promise<{ success: boolean; data: UsageSummary }> {
     const client = await getApiClientAsync();
-    const response = await client.http.get('/api/subscription/usage-summary');
-    return response.data;
+    try {
+        const result = await client.subscription.getUsageSummary();
+        return { success: result.success, data: result.data as UsageSummary };
+    } catch (error) {
+        console.error('Error fetching usage summary:', error);
+        return { success: false, data: {} as UsageSummary }; // Fallback
+    }
 }
 
 export async function getSubscriptionPlans(): Promise<{ success: boolean; data: any[] }> {
     const client = await getApiClientAsync();
-    const response = await client.http.get('/api/subscription/plans');
-    return response.data;
+    try {
+        const result = await client.subscription.getPlans();
+        return { success: result.success, data: result.data as any[] };
+    } catch (error) {
+        console.error('Error fetching plans:', error);
+        return { success: false, data: [] };
+    }
 }
 
 // Get user's plan features
 export const getMyPlanFeatures = async (): Promise<UserPlanFeatures> => {
     const client = await getApiClientAsync();
     try {
-        const response = await client.http.get('/api/subscriptions/my-features');
-        if (response.data.success) {
-            return response.data.data;
+        // Uses corrected endpoint: /api/subscription/my-features
+        const response = await client.subscription.getMyPlanFeatures();
+        if (response.success) {
+            // Backend returns { success: true, data: { plan_id, plan_name, features } }
+            // But apiClient types might not reflect this structure correctly if interface mismatch
+            const responseData = (response as any).data;
+
+            if (!responseData) return getDefaultPlanFeatures();
+
+            return {
+                plan_id: responseData.plan_id || null,
+                plan_name: responseData.plan_name || null,
+                features: responseData.features || {}
+            } as any;
         }
         return getDefaultPlanFeatures();
     } catch (error) {
