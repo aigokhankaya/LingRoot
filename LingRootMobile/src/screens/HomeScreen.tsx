@@ -15,7 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getUserAudioCount, getUserAudioHistory, getFullContentHistory } from '../services/contentService';
+import { getUserAudioCount, getUserAudioHistory } from '../services/contentService';
 import { getMyPlanFeatures, PlanFeatures } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 import { AudioTrack } from '../types';
@@ -160,43 +160,22 @@ const HomeScreen: React.FC = () => {
       return;
     }
     try {
-      const [countOrNull, response] = await Promise.all([
+      const [countResult, response] = await Promise.all([
         getUserAudioCount(user.id),
         getUserAudioHistory(user.id),
       ]);
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
-        let finalCount = (typeof countOrNull === 'number' && countOrNull >= 0)
-          ? countOrNull
-          : ((response as any).total_count ?? audioTracks.length);
-        if (typeof (response as any).total_count !== 'number' && finalCount === 50) {
-          try {
-            const full = await getFullContentHistory();
-            if (full?.success && Array.isArray(full.data)) {
-              finalCount = full.data.length;
-            }
-          } catch { }
-        }
-        const apiTotal = typeof (response as any).total_duration_seconds === 'number' ? (response as any).total_duration_seconds : null;
+        // Use count and duration from count endpoint
+        const finalCount = countResult.count || audioTracks.length;
+        const totalDurationSeconds = countResult.totalDurationSeconds || 0;
 
-        const pageSum = audioTracks.reduce((sum: number, item: any) => {
-          let dur = 0;
-          if (typeof item?.duration === 'number') {
-            dur = item.duration;
-          } else if (typeof item?.duration_seconds === 'number') {
-            dur = item.duration_seconds;
-          } else if (item?.timepoints && Array.isArray(item.timepoints) && item.timepoints.length > 0) {
-            // Try to get duration from last timepoint
-            const last = item.timepoints[item.timepoints.length - 1];
-            if (last && typeof last.timeSeconds === 'number') {
-              dur = last.timeSeconds;
-            }
-          }
-          return sum + dur;
-        }, 0);
-
-        const totalDuration = apiTotal != null ? apiTotal : pageSum;
-        setStats({ audioCount: finalCount, totalDuration: Math.round(totalDuration / 60), loading: false });
+        // Convert to minutes
+        setStats({
+          audioCount: finalCount,
+          totalDuration: Math.round(totalDurationSeconds / 60),
+          loading: false
+        });
 
         // Set recent tracks for Jump Back In (last 5)
         setRecentTracks(audioTracks.slice(0, 5));
