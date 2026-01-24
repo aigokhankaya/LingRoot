@@ -31,11 +31,21 @@ export async function getUserAudioHistory(
 }
 
 /**
- * Get user's audio count
+ * Get user's audio count and total duration
  */
-export async function getUserAudioCount(userId: string): Promise<number> {
+export async function getUserAudioCount(userId: string): Promise<{ count: number; totalDurationSeconds: number }> {
     const client = await getApiClientAsync();
-    return client.content.getUserAudioCount();
+    try {
+        // Call the count endpoint which now returns both count and duration
+        const response = await client.http.get('/api/content/count');
+        const data = response.data;
+        return {
+            count: data?.count || 0,
+            totalDurationSeconds: data?.total_duration_seconds || 0,
+        };
+    } catch {
+        return { count: 0, totalDurationSeconds: 0 };
+    }
 }
 
 /**
