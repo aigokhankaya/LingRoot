@@ -53,11 +53,11 @@ const PackagesScreen: React.FC = () => {
     try {
       setLoading(true);
       // subscriptionService kullanarak backend'den paketleri çek
-      const plans = await getSubscriptionPlans();
+      const response = await getSubscriptionPlans();
 
-      if (Array.isArray(plans)) {
+      if (response.success && Array.isArray(response.data)) {
         // Sadece aktif ve satın alınabilir paketleri göster (Free Trial hariç)
-        const purchasablePlans = plans.filter((p: SubscriptionPlan) => {
+        const purchasablePlans = response.data.filter((p: SubscriptionPlan) => {
           const hasProductId = Platform.OS === 'ios' ? p.apple_product_id : p.google_product_id;
           return p.is_active && hasProductId;
         });
@@ -74,15 +74,18 @@ const PackagesScreen: React.FC = () => {
 
   const fetchActivePackage = async () => {
     try {
-      const data = await getUsageSummary();
+      const response = await getUsageSummary();
 
-      if (data) {
+      if (response.success && response.data) {
+        const data = response.data as any;
         if (data.plan?.name) {
           setActivePackageName(data.plan.name);
         } else if (data.subscription?.plantype) {
           setActivePackageName(data.subscription.plantype);
         } else if (data.plantype) {
           setActivePackageName(data.plantype);
+        } else if (data.plan_name) {
+          setActivePackageName(data.plan_name);
         }
 
         const sub = data.subscription;
