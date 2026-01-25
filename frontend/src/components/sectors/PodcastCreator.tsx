@@ -102,7 +102,7 @@ export default function PodcastCreator({
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/sectors/podcast/create`,
                 {

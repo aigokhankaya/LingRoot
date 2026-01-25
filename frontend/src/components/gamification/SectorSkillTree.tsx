@@ -68,7 +68,7 @@ const LevelNode = ({ level, contents, isLocked, onContentClick }: { level: strin
                                                 ? 'bg-gray-200 dark:bg-gray-800 text-gray-400'
                                                 : isCompleted
                                                     ? 'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400'
-                                                    : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400'}
+                                                    : 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20 dark:text-cyan-400'}
                                         `}>
                                             {isLocked ? <Lock className="w-5 h-5" /> : <ContentIcon className="w-5 h-5" />}
                                         </div>

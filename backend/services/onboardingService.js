@@ -102,7 +102,13 @@ Assessment criteria:
 
         } catch (error) {
             logger.error('[OnboardingService] Assessment failed:', error);
-            return { cefr: 'B1', confidence: 50, analysis: 'Değerlendirme yapılamadı, orta seviye varsayıldı' };
+            // Hata durumunda en düşük seviye varsay - güvenli başlangıç
+            return {
+                cefr: 'A1',
+                confidence: 30,
+                analysis: 'Değerlendirme yapılamadı. Başlangıç seviyesi olarak A1 belirlendi. İlerledikçe seviyeni ayarlayacağız!',
+                fallback: true
+            };
         }
     }
 
@@ -427,8 +433,8 @@ Generate a JSON roadmap with weekly milestones:
 
                     const nodeId = result.rows[0].id;
 
-                    // İlk birkaç görevi açık bırak
-                    const status = stepOrder <= 3 ? 'unlocked' : 'locked';
+                    // Sadece ilk görevi açık bırak (klasik skill-tree davranışı)
+                    const status = stepOrder === 1 ? 'unlocked' : 'locked';
                     await client.query(`
                         INSERT INTO user_quest_progress (user_id, node_id, status)
                         VALUES ($1, $2, $3)

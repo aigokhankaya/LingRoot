@@ -72,9 +72,9 @@ export default function RoleplayCreator({
     onClose,
     onContentCreated
 }: RoleplayCreatorProps) {
-    // Wizard adımları
+    // Wizard adımları (3 adım: Kategori, Durum/Roller, Sonuç)
     const [step, setStep] = useState(1);
-    const totalSteps = 4;
+    const totalSteps = 3;
 
     // Form durumu
     const [categories, setCategories] = useState<ScenarioCategory[]>([]);
@@ -142,7 +142,7 @@ export default function RoleplayCreator({
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/sectors/roleplay/create`,
                 {
@@ -176,7 +176,7 @@ export default function RoleplayCreator({
             if (data.success) {
                 setGeneratedContent(data.content);
                 setDialogueTurns(data.dialogue?.turns || data.content?.dialogue_data?.dialogue_turns || []);
-                setStep(4); // Sonuç adımına geç
+                setStep(3); // Sonuç adımına geç
                 onContentCreated?.(data.content);
             } else {
                 throw new Error(data.error || 'Senaryo oluşturulamadı');
@@ -194,7 +194,7 @@ export default function RoleplayCreator({
 
         setGeneratingAudio(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/sectors/roleplay/${generatedContent.id}/audio`,
                 {
@@ -635,9 +635,9 @@ export default function RoleplayCreator({
                     </div>
 
                     {/* Progress bar */}
-                    {step < 4 && (
+                    {step < 3 && (
                         <div className="mt-4 flex gap-2">
-                            {[1, 2, 3].map((s) => (
+                            {[1, 2].map((s) => (
                                 <div
                                     key={s}
                                     className={`flex-1 h-1.5 rounded-full transition-all ${s <= step ? 'bg-teal-500' : 'bg-gray-200 dark:bg-gray-700'
@@ -660,14 +660,13 @@ export default function RoleplayCreator({
                         >
                             {step === 1 && renderStep1()}
                             {step === 2 && renderStep2()}
-                            {step === 3 && renderStep3()}
-                            {step === 4 && renderStep4()}
+                            {step === 3 && renderStep4()}
                         </motion.div>
                     </AnimatePresence>
                 </div>
 
                 {/* Footer */}
-                {step < 4 && (
+                {step < 3 && (
                     <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-between">
                         <button
                             onClick={() => setStep(Math.max(1, step - 1))}
@@ -678,7 +677,7 @@ export default function RoleplayCreator({
                             Geri
                         </button>
 
-                        {step < 3 ? (
+                        {step < 2 ? (
                             <button
                                 onClick={() => setStep(step + 1)}
                                 disabled={!canProceed()}
@@ -709,8 +708,8 @@ export default function RoleplayCreator({
                     </div>
                 )}
 
-                {/* Step 4 footer */}
-                {step === 4 && (
+                {/* Step 3 (Result) footer */}
+                {step === 3 && (
                     <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-between">
                         <button
                             onClick={() => {

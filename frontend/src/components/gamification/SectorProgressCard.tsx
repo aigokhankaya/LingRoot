@@ -66,7 +66,7 @@ export const SectorProgressCard: React.FC<SectorProgressCardProps> = ({
     const fetchProgress = async () => {
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const response = await fetch(
                 `${API_BASE}/api/sectors/${sector.id}/gamification/progress`,
                 {

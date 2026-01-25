@@ -116,7 +116,7 @@ export const GamificationBanner: React.FC<GamificationBannerProps> = (props) => 
         const progressPercent = (activeChallenge.progress / activeChallenge.total) * 100;
 
         return (
-            <Card className="relative bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 mb-6 flex items-center justify-between rounded-xl shadow-lg overflow-hidden">
+            <Card className="relative bg-gradient-to-r from-teal-500 to-cyan-600 text-white p-4 mb-6 flex items-center justify-between rounded-xl shadow-lg overflow-hidden">
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-10">
                     <div className="absolute top-0 right-1/3 w-40 h-40 bg-white rounded-full blur-3xl" />
@@ -147,7 +147,7 @@ export const GamificationBanner: React.FC<GamificationBannerProps> = (props) => 
 
                 <button
                     onClick={() => window.location.href = '/dashboard#gamification'}
-                    className="relative bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-purple-50 transition-colors shadow-md ml-4"
+                    className="relative bg-white text-teal-600 px-6 py-2 rounded-lg font-semibold hover:bg-teal-50 transition-colors shadow-md ml-4"
                 >
                     Detaylar
                 </button>
@@ -162,8 +162,68 @@ export const GamificationBanner: React.FC<GamificationBannerProps> = (props) => 
         );
     }
 
-    // If alwaysShow is true (e.g. Welcome page), show daily progress summary
+    // Check if onboarding is completed
+    const isOnboardingComplete = stats?.onboardingCompleted ||
+        (typeof window !== 'undefined' && localStorage.getItem('onboarding_completed') === 'true');
+
+    // If alwaysShow is true (e.g. Welcome page), show daily progress summary OR onboarding prompt
     if (props.alwaysShow) {
+        // If onboarding not complete, show "Create Your Roadmap" card
+        if (!isOnboardingComplete) {
+            return (
+                <div
+                    onClick={() => {
+                        // Clear remind later flag and trigger onboarding
+                        localStorage.removeItem('onboarding_remind_later');
+                        router.push('/welcome?forceOnboarding=true');
+                    }}
+                    className="group cursor-pointer mb-8"
+                >
+                    <Card className="relative bg-gradient-to-r from-teal-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg group-hover:shadow-xl group-hover:scale-[1.01] transition-all duration-300 overflow-hidden">
+                        {/* Background decoration */}
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute top-1/2 left-1/4 w-40 h-40 bg-white rounded-full blur-3xl" />
+                            <div className="absolute bottom-0 right-1/4 w-32 h-32 bg-white rounded-full blur-2xl" />
+                        </div>
+
+                        <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300">
+                                        🗺️
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-xl flex items-center gap-2">
+                                        Yol Haritanı Oluştur
+                                        <span className="text-xs font-normal bg-white/20 px-2 py-0.5 rounded-full group-hover:bg-white/30 transition-colors">
+                                            Başlamak için tıkla
+                                        </span>
+                                    </h3>
+                                    <p className="text-white/80 mt-1">
+                                        Kişisel öğrenme planını oluştur, seviyeni belirle ve hedeflerini seç!
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="hidden md:flex items-center gap-3">
+                                <div className="text-right">
+                                    <div className="text-sm opacity-80">Yaklaşık</div>
+                                    <div className="font-bold text-lg">2 dakika</div>
+                                </div>
+                                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="m9 18 6-6-6-6" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        // Onboarding complete - show normal welcome card
         return (
             <div
                 onClick={() => router.push('/dashboard?focus=daily-quests')}

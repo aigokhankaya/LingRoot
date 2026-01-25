@@ -495,8 +495,10 @@ const Welcome: React.FC = () => {
     // NOT: Artık dashboard'a yönlendirmiyoruz - welcome ana sayfa
     try {
       const localOnboardingDone = localStorage.getItem('onboarding_completed');
-      if (localOnboardingDone === 'true') {
-        // Onboarding tamamlanmış, modal gösterme, sayfada kal
+      const remindLater = localStorage.getItem('onboarding_remind_later');
+
+      if (localOnboardingDone === 'true' || remindLater) {
+        // Onboarding tamamlanmış veya ertelemiş, modal gösterme
         return;
       }
     } catch { }

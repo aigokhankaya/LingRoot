@@ -95,18 +95,18 @@ export default function Dashboard() {
 
   const getDisplayName = () => {
     try {
-      const firstName =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('lingroot_firstName') || ''
-          : '';
-      const lastName =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('lingroot_lastName') || ''
-          : '';
-      const fullName = `${firstName} ${lastName}`.trim();
-      if (fullName) return fullName;
+      // Öncelik 1: Backend'den gelen isim (en güvenilir kaynak)
       if ((user as any).name) return (user as any).name as string;
+
+      // Öncelik 2: Backend'den gelen firstname/lastname
+      const backendFirst = (user as any).firstname || (user as any).first_name || '';
+      const backendLast = (user as any).lastname || (user as any).last_name || '';
+      const backendFullName = `${backendFirst} ${backendLast}`.trim();
+      if (backendFullName) return backendFullName;
+
+      // Öncelik 3: Email'den isim
       if (user.email) return user.email.split('@')[0];
+
       return 'Kullanıcı';
     } catch {
       return (

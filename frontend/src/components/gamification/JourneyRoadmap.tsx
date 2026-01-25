@@ -44,6 +44,8 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,6 +124,38 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
     }
   };
 
+  const resetRoadmap = async () => {
+    setIsResetting(true);
+    try {
+      const token = localStorage.getItem('lingroot_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE}/api/gamification/onboarding/reset`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // localStorage'dan onboarding flag'ini kaldır
+        localStorage.removeItem('onboarding_completed');
+        setShowResetConfirm(false);
+        // Welcome sayfasına yönlendir
+        router.push('/welcome');
+      } else {
+        setError('Sıfırlama başarısız oldu. Lütfen tekrar deneyin.');
+      }
+    } catch (error) {
+      console.error('[JourneyRoadmap] Reset failed:', error);
+      setError('Sıfırlama başarısız oldu.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   // Quest tıklama işleyicisi - içerik URL'ine yönlendir
   const handleQuestClick = (quest: Quest) => {
     if (quest.status === 'locked') return;
@@ -196,7 +230,7 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
   if (isRoadmapEmpty) {
     // Show prominent CTA to create/start journey
     return (
-      <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-8 md:p-12 rounded-3xl shadow-2xl text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-teal-500 via-cyan-500 to-teal-600 p-8 md:p-12 rounded-3xl shadow-2xl text-white">
         {/* Background decoration */}
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
@@ -221,7 +255,7 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
 
           <button
             className={`
-              flex items-center gap-3 bg-white text-purple-600 px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all
+              flex items-center gap-3 bg-white text-teal-600 px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all
               ${isGenerating ? 'opacity-80 cursor-wait' : 'hover:scale-105 hover:shadow-xl'}
             `}
             onClick={createDefaultRoadmap}
@@ -229,7 +263,7 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
           >
             {isGenerating ? (
               <>
-                <span className="w-5 h-5 border-2 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
+                <span className="w-5 h-5 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
                 <span>Plan Hazırlanıyor...</span>
               </>
             ) : (
@@ -254,9 +288,46 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 mb-6">
-        <span className="text-2xl">🗺️</span>
-        <h2 className="text-2xl font-bold text-slate-800">Yolculuğun</h2>
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-800 mb-3">⚠️ Yol Haritasını Sıfırla</h3>
+            <p className="text-slate-600 mb-6">
+              Tüm ilerlemeniz, XP, başarımlar ve streak sıfırlanacak. Onboarding'ı tekrar yapmanız gerekecek.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all"
+                disabled={isResetting}
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={resetRoadmap}
+                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all disabled:opacity-50"
+                disabled={isResetting}
+              >
+                {isResetting ? 'Sıfırlanıyor...' : 'Evet, Sıfırla'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🗺️</span>
+          <h2 className="text-2xl font-bold text-slate-800">Yolculuğun</h2>
+        </div>
+        <button
+          onClick={() => setShowResetConfirm(true)}
+          className="text-sm text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
+          title="Yol haritasını sıfırla"
+        >
+          🔄 Sıfırla
+        </button>
       </div>
 
       <div className="relative overflow-x-auto pb-8 pt-4 custom-scrollbar">

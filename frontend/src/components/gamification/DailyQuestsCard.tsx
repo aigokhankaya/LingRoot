@@ -167,7 +167,7 @@ const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim, onClick }) => {
       {/* Sector Quest Badge - Sektör ile bağlantılı görevler */}
       {(quest as any).sector_id && !(quest as any).parent_quest_node_id && (
         <div className="absolute top-1 right-1">
-          <span className="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-medium">
+          <span className="text-[9px] bg-teal-500 text-white px-1.5 py-0.5 rounded-full font-medium">
             💼
           </span>
         </div>
@@ -185,7 +185,7 @@ const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim, onClick }) => {
           <span className={`text-sm font-bold truncate pr-2 ${isComplete ? 'text-emerald-900' : 'text-slate-700'}`}>
             {quest.task_title}
           </span>
-          <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+          <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded border border-teal-100">
             +{quest.xp_reward} XP
           </span>
         </div>

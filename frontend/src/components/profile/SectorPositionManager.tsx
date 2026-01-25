@@ -110,7 +110,7 @@ export default function SectorPositionManager({ userId, onUpdate }: SectorPositi
     const fetchData = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
             // Kullanıcının sektörlerini al
@@ -176,7 +176,7 @@ export default function SectorPositionManager({ userId, onUpdate }: SectorPositi
 
         setSaving(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
             const body = {
@@ -219,7 +219,7 @@ export default function SectorPositionManager({ userId, onUpdate }: SectorPositi
         if (!confirm('Bu sektörü kaldırmak istediğinize emin misiniz?')) return;
 
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
             await fetch(`${apiUrl}/api/sectors/user-sectors/${sectorId}`, {

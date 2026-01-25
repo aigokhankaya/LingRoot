@@ -297,6 +297,63 @@ router.post('/onboarding/complete', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/gamification/onboarding/reset
+ * Onboarding'i sıfırla - yol haritası ve ilerlemeyi temizle
+ */
+router.post('/onboarding/reset', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const db = require('../config/db');
+
+        logger.info(`[Gamification API] Onboarding reset requested for user: ${userId}`);
+
+        // 1. user_gamification tablosunu sıfırla
+        await db.query(`
+            UPDATE user_gamification 
+            SET 
+                onboarding_completed = false,
+                current_level = 1,
+                total_lifetime_xp = 0,
+                current_xp = 0,
+                streak_count = 0,
+                longest_streak = 0,
+                archetype = NULL,
+                current_league = 'seed',
+                updated_at = NOW()
+            WHERE user_id = $1
+        `, [userId]);
+
+        // 2. user_quest_progress'i sil
+        await db.query('DELETE FROM user_quest_progress WHERE user_id = $1', [userId]);
+
+        // 3. daily_quests'i sil
+        await db.query('DELETE FROM daily_quests WHERE user_id = $1', [userId]);
+
+        // 4. user_achievements'ı sil
+        await db.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
+
+        // 5. xp_transactions'ı sil
+        await db.query('DELETE FROM xp_transactions WHERE user_id = $1', [userId]);
+
+        // 6. user_sectors'u sil
+        await db.query('DELETE FROM user_sectors WHERE user_id = $1', [userId]);
+
+        // 7. weekly_scores'u sil
+        await db.query('DELETE FROM weekly_scores WHERE user_id = $1', [userId]);
+
+        logger.info(`[Gamification API] Onboarding reset completed for user: ${userId}`);
+
+        res.json({
+            success: true,
+            message: 'Yol haritası ve ilerleme sıfırlandı. Onboarding\'i tekrar yapabilirsiniz.'
+        });
+    } catch (error) {
+        logger.error('[Gamification API] Onboarding reset error:', error);
+        res.status(500).json({ success: false, error: 'Onboarding sıfırlanamadı' });
+    }
+});
+
 // ============================================
 // ROADMAP & QUESTS
 // ============================================

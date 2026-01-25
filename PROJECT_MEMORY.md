@@ -7,6 +7,16 @@ Active Context: CEFR-based content engine, prompt governance, audio pipeline sta
 [1. PROJECT VISION & GOALS]
 Core Concept:
 Lingroot, kullanıcıların ilgi duyduğu içerikleri (kitap, makale, podcast, rapor vb.) onların İngilizce seviyesine uyarlayarak, doğal seslendirilmiş ve senkronize altyazılı hale getiren bir yapay zeka destekli "kişiselleştirilmiş dinleme" platformudur.
+
+Strategic Focus (Kritik Konumlandırma):
+LingRoot, tam kapsamlı bir "İngilizce öğretme" uygulaması DEĞİLDİR. LingRoot, İngilizce DİNLEME PRATİĞİ platformudur.
+- ❌ Gramer öğretmez, konuşma pratiği sunmaz, yazma becerisi geliştirmez
+- ✅ Kullanıcının mevcut İngilizce öğrenme sürecini TAMAMLAYAN bir dinleme pratiği aracıdır
+- ✅ Dil ediniminin en kritik girdisi olan "Comprehensible Input"u (Anlaşılır Girdi) sağlar
+- ✅ Kullanıcının zaten sevdiği, okumak/izlemek istediği içerikleri, kendi seviyesinde İngilizce'ye çevirir ve seslendirir
+
+Tek Cümle Özet:
+"LingRoot, sevdiğiniz içerikleri sizin İngilizce seviyenize çeviren ve dinlemeniz için seslendiren bir platformdur."
 Target Audience:
 İngilizce öğrenmek isteyen 13–65 yaş arası kullanıcılar
 Öğrenme için ekstra zaman ayıramayan kişiler

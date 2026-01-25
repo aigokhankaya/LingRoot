@@ -186,8 +186,42 @@ export function SectorDashboardCard({ className = '' }: SectorDashboardCardProps
         );
     }
 
-    const sector = userSector.sector;
-    const sectorIcon = SECTOR_ICONS[sector.code] || '📋';
+    // Validate sector data exists
+    const sector = userSector?.sector;
+    if (!sector) {
+        // Sector data is malformed - show CTA instead of crashing
+        return (
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-2xl p-6 shadow-sm border border-teal-100 dark:border-teal-800 ${className}`}
+            >
+                <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-xl flex items-center justify-center">
+                        <Briefcase className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                            Sektör İngilizcesi
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            Çalıştığın sektöre özel kelime ve içeriklerle profesyonel İngilizce öğren.
+                        </p>
+                        <Link
+                            href="/sectors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            Sektör Seç
+                            <ChevronRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
+    const sectorIcon = SECTOR_ICONS[sector.code] || '💼';
 
     // Extract progress data with fallbacks
     const vocabData = progress?.vocabulary || { learned: 0, total: 0, progress: 0 };

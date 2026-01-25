@@ -542,6 +542,79 @@ export const getChallengeLeaderboard = async (sectorId: number, challengeId: num
 export const getChallengeStats = async (sectorId: number) =>
     fetchApi<ChallengeStats>(`sectors/${sectorId}/challenge-stats`);
 
+// --- Sector Roleplay/Podcast API (Faz 6) ---
+
+export interface RoleplayCompletionData {
+    contentId: number;
+    sectorId: number;
+    completedTurns: number;
+    totalTurns: number;
+    practiceTime: number;
+    vocabularyLearned: string[];
+    playMode: 'listen' | 'practice' | 'shadow';
+}
+
+export interface PodcastCompletionData {
+    contentId: number;
+    sectorId: number;
+    listenedPercentage: number;
+    listenTime: number;
+    vocabularyLearned: string[];
+    questionsCorrect: number;
+    questionsTotal: number;
+}
+
+export interface ContentCompletionResult {
+    xpEarned: number;
+    bonusXP: number;
+    streakBonus: boolean;
+    achievements?: string[];
+    levelUp?: boolean;
+    newLevel?: number;
+}
+
+// Complete roleplay and earn XP
+export const completeRoleplay = async (data: RoleplayCompletionData) =>
+    fetchApi<ContentCompletionResult>(`sectors/${data.sectorId}/gamification/activity`, {
+        method: 'POST',
+        body: JSON.stringify({
+            activityType: 'sector_roleplay_complete',
+            sourceId: data.contentId,
+            metadata: {
+                completedTurns: data.completedTurns,
+                totalTurns: data.totalTurns,
+                practiceTime: data.practiceTime,
+                vocabularyLearned: data.vocabularyLearned,
+                playMode: data.playMode
+            }
+        })
+    });
+
+// Complete podcast and earn XP
+export const completePodcast = async (data: PodcastCompletionData) =>
+    fetchApi<ContentCompletionResult>(`sectors/${data.sectorId}/gamification/activity`, {
+        method: 'POST',
+        body: JSON.stringify({
+            activityType: 'sector_podcast_complete',
+            sourceId: data.contentId,
+            metadata: {
+                listenedPercentage: data.listenedPercentage,
+                listenTime: data.listenTime,
+                vocabularyLearned: data.vocabularyLearned,
+                questionsCorrect: data.questionsCorrect,
+                questionsTotal: data.questionsTotal
+            }
+        })
+    });
+
+// Get roleplay content details
+export const getRoleplayContent = async (contentId: number) =>
+    fetchApi(`sectors/content/${contentId}`);
+
+// Get podcast content with transcript
+export const getPodcastContent = async (contentId: number) =>
+    fetchApi(`sectors/content/${contentId}`);
+
 export const saveUserBookFavorites = async (bookIds: number[] | string[]) =>
     fetchApi('user-book-favorites', {
         method: 'POST',
