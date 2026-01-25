@@ -191,6 +191,7 @@ app.use('/api/api-costs', apiCostsRoutes);
 app.use('/api/apple-notifications', appleNotificationsRoutes);
 app.use('/api/google-play-notifications', googlePlayNotificationsRoutes);
 app.use('/api/user-sectors', userSectorRoutes);
+app.use('/api/admin/jobs', require('./routes/jobRoutes.js'));
 
 // Try to load optional routes (may not exist)
 try {
