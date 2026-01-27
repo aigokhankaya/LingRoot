@@ -113,6 +113,104 @@ export async function getApiClientAsync(): Promise<LingRootApiClient> {
     return initializeApiClient();
 }
 
+// ========================================
+// Backend Wake Helper (Render Cold Start)
+// ========================================
+let lastBackendAwakeAt: number | null = null;
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Wake backend if it's hibernating (Render.com cold start)
+ * Returns true if backend is awake, false otherwise
+ */
+export async function wakeBackendIfNeeded(force: boolean = false): Promise<boolean> {
+    try {
+        const client = await getApiClientAsync();
+        const baseUrl = client.http.defaults.baseURL || '';
+
+        // If we recently confirmed it's awake, skip
+        if (!force && lastBackendAwakeAt && Date.now() - lastBackendAwakeAt < 120000) {
+            return true;
+        }
+
+        const healthUrl = `${baseUrl}/api/health`;
+        const res = await fetch(healthUrl, { method: 'GET' });
+        if (res.ok) {
+            lastBackendAwakeAt = Date.now();
+            return true;
+        }
+
+        // Render hibernation returns 503
+        if (res.status !== 503) {
+            return false;
+        }
+
+        // Try to wake by polling a few times with backoff
+        for (let attempt = 1; attempt <= 6; attempt++) {
+            const delay = 800 * attempt + 400;
+            await sleep(delay);
+            try {
+                const ping = await fetch(healthUrl, { method: 'GET' });
+                if (ping.ok) {
+                    lastBackendAwakeAt = Date.now();
+                    return true;
+                }
+            } catch { }
+        }
+        return false;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Get the API client with backend wake check
+ * Use this for operations that need the backend to be awake
+ */
+export async function getApiClientWithWake(): Promise<LingRootApiClient> {
+    await wakeBackendIfNeeded();
+    return getApiClientAsync();
+}
+
+// ========================================
+// Error Handling Helpers
+// ========================================
+
+/**
+ * Standard error message extraction from API errors
+ */
+export function extractErrorMessage(error: any, defaultMessage: string): string {
+    if (error?.response?.data?.message) {
+        return error.response.data.message;
+    }
+    if (error?.message) {
+        return error.message;
+    }
+    return defaultMessage;
+}
+
+/**
+ * Check if error is a usage limit exceeded error
+ */
+export function isUsageLimitError(error: any): boolean {
+    return error?.response?.data?.code === 'USAGE_LIMIT_EXCEEDED';
+}
+
+/**
+ * Check if error is a timeout error
+ */
+export function isTimeoutError(error: any): boolean {
+    return error?.code === 'ECONNABORTED';
+}
+
+/**
+ * Check if error is a network error
+ */
+export function isNetworkError(error: any): boolean {
+    return error?.message === 'Network Error' || error?.code === 'ERR_NETWORK';
+}
+
 // Re-export types for convenience
 export type { LingRootApiClient } from '@lingroot/api-client';
 export * from '@lingroot/api-client';

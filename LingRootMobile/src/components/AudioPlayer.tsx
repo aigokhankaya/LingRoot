@@ -23,6 +23,7 @@ import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
 import { addWordToVocabulary, addWordWithTranslation, lookupVocabularyWord } from '../services/vocabularyService';
 import { getUserContentById } from '../services/contentService';
+import perfLog from '../utils/performanceLogger';
 import { useLanguage } from '../contexts/LanguageContext';
 import { SkiaWordHighlight } from './SkiaWordHighlight';
 import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
@@ -162,6 +163,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const wasPlayingRef = useRef(false); // Track previous play state to prevent event spam
   const latestWordPositionRef = useRef<{ top: number; bottom: number; height: number } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [originalText, setOriginalText] = useState('');
   const [originalLoading, setOriginalLoading] = useState(false);
   const [manualSeconds, setManualSeconds] = useState('');
@@ -217,6 +219,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!track.id) return;
 
     (async () => {
+      perfLog.start('loadOriginalText', 'AudioPlayer');
       try {
         setOriginalLoading(true);
         const res = await getUserContentById(track.id);
@@ -227,6 +230,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         // silent in production
       } finally {
         setOriginalLoading(false);
+        perfLog.end('loadOriginalText');
       }
     })();
   }, [visible, track.input_type, track.id, showOriginal, originalLoading, originalText]);
@@ -597,18 +601,28 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   useEffect(() => {
     if (!visible) {
-      // Reset states when modal closes but DON'T unload audio
-      setIsLoaded(false);
-      setDuration(0);
-      setPosition(0);
-      setCurrentWordIndex(-1);
-      setCurrentSentenceIndex(-1);
-      setCurrentDialogueIndex(-1);
-      setSelectedWords(new Set()); // Seçilen kelimeleri temizle
+      // Defer state resets so they don't trigger re-renders while
+      // the native Modal slide-out animation is still running.
+      // Re-rendering a large component tree mid-animation can freeze
+      // the iOS UI thread.
+      const timer = setTimeout(() => {
+        perfLog.mark('audioPlayer:cleanup:start');
+        // Reset states when modal closes but DON'T unload audio
+        setIsLoaded(false);
+        setDuration(0);
+        setPosition(0);
+        setCurrentWordIndex(-1);
+        setCurrentSentenceIndex(-1);
+        setCurrentDialogueIndex(-1);
+        setSelectedWords(new Set());
 
-      // Reset refs as well
-      durationRef.current = 0;
-      isLoadedRef.current = false;
+        // Reset refs as well
+        durationRef.current = 0;
+        isLoadedRef.current = false;
+        perfLog.mark('audioPlayer:cleanup:end');
+      }, 350);
+
+      return () => clearTimeout(timer);
     }
 
     return () => {
@@ -1828,14 +1842,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       visible={visible}
       animationType="slide"
       onRequestClose={onClose}
-      presentationStyle="overFullScreen"
-      transparent
+      presentationStyle="fullScreen"
+      onDismiss={() => perfLog.mark('modal:onDismiss')}
     >
       <View style={[styles.container, { paddingTop: insets.top + 56 }]}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: Math.max(8, insets.top + 8) }]}>
           <TouchableOpacity
-            onPress={onClose}
+            onPress={() => {
+              perfLog.mark('audioPlayer:closeBtn:pressed');
+              onClose();
+              perfLog.mark('audioPlayer:closeBtn:afterOnClose');
+            }}
             style={styles.closeButton}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
@@ -1877,7 +1895,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         {/* Extra floating close button to guarantee tappable area */}
         <TouchableOpacity
-          onPress={onClose}
+          onPress={() => {
+            perfLog.mark('audioPlayer:floatingCloseBtn:pressed');
+            onClose();
+            perfLog.mark('audioPlayer:floatingCloseBtn:afterOnClose');
+          }}
           style={[
             styles.floatingClose,
             { top: Math.max(12, insets.top + 6) }
@@ -1978,21 +2000,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   </Text>
                   <TouchableOpacity
                     onPress={() => {
+                      if (copiedFeedback) return;
+                      perfLog.mark('copy:start');
                       const textToCopy = originalText || track.original_turkish || '';
                       if (textToCopy) {
                         Clipboard.setString(textToCopy);
-                        showAlert(
-                          t('audioPlayer.copySuccessTitle'),
-                          t('audioPlayer.copySuccessMessage'),
-                          [{ text: t('common.ok'), style: 'default' }],
-                          'content-copy',
-                          '#10B981'
-                        );
+                        perfLog.mark('copy:end');
+                        setCopiedFeedback(true);
+                        setTimeout(() => setCopiedFeedback(false), 1500);
                       }
                     }}
                     style={styles.copyButton}
                   >
-                    <Icon name="content-copy" size={20} color={COLORS.primary} />
+                    <Icon
+                      name={copiedFeedback ? 'check-circle' : 'content-copy'}
+                      size={20}
+                      color={copiedFeedback ? '#10B981' : COLORS.primary}
+                    />
                   </TouchableOpacity>
                 </View>
                 {originalLoading ? (

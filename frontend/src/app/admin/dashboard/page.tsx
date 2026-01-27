@@ -33,8 +33,10 @@ import TtsProviderSelector from '@/components/admin/TtsProviderSelector';
 import EnvironmentSelector from '@/components/admin/EnvironmentSelector';
 import PaymentEnvironmentSelector from '@/components/admin/PaymentEnvironmentSelector';
 import ApiCostDashboard from '@/components/admin/ApiCostDashboard';
+import JobDashboard from '@/components/admin/JobDashboard';
 
 const App: React.FC = () => {
+
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("kullanici-yonetimi");
 
@@ -513,7 +515,7 @@ const App: React.FC = () => {
       animation: false,
       tooltip: {
         trigger: 'item',
-        formatter: '{a} <br/>{b}: {c} ({d}%)'
+        formatter: '{a} <br />{b}: {c} ({d}%)'
       },
       legend: {
         orient: 'vertical',
@@ -802,6 +804,10 @@ const App: React.FC = () => {
                 <i className="fas fa-chart-line mr-3 text-lg"></i>
                 <span>Analitik</span>
               </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("job-takibi")}>
+                <i className="fas fa-tasks mr-3 text-lg"></i>
+                <span>Job Takibi</span>
+              </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("maliyet-takibi")}>
                 <i className="fas fa-coins mr-3 text-lg"></i>
                 <span>Maliyet Takibi</span>
@@ -837,6 +843,10 @@ const App: React.FC = () => {
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("ayarlar")}>
                 <i className="fas fa-cog mr-3 text-lg"></i>
                 <span>Ayarlar</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/logs')}>
+                <i className="fas fa-chart-line mr-3 text-lg"></i>
+                <span>Performans Logları</span>
               </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/tts-test')}>
                 <i className="fas fa-volume-up mr-3 text-lg"></i>
@@ -1545,6 +1555,13 @@ const App: React.FC = () => {
                   </div>
                 </TabsContent>
               </Tabs>
+            </div>
+          )}
+
+
+          {activeTab === "job-takibi" && (
+            <div className="p-6">
+              <JobDashboard />
             </div>
           )}
 

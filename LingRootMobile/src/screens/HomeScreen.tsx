@@ -15,11 +15,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getUserAudioCount, getUserAudioHistory, getFullContentHistory } from '../services/contentService';
+import { getUserAudioCount, getUserAudioHistory } from '../services/contentService';
 import { getMyPlanFeatures, PlanFeatures } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 import { AudioTrack } from '../types';
 import AudioPlayer from '../components/AudioPlayer';
+import perfLog from '../utils/performanceLogger';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -159,28 +160,24 @@ const HomeScreen: React.FC = () => {
       setStats({ audioCount: 0, totalDuration: 0, loading: false });
       return;
     }
+    perfLog.start('fetchUserStats', 'HomeScreen');
     try {
-      const [countOrNull, response] = await Promise.all([
+      const [countResult, response] = await Promise.all([
         getUserAudioCount(user.id),
         getUserAudioHistory(user.id),
       ]);
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
-        let finalCount = (typeof countOrNull === 'number' && countOrNull >= 0)
-          ? countOrNull
-          : ((response as any).total_count ?? audioTracks.length);
-        if (typeof (response as any).total_count !== 'number' && finalCount === 50) {
-          try {
-            const full = await getFullContentHistory();
-            if (full?.success && Array.isArray(full.data)) {
-              finalCount = full.data.length;
-            }
-          } catch { }
-        }
-        const apiTotal = typeof (response as any).total_duration_seconds === 'number' ? (response as any).total_duration_seconds : null;
-        const pageSum = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
-        const totalDuration = apiTotal != null ? apiTotal : pageSum;
-        setStats({ audioCount: finalCount, totalDuration: Math.round(totalDuration / 60), loading: false });
+        // Use count and duration from count endpoint
+        const finalCount = countResult.count || audioTracks.length;
+        const totalDurationSeconds = countResult.totalDurationSeconds || 0;
+
+        // Convert to minutes
+        setStats({
+          audioCount: finalCount,
+          totalDuration: Math.round(totalDurationSeconds / 60),
+          loading: false
+        });
 
         // Set recent tracks for Jump Back In (last 5)
         setRecentTracks(audioTracks.slice(0, 5));
@@ -191,11 +188,14 @@ const HomeScreen: React.FC = () => {
     } catch (error) {
       setStats({ audioCount: 0, totalDuration: 0, loading: false });
       setRecentTracks([]);
+    } finally {
+      perfLog.end('fetchUserStats');
     }
   };
 
   // Fetch plan features
   const fetchPlanFeatures = async () => {
+    perfLog.start('fetchPlanFeatures', 'HomeScreen');
     try {
       setFeaturesLoading(true);
       const result = await getMyPlanFeatures();
@@ -204,6 +204,7 @@ const HomeScreen: React.FC = () => {
       console.error('Error loading plan features:', error);
     } finally {
       setFeaturesLoading(false);
+      perfLog.end('fetchPlanFeatures');
     }
   };
 
@@ -286,7 +287,8 @@ const HomeScreen: React.FC = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchUserStats();
+      perfLog.mark('home:focus:start');
+      fetchUserStats().then(() => perfLog.mark('home:focus:fetchDone'));
       return () => { };
     }, [user?.id])
   );

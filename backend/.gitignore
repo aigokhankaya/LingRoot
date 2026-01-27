@@ -8,3 +8,10 @@ lingroot.env
 .env
 
 backend/service-accounts/*.json
+
+# Logs
+utils/logs/
+logs/
+check_tokens.js
+check_user_tokens.js
+test_fcm_real.js

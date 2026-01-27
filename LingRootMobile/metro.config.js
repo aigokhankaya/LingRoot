@@ -1,4 +1,7 @@
-const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+
+const path = require('path');
+const packagesPath = path.resolve(__dirname, '../packages');
 
 /**
  * Metro configuration
@@ -7,8 +10,10 @@ const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
  * @type {import('metro-config').MetroConfig}
  */
 const config = {
+  watchFolders: [packagesPath],
   resolver: {
     assetExts: ['bin', 'txt', 'jpg', 'png', 'json', 'gif', 'webp', 'svg', 'ttf', 'otf'],
+    nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
   },
 };
 

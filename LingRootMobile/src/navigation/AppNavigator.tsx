@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
 import BlurHeader from '../components/BlurHeader';
+import perfLog from '../utils/performanceLogger';
 
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
@@ -67,15 +68,22 @@ const AuthStack = () => {
 const MainTabs = () => {
   const { t } = useLanguage();
   const [isTestEnv, setIsTestEnv] = useState(false);
+  const isPollingRef = useRef(false);
 
   useEffect(() => {
     getEnvironmentConfig().then(config => {
       setIsTestEnv(config.environment === 'test');
     });
 
+    // Flush any accumulated perf logs from previous sessions
+    perfLog.flush();
+
     // Poll for notifications every 30 seconds
     const pollNotifications = async () => {
+      if (isPollingRef.current) return;
+      isPollingRef.current = true;
       try {
+        perfLog.start('pollNotifications', 'MainTabs');
         const notifications = await getUnreadNotifications();
 
         if (!Array.isArray(notifications) || notifications.length === 0) {
@@ -143,12 +151,15 @@ const MainTabs = () => {
         }
       } catch {
         // Silent error for polling failures
+      } finally {
+        isPollingRef.current = false;
+        perfLog.end('pollNotifications');
       }
     };
 
-    // Poll immediately and then every 5 seconds (more responsive for async TTS)
+    // Poll immediately and then every 30 seconds
     pollNotifications();
-    const pollInterval = setInterval(pollNotifications, 5000);
+    const pollInterval = setInterval(pollNotifications, 30000);
 
     return () => {
       clearInterval(pollInterval);
@@ -253,6 +264,17 @@ const MainTabs = () => {
           return {
             tabBarLabel: t('create.title'),
             headerTitle: t('create.title'),
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Home')}
+                style={{ flexDirection: 'row', alignItems: 'center', marginLeft: Platform.OS === 'ios' ? 8 : 4 }}
+              >
+                <Ionicons name="chevron-back" size={28} color={COLORS.slate900} />
+                <Text style={{ color: COLORS.slate900, fontSize: 17 }}>
+                  {t('common.back')}
+                </Text>
+              </TouchableOpacity>
+            ),
             // Only apply custom button when NOT focused (to make it dim)
             ...(isFocused ? {} : {
               tabBarButton: ({ style, children, accessibilityState, testID, accessibilityLabel, accessibilityRole }) => (
@@ -537,6 +559,7 @@ const AppNavigator = () => {
 
         if (previousRouteName !== currentRouteName && currentRouteName) {
           await logScreenView(currentRouteName, currentRouteName);
+          perfLog.setScreen(currentRouteName);
         }
         (global as any).__currentRouteName = currentRouteName;
       }}
@@ -544,7 +567,11 @@ const AppNavigator = () => {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
-            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="Main"
+              component={MainTabs}
+              options={{ headerBackTitle: t('common.back') }}
+            />
             <Stack.Screen
               name="TopicTree"
               component={TopicTreeScreen}

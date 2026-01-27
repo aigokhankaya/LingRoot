@@ -3,7 +3,8 @@
  * Main Entry Point
  * 
  * Created: 2026-01-16
- * Version: 1.0
+ * Updated: 2026-01-24
+ * Version: 2.0
  * 
  * Usage:
  * ```typescript
@@ -32,6 +33,7 @@
  * // Use the client
  * const result = await client.auth.login({ email, password });
  * const voices = await client.tts.listVoices();
+ * const topics = await client.topic.getTree();
  * ```
  */
 
@@ -46,6 +48,9 @@ import {
     createChatApi,
     createBookApi,
     createVocabularyApi,
+    createTopicApi,
+    createPatternApi,
+    createNotificationApi,
     type AuthApi,
     type TTSApi,
     type ContentApi,
@@ -53,6 +58,9 @@ import {
     type ChatApi,
     type BookApi,
     type VocabularyApi,
+    type TopicApi,
+    type PatternApi,
+    type NotificationApi,
 } from './endpoints';
 
 // Re-export types
@@ -78,6 +86,12 @@ export interface LingRootApiClient {
     book: BookApi;
     /** Vocabulary and SRS endpoints */
     vocabulary: VocabularyApi;
+    /** Topic hierarchy endpoints */
+    topic: TopicApi;
+    /** Pattern (idioms, expressions) endpoints */
+    pattern: PatternApi;
+    /** Notification endpoints */
+    notification: NotificationApi;
     /** Raw axios instance for custom requests */
     http: AxiosInstance;
     /** MFA-specific axios instance */
@@ -103,6 +117,9 @@ export function createApiClient(config: ApiClientConfig): LingRootApiClient {
         chat: createChatApi(api),
         book: createBookApi(api),
         vocabulary: createVocabularyApi(api),
+        topic: createTopicApi(api),
+        pattern: createPatternApi(api),
+        notification: createNotificationApi(api),
         http: api,
         mfaHttp: mfaApi,
         refreshTokens,

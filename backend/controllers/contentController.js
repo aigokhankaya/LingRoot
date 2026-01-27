@@ -257,6 +257,71 @@ exports.getContentHistory = async (req, res) => {
 /**
  * Belirli bir içeriği ID ile getiren fonksiyon. Supabase'den ilgili kaydı çeker.
  */
+/**
+ * Kullanıcının içerik sayısını ve toplam süresini getiren fonksiyon.
+ */
+exports.getContentCount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Get count
+    const { count, error: countError } = await supabase
+      .from('contenthistory')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      logger.error('Error fetching content count:', countError);
+      return res.status(500).json({ success: false, error: countError.message });
+    }
+
+    // Get total duration from timepoints
+    let totalDurationSeconds = 0;
+    try {
+      const { data: contents, error: contentsError } = await supabase
+        .from('contenthistory')
+        .select('timepoints')
+        .eq('user_id', userId);
+
+      if (!contentsError && contents) {
+        for (const content of contents) {
+          if (content.timepoints) {
+            try {
+              let tp = content.timepoints;
+              // Parse if string
+              if (typeof tp === 'string') {
+                tp = JSON.parse(tp);
+              }
+              // Get duration from last timepoint
+              if (Array.isArray(tp) && tp.length > 0) {
+                const last = tp[tp.length - 1];
+                // Try different property names
+                const dur = last?.timeSeconds || last?.endTime || last?.time || last?.end || 0;
+                if (typeof dur === 'number' && dur > 0) {
+                  totalDurationSeconds += dur;
+                }
+              }
+            } catch (parseErr) {
+              // Ignore parse errors for individual items
+            }
+          }
+        }
+      }
+    } catch (durErr) {
+      logger.warn('Error calculating total duration:', durErr);
+    }
+
+    return res.json({
+      success: true,
+      count: count || 0,
+      total_duration_seconds: Math.round(totalDurationSeconds)
+    });
+  } catch (error) {
+    logger.error('Server error getContentCount:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 exports.getContentById = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;

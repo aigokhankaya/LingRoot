@@ -48,7 +48,7 @@ async function sendPushNotification(userId, notification) {
 
       const { data: tokens, error: tokensError } = await supabase
         .from('device_tokens')
-        .select('id, platform, token, is_active')
+        .select('id, platform, token, is_active, created_at, updated_at')
         .eq('user_id', userId)
         .eq('is_active', true);
 
@@ -57,14 +57,23 @@ async function sendPushNotification(userId, notification) {
         return { success: true, data };
       }
 
+      logger.info(`[PushNotification] 📱 Found ${tokens?.length || 0} device tokens for user ${userId}`);
+      if (tokens && tokens.length > 0) {
+        tokens.forEach((t, i) => {
+          logger.info(`[PushNotification] 📱 Token ${i + 1}: platform=${t.platform}, active=${t.is_active}, token=${t.token?.substring(0, 20)}...`);
+        });
+      }
+
       const registrationTokens = (tokens || [])
         .map((t) => t && t.token)
         .filter((t) => typeof t === 'string' && t.trim().length > 0);
 
       if (!registrationTokens.length) {
-        logger.info('[PushNotification] No active device tokens found for user; skipping FCM send');
-        return { success: true, data };
+        logger.warn(`[PushNotification] ⚠️ No active device tokens found for user ${userId}; skipping FCM send. User may not be logged in or token registration failed.`);
+        return { success: true, data, message: 'No tokens found' };
       }
+
+      logger.info(`[PushNotification] 🚀 Sending FCM to ${registrationTokens.length} token(s)`);
 
       const dataPayload = {
         type: notification.type || 'general',
@@ -103,7 +112,29 @@ async function sendPushNotification(userId, notification) {
           body: notification.body,
         },
         data: dataPayload,
+        // Add APNS config for iOS background/alert handling priority
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              alert: {
+                title: notification.title,
+                body: notification.body,
+              },
+            },
+          },
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            sound: 'default',
+            priority: 'high',
+            channelId: 'lingroot_notifications',
+          },
+        }
       };
+
+      logger.info(`[PushNotification] Sending FCM message payload: ${JSON.stringify(message, null, 2)}`);
 
       const fcmResult = await messaging.sendEachForMulticast(message);
       logger.info('[PushNotification] FCM send result: ' + JSON.stringify({
@@ -123,6 +154,7 @@ async function sendPushNotification(userId, notification) {
             return {
               index,
               token: registrationTokens[index],
+              tokenId: tokens[index]?.id,
               code: resp.error.code,
               message: resp.error.message,
             };
@@ -134,6 +166,21 @@ async function sendPushNotification(userId, notification) {
             logger.warn('[PushNotification] FCM send failures (detailed): ' + JSON.stringify(failures));
           } catch (jsonErr) {
             logger.warn('[PushNotification] FCM send failures (raw object):', failures);
+          }
+
+          // Deactivate invalid tokens automatically
+          const invalidTokenIds = failures
+            .filter(f => f.code === 'messaging/registration-token-not-registered' ||
+              f.code === 'messaging/invalid-registration-token')
+            .map(f => f.tokenId)
+            .filter(Boolean);
+
+          if (invalidTokenIds.length > 0) {
+            logger.info(`[PushNotification] Deactivating ${invalidTokenIds.length} invalid tokens`);
+            await supabase
+              .from('device_tokens')
+              .update({ is_active: false })
+              .in('id', invalidTokenIds);
           }
         }
       }

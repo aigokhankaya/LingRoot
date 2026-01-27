@@ -49,7 +49,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       const response = await getTopicTree();
 
       if (response.success && response.data) {
-        setTopics(response.data.topics);
+        setTopics(response.data.topics || []);
         console.log('✅ Konu ağacı yüklendi:', response.data.total, 'konu');
       }
     } catch (err: any) {

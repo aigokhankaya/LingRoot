@@ -490,7 +490,7 @@ const TopicTreeScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingTop: 70, paddingHorizontal: 20, paddingBottom: 100 },
+  scrollContent: { paddingTop: 100, paddingHorizontal: 20, paddingBottom: 100 },
 
   // Card
   card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },

@@ -10,26 +10,15 @@ const logger = require('../utils/common/logger.js'); // Import logger
 // JWT secret key
 const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
 
-// Performance measurement helper
+// Performance measurement helper (silent)
 const measureTime = async (operation, description) => {
-  const start = process.hrtime();
   const result = await operation();
-  const [seconds, nanoseconds] = process.hrtime(start);
-  const duration = seconds * 1000 + nanoseconds / 1000000; // Convert to milliseconds
-  logger.debug(`Performance [${description}]: ${duration.toFixed(2)}ms`);
   return result;
 };
 
 // Authenticate middleware
 exports.authenticate = async (req, res, next) => {
   const path = req.originalUrl;
-  const startTime = process.hrtime();
-  // Reduce debug noise for polling endpoints unless it's an error
-  const isPolling = path.includes('/notifications/unread');
-
-  if (!isPolling) {
-    logger.debug(`Authentication middleware triggered for path: ${path}`);
-  }
 
   try {
     // Get token from header
@@ -82,14 +71,6 @@ exports.authenticate = async (req, res, next) => {
 
     // Add user info to request
     req.user = user;
-
-    // Log total authentication time only for non-polling or slow requests
-    const [totalSeconds, totalNanoseconds] = process.hrtime(startTime);
-    const totalDuration = totalSeconds * 1000 + totalNanoseconds / 1000000;
-
-    if (!isPolling || totalDuration > 500) {
-      logger.info(`[AUTH_SUCCESS] User: ${user.email}, Path: ${path}, Time: ${totalDuration.toFixed(2)}ms`);
-    }
 
     next();
   } catch (error) {

@@ -33,7 +33,7 @@ export interface Topic {
  */
 export async function getTopicTree(): Promise<{ success: boolean; data: { topics: Topic[] } }> {
     const client = await getApiClientAsync();
-    const response = await client.http.get('/api/topics/tree');
+    const response = await client.http.get('/api/topic-hierarchy/topics/tree');
     return response.data;
 }
 
@@ -42,7 +42,7 @@ export async function getTopicTree(): Promise<{ success: boolean; data: { topics
  */
 export async function createMainTopic(data: { title: string; level: string }): Promise<Topic> {
     const client = await getApiClientAsync();
-    const response = await client.http.post('/api/topics', data);
+    const response = await client.http.post('/api/topic-hierarchy/topics', data);
     return response.data;
 }
 
@@ -51,7 +51,7 @@ export async function createMainTopic(data: { title: string; level: string }): P
  */
 export async function deleteTopicAndChildren(topicId: string): Promise<void> {
     const client = await getApiClientAsync();
-    await client.http.delete(`/api/topics/${topicId}`);
+    await client.http.delete(`/api/topic-hierarchy/topics/${topicId}`);
 }
 
 /**
@@ -62,7 +62,7 @@ export async function generateSubtopics(
     options: { count: number; language: string }
 ): Promise<{ success: boolean; subtopics: Topic[] }> {
     const client = await getApiClientAsync();
-    const response = await client.http.post(`/api/topics/${topicId}/generate-subtopics`, options);
+    const response = await client.http.post(`/api/topic-hierarchy/topics/${topicId}/subtopics`, options);
     return response.data;
 }
 
@@ -74,7 +74,7 @@ export async function addManualSubtopic(
     data: { title: string }
 ): Promise<Topic> {
     const client = await getApiClientAsync();
-    const response = await client.http.post(`/api/topics/${parentId}/subtopics`, data);
+    const response = await client.http.post(`/api/topic-hierarchy/topics/${parentId}/subtopics/manual`, data);
     return response.data;
 }
 

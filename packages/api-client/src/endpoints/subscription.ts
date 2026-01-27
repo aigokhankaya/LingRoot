@@ -64,7 +64,7 @@ export function createSubscriptionApi(api: AxiosInstance): SubscriptionApi {
         },
 
         async getCurrentSubscription(): Promise<ApiResponse<UserSubscription | null>> {
-            const response = await api.get<ApiResponse<UserSubscription | null>>('/api/subscription/current');
+            const response = await api.get<ApiResponse<UserSubscription | null>>('/api/subscription/my-subscription');
             return response.data;
         },
 
@@ -81,7 +81,7 @@ export function createSubscriptionApi(api: AxiosInstance): SubscriptionApi {
                 limits: Record<string, number>;
             };
         }> {
-            const response = await api.get('/api/subscription/my-plan-features');
+            const response = await api.get('/api/subscription/my-features');
             return response.data;
         },
 
