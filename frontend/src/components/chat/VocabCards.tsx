@@ -15,10 +15,11 @@ interface VocabWord {
 
 interface VocabCardsProps {
     data: {
-        words: VocabWord[];
+        words?: VocabWord[];
         topic?: string;
         level?: string;
         xpReward: number;
+        [key: string]: unknown;
     };
     onComplete: (result: { xpEarned: number }) => void;
 }

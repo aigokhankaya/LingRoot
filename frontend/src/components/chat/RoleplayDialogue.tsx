@@ -23,29 +23,36 @@ interface DialogueMessage {
 
 interface RoleplayDialogueProps {
     data: {
-        scenario: {
+        scenario?: {
             title: string;
             titleTurkish?: string;
             setting: string;
             userRole: string;
             aiRole: string;
         };
-        starterLine: {
+        starterLine?: {
             speaker: string;
             text: string;
             translation?: string;
         };
-        suggestedResponses: SuggestedResponse[];
-        helpfulPhrases: HelpfulPhrase[];
-        expectedTurns: number;
+        suggestedResponses?: SuggestedResponse[];
+        helpfulPhrases?: HelpfulPhrase[];
+        expectedTurns?: number;
         xpReward: number;
+        [key: string]: unknown;
     };
     onComplete: (result: { xpEarned: number; turnsCompleted: number }) => void;
 }
 
 export const RoleplayDialogue: React.FC<RoleplayDialogueProps> = ({ data, onComplete }) => {
+    const scenario = data.scenario || { title: 'Roleplay', setting: 'Practice', userRole: 'User', aiRole: 'Assistant' };
+    const starterLine = data.starterLine || { speaker: 'ai', text: 'Hello!', translation: 'Merhaba!' };
+    const suggestedResponses = data.suggestedResponses || [];
+    const helpfulPhrases = data.helpfulPhrases || [];
+    const expectedTurns = data.expectedTurns || 3;
+
     const [messages, setMessages] = useState<DialogueMessage[]>([
-        { speaker: 'ai', text: data.starterLine.text, translation: data.starterLine.translation }
+        { speaker: 'ai', text: starterLine.text, translation: starterLine.translation }
     ]);
     const [currentTurn, setCurrentTurn] = useState(0);
     const [showPhrases, setShowPhrases] = useState(false);
@@ -53,7 +60,7 @@ export const RoleplayDialogue: React.FC<RoleplayDialogueProps> = ({ data, onComp
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const isComplete = currentTurn >= data.expectedTurns;
+    const isComplete = currentTurn >= expectedTurns;
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -102,7 +109,7 @@ export const RoleplayDialogue: React.FC<RoleplayDialogueProps> = ({ data, onComp
     };
 
     const handleComplete = () => {
-        const bonusMultiplier = currentTurn >= data.expectedTurns ? 1 : 0.7;
+        const bonusMultiplier = currentTurn >= expectedTurns ? 1 : 0.7;
         onComplete({
             xpEarned: Math.round(data.xpReward * bonusMultiplier),
             turnsCompleted: currentTurn
@@ -124,25 +131,25 @@ export const RoleplayDialogue: React.FC<RoleplayDialogueProps> = ({ data, onComp
             <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 px-4 py-3 border-b border-slate-700/50">
                 <div className="flex items-center gap-2 mb-1">
                     <span className="text-xl">💬</span>
-                    <h3 className="text-sm font-semibold text-slate-100">{data.scenario.title}</h3>
+                    <h3 className="text-sm font-semibold text-slate-100">{scenario.title}</h3>
                 </div>
                 <p className="text-xs text-slate-400">
-                    📍 {data.scenario.setting}
+                    📍 {scenario.setting}
                 </p>
                 <div className="flex gap-3 mt-2 text-xs">
-                    <span className="text-teal-400">Sen: {data.scenario.userRole}</span>
+                    <span className="text-teal-400">Sen: {scenario.userRole}</span>
                     <span className="text-slate-500">|</span>
-                    <span className="text-purple-400">AI: {data.scenario.aiRole}</span>
+                    <span className="text-purple-400">AI: {scenario.aiRole}</span>
                 </div>
             </div>
 
             {/* Progress */}
             <div className="px-4 py-2 flex justify-between items-center border-b border-slate-700/30">
                 <span className="text-xs text-slate-400">
-                    Tur: {currentTurn} / {data.expectedTurns}
+                    Tur: {currentTurn} / {expectedTurns}
                 </span>
                 <div className="flex gap-1">
-                    {Array.from({ length: data.expectedTurns }).map((_, i) => (
+                    {Array.from({ length: expectedTurns }).map((_, i) => (
                         <div
                             key={i}
                             className={`w-2 h-2 rounded-full ${i < currentTurn ? 'bg-teal-500' : 'bg-slate-600'}`}
@@ -162,8 +169,8 @@ export const RoleplayDialogue: React.FC<RoleplayDialogueProps> = ({ data, onComp
                             className={`mb-3 ${msg.speaker === 'user' ? 'text-right' : 'text-left'}`}
                         >
                             <div className={`inline-block max-w-[80%] p-3 rounded-2xl ${msg.speaker === 'user'
-                                    ? 'bg-teal-500/20 text-teal-100 rounded-br-md'
-                                    : 'bg-slate-700/50 text-slate-200 rounded-bl-md'
+                                ? 'bg-teal-500/20 text-teal-100 rounded-br-md'
+                                : 'bg-slate-700/50 text-slate-200 rounded-bl-md'
                                 }`}>
                                 <p className="text-sm">{msg.text}</p>
                                 {msg.translation && (
@@ -201,7 +208,7 @@ export const RoleplayDialogue: React.FC<RoleplayDialogueProps> = ({ data, onComp
                     <div className="mb-3">
                         <p className="text-xs text-slate-400 mb-2">Önerilen cevaplar:</p>
                         <div className="flex flex-wrap gap-2">
-                            {data.suggestedResponses.map((response, i) => (
+                            {suggestedResponses.map((response, i) => (
                                 <button
                                     key={i}
                                     onClick={() => handleSuggestedResponse(response)}
@@ -254,7 +261,7 @@ export const RoleplayDialogue: React.FC<RoleplayDialogueProps> = ({ data, onComp
                                 exit={{ opacity: 0, height: 0 }}
                                 className="mt-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/50"
                             >
-                                {data.helpfulPhrases.map((phrase, i) => (
+                                {helpfulPhrases.map((phrase, i) => (
                                     <div key={i} className="mb-2 last:mb-0">
                                         <span className="text-teal-300 text-sm">"{phrase.phrase}"</span>
                                         <span className="text-slate-400 text-xs ml-2">- {phrase.meaning}</span>

@@ -27,8 +27,9 @@ interface QuickQuizProps {
             topic: string;
             level: string;
         };
-        questions: QuizQuestion[];
+        questions?: QuizQuestion[];
         xpReward: number;
+        [key: string]: unknown;
     };
     onComplete: (result: { score: number; totalQuestions: number; xpEarned: number }) => void;
 }

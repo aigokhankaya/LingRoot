@@ -24,16 +24,17 @@ interface PracticeContext {
 
 interface PhrasePracticeProps {
     data: {
-        basePhrase: {
+        basePhrase?: {
             english: string;
             turkish: string;
             pronunciation: string;
             register: string;
         };
-        variations: PhraseVariation[];
-        commonMistakes: CommonMistake[];
-        practiceContexts: PracticeContext[];
+        variations?: PhraseVariation[];
+        commonMistakes?: CommonMistake[];
+        practiceContexts?: PracticeContext[];
         xpReward: number;
+        [key: string]: unknown;
     };
     onComplete: (result: { xpEarned: number }) => void;
 }
@@ -41,12 +42,17 @@ interface PhrasePracticeProps {
 type TabType = 'variations' | 'mistakes' | 'contexts';
 
 export const PhrasePractice: React.FC<PhrasePracticeProps> = ({ data, onComplete }) => {
+    const basePhrase = data.basePhrase || { english: 'Hello', turkish: 'Merhaba', pronunciation: '/həˈloʊ/', register: 'neutral' };
+    const variations = data.variations || [];
+    const commonMistakes = data.commonMistakes || [];
+    const practiceContexts = data.practiceContexts || [];
+
     const [activeTab, setActiveTab] = useState<TabType>('variations');
-    const [seenTabs, setSeenTabs] = useState<Set<TabType>>(new Set(['variations']));
+    const [seenTabs, setSeenTabs] = useState<Set<TabType>>(new Set<TabType>(['variations']));
 
     const handleTabChange = (tab: TabType) => {
         setActiveTab(tab);
-        setSeenTabs(prev => new Set([...prev, tab]));
+        setSeenTabs(prev => new Set(Array.from(prev).concat(tab)));
     };
 
     const handleComplete = () => {
@@ -79,17 +85,17 @@ export const PhrasePractice: React.FC<PhrasePracticeProps> = ({ data, onComplete
                 <div className="flex items-start justify-between">
                     <div>
                         <h3 className="text-xl font-semibold text-white mb-1">
-                            "{data.basePhrase.english}"
+                            "{basePhrase.english}"
                         </h3>
                         <p className="text-sm text-slate-300 mb-2">
-                            {data.basePhrase.turkish}
+                            {basePhrase.turkish}
                         </p>
                         <p className="text-xs text-slate-400 font-mono">
-                            {data.basePhrase.pronunciation}
+                            {basePhrase.pronunciation}
                         </p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getRegisterBadge(data.basePhrase.register).bg} ${getRegisterBadge(data.basePhrase.register).text}`}>
-                        {getRegisterBadge(data.basePhrase.register).label}
+                    <span className={`px-2 py-1 rounded-full text-xs ${getRegisterBadge(basePhrase.register).bg} ${getRegisterBadge(basePhrase.register).text}`}>
+                        {getRegisterBadge(basePhrase.register).label}
                     </span>
                 </div>
             </div>
@@ -129,7 +135,7 @@ export const PhrasePractice: React.FC<PhrasePracticeProps> = ({ data, onComplete
                             exit={{ opacity: 0, x: 10 }}
                             className="space-y-3"
                         >
-                            {data.variations.map((variation, i) => {
+                            {variations.map((variation, i) => {
                                 const badge = getRegisterBadge(variation.register);
                                 return (
                                     <div
@@ -160,7 +166,7 @@ export const PhrasePractice: React.FC<PhrasePracticeProps> = ({ data, onComplete
                             exit={{ opacity: 0, x: 10 }}
                             className="space-y-3"
                         >
-                            {data.commonMistakes.map((mistake, i) => (
+                            {commonMistakes.map((mistake, i) => (
                                 <div
                                     key={i}
                                     className="p-3 rounded-xl bg-slate-700/30 border border-slate-600/50"
@@ -191,7 +197,7 @@ export const PhrasePractice: React.FC<PhrasePracticeProps> = ({ data, onComplete
                             exit={{ opacity: 0, x: 10 }}
                             className="space-y-3"
                         >
-                            {data.practiceContexts.map((ctx, i) => (
+                            {practiceContexts.map((ctx, i) => (
                                 <div
                                     key={i}
                                     className="p-3 rounded-xl bg-slate-700/30 border border-slate-600/50"
