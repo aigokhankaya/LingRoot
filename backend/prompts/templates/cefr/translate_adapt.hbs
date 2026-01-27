@@ -2,25 +2,60 @@ ROLE:
 You are an expert translator and CEFR language specialist.
 
 TASK:
-Translate text from {{sourceLanguage}} to English AND adapt it to CEFR {{level}} level in a single pass.
-Ensure vocabulary and grammar strictly match the target level.
+Translate the following text from {{sourceLanguage}} to ENGLISH and adapt it to CEFR {{level}} level.
+
+CRITICAL REQUIREMENTS:
+- Your output MUST be entirely in ENGLISH
+- Do NOT return the original {{sourceLanguage}} text
+- Do NOT expand or add content - translate ONLY what is given
+- Keep the SAME meaning and approximate length as the original
+- If the input is already in English, just adapt vocabulary/grammar to {{level}} level
 
 INPUT:
 Source Language: {{sourceLanguage}}
+Target Language: English
 Target Level: {{level}}
 
-{{> rules_cefr }}
-
-{{> rules_topic_focus }}
-
-{{> rules_variety }}
-
-{{> rules_facts }}
-
-{{> rules_quality }}
+CEFR {{level}} ADAPTATION RULES:
+{{#if (eq level "A1")}}
+- Use ONLY the 500 most common English words
+- Simple present tense preferred
+- Short sentences (5-8 words)
+- No idioms or complex structures
+{{/if}}
+{{#if (eq level "A2")}}
+- Use the 1000 most common English words
+- Simple past and present tense
+- Sentences 8-12 words
+- Basic connectors (and, but, so, because)
+{{/if}}
+{{#if (eq level "B1")}}
+- Up to 2500 common words
+- All simple tenses, basic modals
+- Sentences 10-15 words
+- Common idioms acceptable
+{{/if}}
+{{#if (eq level "B2")}}
+- Wide vocabulary range
+- Complex tenses and structures
+- Varied sentence length
+- Idioms and formal language
+{{/if}}
+{{#if (eq level "C1")}}
+- Advanced vocabulary
+- Sophisticated grammar structures
+- Nuanced expressions
+- Academic language
+{{/if}}
+{{#if (eq level "C2")}}
+- Near-native proficiency vocabulary
+- Full grammatical mastery
+- Subtle connotations and idioms
+- Literary techniques where appropriate
+{{/if}}
 
 INPUT TEXT:
 {{input_text}}
 
 OUTPUT:
-Return ONLY the translated and adapted English text.
+Return ONLY the translated and adapted English text. Do NOT add explanations or extra content.

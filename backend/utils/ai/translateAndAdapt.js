@@ -115,8 +115,8 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
             }
             // System message varies based on variant
             let systemContent = isNarrator
-                ? `You are a professional audiobook narrator and CEFR language specialist. You translate text AND adapt it to CEFR ${level} level while maintaining an engaging, storyteller-style delivery suitable for audiobook listening. Create natural rhythm, use dramatic pauses, and make the content captivating for listeners.`
-                : `You are an expert translator and CEFR language specialist. You translate text AND adapt it to CEFR ${level} level in a single pass, ensuring vocabulary and grammar strictly match the target level.`;
+                ? `You are a professional audiobook narrator and CEFR language specialist. You MUST translate ALL text to English AND adapt it to CEFR ${level} level while maintaining an engaging, storyteller-style delivery suitable for audiobook listening. Create natural rhythm, use dramatic pauses, and make the content captivating for listeners. IMPORTANT: Your output MUST be entirely in English, regardless of the input language.`
+                : `You are an expert translator and CEFR language specialist. You MUST translate ALL text to English AND adapt it to CEFR ${level} level in a single pass, ensuring vocabulary and grammar strictly match the target level. IMPORTANT: Your output MUST be entirely in English, regardless of the input language.`;
 
             // Inject Mood Instruction if available
             if (isNarrator && mood && mood !== 'Neutral') {

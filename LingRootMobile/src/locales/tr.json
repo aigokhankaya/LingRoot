@@ -254,6 +254,7 @@
     }
   },
   "common": {
+    "back": "Geri",
     "error": "Hata",
     "success": "Başarılı!",
     "ok": "Tamam",

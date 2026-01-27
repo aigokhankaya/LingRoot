@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
-  Alert,
   ActivityIndicator,
   FlatList,
   Modal,
@@ -34,6 +33,14 @@ import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation();
+  const prevModeRef = useRef<string>(
+    route.params?.mode === 'file' ? 'file'
+      : route.params?.mode === 'book' ? 'book'
+      : route.params?.mode === 'suggestion' ? 'suggestion'
+      : route.params?.mode === 'youtube' ? 'youtube'
+      : route.params?.mode === 'podcast' ? 'podcast'
+      : 'text'
+  );
   const [mode, setMode] = useState<'text' | 'file' | 'book' | 'suggestion' | 'youtube' | 'podcast'>(
     route.params?.mode === 'file'
       ? 'file'
@@ -65,6 +72,19 @@ const CreateScreen: React.FC = () => {
   // Success alert modal state
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successAlertEstimatedTime, setSuccessAlertEstimatedTime] = useState('');
+
+  // Error alert modal state
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [errorAlertTitle, setErrorAlertTitle] = useState('');
+  const [errorAlertMessage, setErrorAlertMessage] = useState('');
+  const [errorAlertAction, setErrorAlertAction] = useState<{ label: string; onPress: () => void } | null>(null);
+
+  const showError = (title: string, message: string, action?: { label: string; onPress: () => void }) => {
+    setErrorAlertTitle(title);
+    setErrorAlertMessage(message);
+    setErrorAlertAction(action || null);
+    setShowErrorAlert(true);
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -102,8 +122,9 @@ const CreateScreen: React.FC = () => {
                 : route.params?.mode === 'podcast'
                   ? 'podcast'
                   : 'text';
-      const prevMode = mode;
+      const prevMode = prevModeRef.current;
       setMode(nextMode);
+      prevModeRef.current = nextMode;
 
       // Preselect podcast provider if Create screen is opened in podcast mode
       if (nextMode === 'podcast') {
@@ -165,7 +186,7 @@ const CreateScreen: React.FC = () => {
         setYoutubeLoading(false);
         setYoutubeError(null);
       }
-    }, [route.params?.mode, mode, language])
+    }, [route.params?.mode, language])
   );
   // --- Suggestion Mode State ---
   const [suggestion, setSuggestion] = useState('');
@@ -254,12 +275,12 @@ const CreateScreen: React.FC = () => {
         (language === 'tr'
           ? 'Ses oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
           : 'An audio creation process is still running. Please wait for it to finish.');
-      Alert.alert(t('common.info'), msg);
+      showError(t('common.info'), msg);
       return;
     }
     AnalyticsHelper.logEvent('action_fetch_youtube_click_mobile', { url: youtubeUrl });
     if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
-      Alert.alert(t('common.error'), 'Geçerli bir YouTube linki girin');
+      showError(t('common.error'), 'Geçerli bir YouTube linki girin');
       return;
     }
     setYoutubeLoading(true);
@@ -297,10 +318,10 @@ const CreateScreen: React.FC = () => {
       const text = data?.text || data?.data?.text || '';
       if (!text || !text.trim()) throw new Error('Bu videoda altyazı bulunmamaktadır');
       setInputText(text);
-      Alert.alert(t('common.success'), 'Altyazı metni yüklendi');
+      showError(t('common.success'), 'Altyazı metni yüklendi');
     } catch (e: any) {
       setYoutubeError(e?.message || 'Altyazı çekilemedi');
-      Alert.alert(t('common.error'), e?.message || 'Altyazı çekilemedi');
+      showError(t('common.error'), e?.message || 'Altyazı çekilemedi');
     } finally {
       setYoutubeLoading(false);
     }
@@ -309,12 +330,12 @@ const CreateScreen: React.FC = () => {
   const handleGetSuggestions = async () => {
     if (isTtsJobLocked) {
       if (ttsJobMessage) {
-        Alert.alert(t('common.info'), ttsJobMessage);
+        showError(t('common.info'), ttsJobMessage);
       }
       return;
     }
     if (!suggestion.trim()) {
-      Alert.alert(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
+      showError(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
       return;
     }
     setIsLoadingSuggestions(true);
@@ -331,10 +352,10 @@ const CreateScreen: React.FC = () => {
           setInputText(firstSuggestion);
         }
       } else {
-        Alert.alert(t('common.error'), res?.message || t('suggestions.alerts.fetchFailed'));
+        showError(t('common.error'), res?.message || t('suggestions.alerts.fetchFailed'));
       }
     } catch (e: any) {
-      Alert.alert('API ERROR', e.message || t('common.unexpectedError'));
+      showError(t('common.error'), e.message || t('common.unexpectedError'));
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -808,7 +829,7 @@ const CreateScreen: React.FC = () => {
       setSelectedChapterId(null);
       setSelectedChapterText('');
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('Arama başarısız'));
+      showError(t('common.error'), e.message || t('Arama başarısız'));
     } finally {
       setIsSearchingBooks(false);
     }
@@ -830,7 +851,7 @@ const CreateScreen: React.FC = () => {
         setSelectedChapterText('');
       }
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('Bölümler alınamadı'));
+      showError(t('common.error'), e.message || t('Bölümler alınamadı'));
     } finally {
       setIsLoadingChapters(false);
     }
@@ -896,7 +917,7 @@ const CreateScreen: React.FC = () => {
     });
     if (isTtsJobLocked) {
       if (ttsJobMessage) {
-        Alert.alert(t('common.info'), ttsJobMessage);
+        showError(t('common.info'), ttsJobMessage);
       }
       return;
     }
@@ -905,23 +926,18 @@ const CreateScreen: React.FC = () => {
       const summary = await getUsageSummary();
       const sData: any = (summary as any)?.data || {};
       if (summary?.success && (sData?.isExceeded || sData?.hasPlan === false)) {
-        Alert.alert(
+        showError(
           t('common.error'),
           sData?.hasPlan === false
             ? 'Aktif paketiniz yok. Lütfen Apple Store üzerinden paket satın alın.'
             : 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.',
-          [
-            {
-              text: 'Paket Al',
-              onPress: () => {
-                navigation.navigate('Packages' as never);
-              },
+          {
+            label: 'Paket Al',
+            onPress: () => {
+              setShowErrorAlert(false);
+              navigation.navigate('Packages' as never);
             },
-            {
-              text: 'İptal',
-              style: 'cancel',
-            },
-          ]
+          }
         );
         return;
       }
@@ -935,7 +951,7 @@ const CreateScreen: React.FC = () => {
   const handleAsyncAudioCreation = async () => {
     if (isTtsJobLocked) {
       if (ttsJobMessage) {
-        Alert.alert(t('common.info'), ttsJobMessage);
+        showError(t('common.info'), ttsJobMessage);
       }
       return;
     }
@@ -946,7 +962,7 @@ const CreateScreen: React.FC = () => {
         ? suggestionResults[0]
         : suggestion;
       if (!base || !base.trim()) {
-        Alert.alert(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
+        showError(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
         return;
       }
       try {
@@ -957,7 +973,7 @@ const CreateScreen: React.FC = () => {
         setInputText(narration);
       } catch (e: any) {
         setIsLoading(false);
-        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+        showError(t('common.error'), e.message || t('common.unexpectedError'));
         return;
       } finally {
         setIsLoading(false);
@@ -966,11 +982,11 @@ const CreateScreen: React.FC = () => {
 
     if (mode === 'book') {
       if (!selectedChapterText || selectedChapterText.trim().length === 0) {
-        Alert.alert(t('common.error'), t('create.book.alerts.selectChapter'));
+        showError(t('common.error'), t('create.book.alerts.selectChapter'));
         return;
       }
     } else if (mode !== 'file' && !effectiveInputText.trim()) {
-      Alert.alert(t('common.error'), t('create.alerts.enterTextOrFile'));
+      showError(t('common.error'), t('create.alerts.enterTextOrFile'));
       return;
     }
 
@@ -1003,7 +1019,7 @@ const CreateScreen: React.FC = () => {
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
         } else {
-          Alert.alert(t('common.error'), t('create.alerts.fileProcessFailed'));
+          showError(t('common.error'), t('create.alerts.fileProcessFailed'));
         }
       } else {
         // Text/Book processing - ASYNC
@@ -1060,7 +1076,7 @@ const CreateScreen: React.FC = () => {
             status: 'async_started',
           });
         } else {
-          Alert.alert(t('common.error'), t('create.alerts.audioCreateFailed'));
+          showError(t('common.error'), t('create.alerts.audioCreateFailed'));
         }
       }
     } catch (error: any) {
@@ -1075,7 +1091,7 @@ const CreateScreen: React.FC = () => {
         setIsTtsJobLocked(true);
         setIsCreatingVoice(true);
         setTtsJobMessage(msg);
-        Alert.alert(t('common.info'), msg);
+        showError(t('common.info'), msg);
         return;
       }
 
@@ -1086,24 +1102,19 @@ const CreateScreen: React.FC = () => {
         emsg.includes('USAGE_LIMIT_EXCEEDED') ||
         emsg.includes('NO_ACTIVE_PLAN')
       ) {
-        Alert.alert(
+        showError(
           t('common.error'),
           emsg,
-          [
-            {
-              text: 'Paket Al',
-              onPress: () => {
-                navigation.navigate('Packages' as never);
-              },
+          {
+            label: 'Paket Al',
+            onPress: () => {
+              setShowErrorAlert(false);
+              navigation.navigate('Packages' as never);
             },
-            {
-              text: 'İptal',
-              style: 'cancel',
-            },
-          ]
+          }
         );
       } else {
-        Alert.alert(t('common.error'), emsg || t('common.unexpectedError'));
+        showError(t('common.error'), emsg || t('common.unexpectedError'));
       }
     } finally {
       setIsLoading(false);
@@ -1119,7 +1130,7 @@ const CreateScreen: React.FC = () => {
     });
 
     if (!podcastTopic || podcastTopic.trim().length === 0) {
-      Alert.alert(
+      showError(
         t('common.error'),
         language === 'tr' ? 'Lütfen bir podcast konusu girin.' : 'Please enter a podcast topic.'
       );
@@ -1128,7 +1139,7 @@ const CreateScreen: React.FC = () => {
 
     if (isTtsJobLocked) {
       if (ttsJobMessage) {
-        Alert.alert(t('common.info'), ttsJobMessage);
+        showError(t('common.info'), ttsJobMessage);
       }
       return;
     }
@@ -1310,7 +1321,7 @@ const CreateScreen: React.FC = () => {
         e?.message ||
         (language === 'tr' ? 'Podcast oluşturulamadı.' : 'Podcast could not be created.');
       setPodcastError(msg);
-      Alert.alert(t('common.error'), msg);
+      showError(t('common.error'), msg);
     } finally {
       setIsCreatingPodcast(false);
     }
@@ -1361,9 +1372,9 @@ const CreateScreen: React.FC = () => {
 
       setSelectedFile({ uri, name, mimeType, size });
       setMode('file');
-      Alert.alert(t('common.success'), language === 'tr' ? 'Dosya seçildi' : 'File selected');
+      showError(t('common.success'), language === 'tr' ? 'Dosya seçildi' : 'File selected');
     } catch (err: any) {
-      Alert.alert(
+      showError(
         t('common.error'),
         err?.message || (language === 'tr' ? 'Dosya seçimi başarısız' : 'File selection failed')
       );
@@ -1372,7 +1383,7 @@ const CreateScreen: React.FC = () => {
 
   const clearSelectedFile = () => {
     setSelectedFile(null);
-    Alert.alert(t('common.info'), t('create.alerts.fileCleared'));
+    showError(t('common.info'), t('create.alerts.fileCleared'));
   };
 
   const isPodcastMode = mode === 'podcast';
@@ -1667,9 +1678,9 @@ const CreateScreen: React.FC = () => {
                         const narration = rr?.data?.narration_text || s;
                         setInputText(narration);
 
-                        Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
+                        showError(t('common.success'), t('Öneri metne dönüştürüldü'));
                       } catch (e: any) {
-                        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+                        showError(t('common.error'), e.message || t('common.unexpectedError'));
                       } finally {
                         setIsConvertingSuggestion(false);
                         setConvertingText('');
@@ -2129,13 +2140,13 @@ const CreateScreen: React.FC = () => {
                         try {
                           await ttsService.saveDefaultVoiceSetting(selectedVoice);
                           setShouldPromoteSelectedVoiceTop(true);
-                          Alert.alert(
+                          showError(
                             t('common.success'),
                             language === 'tr' ? 'Varsayılan ses kaydedildi' : 'Default voice saved'
                           );
                           setShowVoiceSelection(false);
                         } catch (e: any) {
-                          Alert.alert(
+                          showError(
                             t('common.error'),
                             e.message || (language === 'tr' ? 'Kaydedilemedi' : 'Could not save')
                           );
@@ -2238,6 +2249,71 @@ const CreateScreen: React.FC = () => {
               activeOpacity={0.8}
             >
               <Text style={styles.successModalButtonText}>
+                {language === 'tr' ? 'Tamam' : 'OK'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      {/* Error Alert Modal */}
+      <Modal
+        visible={showErrorAlert}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowErrorAlert(false)}
+      >
+        <TouchableOpacity
+          style={styles.successModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowErrorAlert(false)}
+        >
+          <View style={styles.successModalContainer}>
+            {/* Error Icon */}
+            <View style={styles.successIconContainer}>
+              <LinearGradient
+                colors={[COLORS.danger, '#B91C1C']}
+                style={styles.successIconGradient}
+              >
+                <Icon name="error-outline" size={40} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.successModalTitle}>
+              {errorAlertTitle}
+            </Text>
+
+            {/* Message */}
+            <Text style={styles.successModalMessage}>
+              {errorAlertMessage}
+            </Text>
+
+            {/* Action Button (e.g. "Paket Al") */}
+            {errorAlertAction && (
+              <TouchableOpacity
+                style={styles.errorActionButton}
+                onPress={errorAlertAction.onPress}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.errorActionButtonText}>
+                  {errorAlertAction.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* OK / Close Button */}
+            <TouchableOpacity
+              style={[
+                styles.successModalButton,
+                errorAlertAction ? styles.errorDismissButton : styles.errorPrimaryButton,
+              ]}
+              onPress={() => setShowErrorAlert(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.successModalButtonText,
+                errorAlertAction && styles.errorDismissButtonText,
+              ]}>
                 {language === 'tr' ? 'Tamam' : 'OK'}
               </Text>
             </TouchableOpacity>
@@ -2942,6 +3018,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  // Error Modal Styles
+  errorActionButton: {
+    width: '100%',
+    backgroundColor: COLORS.danger,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: COLORS.danger,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  errorActionButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  errorPrimaryButton: {
+    backgroundColor: COLORS.danger,
+    shadowColor: COLORS.danger,
+  },
+  errorDismissButton: {
+    backgroundColor: COLORS.slate200,
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  errorDismissButtonText: {
+    color: COLORS.slate600,
   },
 });
 

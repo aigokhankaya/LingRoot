@@ -10,7 +10,9 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  InteractionManager,
 } from 'react-native';
+import perfLog from '../utils/performanceLogger';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
 import { apiService } from '../services/api';
@@ -86,14 +88,32 @@ const LibraryScreen: React.FC = () => {
         const needsHydration = (
           !Array.isArray(audioData.timepoints) || audioData.timepoints.length === 0 ||
           !Array.isArray(audioData.words) || audioData.words.length === 0 ||
-          !audioData.original_turkish
+          !audioData.original_turkish ||
+          !audioData.adapted_text
         );
 
         const audioId = audioData.audioId || audioData.id;
 
+        console.log('[Library][Notification] Hydration check:', {
+          needsHydration,
+          audioId,
+          hasTimepoints: Array.isArray(audioData.timepoints),
+          hasWords: Array.isArray(audioData.words),
+          hasOriginalTurkish: !!audioData.original_turkish,
+          hasAdaptedText: !!audioData.adapted_text,
+          audioDataKeys: Object.keys(audioData || {}),
+        });
+
         if (needsHydration && audioId) {
+          console.log('[Library][Notification] Starting hydration for audioId:', audioId);
           try {
             const res: any = await apiService.getUserContentById(String(audioId));
+            console.log('[Library][Notification] API response:', {
+              success: res?.success,
+              hasData: !!res?.data,
+              dataKeys: Object.keys(res?.data || {}),
+              adaptedTextFromAPI: res?.data?.adapted_text?.substring(0, 100),
+            });
             if (res?.success && res?.data) {
               const backendData = res.data;
               let words = backendData.words;
@@ -127,6 +147,8 @@ const LibraryScreen: React.FC = () => {
               console.log('[Library][Notification] Hydrated audio data from backend:', {
                 id: source.id || audioId,
                 hasOriginalTurkish: !!source.original_turkish,
+                hasAdaptedText: !!source.adapted_text,
+                adaptedTextLength: source.adapted_text?.length || 0,
                 wordsLength: Array.isArray(source.words) ? source.words.length : 0,
                 timepointsLength: Array.isArray(source.timepoints) ? source.timepoints.length : 0,
               });
@@ -134,7 +156,15 @@ const LibraryScreen: React.FC = () => {
           } catch (e) {
             console.log('[Library][Notification] Failed to hydrate notification audio from backend:', e);
           }
+        } else {
+          console.log('[Library][Notification] Hydration skipped:', { needsHydration, audioId });
         }
+
+        console.log('[Library][Notification] Final source before track creation:', {
+          hasAdaptedText: !!source.adapted_text,
+          adaptedTextLength: source.adapted_text?.length || 0,
+          adaptedTextPreview: source.adapted_text?.substring(0, 100) || 'NONE',
+        });
 
         const track: AudioTrack = {
           id: String(source.audioId || source.id || Date.now().toString()),
@@ -157,6 +187,9 @@ const LibraryScreen: React.FC = () => {
           level: track.level,
           hasOriginalTurkish: !!track.original_turkish,
           originalTurkishLength: track.original_turkish ? track.original_turkish.length : 0,
+          hasAdaptedText: !!track.adapted_text,
+          adaptedTextLength: track.adapted_text?.length || 0,
+          adaptedTextPreview: track.adapted_text?.substring(0, 50) || 'EMPTY',
           words: Array.isArray(track.words) ? track.words.length : 0,
           timepoints: Array.isArray(track.timepoints) ? track.timepoints.length : 0,
         });
@@ -213,26 +246,10 @@ const LibraryScreen: React.FC = () => {
       if (response.success && response.data) {
 
         // Backend verilerini AudioTrack tipine dönüştür
+        // words/timepoints are stored as-is (may be JSON strings) and parsed lazily on playback
         const tracks: AudioTrack[] = response.data.map((item: any) => {
           // Prefer backend-provided duration; fall back to 180 if missing
           const derivedDurationSec = typeof item?.duration === 'number' ? item.duration : 180;
-
-          // words/timepoints bazı eski kayıtlar için JSON string olarak saklanmış olabilir;
-          // burada güvenli şekilde parse edip diziye çeviriyoruz.
-          let words: any = item.words;
-          let timepoints: any = item.timepoints;
-
-          try {
-            if (typeof words === 'string') {
-              words = JSON.parse(words);
-            }
-          } catch { }
-
-          try {
-            if (typeof timepoints === 'string') {
-              timepoints = JSON.parse(timepoints);
-            }
-          } catch { }
 
           const track = {
             // ID'leri string olarak normalize et (favori eşleşmeleri için kritik)
@@ -247,8 +264,8 @@ const LibraryScreen: React.FC = () => {
             adapted_text: item.adapted_text,
             original_turkish: item.input || '',
             mp3_url: item.mp3_url,
-            timepoints: Array.isArray(timepoints) ? timepoints : [],
-            words: Array.isArray(words) ? words : [],
+            timepoints: item.timepoints ?? [],
+            words: item.words ?? [],
           };
 
           return track;
@@ -427,10 +444,15 @@ const LibraryScreen: React.FC = () => {
     const missingFavs = favoriteIds.filter(fid => !currentIds.has(fid));
     if (missingFavs.length === 0 || haveAllFromServer) return;
     setIsHydratingFavorites(true);
+    perfLog.start('ensureFavoritesCoverage', 'LibraryScreen');
     try {
+      // Wait for animations to finish before heavy work
+      await new Promise<void>(resolve => {
+        InteractionManager.runAfterInteractions(() => resolve());
+      });
       let nextPage = pageRef.current + 1;
       // Hard cap to avoid very long loops when server returns small counts
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 5; i++) {
         const reachedEnd = (serverTotalCount !== null) && (audioTracksRef.current.length >= serverTotalCount);
         if (reachedEnd) break;
         await fetchAudioHistory(false, nextPage);
@@ -439,11 +461,14 @@ const LibraryScreen: React.FC = () => {
         const ids = new Set(audioTracksRef.current.map(t => t.id));
         const stillMissing = favoriteIds.filter(fid => !ids.has(fid));
         if (stillMissing.length === 0) break;
+        // Add delay between iterations to keep UI responsive
+        await new Promise(r => setTimeout(r, 200));
       }
     } catch (e) {
 
     } finally {
       setIsHydratingFavorites(false);
+      perfLog.end('ensureFavoritesCoverage');
     }
   };
 
@@ -478,11 +503,12 @@ const LibraryScreen: React.FC = () => {
   useEffect(() => {
     ensureFavoritesCoverage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFavoritesOnly, favoriteIds, serverTotalCount]);
+  }, [showFavoritesOnly, favoriteIds.length]);
 
   // Auto-refresh when screen gains focus (e.g., after navigating from Create)
   useFocusEffect(
     React.useCallback(() => {
+      perfLog.mark('library:focus:start');
       // Favoriler görünümündeyken tam yenileme yapmayalım; flicker ve kayıp hissi yaratıyor
       if (!showFavoritesOnly) {
         fetchAudioHistory(false, 1);
@@ -576,16 +602,49 @@ const LibraryScreen: React.FC = () => {
     fetchAudioHistory(false, nextPage).finally(() => setIsLoadingMore(false));
   };
 
-  const handlePlayTrack = (track: AudioTrack) => {
+  // Lazy-parse words/timepoints for a single track (called on playback)
+  const parseTrackData = (track: AudioTrack): AudioTrack => {
+    let words: any = track.words;
+    let timepoints: any = track.timepoints;
 
-    // Her durumda modal'ı aç
-    setSelectedTrack(track);
+    try {
+      if (typeof words === 'string') {
+        words = JSON.parse(words);
+      }
+    } catch { }
+
+    try {
+      if (typeof timepoints === 'string') {
+        timepoints = JSON.parse(timepoints);
+      }
+    } catch { }
+
+    return {
+      ...track,
+      words: Array.isArray(words) ? words : [],
+      timepoints: Array.isArray(timepoints) ? timepoints : [],
+    };
+  };
+
+  const handlePlayTrack = (track: AudioTrack) => {
+    // Parse words/timepoints lazily only when user selects a track
+    const parsed = parseTrackData(track);
+    setSelectedTrack(parsed);
     setPlayerVisible(true);
   };
 
   const handleClosePlayer = () => {
+    perfLog.mark('library:handleClosePlayer:start');
     setPlayerVisible(false);
-    setSelectedTrack(null);
+    perfLog.mark('library:handleClosePlayer:afterSetPlayerVisible');
+    // Delay clearing selectedTrack so the Modal slide-out animation
+    // completes before the AudioPlayer component is unmounted.
+    // Unmounting mid-animation causes an iOS native Modal freeze.
+    setTimeout(() => {
+      setSelectedTrack(null);
+      perfLog.mark('library:handleClosePlayer:trackCleared');
+    }, 400);
+    perfLog.mark('library:handleClosePlayer:end');
   };
 
   const renderAudioTrack = ({ item }: { item: AudioTrack }) => {

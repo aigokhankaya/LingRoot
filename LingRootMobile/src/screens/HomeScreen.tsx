@@ -20,6 +20,7 @@ import { getMyPlanFeatures, PlanFeatures } from '../services/subscriptionService
 import { COLORS } from '../theme/colors';
 import { AudioTrack } from '../types';
 import AudioPlayer from '../components/AudioPlayer';
+import perfLog from '../utils/performanceLogger';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -159,6 +160,7 @@ const HomeScreen: React.FC = () => {
       setStats({ audioCount: 0, totalDuration: 0, loading: false });
       return;
     }
+    perfLog.start('fetchUserStats', 'HomeScreen');
     try {
       const [countResult, response] = await Promise.all([
         getUserAudioCount(user.id),
@@ -186,11 +188,14 @@ const HomeScreen: React.FC = () => {
     } catch (error) {
       setStats({ audioCount: 0, totalDuration: 0, loading: false });
       setRecentTracks([]);
+    } finally {
+      perfLog.end('fetchUserStats');
     }
   };
 
   // Fetch plan features
   const fetchPlanFeatures = async () => {
+    perfLog.start('fetchPlanFeatures', 'HomeScreen');
     try {
       setFeaturesLoading(true);
       const result = await getMyPlanFeatures();
@@ -199,6 +204,7 @@ const HomeScreen: React.FC = () => {
       console.error('Error loading plan features:', error);
     } finally {
       setFeaturesLoading(false);
+      perfLog.end('fetchPlanFeatures');
     }
   };
 
@@ -281,7 +287,8 @@ const HomeScreen: React.FC = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchUserStats();
+      perfLog.mark('home:focus:start');
+      fetchUserStats().then(() => perfLog.mark('home:focus:fetchDone'));
       return () => { };
     }, [user?.id])
   );

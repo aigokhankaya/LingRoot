@@ -118,6 +118,8 @@ router.post(
       // Prepare job data
       const jobData = {
         userId,
+        // Capture auth token for use in worker (required for Supabase RLS or backend checks)
+        token: req.headers.authorization ? req.headers.authorization.split(' ')[1] : null,
         requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         requestBody: req.body,
         file: req.file ? {
@@ -754,6 +756,45 @@ router.post("/translate-and-speak", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error processing request",
+      error: error.message
+    });
+  }
+});
+
+// Generate topic narration text (used by Topic Tree screen before navigating to Create)
+router.post("/generate-topic-narration", authenticate, async (req, res) => {
+  const { subject, level } = req.body;
+
+  if (!subject || !level) {
+    return res.status(400).json({
+      success: false,
+      message: "subject and level are required"
+    });
+  }
+
+  try {
+    const { generateNarrationForTopic } = require('../utils/ai/inputExtractor');
+    const result = await generateNarrationForTopic(subject, level);
+
+    if (!result || !result.englishText) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to generate narration for topic."
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        translated_text: result.translatedText,
+        adapted_text: result.englishText
+      }
+    });
+  } catch (error) {
+    logger.error(`Error in generate-topic-narration: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: "Error generating topic narration",
       error: error.message
     });
   }

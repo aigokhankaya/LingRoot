@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import perfLog from '../utils/performanceLogger';
 
 export interface AlertButton {
     text: string;
@@ -64,10 +65,12 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, []);
 
     const hideAlert = useCallback(() => {
+        perfLog.mark('alert:hide');
         setVisible(false);
     }, []);
 
     const handleButtonPress = (button: AlertButton) => {
+        perfLog.mark('alert:buttonPress');
         hideAlert();
         // Execute onPress after hiding to prevent UI flicker
         setTimeout(() => {
