@@ -3,11 +3,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Sector, SECTOR_ICONS, SECTOR_COLORS, DEFAULT_COLOR } from './SectorCard';
-import { BookOpen, GraduationCap, Clock, BarChart3, ArrowLeft, Briefcase, LucideIcon } from 'lucide-react';
+import { BookOpen, GraduationCap, Clock, BarChart3, ArrowLeft, Briefcase, LucideIcon, Sparkles, Plus } from 'lucide-react';
 
 interface SectorHeroProps {
     sector: Sector;
     onBack?: () => void;
+    onCreateContent?: () => void;  // YENİ
     stats?: {
         totalContent: number;
         totalVocabulary: number;
@@ -16,7 +17,7 @@ interface SectorHeroProps {
     };
 }
 
-export default function SectorHero({ sector, onBack, stats }: SectorHeroProps) {
+export default function SectorHero({ sector, onBack, onCreateContent, stats }: SectorHeroProps) {
     const IconComponent = (SECTOR_ICONS[sector.code] || Briefcase) as LucideIcon;
     const colors = SECTOR_COLORS[sector.code] || DEFAULT_COLOR;
 
@@ -82,9 +83,26 @@ export default function SectorHero({ sector, onBack, stats }: SectorHeroProps) {
                             </div>
                         </div>
 
-                        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl">
+                        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mb-4">
                             {displayDescription}
                         </p>
+
+                        {/* Create Content Button */}
+                        {onCreateContent && (
+                            <motion.button
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={onCreateContent}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-xl font-semibold shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40 transition-all"
+                            >
+                                <Plus className="w-5 h-5" />
+                                <span>İçerik Oluştur</span>
+                                <Sparkles className="w-4 h-4 ml-1" />
+                            </motion.button>
+                        )}
                     </motion.div>
 
                     {/* Right: Stats Grid */}

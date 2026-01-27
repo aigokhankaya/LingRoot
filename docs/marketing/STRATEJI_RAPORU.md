@@ -11,6 +11,11 @@
 
 LingRoot, dil öğreniminin en kritik parçalarından olan **"Dinleme" (Listening)** becerisine odaklanan dikey bir çözümdür. Kullanıcının **zaten merak ettiği ve tüketmek istediği** içerikleri, yapay zeka ile **tamamen kişiselleştirilmiş bir dinleme deneyimine** dönüştüren devrimsel bir platformdur.
 
+> **⚠️ KRİTİK KONUMLANDIRMA NOTU:**  
+> LingRoot, tam kapsamlı bir "İngilizce öğretme" uygulaması DEĞİLDİR.  
+> LingRoot, **İngilizce DİNLEME PRATİĞİ platformudur**.  
+> Kullanıcının mevcut öğrenme sürecini TAMAMLAYAN bir araçtır.
+
 Piyasadaki temel sorun, kullanıcıların "dinlemek istedikleri" (ilgi çekici) içerikler ile "anlayabildikleri" (seviyelerine uygun) içerikler arasında bir uçurum olmasıdır. LingRoot bu uçurumu kapatır. **"bilgi edinirken dil öğrenmek"** (Content-Based Instruction) metodolojisini benimser.
 
 *"LingRoot, sevdiğiniz konuları sizin İngilizce seviyenize (A1-C2) uyarlayarak sesli içeriğe dönüren ve böylece 'anlayarak dinleme' problemini çözen kişisel içerik küratörüdür."*

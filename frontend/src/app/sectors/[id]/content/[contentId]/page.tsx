@@ -44,11 +44,28 @@ interface ContentData {
     translation?: string;
     turkish_text?: string;
     dialogue_data?: {
-        lines: Array<{
+        // Old format (for backward compatibility)
+        lines?: Array<{
             speaker: string;
             english: string;
             turkish: string;
         }>;
+        // New roleplay format
+        dialogue_turns?: Array<{
+            role_id: string;
+            speaker: string;
+            english: string;
+            turkish: string;
+            key_phrase?: boolean;
+        }>;
+        // Other roleplay metadata
+        roles?: Array<{
+            id: string;
+            title: string;
+            title_en?: string;
+        }>;
+        setting?: string;
+        situation?: string;
     };
     key_vocabulary?: string[];
     comprehension_questions?: Array<{
@@ -61,6 +78,7 @@ interface ContentData {
     sector_id?: number;
     sector_code?: string;
 }
+
 
 export default function SectorContentPage() {
     const params = useParams();
@@ -322,8 +340,21 @@ Proje Yöneticisi: Görevleri tahmin edelim. Auth için 8, test için 5 puan dü
     const levelColors = LEVEL_COLORS[level] || LEVEL_COLORS['B1'];
     const englishText = content.original_text || content.text_content || content.english_text || content.adapted_text || '';
     const turkishText = content.translated_text || content.translation || content.turkish_text || '';
-    const hasDialogue = !!content.dialogue_data?.lines?.length;
+
+
+    // Normalize dialogue data - support both old (lines) and new (dialogue_turns) formats
+    type DialogueLine = {
+        speaker: string;
+        english: string;
+        turkish: string;
+        role_id?: string;
+        key_phrase?: boolean;
+    };
+    const dialogueLines: DialogueLine[] = (content.dialogue_data?.lines || content.dialogue_data?.dialogue_turns || []) as DialogueLine[];
+    const hasDialogue = dialogueLines.length > 0;
     const hasQuiz = !!content.comprehension_questions?.length;
+
+
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -473,8 +504,8 @@ Proje Yöneticisi: Görevleri tahmin edelim. Auth için 8, test için 5 puan dü
                             onClick={handleGenerateAudio}
                             disabled={isGeneratingAudio}
                             className={`px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all ${isGeneratingAudio
-                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                                    : 'bg-teal-500 hover:bg-teal-600 text-white shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40 hover:-translate-y-0.5'
+                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                                : 'bg-teal-500 hover:bg-teal-600 text-white shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40 hover:-translate-y-0.5'
                                 }`}
                         >
                             {isGeneratingAudio ? (
@@ -566,35 +597,55 @@ Proje Yöneticisi: Görevleri tahmin edelim. Auth için 8, test için 5 puan dü
                     {/* Dialogue format */}
                     {hasDialogue ? (
                         <div className="space-y-4">
-                            {content.dialogue_data?.lines.map((line, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.3 + i * 0.05 }}
-                                    className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                            {line.speaker.charAt(0)}
+                            {dialogueLines.map((line, i) => {
+                                // Role-based color coding
+                                const isRole1 = 'role_id' in line ? line.role_id === 'role_1' : i % 2 === 0;
+                                const isKeyPhrase = 'key_phrase' in line && line.key_phrase;
+
+                                return (
+                                    <motion.div
+                                        key={i}
+                                        initial={{ opacity: 0, x: isRole1 ? -20 : 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.3 + i * 0.05 }}
+                                        className={`bg-white dark:bg-gray-800 rounded-xl p-4 border ${isKeyPhrase
+                                            ? 'border-amber-300 dark:border-amber-600 ring-1 ring-amber-200 dark:ring-amber-700'
+                                            : 'border-gray-100 dark:border-gray-700'
+                                            }`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${isRole1
+                                                ? 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                                                : 'bg-gradient-to-br from-purple-500 to-pink-500'
+                                                }`}>
+                                                {line.speaker.charAt(0)}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">{line.speaker}</p>
+                                                    {isKeyPhrase && (
+                                                        <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium rounded">
+                                                            Anahtar İfade
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-gray-900 dark:text-white leading-relaxed">{line.english}</p>
+                                                {showTranslation && (
+                                                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-2 italic">{line.turkish}</p>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => speakWord(line.english)}
+                                                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-teal-500"
+                                            >
+                                                <Volume2 className="w-4 h-4" />
+                                            </button>
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{line.speaker}</p>
-                                            <p className="text-gray-900 dark:text-white leading-relaxed">{line.english}</p>
-                                            {showTranslation && (
-                                                <p className="text-gray-500 dark:text-gray-400 text-sm mt-2 italic">{line.turkish}</p>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={() => speakWord(line.english)}
-                                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-teal-500"
-                                        >
-                                            <Volume2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            ))}
+                                    </motion.div>
+                                );
+                            })}
                         </div>
+
                     ) : (
                         /* Regular text format */
                         <div className="space-y-6">

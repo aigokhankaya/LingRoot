@@ -26,6 +26,8 @@ import { GamificationBanner, DailyQuestsCard } from '../src/components/gamificat
 import { useGamification } from '../src/hooks/useGamification';
 // Resume Content
 import ResumeContentCard from '../src/components/content/ResumeContentCard';
+// Sector Dashboard
+import { SectorDashboardCard } from '../src/components/sectors';
 import { IncompleteListeningItem } from '../src/lib/api';
 
 interface ContentHistoryItem {
@@ -571,6 +573,11 @@ const Dashboard = () => {
 
               {/* Resume Content Card - Kaldığın yerden devam et */}
               <ResumeContentCard onResumePlay={handleResumePlay} />
+
+              {/* Sector Dashboard Card - Profesyonel Ingilizce */}
+              <div className="mb-6">
+                <SectorDashboardCard />
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Quick Stats */}

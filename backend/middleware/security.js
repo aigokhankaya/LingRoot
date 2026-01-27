@@ -224,3 +224,104 @@ exports.podcastLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// ============================================
+// GAMIFICATION RATE LIMITERS
+// XP farming ve abuse koruması
+// ============================================
+
+/**
+ * XP endpoint için sıkı limit
+ * XP farming/manipulation önleme
+ */
+exports.xpLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 dakika
+  max: 10, // Dakikada max 10 XP isteği
+  message: {
+    success: false,
+    code: 'RATE_LIMIT_EXCEEDED',
+    message: 'Çok fazla XP isteği. Lütfen biraz bekleyin.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Quest completion için limit
+ * Quest farming önleme
+ */
+exports.questLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 dakika
+  max: 20, // Dakikada max 20 quest işlemi
+  message: {
+    success: false,
+    code: 'RATE_LIMIT_EXCEEDED',
+    message: 'Çok fazla görev isteği. Lütfen biraz bekleyin.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Daily quest claim için limit
+ * Claim spam önleme
+ */
+exports.dailyQuestClaimLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 dakika
+  max: 10, // Dakikada max 10 claim
+  message: {
+    success: false,
+    code: 'RATE_LIMIT_EXCEEDED',
+    message: 'Çok fazla ödül alma isteği. Lütfen biraz bekleyin.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Streak endpoint için limit
+ * Streak manipulation önleme
+ */
+exports.streakLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 saat
+  max: 10, // Saatte max 10 streak işlemi
+  message: {
+    success: false,
+    code: 'RATE_LIMIT_EXCEEDED',
+    message: 'Çok fazla streak isteği. 1 saat sonra tekrar deneyin.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Onboarding reset için sıkı limit
+ * Reset abuse önleme
+ */
+exports.onboardingResetLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 saat
+  max: 3, // Günde max 3 reset
+  message: {
+    success: false,
+    code: 'RATE_LIMIT_EXCEEDED',
+    message: 'Günlük sıfırlama limitinizi aştınız. Yarın tekrar deneyin.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Gamification genel limiti
+ * Tüm gamification endpoint'leri için
+ */
+exports.gamificationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 dakika
+  max: 60, // Dakikada 60 istek
+  message: {
+    success: false,
+    code: 'RATE_LIMIT_EXCEEDED',
+    message: 'Çok fazla istek. Lütfen biraz bekleyin.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

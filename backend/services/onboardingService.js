@@ -102,7 +102,13 @@ Assessment criteria:
 
         } catch (error) {
             logger.error('[OnboardingService] Assessment failed:', error);
-            return { cefr: 'B1', confidence: 50, analysis: 'Değerlendirme yapılamadı, orta seviye varsayıldı' };
+            // Hata durumunda en düşük seviye varsay - güvenli başlangıç
+            return {
+                cefr: 'A1',
+                confidence: 30,
+                analysis: 'Değerlendirme yapılamadı. Başlangıç seviyesi olarak A1 belirlendi. İlerledikçe seviyeni ayarlayacağız!',
+                fallback: true
+            };
         }
     }
 
@@ -427,8 +433,8 @@ Generate a JSON roadmap with weekly milestones:
 
                     const nodeId = result.rows[0].id;
 
-                    // İlk birkaç görevi açık bırak
-                    const status = stepOrder <= 3 ? 'unlocked' : 'locked';
+                    // Sadece ilk görevi açık bırak (klasik skill-tree davranışı)
+                    const status = stepOrder === 1 ? 'unlocked' : 'locked';
                     await client.query(`
                         INSERT INTO user_quest_progress (user_id, node_id, status)
                         VALUES ($1, $2, $3)
@@ -503,15 +509,23 @@ Generate a JSON roadmap with weekly milestones:
      * Onboarding'i tamamla
      */
     async completeOnboarding(userId, data) {
-        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes, sectors } = data;
+        const { archetype, assessedCEFR, targetCEFR, weeklyMinutes, sectors, positionInfo, sectorGoals } = data;
 
         try {
             // 1. Archetype ayarla
             await this.setArchetype(userId, archetype);
 
-            // 2. Sektörleri kaydet (varsa)
+            // 2. Sektörleri kaydet (varsa) + Sektör gamification entegrasyonu
+            let primarySectorId = null;
             if (sectors && Array.isArray(sectors) && sectors.length > 0) {
                 const sectorService = require('./sectorService');
+                let sectorGamificationService;
+                try {
+                    sectorGamificationService = require('./sectorGamificationService');
+                } catch (e) {
+                    // Service yüklenemediyse devam et
+                }
+
                 let savedCount = 0;
                 for (let i = 0; i < sectors.length; i++) {
                     const sectorId = sectors[i];
@@ -531,7 +545,42 @@ Generate a JSON roadmap with weekly milestones:
 
                     const isPrimary = savedCount === 0; // İlk başarılı kayıt primary
                     try {
-                        await sectorService.addUserSector(userId, sectorId, isPrimary);
+                        // Pozisyon bilgisiyle kaydet (varsa)
+                        if (positionInfo && isPrimary) {
+                            await sectorService.setUserSectorWithPosition(userId, sectorId, {
+                                isPrimary: true,
+                                jobPosition: positionInfo.jobPosition,
+                                jobPositionEn: positionInfo.jobPositionEn,
+                                yearsExperience: positionInfo.yearsExperience,
+                                companyName: positionInfo.companyName,
+                                companySize: positionInfo.companySize
+                            });
+                        } else {
+                            await sectorService.addUserSector(userId, sectorId, isPrimary);
+                        }
+
+                        // İlk sektör için primary_sector_id kaydet
+                        if (isPrimary) {
+                            primarySectorId = sectorId;
+                            await db.query(`
+                                UPDATE user_gamification 
+                                SET primary_sector_id = $1, updated_at = NOW()
+                                WHERE user_id = $2
+                            `, [sectorId, userId]);
+                        }
+
+                        // Sektör quest'lerini oluştur (arka planda)
+                        if (sectorGamificationService) {
+                            sectorGamificationService.generateSectorQuestsForUser(userId, sectorId)
+                                .catch(err => logger.warn('[Onboarding] Sector quest generation failed:', err.message));
+
+                            // Sektör daily quest'leri oluştur
+                            if (isPrimary) {
+                                sectorGamificationService.generateSectorDailyQuests(userId, sectorId, 2)
+                                    .catch(err => logger.warn('[Onboarding] Sector daily quest failed:', err.message));
+                            }
+                        }
+
                         savedCount++;
                     } catch (sectorError) {
                         logger.warn(`[Onboarding] Could not save sector ${sectorId}:`, sectorError.message);
@@ -543,14 +592,13 @@ Generate a JSON roadmap with weekly milestones:
             }
 
             // 3. Roadmap oluştur (sektör varsa bağlamlı)
-            const primarySectorId = sectors && sectors.length > 0 ? sectors[0] : null;
             const roadmapResult = await this.generateRoadmap(
                 userId,
                 assessedCEFR,
                 targetCEFR,
                 archetype,
                 weeklyMinutes,
-                primarySectorId // Yeni parametre
+                primarySectorId
             );
 
             // 4. Onboarding'i tamamlandı olarak işaretle
@@ -568,23 +616,108 @@ Generate a JSON roadmap with weekly milestones:
             // 6. İlk başarımı ver
             await gamificationService.awardAchievement(userId, 'FIRST_CONTENT');
 
-            // 7. Başlangıç XP ver
-            await gamificationService.addXP(userId, 100, 'onboarding', null, 'Yolculuğa hoş geldin!');
+            // 7. Başlangıç XP ver (sadece ilk kez - abuse prevention)
+            // Daha önce onboarding XP alınmış mı kontrol et
+            const previousOnboardingXP = await db.query(`
+                SELECT 1 FROM xp_transactions
+                WHERE user_id = $1 AND source = 'onboarding'
+                LIMIT 1
+            `, [userId]);
 
-            logger.info(`[Onboarding] Completed for user ${userId}`);
+            if (previousOnboardingXP.rows.length === 0) {
+                await gamificationService.addXP(userId, 100, 'onboarding', null, 'Yolculuğa hoş geldin!');
+                logger.info(`[Onboarding] First-time onboarding XP awarded to user ${userId}`);
+            } else {
+                logger.info(`[Onboarding] Skipped onboarding XP for user ${userId} (already received before)`);
+            }
+
+            // 8. Sektör tercihleri kaydet (yeni) - sectorGoals dahil
+            if (primarySectorId) {
+                try {
+                    const goalsData = {
+                        primary_goal: archetype,
+                        focus_areas: sectors,
+                        // Kullanıcının belirlediği sektör hedefleri
+                        vocabulary_goal: sectorGoals?.vocabularyGoal || 50,     // Aylık kelime hedefi
+                        content_goal: sectorGoals?.contentGoal || 5,            // Haftalık içerik hedefi
+                        sector_daily_minutes: sectorGoals?.dailyMinutes || 15   // Günlük sektör çalışması
+                    };
+
+                    await db.query(`
+                        INSERT INTO user_sector_preferences (
+                            user_id,
+                            onboarding_sector_selected,
+                            sector_goals,
+                            daily_sector_time_goal,
+                            weekly_sector_content_goal
+                        )
+                        VALUES ($1, true, $2, $3, $4)
+                        ON CONFLICT (user_id) DO UPDATE SET
+                            onboarding_sector_selected = true,
+                            sector_goals = $2,
+                            daily_sector_time_goal = $3,
+                            weekly_sector_content_goal = $4,
+                            updated_at = NOW()
+                    `, [
+                        userId,
+                        JSON.stringify(goalsData),
+                        sectorGoals?.dailyMinutes || Math.ceil(weeklyMinutes / 7),
+                        sectorGoals?.contentGoal || 5
+                    ]);
+
+                    logger.info(`[Onboarding] Sector goals saved: vocab=${goalsData.vocabulary_goal}, content=${goalsData.content_goal}/week, daily=${goalsData.sector_daily_minutes}min`);
+                } catch (prefError) {
+                    logger.warn('[Onboarding] Could not save sector preferences:', prefError.message);
+                }
+            }
+
+            // 9. Sektör kelimelerinden başlangıç seti oluştur (word_reviews)
+            if (primarySectorId) {
+                try {
+                    await this.createInitialVocabularySet(userId, primarySectorId, assessedCEFR);
+                } catch (vocabError) {
+                    logger.warn('[Onboarding] Could not create initial vocabulary set:', vocabError.message);
+                }
+            }
+
+            logger.info(`[Onboarding] Completed for user ${userId} (sector: ${primarySectorId || 'none'})`);
 
             return {
                 success: true,
                 ...roadmapResult,
                 welcomeMessage: this.getWelcomeMessage(archetype, assessedCEFR, targetCEFR),
-                selectedSectors: sectors || []
+                selectedSectors: sectors || [],
+                primarySectorId
             };
 
         } catch (error) {
             logger.error('[OnboardingService] completeOnboarding failed:', error);
+
+            // Recovery: Eğer temel bilgiler kaydedildiyse, onboarding_completed = true yap
+            // Böylece kullanıcı sonsuz onboarding döngüsüne girmez
+            try {
+                const profile = await db.query(
+                    'SELECT archetype FROM user_gamification WHERE user_id = $1',
+                    [userId]
+                );
+
+                // Archetype set edildiyse, temel onboarding tamamlanmış demektir
+                if (profile.rows.length > 0 && profile.rows[0].archetype) {
+                    await db.query(`
+                        UPDATE user_gamification
+                        SET onboarding_completed = true, updated_at = NOW()
+                        WHERE user_id = $1
+                    `, [userId]);
+                    logger.warn(`[OnboardingService] Recovery: onboarding_completed = true set for user ${userId} despite error`);
+                }
+            } catch (recoveryError) {
+                logger.error('[OnboardingService] Recovery failed:', recoveryError.message);
+            }
+
             throw error;
         }
     }
+
 
     getWelcomeMessage(archetype, currentCEFR, targetCEFR) {
         const archetypeDetails = this.getArchetypeDetails(archetype);
@@ -812,6 +945,71 @@ Generate a JSON roadmap with weekly milestones:
             throw error;
         } finally {
             client.release();
+        }
+    }
+
+    /**
+     * Sektör kelimelerinden başlangıç seti oluştur
+     * Kullanıcının CEFR seviyesine uygun 30 kelime seç ve word_reviews'a ekle
+     */
+    async createInitialVocabularySet(userId, sectorId, cefrLevel) {
+        try {
+            // CEFR seviyesine göre uygun kelimeleri belirle
+            const cefrOrder = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+            const userLevelIndex = cefrOrder.indexOf(cefrLevel);
+
+            // Kullanıcı seviyesi ve bir alt seviye kelimelerini al
+            const eligibleLevels = cefrOrder.slice(0, Math.max(userLevelIndex + 1, 2));
+
+            // Sektörden uygun kelimeleri çek (30 adet, seviyeye uygun)
+            const wordsResult = await db.query(`
+                SELECT id, word, definition_en, definition_tr, example_sentence, cefr_level
+                FROM sector_vocabulary
+                WHERE sector_id = $1 
+                AND cefr_level = ANY($2::text[])
+                ORDER BY frequency_rank ASC NULLS LAST, RANDOM()
+                LIMIT 30
+            `, [sectorId, eligibleLevels]);
+
+            if (wordsResult.rows.length === 0) {
+                logger.warn(`[Onboarding] No words found for sector ${sectorId} at levels ${eligibleLevels.join(', ')}`);
+                return { added: 0 };
+            }
+
+            // word_reviews tablosuna ekle (SRS başlangıç değerleriyle)
+            let addedCount = 0;
+            for (const word of wordsResult.rows) {
+                try {
+                    await db.query(`
+                        INSERT INTO word_reviews (
+                            user_id, word, definition, example_sentence,
+                            next_review_date, interval_days, ease_factor, 
+                            repetition_count, streak_correct, source_content_id, created_at
+                        ) VALUES (
+                            $1, $2, $3, $4,
+                            NOW()::date, 1, 2.5,
+                            0, 0, 'sector_onboarding', NOW()
+                        )
+                        ON CONFLICT (user_id, word) DO NOTHING
+                    `, [
+                        userId,
+                        word.word,
+                        word.definition_tr || word.definition_en || 'No definition',
+                        word.example_sentence || ''
+                    ]);
+                    addedCount++;
+                } catch (insertError) {
+                    // Duplicate veya diğer hatalar için devam et
+                    logger.debug(`[Onboarding] Word insert skipped: ${word.word} - ${insertError.message}`);
+                }
+            }
+
+            logger.info(`[Onboarding] Created initial vocabulary set: ${addedCount} words for user ${userId} (sector: ${sectorId}, levels: ${eligibleLevels.join(', ')})`);
+            return { added: addedCount };
+
+        } catch (error) {
+            logger.error('[OnboardingService] createInitialVocabularySet failed:', error);
+            throw error;
         }
     }
 }

@@ -843,10 +843,28 @@ class QuizEngineService {
             // Zorlanılan kelimeleri al
             const strugglingWords = await this.getStrugglingWords(userId, 2);
 
+            // 🏢 Sektör kelimelerini al (kullanıcının birincil sektöründen)
+            let sectorWords = [];
+            try {
+                const sectorService = require('./sectorService');
+                const primarySector = await sectorService.getUserPrimarySector(userId);
+                if (primarySector) {
+                    const sectorVocab = await sectorService.getSectorVocabulary(primarySector.id, { limit: 5 });
+                    sectorWords = (sectorVocab.items || []).map(v => ({
+                        word: v.word,
+                        meaning: v.definition_tr || v.definition_en,
+                        priority: 1.5 // Sektör kelimeleri orta öncelik
+                    }));
+                }
+            } catch (err) {
+                logger.debug('[QuizEngine] Sector vocabulary fetch skipped:', err.message);
+            }
+
             // Kelime havuzunu birleştir (ağırlıklı)
             const wordPool = [
                 ...srsWords.map(w => ({ ...w, priority: 3 })),
                 ...strugglingWords.map(w => ({ word: w.word, priority: 2 })),
+                ...sectorWords, // 🏢 Sektör kelimeleri
                 ...contentWords.map(w => ({ ...w, priority: 1 }))
             ];
 

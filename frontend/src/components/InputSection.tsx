@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n';
 import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, getGeneratedSuggestions, fetchYoutubeTranscript, getMyPlanFeatures, PlanFeatures, getHashtagNews, HashtagNewsItem } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
@@ -666,10 +667,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
             <span className="font-medium text-sm">Metin</span>
           </button>
 
-          <button onClick={() => router.push('/sectors')} className="p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md">
+          <Link href="/sectors" className="p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md">
             <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center"><FaBriefcase size={20} /></div>
             <span className="font-medium text-sm">Sektör İngilizcesi</span>
-          </button>
+          </Link>
 
           <button onClick={() => handleModeSelect('topic')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'topic' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
             <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><FaLightbulb size={20} /></div>

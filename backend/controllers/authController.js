@@ -859,6 +859,13 @@ exports.googleLogin = async (req, res) => {
     delete user.verificationToken;
     delete user.resetPasswordToken;
 
+    // Normalize name fields (normal login ile tutarlı)
+    const safeFirst = user.firstname || user.firstName || '';
+    const safeLast = user.lastname || user.lastName || '';
+    const safeFull = [safeFirst, safeLast].filter(Boolean).join(' ').trim();
+    user.full_name = safeFull;
+    user.name = safeFull;
+
     // Best-effort: record successful Google login
     try { await recordLoginAttempt(user.id, req, { success: true, message: 'google_login_success' }); } catch { }
 

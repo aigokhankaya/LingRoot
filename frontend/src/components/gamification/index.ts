@@ -18,3 +18,12 @@ export { WeeklyChallenges } from './WeeklyChallenges';
 export { StreakSociety } from './StreakSociety';
 export { GamificationBanner } from './GamificationBanner';
 
+// Sector Integration (NEW)
+export { SectorSelector } from './SectorSelector';
+export { SectorProgressCard } from './SectorProgressCard';
+export { SectorSkillTree } from './SectorSkillTree';
+
+// Quest Guidance Components
+export { QuestGuideModal } from './QuestGuideModal';
+export { ActiveQuestBanner } from './ActiveQuestBanner';
+

@@ -27,4 +27,14 @@ router.get('/daily-suggestions', aiChatController.getDailySuggestions);
 // Feedback for daily suggestions (clicks, not_relevant etc.)
 router.post('/daily-suggestions/feedback', aiChatController.saveDailySuggestionFeedback);
 
+// Mini activities (ChatGPT-Quality Enhancement)
+router.post('/mini-activity', chatLimiter, aiChatController.generateMiniActivity);
+
+// Recommendation interactions
+router.post('/recommendations/interaction', aiChatController.recordRecommendationInteraction);
+
+// User long-term memories
+router.get('/memories', aiChatController.getUserMemories);
+router.delete('/memories/:memoryId', aiChatController.deactivateMemory);
+
 module.exports = router;
