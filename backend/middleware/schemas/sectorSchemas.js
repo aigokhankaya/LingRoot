@@ -51,8 +51,10 @@ const updateSectorSchema = Joi.object({
 // ========================================
 
 const contentTypeSchema = Joi.string().valid(
-    'article', 'dialogue', 'scenario',          // Mevcut
-    'fill_in_blank', 'matching', 'quiz'         // Yeni (Faz 2)
+    'article', 'dialogue', 'scenario',              // Mevcut
+    'fill_in_blank', 'matching', 'quiz',            // Alıştırmalar
+    'business_roleplay', 'sector_podcast',          // YENİ: Rol tabanlı senaryo ve podcast
+    'customer_communication', 'meeting_simulation'  // YENİ: Müşteri iletişimi, toplantı
 );
 
 const createContentSchema = Joi.object({
@@ -187,6 +189,53 @@ const updateContentStatusSchema = Joi.object({
 });
 
 // ========================================
+// ROLEPLAY SCHEMAS (YENİ)
+// ========================================
+
+const scenarioLengthSchema = Joi.string().valid('short', 'medium', 'long').default('medium');
+
+const roleSchema = Joi.object({
+    id: Joi.string().max(50).required(),
+    title: Joi.string().max(100).required(),
+    title_en: Joi.string().max(100).allow('', null),
+    voice: Joi.string().valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer').default('nova')
+});
+
+const createRoleplayScenarioSchema = Joi.object({
+    sector_id: Joi.number().integer().positive().required(),
+    scenario_category: Joi.string().valid(
+        'crisis_management', 'negotiation', 'meeting',
+        'onboarding', 'feedback', 'customer_service',
+        'sales_pitch', 'project_update', 'general'
+    ).required(),
+    cefr_level: cefrLevelSchema.required(),
+    length: scenarioLengthSchema,
+    context: Joi.object({
+        situation: Joi.string().max(500).required(),
+        goal: Joi.string().max(300).allow('', null),
+        setting: Joi.string().max(100).allow('', null)
+    }).required(),
+    roles: Joi.array().items(roleSchema).min(2).max(2).required(),
+    key_vocabulary: Joi.array().items(Joi.string().max(100)).default([])
+});
+
+const generateRoleplayAudioSchema = Joi.object({
+    voice_role_1: Joi.string().valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer').default('onyx'),
+    voice_role_2: Joi.string().valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer').default('nova'),
+    speed: Joi.number().min(0.5).max(1.5).default(0.9)
+});
+
+const createSectorPodcastSchema = Joi.object({
+    sector_id: Joi.number().integer().positive().required(),
+    podcast_type: Joi.string().valid('news', 'interview', 'analysis', 'tutorial').required(),
+    cefr_level: cefrLevelSchema.required(),
+    length: scenarioLengthSchema,
+    topic: Joi.string().max(255).required(),
+    key_points: Joi.array().items(Joi.string().max(200)).min(1).max(5).required(),
+    host_voice: Joi.string().valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer').default('nova')
+});
+
+// ========================================
 // EXPORTS
 // ========================================
 
@@ -212,5 +261,13 @@ module.exports = {
 
     // User Sector
     addUserSectorSchema,
-    updateContentStatusSchema
+    updateContentStatusSchema,
+
+    // Roleplay & Podcast (YENİ)
+    createRoleplayScenarioSchema,
+    generateRoleplayAudioSchema,
+    createSectorPodcastSchema,
+    scenarioLengthSchema,
+    roleSchema
 };
+

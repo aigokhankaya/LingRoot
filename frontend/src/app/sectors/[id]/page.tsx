@@ -14,16 +14,20 @@ import {
     X,
     Briefcase,
     AlertCircle,
-    RefreshCw
+    RefreshCw,
+    Sparkles,
+    Map
 } from 'lucide-react';
+import { SectorSkillTree } from '@/components/gamification';
 import SectorHero from '@/components/sectors/SectorHero';
 import ContentCard, { ContentItem } from '@/components/sectors/ContentCard';
 import VocabularyCard, { VocabularyItem, FlashcardCarousel } from '@/components/sectors/VocabularyCard';
 import { Sector, SECTOR_ICONS, SECTOR_COLORS, DEFAULT_COLOR } from '@/components/sectors/SectorCard';
+import SectorContentCreator from '@/components/sectors/SectorContentCreator';
 import { api } from '@/lib/api';
 
 // Tab types
-type TabType = 'content' | 'vocabulary' | 'quiz';
+type TabType = 'content' | 'vocabulary' | 'quiz' | 'roadmap';
 
 // CEFR levels for filtering
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -78,6 +82,7 @@ export default function SectorDetailPage() {
     const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
     const [selectedType, setSelectedType] = useState<string | null>(null);
     const [vocabView, setVocabView] = useState<'list' | 'flashcard'>('list');
+    const [showContentCreator, setShowContentCreator] = useState(false);
 
     // Fetch data
     useEffect(() => {
@@ -242,6 +247,7 @@ export default function SectorDetailPage() {
 
     // Tabs config
     const tabs = [
+        { key: 'roadmap' as TabType, label: 'Yol Haritası', icon: Map, count: 0 },
         { key: 'content' as TabType, label: 'İçerikler', icon: BookOpen, count: contentList.length },
         { key: 'vocabulary' as TabType, label: 'Terminoloji', icon: GraduationCap, count: vocabularyList.length },
         { key: 'quiz' as TabType, label: 'Quiz', icon: HelpCircle, count: 0 },
@@ -253,11 +259,26 @@ export default function SectorDetailPage() {
             <SectorHero
                 sector={sector}
                 onBack={() => router.push('/sectors')}
+                onCreateContent={() => setShowContentCreator(true)}
                 stats={{
                     totalContent: contentList.length,
                     totalVocabulary: vocabularyList.length,
                     estimatedMinutes: contentList.reduce((sum, c) => sum + (c.estimated_minutes || 5), 0),
                     userProgress: 0,
+                }}
+            />
+
+            {/* Content Creator Modal */}
+            <SectorContentCreator
+                sectorId={sector.id}
+                sectorName={sector.name_tr || sector.name || ''}
+                sectorCode={sector.code}
+                isOpen={showContentCreator}
+                onClose={() => setShowContentCreator(false)}
+                onContentCreated={(content) => {
+                    // Yeni içeriği listeye ekle
+                    setContentList(prev => [content, ...prev]);
+                    setShowContentCreator(false);
                 }}
             />
 
@@ -316,8 +337,8 @@ export default function SectorDetailPage() {
                             <button
                                 onClick={() => setVocabView('list')}
                                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${vocabView === 'list'
-                                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 Liste
@@ -325,8 +346,8 @@ export default function SectorDetailPage() {
                             <button
                                 onClick={() => setVocabView('flashcard')}
                                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${vocabView === 'flashcard'
-                                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 Flashcard
@@ -361,8 +382,8 @@ export default function SectorDetailPage() {
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={`px-4 py-3 rounded-xl border transition-colors flex items-center gap-2 ${showFilters || selectedLevel || selectedType
-                                        ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-300 dark:border-teal-700 text-teal-600'
-                                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                    ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-300 dark:border-teal-700 text-teal-600'
+                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                                     }`}
                             >
                                 <Filter className="w-5 h-5" />
@@ -389,8 +410,8 @@ export default function SectorDetailPage() {
                                                         key={level}
                                                         onClick={() => setSelectedLevel(selectedLevel === level ? null : level)}
                                                         className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedLevel === level
-                                                                ? 'bg-teal-500 text-white'
-                                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                                            ? 'bg-teal-500 text-white'
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                                             }`}
                                                     >
                                                         {level}
@@ -409,8 +430,8 @@ export default function SectorDetailPage() {
                                                             key={type.value}
                                                             onClick={() => setSelectedType(selectedType === type.value ? null : type.value)}
                                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedType === type.value
-                                                                    ? 'bg-orange-500 text-white'
-                                                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                                                ? 'bg-orange-500 text-white'
+                                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                                                 }`}
                                                         >
                                                             {type.label}
@@ -540,12 +561,54 @@ export default function SectorDetailPage() {
                             className="text-center py-16"
                         >
                             <HelpCircle className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                                Quizler Yakında
-                            </h3>
-                            <p className="text-gray-500 dark:text-gray-400">
-                                Bu sektör için bilgi testleri yakında eklenecek.
-                            </p>
+                            {contentList.length > 0 ? (
+                                <>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                        Quiz Oluştur
+                                    </h3>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                                        Mevcut içeriklerinizden ({contentList.length} adet) quiz oluşturabilirsiniz.
+                                        Quiz özelliği yakında eklenecek!
+                                    </p>
+                                    <button
+                                        onClick={() => setActiveTab('content')}
+                                        className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                                    >
+                                        İçerikleri İncele
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                        Önce İçerik Oluşturun
+                                    </h3>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                                        Quiz oluşturmak için önce iş senaryosu veya podcast gibi içerikler oluşturmanız gerekiyor.
+                                    </p>
+                                    <button
+                                        onClick={() => setShowContentCreator(true)}
+                                        className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-xl font-medium hover:shadow-lg transition-all inline-flex items-center gap-2"
+                                    >
+                                        <Sparkles className="w-5 h-5" />
+                                        İçerik Oluştur
+                                    </button>
+                                </>
+                            )}
+                        </motion.div>
+                    )}
+
+                    {/* Roadmap Tab */}
+                    {activeTab === 'roadmap' && (
+                        <motion.div
+                            key="roadmap"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                        >
+                            <SectorSkillTree
+                                contentList={contentList}
+                                onContentClick={(contentId) => router.push(`/sectors/${id}/content/${contentId}`)}
+                            />
                         </motion.div>
                     )}
                 </AnimatePresence>

@@ -23,3 +23,71 @@
 {"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-01T19:44:41.025Z"}
 {"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-01T19:44:41.537Z"}
 {"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-01T19:44:41.931Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:41:47.918Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:41:47.918Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:41:48.234Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:46:04.595Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:46:04.595Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:46:04.928Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:46:29.355Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:46:29.355Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:46:29.650Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:46:46.832Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:46:46.832Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:46:47.114Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:47:00.970Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:47:00.971Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:47:01.359Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:48:14.204Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:48:14.205Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:48:14.532Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:54:45.498Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:54:45.499Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:45.863Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:46.311Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:46.632Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:46.963Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:47.285Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:47.600Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:47.918Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:48.241Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:48.567Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:48.885Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:49.217Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:49.537Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:49.859Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:50.188Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:50.510Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:50.834Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:51.166Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:51.486Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:51.814Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:52.136Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:52.452Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:52.767Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:53.085Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:53.406Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:53.723Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:54.058Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:54.391Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:54.722Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:55.038Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:54:55.354Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:55:32.429Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:55:32.429Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:55:32.724Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:56:22.839Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:56:22.839Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:56:23.178Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T16:56:40.371Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T16:56:40.371Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T16:56:40.656Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T18:19:05.877Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T18:19:05.877Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T18:19:06.176Z"}
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2026-01-25T18:19:38.037Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-01-25T18:19:38.037Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T18:19:38.377Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T18:19:38.753Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T18:19:38.753Z"}
+{"level":"debug","message":"New client connected to PostgreSQL pool","timestamp":"2026-01-25T18:19:39.067Z"}

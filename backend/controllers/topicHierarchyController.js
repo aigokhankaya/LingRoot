@@ -978,3 +978,90 @@ exports.getListeningProgress = async (req, res) => {
     });
   }
 };
+
+/**
+ * Tek bir topic'in içerik verilerini getir (öneri sistemi için)
+ * GET /api/topic-hierarchy/topics/:id/content
+ */
+exports.getTopicContent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    logger.info(`[TOPIC CONTENT] Getting content for topic ${id}, user ${userId}`);
+
+    // Topic ve content bilgilerini birlikte getir
+    const { data, error } = await supabase
+      .from('topic_contents')
+      .select(`
+        id,
+        topic_id,
+        mp3_url,
+        vtt_url,
+        adapted_text,
+        translated_text,
+        words,
+        timepoints,
+        duration_seconds,
+        progress_percentage,
+        last_position_seconds,
+        is_completed,
+        topics!inner (
+          id,
+          title,
+          level,
+          description,
+          user_id
+        )
+      `)
+      .eq('topic_id', id)
+      .eq('topics.user_id', userId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: 'İçerik bulunamadı'
+        });
+      }
+      throw error;
+    }
+
+    // Kullanıcı kontrolü
+    if (data.topics?.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bu içeriğe erişim yetkiniz yok'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        id: data.id,
+        topic_id: data.topic_id,
+        mp3_url: data.mp3_url,
+        vtt_url: data.vtt_url,
+        adapted_text: data.adapted_text,
+        translated_text: data.translated_text,
+        words: data.words || [],
+        timepoints: data.timepoints || [],
+        duration_seconds: data.duration_seconds,
+        progress_percentage: data.progress_percentage || 0,
+        last_position_seconds: data.last_position_seconds || 0,
+        is_completed: data.is_completed || false,
+        title: data.topics?.title,
+        level: data.topics?.level,
+        description: data.topics?.description
+      }
+    });
+  } catch (error) {
+    logger.error('[TOPIC CONTENT] Error getting content:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'İçerik bilgisi alınırken hata oluştu',
+      error: error.message
+    });
+  }
+};

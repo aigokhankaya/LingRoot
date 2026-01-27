@@ -133,8 +133,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   }, []);
 
   const logout = useCallback(() => {
+    // Tüm kullanıcıya özel localStorage verilerini temizle
     localStorage.removeItem('lingroot_token');
     localStorage.removeItem('lingroot_remember_me');
+    localStorage.removeItem('lingroot_firstName');
+    localStorage.removeItem('lingroot_lastName');
+    localStorage.removeItem('lingroot_loginCount');
+    localStorage.removeItem('lingroot_lastLogin');
+    localStorage.removeItem('lingroot_interfaceLanguage');
+    localStorage.removeItem('onboarding_completed');
+    localStorage.removeItem('onboarding_remind_later');
+    localStorage.removeItem('justLoggedIn');
+
     setUser(null);
     setIsAuthenticated(false);
     AnalyticsHelper.logEvent('logout');

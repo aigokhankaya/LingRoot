@@ -324,3 +324,58 @@ Bu plan, geliştirme sürecini yönetilebilir parçalara ayırır.
 *   **Ses:** Basit HTML5 Audio API (UI sesleri için).
 
 Bu plan, LingRoot'u teknik bir araçtan, duygusal bir deneyime dönüştürecektir.
+
+---
+
+## 10. Sektör İngilizcesi Entegrasyonu (2026-01-23)
+
+> **Güncelleme:** Gamification sistemi artık Sektör İngilizcesi modülü ile tam entegredir.
+
+### 10.1. Onboarding Sektör Adımı
+Kariyer Mimarı arketipi seçen kullanıcılar için:
+1. Sektör seçimi (max 3, ilk seçim = primary)
+2. Pozisyon bilgisi formu (iş ünvanı, deneyim yılı, şirket)
+3. Kişiselleştirilmiş sektör bazlı yol haritası
+
+### 10.2. Sektör XP Sistemi
+| Aktivite | XP |
+|----------|---:|
+| Sektör kelime öğrenme | 15 |
+| Sektör kelime ustalaşma | 30 |
+| Sektör içerik tamamlama | 50 |
+| Sektör diyaloğu tamamlama | 60 |
+| Sektör quizi tamamlama | 75 |
+| Sektör quizi mükemmel skor | 150 |
+| Roleplay tamamlama | 100 |
+| Podcast tamamlama | 80 |
+| Modül tamamlama | 200 |
+
+### 10.3. Sektör Streak Sistemi
+- Her sektör için ayrı streak takibi
+- Milestone bonusları: 7 gün (+100), 14 gün (+200), 30 gün (+500)
+- Sektör streak achievement'ları
+
+### 10.4. Sektör Daily Quests
+Kullanıcının primary sektörüne göre dinamik görevler:
+- `sector_vocab`: "IT: 5 terim öğren"
+- `sector_content`: "IT makalesi oku"
+- `sector_quiz`: "IT quizi tamamla"
+- `sector_roleplay`: "IT roleplay oyna"
+
+### 10.5. Context-Aware SRS
+- **Pasif tekrar:** Öğrenilen kelimelerin içerik içinde tekrar görülmesi
+- **Vocabulary Injection:** İçerik üretiminde hedef kelimelerin bilinçli enjeksiyonu
+- **Word Exposure Log:** Kelime maruziyetinin takibi
+
+### 10.6. Sektör Achievement'ları
+- `SECTOR_STREAK_7` / `SECTOR_STREAK_30`: Sektör seri rozetleri
+- `SECTOR_VOCAB_50` / `SECTOR_VOCAB_100`: Terminoloji ustalığı
+- `ROLEPLAY_FIRST` / `ROLEPLAY_10`: Roleplay başarımları
+- `POLYGLOT_PROFESSIONAL_3` / `POLYGLOT_PROFESSIONAL_5`: Çoklu sektör uzmanlığı
+
+### 10.7. İlgili Dosyalar
+- `backend/services/sectorGamificationService.js` - Ana entegrasyon servisi
+- `backend/migrations/0074_sector_gamification_full_integration.sql` - DB yapıları
+- `frontend/src/components/gamification/SectorProgressCard.tsx` - İlerleme kartı
+- `frontend/src/components/gamification/SectorSelector.tsx` - Pozisyon formu
+- `backend/tests/gamification/sectorGamification.test.js` - Unit testler

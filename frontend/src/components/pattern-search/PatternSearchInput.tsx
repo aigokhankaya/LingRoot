@@ -16,7 +16,7 @@ export default function PatternSearchInput({ onSearch, onLoading }: PatternSearc
 
         onLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             // Using API via proxy or direct axios? Assuming configured axios instance or fetch
             // For simplicity in this plan, direct fetch with auth header
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/patterns/search?query=${query}&lang=${lang}`, {

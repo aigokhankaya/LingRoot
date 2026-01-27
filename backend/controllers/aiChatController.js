@@ -20,6 +20,11 @@ const chatService = require('../services/chatService');
 const { SENDER_TYPES, CHAT_LIMITS, BEGINNER_LEVELS, OPENAI_MODELS } = require('../constants/chatConstants');
 // NEW: User Insight Service (Persona Learning)
 const userInsightService = require('../services/userInsightService');
+// NEW: ChatGPT-Quality Enhancement Services
+const userMemoryService = require('../services/userMemoryService');
+const chatRecommendationService = require('../services/chatRecommendationService');
+const responseQualityChecker = require('../utils/ai/responseQualityChecker');
+const miniActivityService = require('../services/miniActivityService');
 
 /**
  * Get all AI conversations for a user
@@ -265,6 +270,22 @@ const sendMessage = async (req, res) => {
       logger.warn('Web search failed silently:', searchErr);
     }
 
+    // LONG-TERM MEMORY: Retrieve relevant memories from past conversations
+    let memoriesPromptSection = '';
+    try {
+      const relevantMemories = await userMemoryService.retrieveRelevantMemories(
+        userId,
+        content.trim(),
+        5
+      );
+      if (relevantMemories && relevantMemories.length > 0) {
+        memoriesPromptSection = userMemoryService.formatMemoriesForPrompt(relevantMemories);
+        logger.info(`🧠 Injected ${relevantMemories.length} long-term memories into context.`);
+      }
+    } catch (memoryErr) {
+      logger.warn('Long-term memory retrieval failed:', memoryErr);
+    }
+
     let liroSystemPrompt = liroPromptGenerator.generateSystemPrompt(userProfile, searchResultsText);
     if (overviewPrompt) {
       liroSystemPrompt = `${liroSystemPrompt}\n\n${overviewPrompt}`;
@@ -273,6 +294,11 @@ const sendMessage = async (req, res) => {
     // SONSUZ HAFIZA: Özeti prompt'a ekle
     if (conversationSummary) {
       liroSystemPrompt = `${liroSystemPrompt}\n\n${conversationSummary}`;
+    }
+
+    // LONG-TERM MEMORY: Uzun dönem hafızayı prompt'a ekle
+    if (memoriesPromptSection) {
+      liroSystemPrompt = `${liroSystemPrompt}\n\n${memoriesPromptSection}`;
     }
 
     // DİNAMİK SEVİYE: Seviye ayarını prompt'a ekle
@@ -394,6 +420,34 @@ const sendMessage = async (req, res) => {
         });
       }
 
+      // LONG-TERM MEMORY EXTRACTION: Her 5 mesajda bir hafıza çıkar
+      if (messageHistory.length >= 5 && messageHistory.length % 5 === 0) {
+        userMemoryService.extractMemories(userId, conversationId, messageHistory).catch(err => {
+          logger.error('Background memory extraction failed:', err);
+        });
+      }
+
+      // PROACTIVE RECOMMENDATION CHECK
+      let proactiveRecommendation = null;
+      try {
+        const recommendationContext = {
+          topicLocked: topicLockMatch !== null,
+          currentTopic: topicLockMatch ? topicLockMatch[1].trim() : null,
+          userLevel: userProfile?.learningProgress?.experienceLevel || 'B1'
+        };
+        proactiveRecommendation = await chatRecommendationService.checkForRecommendation(
+          userId,
+          conversationId,
+          messageHistory,
+          recommendationContext
+        );
+        if (proactiveRecommendation) {
+          logger.info(`💡 Proactive recommendation triggered: ${proactiveRecommendation.trigger}`);
+        }
+      } catch (recErr) {
+        logger.warn('Proactive recommendation check failed:', recErr);
+      }
+
       // LOG API COST for streaming mode (estimate based on content length)
       try {
         // For streaming, we estimate tokens since usage is not returned
@@ -418,6 +472,11 @@ const sendMessage = async (req, res) => {
         logger.debug(`[LIRO COST] Streaming: ${selectedModel} | $${costData.totalCostUsd}`);
       } catch (costErr) {
         logger.warn('[LIRO COST] Failed to log streaming cost:', costErr.message);
+      }
+
+      // Send recommendation if triggered
+      if (proactiveRecommendation) {
+        res.write(`data: ${JSON.stringify({ type: 'recommendation', data: proactiveRecommendation })}\n\n`);
       }
 
       // Send done signal with assistant message info
@@ -485,6 +544,34 @@ const sendMessage = async (req, res) => {
       });
     }
 
+    // LONG-TERM MEMORY EXTRACTION (Non-streaming): Her 5 mesajda bir hafıza çıkar
+    if (messageHistory.length >= 5 && messageHistory.length % 5 === 0) {
+      userMemoryService.extractMemories(userId, conversationId, messageHistory).catch(err => {
+        logger.error('Background memory extraction failed (non-streaming):', err);
+      });
+    }
+
+    // PROACTIVE RECOMMENDATION CHECK (Non-streaming)
+    let proactiveRecommendation = null;
+    try {
+      const recommendationContext = {
+        topicLocked: topicLockMatch !== null,
+        currentTopic: topicLockMatch ? topicLockMatch[1].trim() : null,
+        userLevel: userProfile?.learningProgress?.experienceLevel || 'B1'
+      };
+      proactiveRecommendation = await chatRecommendationService.checkForRecommendation(
+        userId,
+        conversationId,
+        messageHistory,
+        recommendationContext
+      );
+      if (proactiveRecommendation) {
+        logger.info(`💡 Proactive recommendation triggered (non-streaming): ${proactiveRecommendation.trigger}`);
+      }
+    } catch (recErr) {
+      logger.warn('Proactive recommendation check failed (non-streaming):', recErr);
+    }
+
     // LOG API COST for non-streaming mode
     if (openaiUsage) {
       try {
@@ -508,7 +595,8 @@ const sendMessage = async (req, res) => {
     res.json({
       success: true,
       userMessage: userMessageResult.rows[0],
-      assistantMessage: assistantMessageResult.rows[0]
+      assistantMessage: assistantMessageResult.rows[0],
+      recommendation: proactiveRecommendation || undefined
     });
 
   } catch (error) {
@@ -1032,6 +1120,143 @@ const saveDailySuggestionFeedback = async (req, res) => {
   }
 };
 
+/**
+ * Generate a mini activity for the chat
+ */
+const generateMiniActivity = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { type, topic, level } = req.body;
+
+    if (!type || !['quick_vocab', 'mini_roleplay', 'instant_quiz', 'phrase_practice'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçerli bir aktivite tipi gereklidir (quick_vocab, mini_roleplay, instant_quiz, phrase_practice)'
+      });
+    }
+
+    const userLevel = level || 'B1';
+    let activity;
+
+    switch (type) {
+      case 'quick_vocab':
+        activity = await miniActivityService.generateQuickVocab(topic || 'general', userLevel);
+        break;
+      case 'mini_roleplay':
+        activity = await miniActivityService.generateMiniRoleplay(topic || 'daily conversation', userLevel);
+        break;
+      case 'instant_quiz':
+        activity = await miniActivityService.generateInstantQuiz(topic || 'english basics', userLevel);
+        break;
+      case 'phrase_practice':
+        activity = await miniActivityService.generatePhrasePractice(topic || 'How are you?', userLevel);
+        break;
+    }
+
+    res.json({
+      success: true,
+      activity
+    });
+  } catch (error) {
+    logger.error('Error generating mini activity:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Aktivite oluşturulamadı'
+    });
+  }
+};
+
+/**
+ * Record recommendation interaction (accept/dismiss)
+ */
+const recordRecommendationInteraction = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, triggerId, accepted, selectedFormat } = req.body;
+
+    if (!triggerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'triggerId gereklidir'
+      });
+    }
+
+    const result = await chatRecommendationService.recordInteraction(
+      userId,
+      conversationId,
+      triggerId,
+      accepted,
+      selectedFormat
+    );
+
+    res.json({
+      success: true,
+      recorded: result
+    });
+  } catch (error) {
+    logger.error('Error recording recommendation interaction:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Etkileşim kaydedilemedi'
+    });
+  }
+};
+
+/**
+ * Get user's long-term memories
+ */
+const getUserMemories = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const memories = await userMemoryService.getMemories(userId, limit);
+    const stats = await userMemoryService.getMemoryStats(userId);
+
+    res.json({
+      success: true,
+      memories,
+      stats
+    });
+  } catch (error) {
+    logger.error('Error fetching user memories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Hafıza bilgileri getirilemedi'
+    });
+  }
+};
+
+/**
+ * Deactivate a specific memory
+ */
+const deactivateMemory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { memoryId } = req.params;
+
+    const result = await userMemoryService.deactivateMemory(memoryId, userId);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hafıza bulunamadı veya silinemedi'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Hafıza devre dışı bırakıldı'
+    });
+  } catch (error) {
+    logger.error('Error deactivating memory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Hafıza silinemedi'
+    });
+  }
+};
+
 module.exports = {
   getConversations,
   createConversation,
@@ -1043,4 +1268,9 @@ module.exports = {
   getPopularTopics,
   getDailySuggestions,
   saveDailySuggestionFeedback,
+  // NEW: ChatGPT-Quality Enhancement Endpoints
+  generateMiniActivity,
+  recordRecommendationInteraction,
+  getUserMemories,
+  deactivateMemory,
 };

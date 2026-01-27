@@ -14,6 +14,7 @@ import { useRouter } from 'next/router';
 import FlashcardDeck from '../src/components/vocabulary/FlashcardDeck';
 import AdaptivePlacementTest from '../src/components/vocabulary/AdaptivePlacementTest';
 import AppHeader from '@/components/AppHeader';
+import { ActiveQuestBanner } from '../src/components/gamification';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -103,6 +104,11 @@ export default function VocabularyPage() {
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
         {/* Header */}
         <AppHeader />
+
+        {/* Active Quest Banner */}
+        <div className="max-w-4xl mx-auto px-4 pt-4">
+          <ActiveQuestBanner pageType="vocabulary" />
+        </div>
 
         {/* Stats Bar */}
         <div className="bg-white border-b border-slate-200">

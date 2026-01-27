@@ -7,6 +7,16 @@ Active Context: CEFR-based content engine, prompt governance, audio pipeline sta
 [1. PROJECT VISION & GOALS]
 Core Concept:
 Lingroot, kullanıcıların ilgi duyduğu içerikleri (kitap, makale, podcast, rapor vb.) onların İngilizce seviyesine uyarlayarak, doğal seslendirilmiş ve senkronize altyazılı hale getiren bir yapay zeka destekli "kişiselleştirilmiş dinleme" platformudur.
+
+Strategic Focus (Kritik Konumlandırma):
+LingRoot, tam kapsamlı bir "İngilizce öğretme" uygulaması DEĞİLDİR. LingRoot, İngilizce DİNLEME PRATİĞİ platformudur.
+- ❌ Gramer öğretmez, konuşma pratiği sunmaz, yazma becerisi geliştirmez
+- ✅ Kullanıcının mevcut İngilizce öğrenme sürecini TAMAMLAYAN bir dinleme pratiği aracıdır
+- ✅ Dil ediniminin en kritik girdisi olan "Comprehensible Input"u (Anlaşılır Girdi) sağlar
+- ✅ Kullanıcının zaten sevdiği, okumak/izlemek istediği içerikleri, kendi seviyesinde İngilizce'ye çevirir ve seslendirir
+
+Tek Cümle Özet:
+"LingRoot, sevdiğiniz içerikleri sizin İngilizce seviyenize çeviren ve dinlemeniz için seslendiren bir platformdur."
 Target Audience:
 İngilizce öğrenmek isteyen 13–65 yaş arası kullanıcılar
 Öğrenme için ekstra zaman ayıramayan kişiler
@@ -201,6 +211,21 @@ Implemented domain-driven grouping for utility functions: /ai, /audio, /content,
 Gamified Onboarding & Progression Strategy
 See: docs/architecture/gamification-strategy.md
 Implements "Hero's Journey" onboarding, Quest-based roadmap, SRS vocabulary system, and Gamified quizzes.
+
+[NEW ARCHITECTURE - 2026-01-23]
+Sector English - Gamification Full Integration
+See: docs/architecture/gamification-strategy.md (Section 10)
+Implements:
+- Onboarding sector step with position form (job title, experience)
+- Sector-specific XP rewards (15-200 XP per activity)
+- Per-sector streak tracking with milestone bonuses
+- Dynamic sector daily quests (%SECTOR% template system)
+- Context-aware SRS with vocabulary injection
+- 16+ new sector achievements (streak, roleplay, podcast, multi-sector)
+- SectorProgressCard for dashboard visualization
+- Sector Skill Tree (Roadmap) visualization
+Files: sectorGamificationService.js, 0074_sector_gamification_full_integration.sql, SectorProgressCard.tsx, SectorSkillTree.tsx
+
 
 [6. DECISION LOG & ANTI-PATTERNS]
 [2026-01] Backend Utils Refactoring

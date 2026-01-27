@@ -43,6 +43,7 @@ export interface DailyQuest {
     id: string;
     task_type: string;
     task_title: string;
+    description?: string;  // Görevin nasıl tamamlanacağına dair açıklama
     target_amount: number;
     current_amount: number;
     xp_reward: number;

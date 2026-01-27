@@ -239,6 +239,34 @@ class QuizService {
 
             logger.info(`Quiz submitted: user=${userId}, quiz=${quizId}, score=${evaluation.scorePercentage}%`);
 
+            // 🎮 GAMIFICATION INTEGRATION
+            let xpResult = null;
+            if (quiz.sector_id) {
+                try {
+                    const sectorGamificationService = require('./sectorGamificationService');
+
+                    // XP tipi belirle
+                    let activityType = 'quiz_pass';
+                    if (evaluation.scorePercentage >= 100) {
+                        activityType = 'quiz_perfect';
+                    } else if (isPassed) {
+                        activityType = 'quiz_complete';
+                    }
+
+                    xpResult = await sectorGamificationService.addSectorXP(
+                        userId,
+                        activityType,
+                        quiz.sector_id,
+                        quizId,
+                        { score: evaluation.scorePercentage, isPassed }
+                    );
+
+                    logger.info(`[Gamification] Quiz XP awarded: ${activityType} for user ${userId}`);
+                } catch (gamError) {
+                    logger.warn('[Gamification] Quiz XP failed (non-blocking):', gamError.message);
+                }
+            }
+
             return {
                 result: result.rows[0],
                 evaluation: {
@@ -246,13 +274,15 @@ class QuizService {
                     isPassed,
                     passingScore,
                     attemptNumber
-                }
+                },
+                xpResult // Gamification sonucunu ekle
             };
         } catch (error) {
             logger.error('Error submitting quiz:', error);
             throw error;
         }
     }
+
 
     /**
      * Cevapları değerlendir

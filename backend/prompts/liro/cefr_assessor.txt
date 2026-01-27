@@ -77,8 +77,11 @@ Return ONLY a valid JSON object:
 ```
 
 ## IMPORTANT NOTES
-- If user writes in Turkish only → Default to A1 with low confidence
+- If user writes in Turkish only → Default to A1 with low confidence (30%)
 - If mixed Turkish/English → Assess only the English parts
+- If very short responses (< 10 words total) → Default to A2 with low confidence (40%)
 - Be generous but realistic — this determines their learning path
 - "analysis" field MUST be in Turkish
 - Confidence should reflect data quality (few messages = lower confidence)
+- If confidence < 50%, set fallback: true in the response
+- NEVER give C1 or C2 without substantial evidence of advanced usage

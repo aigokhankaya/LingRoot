@@ -43,9 +43,10 @@ import BrandWordmark from "../src/components/BrandWordmark";
 import LiroAvatar from "../src/components/LiroAvatar";
 import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
 import NotificationBell from "../src/components/NotificationBell";
-import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal, GamificationBanner } from "../src/components/gamification";
+import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal, GamificationBanner, ActiveQuestBanner } from "../src/components/gamification";
 import { useGamification } from "../src/hooks/useGamification";
 import ResumeContentCard from "../src/components/content/ResumeContentCard";
+import PersonalizedForYouSection from "../src/components/content/PersonalizedForYouSection";
 import ContentQuizModal from "../src/components/quiz/ContentQuizModal";
 import AppHeader from "../src/components/AppHeader";
 import { useAudioPlayerSafe } from "../src/context/AudioPlayerContext";
@@ -403,6 +404,10 @@ const Welcome: React.FC = () => {
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [isFetchingSubtitle, setIsFetchingSubtitle] = useState<boolean>(false);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
+  // YouTube V2 state'leri (yeni sistem)
+  const [youtubeUrlV2, setYoutubeUrlV2] = useState<string>('');
+  const [isFetchingSubtitleV2, setIsFetchingSubtitleV2] = useState<boolean>(false);
+  const [subtitleErrorV2, setSubtitleErrorV2] = useState<string | null>(null);
   const [showAudioSettings, setShowAudioSettings] = useState<boolean>(false);
 
   // İçerik süresi seçenekleri (tüm modlar için ortak)
@@ -470,6 +475,7 @@ const Welcome: React.FC = () => {
     { id: 'podcast', name: t('podcast'), icon: <FaPodcast /> },
     { id: 'topic', name: t('content_type_hobbies'), icon: <FaLightbulb /> },
     { id: 'youtube', name: t('youtube'), icon: <FaYoutube /> },
+    { id: 'youtube_v2', name: 'YouTube Transcript YENİ Versiyon', icon: <FaYoutube /> },
     { id: 'document', name: t('document'), icon: <FaFileWord /> },
     { id: 'text', name: t('text'), icon: <FaFileAlt /> },
     { id: 'sectors', name: t('web_link'), icon: <FaBriefcase /> },
@@ -490,8 +496,10 @@ const Welcome: React.FC = () => {
     // NOT: Artık dashboard'a yönlendirmiyoruz - welcome ana sayfa
     try {
       const localOnboardingDone = localStorage.getItem('onboarding_completed');
-      if (localOnboardingDone === 'true') {
-        // Onboarding tamamlanmış, modal gösterme, sayfada kal
+      const remindLater = localStorage.getItem('onboarding_remind_later');
+
+      if (localOnboardingDone === 'true' || remindLater) {
+        // Onboarding tamamlanmış veya ertelemiş, modal gösterme
         return;
       }
     } catch { }
@@ -654,6 +662,53 @@ const Welcome: React.FC = () => {
       setSubtitleError(e?.message || t('welcome_youtube_fetch_failed'));
     } finally {
       setIsFetchingSubtitle(false);
+    }
+  };
+
+  // YouTube V2 altyazı çekme (YENİ SİSTEM - npm paketi ile)
+  const handleFetchYoutubeSubtitleV2 = async () => {
+    if (!youtubeUrlV2 || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrlV2)) {
+      setSubtitleErrorV2('Geçerli bir YouTube URL\'si girin');
+      return;
+    }
+    setIsFetchingSubtitleV2(true);
+    setSubtitleErrorV2(null);
+    try {
+      // Backend V2 endpoint'ini kullan
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      const endpoint = `${apiUrl}/api/youtube-v2/transcript`;
+      console.log('🎬 [YOUTUBE-V2] Fetching from:', endpoint, youtubeUrlV2);
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: youtubeUrlV2, language_code: 'tr' })
+      });
+
+      const data: any = await res.json();
+
+      if (!res.ok || !data.success) {
+        const errorMessage = data?.message || data?.error || 'Altyazı çekilemedi';
+        throw new Error(errorMessage);
+      }
+
+      const subtitleText = data?.text || '';
+      if (!subtitleText || subtitleText.trim().length === 0) {
+        throw new Error('Bu videoda altyazı bulunmamaktadır');
+      }
+
+      setTextInput(subtitleText);
+      console.log('🎬 [YOUTUBE-V2] Success! Length:', subtitleText.length, 'chars');
+
+      // Metadata göster
+      if (data?.metadata) {
+        console.log('🎬 [YOUTUBE-V2] Metadata:', data.metadata);
+      }
+    } catch (e: any) {
+      console.error('❌ [YOUTUBE-V2] Error:', e);
+      setSubtitleErrorV2(e?.message || 'Altyazı çekilirken bir hata oluştu');
+    } finally {
+      setIsFetchingSubtitleV2(false);
     }
   };
 
@@ -2257,6 +2312,9 @@ const Welcome: React.FC = () => {
           {/* Gamification Status Banner */}
           <GamificationBanner alwaysShow={true} />
 
+          {/* Active Quest Banner - Görev yönlendirmesi */}
+          <ActiveQuestBanner pageType="content" className="mb-4" />
+
           {error && (
             <div className="mb-8">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
@@ -2270,6 +2328,11 @@ const Welcome: React.FC = () => {
 
           {/* Dinlemeye Devam Et */}
           <ResumeContentCard onResumePlay={handleResumeContent} />
+
+          {/* Sana Özel İçerikler */}
+          <div className="mb-8">
+            <PersonalizedForYouSection maxItems={6} />
+          </div>
 
           {/* AI Content Entry Card */}
           <div
@@ -2808,6 +2871,62 @@ const Welcome: React.FC = () => {
                         )}
                         <p className="text-xs text-gray-500">
                           {t('welcome_youtube_note')}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* YouTube V2 sekmesi - YENİ SİSTEM */}
+                    {contentType === 'youtube_v2' && (
+                      <div className="space-y-3">
+                        <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                          <p className="text-sm text-green-800 font-medium flex items-center gap-2">
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-green-500 text-white text-xs rounded-full">✓</span>
+                            YENİ SİSTEM - Doğrudan npm paketi ile altyazı çekme
+                          </p>
+                          <p className="text-xs text-green-600 mt-1">
+                            Bu sistem eskisinden bağımsız çalışır ve daha güvenilirdir.
+                          </p>
+                        </div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          YouTube Video Linki:
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={youtubeUrlV2}
+                            onChange={(e) => setYoutubeUrlV2(e.target.value)}
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            className="flex-1 p-3 border border-gray-300 rounded-lg focus:border-green-500 focus:ring-green-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleFetchYoutubeSubtitleV2}
+                            className={`px-6 py-3 rounded-lg font-medium whitespace-nowrap transition-all ${!isFetchingSubtitleV2
+                              ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer'
+                              : 'bg-gray-400 text-white cursor-not-allowed'
+                              }`}
+                            disabled={isFetchingSubtitleV2}
+                          >
+                            {isFetchingSubtitleV2 ? (
+                              <span className="flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                Çekiliyor...
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2">
+                                <i className="fas fa-magic"></i>
+                                Altyazı Çek (V2)
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                        {subtitleErrorV2 && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {subtitleErrorV2}
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          Not: Altyazı metni başarıyla alındığında aşağıdaki metin kutusuna otomatik olarak yapıştırılır.
                         </p>
                       </div>
                     )}

@@ -830,6 +830,121 @@ Content-Type: application/json
 
 ---
 
+## Sector English (Sektör İngilizcesi)
+
+### Get All Sectors
+```http
+GET /api/sectors
+```
+
+### Get Sector Details
+```http
+GET /api/sectors/:id
+```
+
+### Get Sector Content
+```http
+GET /api/sectors/:id/content?page=1&limit=20&type=article&level=B1
+```
+
+### Get Sector Vocabulary
+```http
+GET /api/sectors/:id/vocabulary?level=B1&category=core
+```
+
+### Generate Content Audio
+```http
+POST /api/sectors/content/:contentId/audio
+Authorization: Bearer <token>
+```
+
+### Get Scenario Categories
+```http
+GET /api/sectors/scenario-categories
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "categories": [
+    {"id": "crisis_management", "name_tr": "Kriz Yönetimi", "name_en": "Crisis Management"},
+    {"id": "negotiation", "name_tr": "Müzakere", "name_en": "Negotiation"}
+  ]
+}
+```
+
+### Create Roleplay Scenario
+```http
+POST /api/sectors/roleplay/create
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "sector_id": 1,
+  "scenario_category": "crisis_management",
+  "cefr_level": "B1",
+  "length": "medium",
+  "context": {
+    "situation": "Sevkiyat 3 gün gecikti, müşteri şikayet etti",
+    "goal": "Sorunu çözmek ve alternatif sunmak",
+    "setting": "Ofis telefon görüşmesi"
+  },
+  "roles": [
+    {"id": "role_1", "title": "Lojistik Direktörü", "title_en": "Logistics Director"},
+    {"id": "role_2", "title": "Depo Yöneticisi", "title_en": "Warehouse Manager"}
+  ],
+  "key_vocabulary": ["shipment", "delay", "bottleneck"]
+}
+```
+
+### Generate Roleplay Audio
+```http
+POST /api/sectors/roleplay/:contentId/audio
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "voice_role_1": "onyx",
+  "voice_role_2": "nova",
+  "speed": 0.9
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "audioUrl": "https://storage.../roleplay.mp3",
+  "duration": 120,
+  "segments": [
+    {"index": 0, "role": "role_1", "speaker": "Logistics Director", "duration": 8.5}
+  ]
+}
+```
+
+### Create Sector Podcast
+```http
+POST /api/sectors/podcast/create
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "sector_id": 1,
+  "podcast_type": "news",
+  "cefr_level": "B2",
+  "length": "medium",
+  "topic": "Supply Chain Disruptions in 2026",
+  "key_points": [
+    "Global shipping challenges",
+    "New sustainability regulations"
+  ],
+  "host_voice": "nova"
+}
+```
+
+---
+
 ## Error Responses
 
 All endpoints return errors in this format:
@@ -859,8 +974,96 @@ All endpoints return errors in this format:
 | `USAGE_LIMIT_EXCEEDED` | 403 | Daily limit reached |
 | `INTERNAL_ERROR` | 500 | Server error |
 
+---
+
+## User Sector Management (YENİ - 2026-01-23)
+
+### Get User Sectors
+```http
+GET /sectors/user-sectors
+Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "sector_id": 4,
+      "sector_code": "logistics",
+      "sector_name": "Lojistik ve Dış Ticaret",
+      "sector_name_en": "Logistics & Foreign Trade",
+      "job_position": "Lojistik Direktörü",
+      "job_position_en": "Logistics Director",
+      "years_experience": 5,
+      "company_name": "ABC Lojistik",
+      "company_size": "large",
+      "is_primary": true
+    }
+  ]
+}
+```
+
+### Add/Update User Sector
+```http
+POST /sectors/user-sectors
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "sector_id": 4,
+  "is_primary": true,
+  "job_position": "Lojistik Direktörü",
+  "job_position_en": "Logistics Director",
+  "years_experience": 5,
+  "company_name": "ABC Lojistik",
+  "company_size": "large"
+}
+```
+
+### Update Sector Position
+```http
+PUT /sectors/user-sectors/:sectorId
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "job_position": "Genel Müdür",
+  "job_position_en": "General Manager",
+  "years_experience": 8
+}
+```
+
+### Delete User Sector
+```http
+DELETE /sectors/user-sectors/:sectorId
+Authorization: Bearer {token}
+```
+
+### Get Position Templates
+```http
+GET /sectors/position-templates/:sectorId
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "position_tr": "Lojistik Koordinatörü",
+      "position_en": "Logistics Coordinator",
+      "level": "mid"
+    }
+  ]
+}
+```
+
 ## Related Documentation
 
 - [API Architecture](../architecture/api-architecture.md)
 - [Error Codes](./errors.md)
 - [Request Examples](./request-examples.md)
+

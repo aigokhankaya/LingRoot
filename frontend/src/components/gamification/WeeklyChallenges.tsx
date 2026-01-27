@@ -36,9 +36,9 @@ interface Challenge {
 }
 
 const THEME_COLORS: Record<string, string> = {
-    science: 'from-blue-500 to-purple-600',
+    science: 'from-blue-500 to-cyan-600',
     business: 'from-slate-600 to-slate-800',
-    culture: 'from-pink-500 to-rose-600',
+    culture: 'from-amber-500 to-orange-600',
     general: 'from-teal-500 to-emerald-600',
 };
 

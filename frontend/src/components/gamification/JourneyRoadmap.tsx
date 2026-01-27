@@ -37,36 +37,77 @@ interface RoadmapData {
 interface JourneyRoadmapProps {
   onQuestClick?: (quest: Quest) => void;
   onStartOnboarding?: () => void;
+  refreshTrigger?: number; // Increment to force refresh
 }
 
-export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, onStartOnboarding }) => {
+export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, onStartOnboarding, refreshTrigger }) => {
   const router = useRouter();
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false); // API'den gelen değer
 
+  // Fetch roadmap on mount and when refreshTrigger changes
   useEffect(() => {
     fetchRoadmap();
-  }, []);
+  }, [refreshTrigger]);
 
-  const fetchRoadmap = async () => {
+  const fetchRoadmap = async (retryCount = 0) => {
     try {
       const token = localStorage.getItem('lingroot_token');
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
       const response = await fetch(`${API_BASE}/api/gamification/roadmap`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       const data = await response.json();
+      console.log('[JourneyRoadmap] API Response:', {
+        success: data.success,
+        onboardingCompleted: data.onboardingCompleted,
+        hasCurrent: !!data.data?.current,
+        upcomingCount: data.data?.upcoming?.length || 0
+      });
+
       if (data.success) {
         setRoadmap(data.data);
+
+        // API'den gelen onboarding durumunu kullan (veritabanı esas)
+        const dbOnboardingCompleted = data.onboardingCompleted === true;
+        setOnboardingCompleted(dbOnboardingCompleted);
+
+        // localStorage'ı da senkronize et
+        if (dbOnboardingCompleted) {
+          localStorage.setItem('onboarding_completed', 'true');
+        }
+
+        const isEmptyRoadmap = !data.data || (
+          !data.data.current &&
+          (!data.data.upcoming || data.data.upcoming.length === 0) &&
+          (!data.data.completed || data.data.completed.length === 0) &&
+          (!data.data.lockedPreview || data.data.lockedPreview.length === 0)
+        );
+
+        // If onboarding completed but roadmap still empty, poll a few more times
+        if (dbOnboardingCompleted && isEmptyRoadmap && retryCount < 5) {
+          console.log(`[JourneyRoadmap] Roadmap empty after onboarding, polling... (${retryCount + 1}/5)`);
+          setTimeout(() => fetchRoadmap(retryCount + 1), 2000); // Retry after 2 seconds
+          return; // Don't set loading to false yet
+        }
       }
     } catch (error) {
       console.error('Roadmap fetch error:', error);
     } finally {
-      setLoading(false);
+      // Only stop loading when we're done polling or got data
+      if (retryCount === 0 || retryCount >= 5 || (roadmap && (roadmap.current || (roadmap.upcoming && roadmap.upcoming.length > 0)))) {
+        setLoading(false);
+      }
     }
   };
 
@@ -119,6 +160,38 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
       setError('Yol haritası oluşturulamadı. Lütfen tekrar deneyin.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const resetRoadmap = async () => {
+    setIsResetting(true);
+    try {
+      const token = localStorage.getItem('lingroot_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE}/api/gamification/onboarding/reset`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // localStorage'dan onboarding flag'ini kaldır
+        localStorage.removeItem('onboarding_completed');
+        setShowResetConfirm(false);
+        // Welcome sayfasına yönlendir
+        router.push('/welcome');
+      } else {
+        setError('Sıfırlama başarısız oldu. Lütfen tekrar deneyin.');
+      }
+    } catch (error) {
+      console.error('[JourneyRoadmap] Reset failed:', error);
+      setError('Sıfırlama başarısız oldu.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -182,8 +255,7 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
     );
   }
 
-  // Check if onboarding was completed (localStorage fallback for when API fails)
-  const onboardingCompleted = typeof window !== 'undefined' && localStorage.getItem('onboarding_completed') === 'true';
+  // onboardingCompleted artık state'ten geliyor (satır 51)
 
   // Check if roadmap is effectively empty (API returned object but no quests)
   const isRoadmapEmpty = !roadmap || (
@@ -194,9 +266,53 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
   );
 
   if (isRoadmapEmpty) {
-    // Show prominent CTA to create/start journey
+    // DURUM 1: Onboarding tamamlandı ama roadmap boş - Plan yüklenemedi
+    if (onboardingCompleted) {
+      return (
+        <div className="relative overflow-hidden bg-gradient-to-br from-amber-400 via-orange-400 to-amber-500 p-8 md:p-12 rounded-3xl shadow-2xl text-white">
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-6 text-center md:text-left">
+              <div className="text-6xl md:text-7xl hidden md:block">⏳</div>
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold mb-3">
+                  Yol Haritanız Hazırlanıyor...
+                </h2>
+                <p className="text-white/80 text-sm md:text-base max-w-md">
+                  Onboarding tamamlandı! Öğrenme planınız oluşturuluyor, birkaç saniye bekleyin.
+                </p>
+              </div>
+            </div>
+            <button
+              className={`
+                flex items-center gap-3 bg-white text-amber-600 px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all
+                ${loading ? 'opacity-80 cursor-wait' : 'hover:scale-105 hover:shadow-xl'}
+              `}
+              onClick={() => fetchRoadmap()}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
+                  <span>Yükleniyor...</span>
+                </>
+              ) : (
+                <>
+                  <span>🔄</span>
+                  <span>Tekrar Dene</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // DURUM 2: Onboarding henüz yapılmadı - Başlat CTA
     return (
-      <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-8 md:p-12 rounded-3xl shadow-2xl text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-teal-500 via-cyan-500 to-teal-600 p-8 md:p-12 rounded-3xl shadow-2xl text-white">
         {/* Background decoration */}
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
@@ -208,36 +324,20 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
             <div className="text-6xl md:text-7xl animate-bounce hidden md:block">🗺️</div>
             <div>
               <h2 className="text-2xl md:text-3xl font-bold mb-3">
-                {onboardingCompleted ? 'Öğrenme Planını Oluştur' : 'Kişisel Yolculuğunu Başlat!'}
+                Kişisel Yolculuğunu Başlat!
               </h2>
               <p className="text-white/80 text-sm md:text-base max-w-md">
-                {onboardingCompleted
-                  ? 'Sana özel hazırlanmış haftalık hedefler ve görevlerle İngilizce seviyeni yükselt.'
-                  : 'Liro ile tanış, seviyeni belirle ve sana özel hazırlanan haftalık öğrenme planını keşfet.'
-                }
+                Liro ile tanış, seviyeni belirle ve sana özel hazırlanan haftalık öğrenme planını keşfet.
               </p>
             </div>
           </div>
 
           <button
-            className={`
-              flex items-center gap-3 bg-white text-purple-600 px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all
-              ${isGenerating ? 'opacity-80 cursor-wait' : 'hover:scale-105 hover:shadow-xl'}
-            `}
-            onClick={createDefaultRoadmap}
-            disabled={isGenerating}
+            className="flex items-center gap-3 bg-white text-teal-600 px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all hover:scale-105 hover:shadow-xl"
+            onClick={() => router.push('/welcome')}
           >
-            {isGenerating ? (
-              <>
-                <span className="w-5 h-5 border-2 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
-                <span>Plan Hazırlanıyor...</span>
-              </>
-            ) : (
-              <>
-                <span>🚀</span>
-                <span>Hemen Başla</span>
-              </>
-            )}
+            <span>🚀</span>
+            <span>Hemen Başla</span>
           </button>
         </div>
       </div>
@@ -254,9 +354,46 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 mb-6">
-        <span className="text-2xl">🗺️</span>
-        <h2 className="text-2xl font-bold text-slate-800">Yolculuğun</h2>
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-800 mb-3">⚠️ Yol Haritasını Sıfırla</h3>
+            <p className="text-slate-600 mb-6">
+              Tüm ilerlemeniz, XP, başarımlar ve streak sıfırlanacak. Onboarding'ı tekrar yapmanız gerekecek.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all"
+                disabled={isResetting}
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={resetRoadmap}
+                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all disabled:opacity-50"
+                disabled={isResetting}
+              >
+                {isResetting ? 'Sıfırlanıyor...' : 'Evet, Sıfırla'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🗺️</span>
+          <h2 className="text-2xl font-bold text-slate-800">Yolculuğun</h2>
+        </div>
+        <button
+          onClick={() => setShowResetConfirm(true)}
+          className="text-sm text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
+          title="Yol haritasını sıfırla"
+        >
+          🔄 Sıfırla
+        </button>
       </div>
 
       <div className="relative overflow-x-auto pb-8 pt-4 custom-scrollbar">

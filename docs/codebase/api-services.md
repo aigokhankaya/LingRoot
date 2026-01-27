@@ -184,7 +184,12 @@ Input → Extract → Translate → CEFR Adapt → Clean → TTS → Merge → U
 - `openaiClient.js`, `claudeClient.js`
 - `cefrAdapter.js`, `translateAndAdapt.js`
 - `liroPromptGenerator.js`
-- `userProfileAnalyzer.js`, `userKnowledgeAnalyzer.js`
+  - `generateSectorSection()` - Sektör bağlamı oluşturma (NEW)
+  - `generateVocabularyInjectionSection()` - Kelime enjeksiyonu (NEW)
+- `userProfileAnalyzer.js`
+  - `getSectorProfile()` - Kullanıcının sektör tercihlerini çeker (NEW)
+  - `getTargetVocabulary()` - Hedef kelimeleri önceliklendirir (NEW)
+- `userKnowledgeAnalyzer.js`
 - `semanticAudit.js`, `topicMemoryVerdict.js`
 
 ### Audio Services (`utils/audio/`)

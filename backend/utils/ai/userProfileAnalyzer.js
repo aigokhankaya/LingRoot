@@ -71,6 +71,10 @@ class UserProfileAnalyzer {
         smartSuggestions: await userInsightService.generateSmartSuggestions(userId),
         // 🔄 Adaptive Context (Feedback Loop)
         adaptiveContext: await feedbackLoopService.generateAdaptiveContext(userId),
+        // 🏢 Sector English Integration
+        sectorProfile: await this.getSectorProfile(userId),
+        // 🎯 Target Vocabulary for Content Injection
+        targetVocabulary: await this.getTargetVocabulary(userId),
       };
 
       return profile;
@@ -668,8 +672,160 @@ class UserProfileAnalyzer {
       learningProgress: { totalActivities: 0, experienceLevel: 'beginner' },
       recommendations: { unusedInterests: [], shouldSuggestNewTopics: false },
       knowledgeProfile: { uploads: { count: 0 }, extractedTopics: [], favorites: [] },
-      topicTreeStatus: { status: 'unknown' }
+      topicTreeStatus: { status: 'unknown' },
+      sectorProfile: { hasSector: false, primary: null, all: [], targetTerms: [] },
+      targetVocabulary: { hasTargets: false, forInjection: [], struggling: [], dueForReview: [], priority: [] },
     };
+  }
+
+  /**
+   * 11. Sektör Profili
+   * Kullanıcının çalıştığı/ilgilendiği sektör ve o sektöre özel kelimeler
+   */
+  async getSectorProfile(userId) {
+    try {
+      const sectorService = require('../../services/sectorService');
+
+      // Kullanıcının birincil sektörü
+      const primarySector = await sectorService.getUserPrimarySector(userId);
+
+      // Tüm sektörleri
+      const allSectors = await sectorService.getUserSectors(userId);
+
+      if (!primarySector) {
+        return { hasSector: false, primary: null, all: [], targetTerms: [] };
+      }
+
+      // Sektöre özel kelime hedefleri (en önemli 15 kelime)
+      const vocabulary = await sectorService.getSectorVocabulary(primarySector.id, { limit: 15 });
+
+      return {
+        hasSector: true,
+        primary: {
+          id: primarySector.id,
+          name: primarySector.name_tr || primarySector.name,
+          slug: primarySector.slug,
+          description: primarySector.description_tr,
+        },
+        all: allSectors.map(s => ({
+          id: s.id,
+          name: s.name_tr || s.name,
+          isPrimary: s.is_primary,
+        })),
+        targetTerms: vocabulary.items.slice(0, 10).map(v => ({
+          term: v.word,
+          definition: v.definition_tr || v.definition_en,
+          cefrLevel: v.cefr_level,
+          category: v.category,
+        })),
+      };
+    } catch (error) {
+      logger.warn('Failed to get sector profile:', error.message);
+      return { hasSector: false, primary: null, all: [], targetTerms: [] };
+    }
+  }
+
+  /**
+   * 12. Hedef Kelimeler (İçerik Enjeksiyonu için)
+   * Kullanıcının öğrenmek istediği, zorlandığı ve tekrar etmesi gereken kelimeler
+   */
+  async getTargetVocabulary(userId) {
+    try {
+      // 1. Öğrenmek istediği kelimeler (word_mastery'den)
+      let targetWords = [];
+      try {
+        const wantToLearnResult = await db.query(`
+          SELECT word FROM word_mastery 
+          WHERE user_id = $1 AND status = 'want_to_learn'
+          ORDER BY discovered_at DESC
+          LIMIT 3
+        `, [userId]);
+        targetWords = wantToLearnResult.rows.map(r => r.word);
+      } catch (e) {
+        // word_mastery tablosu yoksa ignored
+      }
+
+      // 2. Zorlandığı kelimeler (quiz sonuçlarından)
+      let strugglingWords = [];
+      try {
+        const strugglingResult = await db.query(`
+          SELECT word, COUNT(*) as wrong_count
+          FROM quiz_word_attempts
+          WHERE user_id = $1 AND was_correct = false
+          GROUP BY word
+          HAVING COUNT(*) >= 2
+          ORDER BY wrong_count DESC
+          LIMIT 3
+        `, [userId]);
+        strugglingWords = strugglingResult.rows.map(r => r.word);
+      } catch (e) {
+        // quiz_word_attempts tablosu yoksa ignored
+      }
+
+      // 3. SRS'ten gelen kelimeler (tekrar zamanı gelenler)
+      let dueWords = [];
+      try {
+        const dueResult = await db.query(`
+          SELECT word FROM word_reviews 
+          WHERE user_id = $1 AND next_review_date <= CURRENT_DATE + INTERVAL '2 days'
+          ORDER BY next_review_date ASC
+          LIMIT 3
+        `, [userId]);
+        dueWords = dueResult.rows.map(r => r.word);
+      } catch (e) {
+        // word_reviews tablosu yoksa ignored
+      }
+
+      // Öncelik sıralaması
+      const priority = this._prioritizeWords(targetWords, strugglingWords, dueWords);
+
+      return {
+        hasTargets: priority.length > 0,
+        forInjection: targetWords,
+        struggling: strugglingWords,
+        dueForReview: dueWords,
+        priority: priority,
+      };
+    } catch (error) {
+      logger.warn('Failed to get target vocabulary:', error.message);
+      return { hasTargets: false, forInjection: [], struggling: [], dueForReview: [], priority: [] };
+    }
+  }
+
+  /**
+   * Helper: Kelimeleri öncelik sırasına göre birleştir
+   * Aynı kelime birden fazla kategoride varsa, en yüksek önceliği alır
+   */
+  _prioritizeWords(targetWords, strugglingWords, dueWords) {
+    const priority = [];
+    const seen = new Set();
+
+    // En yüksek öncelik: Zorlanılan kelimeler (3)
+    strugglingWords.forEach(word => {
+      if (!seen.has(word) && word) {
+        priority.push({ word, reason: 'struggling', priority: 3 });
+        seen.add(word);
+      }
+    });
+
+    // İkinci öncelik: SRS tekrar kelimeleri (2)
+    dueWords.forEach(word => {
+      if (!seen.has(word) && word) {
+        priority.push({ word, reason: 'srs_due', priority: 2 });
+        seen.add(word);
+      }
+    });
+
+    // Üçüncü öncelik: Öğrenmek istediği kelimeler (1)
+    targetWords.forEach(word => {
+      if (!seen.has(word) && word) {
+        priority.push({ word, reason: 'want_to_learn', priority: 1 });
+        seen.add(word);
+      }
+    });
+
+    // Maksimum 6 kelime - içerik kalitesini bozmayacak kadar
+    return priority.slice(0, 6);
   }
 }
 

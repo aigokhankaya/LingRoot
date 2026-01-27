@@ -11,6 +11,7 @@ import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
 import { useTranslation } from '../src/lib/i18n';
 import AppHeader from '../src/components/AppHeader';
+import SectorPositionManager from '../src/components/profile/SectorPositionManager';
 
 export default function Profile() {
   const { t } = useTranslation();
@@ -410,6 +411,11 @@ export default function Profile() {
             {/* İlgi Alanları */}
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 flex flex-col">
               <InterestManager />
+            </div>
+
+            {/* Sektörlerim */}
+            <div className="md:col-span-2 xl:col-span-1">
+              <SectorPositionManager />
             </div>
 
             {/* Günlük Haklar */}

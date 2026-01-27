@@ -39,7 +39,7 @@ export function FeedbackModal({ contentId, contentType, isOpen, onClose }: Feedb
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${localStorage.getItem('lingroot_token')}`
                 },
                 body: JSON.stringify({
                     content_id: contentId,
