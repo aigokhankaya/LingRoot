@@ -59,16 +59,39 @@ class GamificationService {
     // XP & LEVEL MANAGEMENT
     // ============================================
 
+    // XP güvenlik sabitleri
+    static XP_SECURITY = {
+        MAX_XP_PER_CALL: 1000,          // Tek çağrıda max XP (internal)
+        MAX_DAILY_XP: 10000,            // Günlük max XP (abuse detection)
+        VALID_SOURCES: ['content', 'quiz', 'streak', 'word', 'daily_quest', 'quest', 'onboarding', 'achievement', 'sector', 'manual', 'listening']
+    };
+
     /**
      * Kullanıcıya XP ekle ve level kontrolü yap
-     * @param {string} userId 
-     * @param {number} amount 
+     * @param {string} userId
+     * @param {number} amount
      * @param {string} source - 'content', 'quiz', 'streak', 'achievement'
      * @param {string} sourceId - İlgili içerik/quiz ID
-     * @param {string} description 
+     * @param {string} description
      * @returns {Promise<Object>} - { newXp, newLevel, leveledUp, achievements }
      */
     async addXP(userId, amount, source, sourceId = null, description = null) {
+        // Defense in depth: Internal validation
+        if (!amount || typeof amount !== 'number' || amount <= 0) {
+            logger.warn(`[Gamification] Invalid XP amount: ${amount} for user ${userId}`);
+            throw new Error('Invalid XP amount');
+        }
+
+        if (amount > GamificationService.XP_SECURITY.MAX_XP_PER_CALL) {
+            logger.warn(`[Gamification] XP amount exceeded internal limit: ${amount} for user ${userId}`);
+            amount = GamificationService.XP_SECURITY.MAX_XP_PER_CALL;
+        }
+
+        if (source && !GamificationService.XP_SECURITY.VALID_SOURCES.includes(source)) {
+            logger.warn(`[Gamification] Invalid XP source: ${source} for user ${userId}`);
+            source = 'unknown';
+        }
+
         const client = await db.pool.connect();
         try {
             await client.query('BEGIN');
@@ -306,22 +329,63 @@ class GamificationService {
 
     /**
      * Streak dondur (freeze kullan)
+     * Transaction ile race condition önleme
      */
     async useStreakFreeze(userId) {
-        const profile = await this.getOrCreateProfile(userId);
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
 
-        if (profile.freeze_balance <= 0) {
-            return { success: false, message: 'Dondurma hakkınız yok' };
+            // Pessimistic locking ile profile al
+            const result = await client.query(
+                'SELECT * FROM user_gamification WHERE user_id = $1 FOR UPDATE',
+                [userId]
+            );
+
+            if (result.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return { success: false, message: 'Kullanıcı bulunamadı' };
+            }
+
+            const profile = result.rows[0];
+
+            if (profile.freeze_balance <= 0) {
+                await client.query('ROLLBACK');
+                return { success: false, message: 'Dondurma hakkınız yok' };
+            }
+
+            // Bugün zaten freeze kullanılmış mı kontrol et
+            const today = new Date().toISOString().split('T')[0];
+            if (profile.last_activity_date === today) {
+                await client.query('ROLLBACK');
+                return { success: false, message: 'Bugün zaten aktifsiniz, freeze gerekli değil' };
+            }
+
+            await client.query(`
+                UPDATE user_gamification
+                SET freeze_balance = freeze_balance - 1,
+                    last_activity_date = CURRENT_DATE,
+                    updated_at = NOW()
+                WHERE user_id = $1
+            `, [userId]);
+
+            await client.query('COMMIT');
+
+            logger.info(`[Gamification] User ${userId} used streak freeze. Remaining: ${profile.freeze_balance - 1}`);
+
+            return {
+                success: true,
+                message: 'Streak donduruldu!',
+                remainingFreezes: profile.freeze_balance - 1
+            };
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            logger.error('[Gamification] useStreakFreeze failed:', error);
+            throw error;
+        } finally {
+            client.release();
         }
-
-        await db.query(`
-            UPDATE user_gamification 
-            SET freeze_balance = freeze_balance - 1,
-                last_activity_date = CURRENT_DATE
-            WHERE user_id = $1
-        `, [userId]);
-
-        return { success: true, message: 'Streak donduruldu!', remainingFreezes: profile.freeze_balance - 1 };
     }
 
     // ============================================
@@ -435,6 +499,7 @@ class GamificationService {
     /**
      * Günlük görevleri getir veya oluştur
      * Aktif yolculuk quest'ine bağlı görevler oluşturur
+     * İlk gün kullanıcıları için dinleme odaklı görevler verir
      */
     async getDailyQuests(userId) {
         const today = new Date().toISOString().split('T')[0];
@@ -449,16 +514,38 @@ class GamificationService {
             return existing.rows;
         }
 
+        // Kullanıcının ilk günü mü kontrol et (onboarding sonrası ilk 24 saat)
+        let isFirstDay = false;
+        try {
+            const profileResult = await db.query(`
+                SELECT created_at, onboarding_completed
+                FROM user_gamification
+                WHERE user_id = $1
+            `, [userId]);
+
+            if (profileResult.rows.length > 0) {
+                const profile = profileResult.rows[0];
+                const createdAt = new Date(profile.created_at);
+                const now = new Date();
+                const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60);
+
+                // 48 saat içinde ve onboarding tamamlanmışsa ilk gün görevleri ver
+                isFirstDay = hoursSinceCreation <= 48 && profile.onboarding_completed;
+            }
+        } catch (error) {
+            logger.warn('[Gamification] Could not check first day status:', error.message);
+        }
+
         // Aktif yolculuk quest'ini al
         let parentQuestNodeId = null;
         let parentTaskType = null;
 
         try {
             const activeQuest = await db.query(`
-                SELECT qn.* 
+                SELECT qn.*
                 FROM quest_nodes qn
                 JOIN user_quest_progress uqp ON qn.id = uqp.node_id
-                WHERE uqp.user_id = $1 
+                WHERE uqp.user_id = $1
                   AND uqp.status IN ('in_progress', 'unlocked')
                 ORDER BY qn.step_order ASC
                 LIMIT 1
@@ -481,23 +568,26 @@ class GamificationService {
             logger.warn('[Gamification] Could not get user sector:', error.message);
         }
 
-        // Quest tipine göre görev şablonları seç (sektör dahil)
-        const questTemplates = this.getQuestTemplatesForTaskType(parentTaskType, userSector);
+        // Quest tipine göre görev şablonları seç (sektör dahil, ilk gün kontrolü)
+        const questTemplates = this.getQuestTemplatesForTaskType(parentTaskType, userSector, isFirstDay);
 
-        // Dengeli görev seçimi (en az 2 tanesi parent quest ile ilgili)
-        const selectedQuests = this.selectBalancedQuests(questTemplates, parentTaskType);
+        // İlk gün için tüm görevleri ver, değilse dengeli seç
+        const selectedQuests = isFirstDay
+            ? questTemplates
+            : this.selectBalancedQuests(questTemplates, parentTaskType);
 
         for (const quest of selectedQuests) {
             await db.query(`
                 INSERT INTO daily_quests (
-                    user_id, quest_date, task_type, task_title, 
-                    target_amount, xp_reward, parent_quest_node_id
+                    user_id, quest_date, task_type, task_title,
+                    target_amount, xp_reward, parent_quest_node_id, description
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             `, [
                 userId, today, quest.type, quest.title,
                 quest.target, quest.xp,
-                quest.relatedToParent ? parentQuestNodeId : null
+                quest.relatedToParent ? parentQuestNodeId : null,
+                quest.description || null
             ]);
         }
 
@@ -511,40 +601,170 @@ class GamificationService {
      * Task tipine göre görev şablonları
      * @param {string} taskType - Parent quest task type
      * @param {Object|null} userSector - Kullanıcının primary sektörü
+     * @param {boolean} isFirstDay - Kullanıcının ilk günü mü (dinleme odaklı görevler için)
      */
-    getQuestTemplatesForTaskType(taskType, userSector = null) {
-        // Temel görevler (her zaman dahil)
+    getQuestTemplatesForTaskType(taskType, userSector = null, isFirstDay = false) {
+        // 🎧 İlk gün için dinleme odaklı görevler
+        // Yeni kullanıcılar önce dinlemeye alışsın, platformu keşfetsin
+        if (isFirstDay) {
+            return [
+                {
+                    type: 'listen_minutes',
+                    title: 'İlk 5 dakikanı dinle',
+                    description: 'Ana sayfaya git ve ilgi alanlarına göre bir içerik seç. "Başla" butonuna tıklayarak dinlemeye başla. Dinlediğin süre otomatik olarak sayılacak.',
+                    target: 5,
+                    xp: 50,
+                    relatedToParent: true
+                },
+                {
+                    type: 'listen_content',
+                    title: 'İlk içeriğini seç',
+                    description: 'Ana sayfadaki "İçerik Öner" bölümünden sana özel hazırlanan içeriklerden birini seç ve dinlemeye başla.',
+                    target: 1,
+                    xp: 75,
+                    relatedToParent: true
+                },
+                {
+                    type: 'create_content',
+                    title: 'İçerik oluştur',
+                    description: 'Ana sayfadan "Yeni İçerik Oluştur" butonuna tıkla. İlgi alanlarını seç ve sana özel bir içerik üret.',
+                    target: 1,
+                    xp: 100,
+                    relatedToParent: false
+                },
+            ];
+        }
+
+        // Temel görevler (her zaman dahil) - Açıklamalı
         const baseTemplates = [
-            { type: 'listen_minutes', title: '10 dakika dinle', target: 10, xp: 50, relatedToParent: false },
-            { type: 'listen_content', title: 'İçerik dinle', target: 1, xp: 50, relatedToParent: false },
+            {
+                type: 'listen_minutes',
+                title: '10 dakika dinle',
+                description: 'Ana sayfadan veya içerik sayfalarından bir içerik seç ve dinlemeye başla. Dinlediğin süre otomatik olarak sayılacak.',
+                target: 10,
+                xp: 50,
+                relatedToParent: false
+            },
+            {
+                type: 'listen_content',
+                title: 'İçerik dinle',
+                description: 'Ana sayfadan veya "İçeriklerim" bölümünden bir içerik seç ve dinlemeye başla.',
+                target: 1,
+                xp: 50,
+                relatedToParent: false
+            },
         ];
 
         // Tip bazlı özel görevler
         const typeSpecificTemplates = {
             vocabulary: [
-                { type: 'learn_words', title: '5 kelime öğren', target: 5, xp: 30, relatedToParent: true },
-                { type: 'review_words', title: '5 kelime tekrar et', target: 5, xp: 30, relatedToParent: true },
+                {
+                    type: 'learn_words',
+                    title: '5 kelime öğren',
+                    description: 'Kelime Kartları bölümüne git ve "Yeni Kelimeler" sekmesinden yeni kelimeler öğren.',
+                    target: 5,
+                    xp: 30,
+                    relatedToParent: true
+                },
+                {
+                    type: 'review_words',
+                    title: '5 kelime tekrar et',
+                    description: 'Kelime Kartları bölümündeki "Tekrar Et" sekmesine git ve öğrendiğin kelimeleri tekrar et.',
+                    target: 5,
+                    xp: 30,
+                    relatedToParent: true
+                },
             ],
             listen: [
-                { type: 'listen_minutes', title: '15 dakika dinle', target: 15, xp: 75, relatedToParent: true },
-                { type: 'complete_content', title: '1 içerik tamamla', target: 1, xp: 75, relatedToParent: true },
+                {
+                    type: 'listen_minutes',
+                    title: '15 dakika dinle',
+                    description: 'Bugün toplam 15 dakika İngilizce içerik dinle. Ana sayfadan veya içerik sayfalarından içerik seç.',
+                    target: 15,
+                    xp: 75,
+                    relatedToParent: true
+                },
+                {
+                    type: 'complete_content',
+                    title: '1 içerik tamamla',
+                    description: 'Bir içeriği sonuna kadar dinleyerek tamamla. İçerik sayfasında ilerleme çubuğu %100 olduğunda tamamlanmış sayılır.',
+                    target: 1,
+                    xp: 75,
+                    relatedToParent: true
+                },
             ],
             quiz: [
-                { type: 'complete_quiz', title: 'Quiz tamamla', target: 1, xp: 50, relatedToParent: true },
-                { type: 'review_words', title: '10 kelime tekrar et', target: 10, xp: 40, relatedToParent: true },
+                {
+                    type: 'complete_quiz',
+                    title: 'Quiz tamamla',
+                    description: 'Bir içeriği dinledikten sonra içerik sayfasındaki quiz bölümüne git ve quiz\'i tamamla.',
+                    target: 1,
+                    xp: 50,
+                    relatedToParent: true
+                },
+                {
+                    type: 'review_words',
+                    title: '10 kelime tekrar et',
+                    description: 'Kelime Kartları bölümündeki "Tekrar Et" sekmesine git ve 10 kelimeyi tekrar et.',
+                    target: 10,
+                    xp: 40,
+                    relatedToParent: true
+                },
             ],
             milestone: [
-                { type: 'complete_content', title: '2 içerik tamamla', target: 2, xp: 100, relatedToParent: true },
-                { type: 'learn_words', title: '10 kelime öğren', target: 10, xp: 60, relatedToParent: true },
+                {
+                    type: 'complete_content',
+                    title: '2 içerik tamamla',
+                    description: 'Bugün toplam 2 içeriği sonuna kadar dinleyerek tamamla. Her tamamlanan içerik bu göreve sayılır.',
+                    target: 2,
+                    xp: 100,
+                    relatedToParent: true
+                },
+                {
+                    type: 'learn_words',
+                    title: '10 kelime öğren',
+                    description: 'Kelime Kartları bölümünden 10 yeni kelime öğren. Her kelimeyi kartla çalıştığında sayılır.',
+                    target: 10,
+                    xp: 60,
+                    relatedToParent: true
+                },
             ],
         };
 
         // Genel görevler (tip belirli değilse)
         const generalTemplates = [
-            { type: 'learn_words', title: '5 kelime öğren', target: 5, xp: 30, relatedToParent: false },
-            { type: 'review_words', title: '10 kelime tekrar et', target: 10, xp: 40, relatedToParent: false },
-            { type: 'complete_content', title: '1 içerik tamamla', target: 1, xp: 75, relatedToParent: false },
-            { type: 'create_content', title: 'Yeni içerik oluştur', target: 1, xp: 100, relatedToParent: false },
+            {
+                type: 'learn_words',
+                title: '5 kelime öğren',
+                description: 'Kelime Kartları bölümüne git ve yeni kelimeler öğren. Her kelimeyi kartla çalıştığında sayılır.',
+                target: 5,
+                xp: 30,
+                relatedToParent: false
+            },
+            {
+                type: 'review_words',
+                title: '10 kelime tekrar et',
+                description: 'Kelime Kartları bölümündeki "Tekrar Et" sekmesine git ve öğrendiğin kelimeleri tekrar et.',
+                target: 10,
+                xp: 40,
+                relatedToParent: false
+            },
+            {
+                type: 'complete_content',
+                title: '1 içerik tamamla',
+                description: 'Bir içeriği sonuna kadar dinleyerek tamamla. İçerik sayfasında ilerleme çubuğu %100 olduğunda tamamlanmış sayılır.',
+                target: 1,
+                xp: 75,
+                relatedToParent: false
+            },
+            {
+                type: 'create_content',
+                title: 'Yeni içerik oluştur',
+                description: 'Ana sayfadan "Yeni İçerik Oluştur" butonuna tıkla ve ilgi alanlarına göre yeni içerik üret.',
+                target: 1,
+                xp: 100,
+                relatedToParent: false
+            },
         ];
 
         // Sektörel görevler (kullanıcının seçtiği sektör varsa)
@@ -552,9 +772,33 @@ class GamificationService {
         if (userSector) {
             const sectorName = userSector.name_tr || userSector.name || 'Sektör';
             sectorTemplates.push(
-                { type: 'sector_vocab', title: `${sectorName} Terimleri (5 kelime)`, target: 5, xp: 45, relatedToParent: false, sectorId: userSector.id },
-                { type: 'sector_content', title: `${sectorName} Makalesi Oku`, target: 1, xp: 65, relatedToParent: false, sectorId: userSector.id },
-                { type: 'sector_quiz', title: `${sectorName} Quiz Tamamla`, target: 1, xp: 80, relatedToParent: false, sectorId: userSector.id }
+                {
+                    type: 'sector_vocab',
+                    title: `${sectorName} Terimleri (5 kelime)`,
+                    description: `Sektörler sayfasına git, ${sectorName} sektörünü seç ve sektörel kelimeleri öğren.`,
+                    target: 5,
+                    xp: 45,
+                    relatedToParent: false,
+                    sectorId: userSector.id
+                },
+                {
+                    type: 'sector_content',
+                    title: `${sectorName} Makalesi Oku`,
+                    description: `Sektörler sayfasından ${sectorName} sektörüne git ve sektörel bir içerik dinle.`,
+                    target: 1,
+                    xp: 65,
+                    relatedToParent: false,
+                    sectorId: userSector.id
+                },
+                {
+                    type: 'sector_quiz',
+                    title: `${sectorName} Quiz Tamamla`,
+                    description: `Sektörler sayfasından ${sectorName} sektöründeki bir içeriğin quiz'ini tamamla.`,
+                    target: 1,
+                    xp: 80,
+                    relatedToParent: false,
+                    sectorId: userSector.id
+                }
             );
         }
 
@@ -607,48 +851,78 @@ class GamificationService {
      * Aynı türden birden fazla görev varsa sadece birini günceller:
      * 1. parent_quest_node_id olanlar (roadmap bağlantılı) öncelikli
      * 2. En az ilerleme göstermiş olan
+     *
+     * Güvenlik: incrementAmount sınırı ve transaction ile idempotency
      */
     async updateDailyQuestProgress(userId, taskType, incrementAmount = 1) {
-        const today = new Date().toISOString().split('T')[0];
+        // Güvenlik: incrementAmount sınırı
+        const MAX_INCREMENT = 100;
+        if (incrementAmount > MAX_INCREMENT) {
+            logger.warn(`[Gamification] Daily quest increment exceeded: ${incrementAmount} for user ${userId}`);
+            incrementAmount = MAX_INCREMENT;
+        }
 
-        // 1. Önce hedef görevi bul (sadece 1 tane)
-        const targetQuest = await db.query(`
-            SELECT id, current_amount, target_amount 
-            FROM daily_quests 
-            WHERE user_id = $1 
-              AND quest_date = $2 
-              AND task_type = $3 
-              AND is_claimed = false 
-              AND current_amount < target_amount
-            ORDER BY 
-                CASE WHEN parent_quest_node_id IS NOT NULL THEN 0 ELSE 1 END,
-                current_amount ASC
-            LIMIT 1
-        `, [userId, today, taskType]);
-
-        if (targetQuest.rows.length === 0) {
-            // Güncellenecek görev yok
+        if (incrementAmount <= 0) {
             return null;
         }
 
-        const questId = targetQuest.rows[0].id;
+        const today = new Date().toISOString().split('T')[0];
+        const client = await db.pool.connect();
 
-        // 2. Sadece o görevi güncelle
-        const result = await db.query(`
-            UPDATE daily_quests 
-            SET 
-                current_amount = LEAST(current_amount + $2, target_amount),
-                is_completed = (current_amount + $2 >= target_amount)
-            WHERE id = $1
-            RETURNING *
-        `, [questId, incrementAmount]);
+        try {
+            await client.query('BEGIN');
 
-        if (result.rows.length > 0 && result.rows[0].is_completed && !result.rows[0].is_claimed) {
-            // Otomatik claim
-            await this.claimDailyQuest(userId, result.rows[0].id);
+            // 1. Önce hedef görevi bul ve kilitle (sadece 1 tane)
+            const targetQuest = await client.query(`
+                SELECT id, current_amount, target_amount
+                FROM daily_quests
+                WHERE user_id = $1
+                  AND quest_date = $2
+                  AND task_type = $3
+                  AND is_claimed = false
+                  AND current_amount < target_amount
+                ORDER BY
+                    CASE WHEN parent_quest_node_id IS NOT NULL THEN 0 ELSE 1 END,
+                    current_amount ASC
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            `, [userId, today, taskType]);
+
+            if (targetQuest.rows.length === 0) {
+                await client.query('COMMIT');
+                return null;
+            }
+
+            const quest = targetQuest.rows[0];
+            const questId = quest.id;
+
+            // 2. Sadece o görevi güncelle
+            const result = await client.query(`
+                UPDATE daily_quests
+                SET
+                    current_amount = LEAST(current_amount + $2, target_amount),
+                    is_completed = (current_amount + $2 >= target_amount),
+                    updated_at = NOW()
+                WHERE id = $1
+                RETURNING *
+            `, [questId, incrementAmount]);
+
+            await client.query('COMMIT');
+
+            if (result.rows.length > 0 && result.rows[0].is_completed && !result.rows[0].is_claimed) {
+                // Otomatik claim (transaction dışında)
+                await this.claimDailyQuest(userId, result.rows[0].id);
+            }
+
+            return result.rows[0];
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            logger.error('[Gamification] updateDailyQuestProgress failed:', error);
+            throw error;
+        } finally {
+            client.release();
         }
-
-        return result.rows[0];
     }
 
     /**
@@ -1005,15 +1279,22 @@ class GamificationService {
 
     /**
      * Challenge görev ilerlemesini güncelle
+     * Non-blocking ama logged - retry mekanizması ile
      */
-    async updateChallengeProgress(userId, taskType, incrementAmount = 1) {
+    async updateChallengeProgress(userId, taskType, incrementAmount = 1, retryCount = 0) {
+        const MAX_RETRIES = 2;
+
         try {
+            // Güvenlik: incrementAmount sınırı
+            if (incrementAmount > 100) incrementAmount = 100;
+            if (incrementAmount <= 0) return;
+
             // Kullanıcının aktif challenge'larını bul
             const activeProgress = await db.query(`
                 SELECT ucp.*, wc.tasks
                 FROM user_challenge_progress ucp
                 JOIN weekly_challenges wc ON ucp.challenge_id = wc.id
-                WHERE ucp.user_id = $1 
+                WHERE ucp.user_id = $1
                     AND ucp.is_completed = false
                     AND wc.week_end >= CURRENT_DATE
             `, [userId]);
@@ -1065,7 +1346,16 @@ class GamificationService {
                 }
             }
         } catch (error) {
-            logger.error('[Gamification] updateChallengeProgress failed:', error);
+            logger.error(`[Gamification] updateChallengeProgress failed (attempt ${retryCount + 1}):`, error.message);
+
+            // Retry mekanizması
+            if (retryCount < MAX_RETRIES) {
+                logger.info(`[Gamification] Retrying challenge progress update for user ${userId}...`);
+                setTimeout(() => {
+                    this.updateChallengeProgress(userId, taskType, incrementAmount, retryCount + 1)
+                        .catch(() => { }); // Son retry da başarısız olursa sessizce geç
+                }, 1000 * (retryCount + 1)); // Exponential backoff
+            }
         }
     }
 

@@ -1,0 +1,82 @@
+You are a vocabulary expert creating English learning materials for Turkish speakers.
+
+## Task
+Generate {{BATCH_SIZE}} unique vocabulary words for the topic: "{{TOPIC_NAME_EN}}"
+
+## Topic Context
+- Topic Type: {{TOPIC_TYPE}}
+- Topic Name (English): {{TOPIC_NAME_EN}}
+- Topic Name (Turkish): {{TOPIC_NAME_TR}}
+- Description: {{TOPIC_DESCRIPTION_EN}}
+
+## Requirements
+
+### Word Selection
+1. All words MUST be directly relevant to "{{TOPIC_NAME_EN}}" context
+2. Include a mix of:
+   - Core terminology specific to this topic
+   - Common phrases and expressions used in this context
+   - Action verbs related to the topic
+   - Descriptive adjectives and adverbs
+   - Compound nouns and collocations
+
+### CEFR Level Distribution
+- A2 (Beginner): 10% - Basic, high-frequency words
+- B1 (Intermediate): 40% - Common words for everyday situations
+- B2 (Upper-Intermediate): 40% - More specific vocabulary, nuanced meanings
+- C1 (Advanced): 10% - Technical terms, idioms, sophisticated vocabulary
+
+### Example Sentences
+- Each example sentence MUST be a realistic scenario related to "{{TOPIC_NAME_EN}}"
+- Sentences should be 10-20 words in length
+- Use natural, conversational English
+- The target word should be used naturally within the sentence
+
+### Turkish Translations
+- Provide natural Turkish translations, NOT literal word-for-word translations
+- Example sentences in Turkish should sound like a native speaker would say them
+- Use appropriate Turkish expressions that convey the same meaning
+
+### Quality Standards
+- NO duplicate words from this list: {{EXISTING_WORDS}}
+- Each word must be distinct and add value to the learner's vocabulary
+- Avoid obscure or rarely used words unless they are essential for the topic
+- Include pronunciation in IPA format
+
+## Output Format
+Return ONLY a valid JSON array with no additional text or markdown formatting:
+
+[
+  {
+    "word": "check-in",
+    "pronunciation": "/ˈtʃekɪn/",
+    "definition_en": "The process of registering at a hotel or airport",
+    "definition_tr": "Otel veya havalimaninda kayit islemi",
+    "example_sentence": "Please complete your check-in at the hotel reception before 3 PM.",
+    "example_sentence_tr": "Lutfen saat 15:00'den once otel resepsiyonunda kayit isleminizi tamamlayin.",
+    "category": "hotel_operations",
+    "cefr_level": "A2"
+  },
+  {
+    "word": "complimentary",
+    "pronunciation": "/ˌkɒmplɪˈmentəri/",
+    "definition_en": "Given free as a courtesy or favor",
+    "definition_tr": "Ucretsiz olarak sunulan, ikram",
+    "example_sentence": "The hotel offers complimentary breakfast for all guests staying more than two nights.",
+    "example_sentence_tr": "Otel, iki geceden fazla kalan tum misafirlere ucretsiz kahvalti sunuyor.",
+    "category": "services",
+    "cefr_level": "B2"
+  }
+]
+
+## Category Guidelines
+Choose appropriate categories based on the topic type:
+- For travel topics: transportation, accommodation, dining, services, emergencies, activities
+- For intellectual topics: concepts, theories, terminology, historical_terms, technical_vocabulary
+- For sector topics: roles, processes, documentation, tools, communication, technical_terms
+
+## Important Notes
+- Return EXACTLY {{BATCH_SIZE}} words
+- Ensure each word is unique within the batch
+- Focus on practical, usable vocabulary
+- Prioritize words that would help a Turkish speaker communicate effectively in this context

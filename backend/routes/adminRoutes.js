@@ -8,6 +8,10 @@ const adminBookController = require('../controllers/adminBookController');
 const notificationController = require('../controllers/notificationController');
 const multer = require('multer');
 
+// Sub-routers
+const vocabularyAdminRoutes = require('./admin/vocabularyAdminRoutes');
+const sectorAdminRoutes = require('./admin/sectorAdminRoutes');
+
 // Configure multer for PDF uploads (in-memory)
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -39,6 +43,10 @@ router.put('/payment-environment', authenticate, authorizeAdmin, adminController
 // All other routes require authentication and admin authorization
 router.use(authenticate);
 router.use(authorizeAdmin);
+
+// Mount sub-routers (these have their own auth middleware)
+router.use('/vocabulary', vocabularyAdminRoutes);
+router.use('/sectors', sectorAdminRoutes);
 
 // Admin dashboard stats
 router.get('/stats', adminController.getDashboardStats);

@@ -85,4 +85,11 @@ router.get(
   topicHierarchyController.getListeningProgress
 );
 
+// Tek bir topic'in içerik verilerini getir (öneri sistemi için)
+router.get(
+  '/topics/:id/content',
+  authenticate,
+  topicHierarchyController.getTopicContent
+);
+
 module.exports = router;

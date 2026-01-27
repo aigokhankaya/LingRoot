@@ -6,12 +6,226 @@ const feedbackLoopService = require('../../services/feedbackLoopService');
 
 /**
  * 🎯 Liro Prompt Generator
- * 
+ *
  * Kullanıcı profiline göre dinamik, kişiselleştirilmiş system prompt oluşturur.
  * Liro'nun kullanıcıyı tanımasını ve en uygun içerik önerilerini sunmasını sağlar.
+ *
+ * v2.0 - Enhanced with:
+ * - Character profile for consistent personality
+ * - CEFR adaptation rules for level-appropriate communication
+ * - Few-shot examples for response quality
  */
 
 class LiroPromptGenerator {
+  constructor() {
+    // Cache for loaded files
+    this._characterProfile = null;
+    this._cefrRules = null;
+    this._fewShotExamples = null;
+
+    // Preload on initialization
+    this._loadResources();
+  }
+
+  /**
+   * Preload all resource files
+   */
+  _loadResources() {
+    try {
+      this._characterProfile = this.loadCharacterProfile();
+      this._cefrRules = this.loadCefrAdaptationRules();
+      this._fewShotExamples = this.loadFewShotExamples();
+      logger.debug('[LiroPromptGenerator] Resources loaded successfully');
+    } catch (error) {
+      logger.warn('[LiroPromptGenerator] Failed to preload some resources:', error.message);
+    }
+  }
+
+  /**
+   * 📋 Load character profile from markdown file
+   * @returns {string} Character profile content
+   */
+  loadCharacterProfile() {
+    try {
+      const profilePath = path.join(__dirname, '../../prompts/liro/character_profile.md');
+      if (fs.existsSync(profilePath)) {
+        return fs.readFileSync(profilePath, 'utf-8');
+      }
+      return '';
+    } catch (error) {
+      logger.debug('[LiroPromptGenerator] Character profile not found, using default');
+      return '';
+    }
+  }
+
+  /**
+   * 📊 Load CEFR adaptation rules from JSON
+   * @returns {Object} CEFR rules object
+   */
+  loadCefrAdaptationRules() {
+    try {
+      const rulesPath = path.join(__dirname, '../../prompts/liro/cefr_adaptation_rules.json');
+      if (fs.existsSync(rulesPath)) {
+        const content = fs.readFileSync(rulesPath, 'utf-8');
+        return JSON.parse(content);
+      }
+      return null;
+    } catch (error) {
+      logger.debug('[LiroPromptGenerator] CEFR rules not found, using default');
+      return null;
+    }
+  }
+
+  /**
+   * 💬 Load few-shot examples from JSON
+   * @returns {Object} Few-shot examples object
+   */
+  loadFewShotExamples() {
+    try {
+      const examplesPath = path.join(__dirname, '../../prompts/liro/few_shot_examples.json');
+      if (fs.existsSync(examplesPath)) {
+        const content = fs.readFileSync(examplesPath, 'utf-8');
+        return JSON.parse(content);
+      }
+      return null;
+    } catch (error) {
+      logger.debug('[LiroPromptGenerator] Few-shot examples not found');
+      return null;
+    }
+  }
+
+  /**
+   * 🎯 Generate CEFR adaptation section for prompt
+   * @param {string} level - CEFR level (A1, A2, B1, B2, C1, C2)
+   * @returns {string} Formatted CEFR instructions
+   */
+  generateCefrAdaptationSection(level) {
+    if (!this._cefrRules || !this._cefrRules.levels) {
+      return this._getDefaultCefrInstructions(level);
+    }
+
+    const rules = this._cefrRules.levels[level] || this._cefrRules.levels['B1'];
+
+    let section = `\n📊 DİL ADAPTASYONU (${level} Seviyesi):\n`;
+    section += rules.promptInstructions || '';
+
+    // Add common phrases if available
+    if (this._cefrRules.commonPhrases && this._cefrRules.commonPhrases[level]) {
+      const phrases = this._cefrRules.commonPhrases[level];
+      section += `\n\n💬 Bu seviye için örnek ifadeler:`;
+      if (phrases.greeting) section += `\n- Karşılama: "${phrases.greeting}"`;
+      if (phrases.encouragement) section += `\n- Teşvik: "${phrases.encouragement}"`;
+      if (phrases.clarification) section += `\n- Açıklama: "${phrases.clarification}"`;
+    }
+
+    return section;
+  }
+
+  /**
+   * Default CEFR instructions when rules file is not available
+   */
+  _getDefaultCefrInstructions(level) {
+    const defaults = {
+      'A1': 'Çok basit, kısa cümleler kur. Türkçe ağırlıklı konuş (%90). Her İngilizce kelimeyi hemen açıkla.',
+      'A2': 'Basit cümleler kullan. Türkçe ağırlıklı (%80). Sık kullanılan kelimeleri doğal şekilde serpiştir.',
+      'B1': 'Karmaşık cümleler kullanabilirsin. Türkçe-İngilizce dengeli (%70 Türkçe). Basit idiyomlar olabilir.',
+      'B2': 'Tam dil kapasitesiyle konuşabilirsin. Yarı yarıya dil kullan. İdiyomlar ve nüanslar tartışılabilir.',
+      'C1': 'Akademik ve sofistike dil kullanabilirsin. İngilizce ağırlıklı (%70). Nadir kelimeler olabilir.',
+      'C2': 'Neredeyse tamamen İngilizce konuşabilirsin (%90). Ana dil seviyesinde ifadeler kullan.'
+    };
+    return `\n📊 DİL ADAPTASYONU (${level}):\n${defaults[level] || defaults['B1']}`;
+  }
+
+  /**
+   * 💬 Select and format relevant few-shot examples
+   * @param {Object} context - Conversation context
+   * @returns {string} Formatted examples for prompt
+   */
+  selectFewShotExamples(context = {}) {
+    if (!this._fewShotExamples || !this._fewShotExamples.categories) {
+      return '';
+    }
+
+    const examples = [];
+    const categories = this._fewShotExamples.categories;
+
+    // Select based on context
+    if (context.isNewUser) {
+      if (categories.greeting?.new_user) {
+        examples.push(this._formatExample(categories.greeting.new_user, 'Yeni Kullanıcı'));
+      }
+    } else if (context.hasMemory) {
+      if (categories.greeting?.returning_user_with_memory) {
+        examples.push(this._formatExample(categories.greeting.returning_user_with_memory, 'Dönen Kullanıcı'));
+      }
+    }
+
+    // Always include topic exploration example
+    if (categories.topic_exploration?.vague_interest) {
+      examples.push(this._formatExample(categories.topic_exploration.vague_interest, 'Belirsiz İlgi'));
+    }
+
+    // Include error recovery example
+    if (categories.error_recovery?.grammar_mistake) {
+      examples.push(this._formatExample(categories.error_recovery.grammar_mistake, 'Hata Düzeltme'));
+    }
+
+    // Add anti-patterns section
+    let antiPatterns = '';
+    if (this._fewShotExamples.anti_patterns) {
+      antiPatterns = '\n\n❌ YAPMA (Anti-patterns):';
+      const ap = this._fewShotExamples.anti_patterns;
+      if (ap.parrot_response) {
+        antiPatterns += `\n• Papağan: "${ap.parrot_response.bad_example?.assistant}" → ${ap.parrot_response.why_bad}`;
+      }
+      if (ap.too_short) {
+        antiPatterns += `\n• Çok kısa: "${ap.too_short.bad_example?.assistant}" → ${ap.too_short.why_bad}`;
+      }
+    }
+
+    if (examples.length === 0) {
+      return '';
+    }
+
+    return `\n📝 ÖRNEK DİYALOGLAR (Kalite referansı):\n${examples.join('\n\n')}${antiPatterns}`;
+  }
+
+  /**
+   * Format a single example for prompt
+   */
+  _formatExample(example, label) {
+    if (!example) return '';
+
+    let formatted = `--- ${label} ---`;
+    if (example.context) {
+      formatted += `\n[Bağlam: ${example.context}]`;
+    }
+    formatted += `\nKullanıcı: "${example.user}"`;
+    formatted += `\nLiro: "${example.assistant}"`;
+    return formatted;
+  }
+
+  /**
+   * 🎭 Generate character identity section
+   * @returns {string} Character summary for prompt
+   */
+  generateCharacterSection() {
+    // Extract key points from character profile for prompt
+    return `
+🎭 LİRO KARAKTERİ:
+Sen Liro'sun - LingRoot'un samimi, meraklı ve destekleyici İngilizce öğrenme arkadaşı.
+
+• Kişilik: Sıcak ama profesyonel, düşünceli, sabırlı
+• Ton: Arkadaşça ama saygılı, yapay pozitiflik yok
+• İmza: "Hmm, bu ilginç...", "Acaba şöyle düşünsek...", "Sen bunu zaten biliyorsun aslında..."
+• Mizah: İnce espri, asla kırıcı değil
+
+DUYGUSAL ZEKA:
+• Frustrated kullanıcı → Sabırlı ol, alternatif sun
+• Excited kullanıcı → Enerjiyi eşleştir, genişlet
+• Confused kullanıcı → Parçala, analoji kullan, küçümseme
+• Kişisel bilgi → Hatırla, sonra doğal referans ver`;
+  }
   /**
    * Kullanıcı profili için özelleştirilmiş Liro system prompt oluştur
    * @param {Object} userProfile - UserProfileAnalyzer'dan gelen profil
@@ -70,6 +284,14 @@ class LiroPromptGenerator {
       const sectorSection = this.generateSectorSection(sectorProfile);
       const vocabularyInjectionSection = this.generateVocabularyInjectionSection(targetVocabulary);
 
+      // NEW: Enhanced personality and quality sections
+      const characterSection = this.generateCharacterSection();
+      const cefrAdaptationSection = this.generateCefrAdaptationSection(preferredLevel);
+      const fewShotExamplesSection = this.selectFewShotExamples({
+        isNewUser: basicInfo?.accountAge?.isNew,
+        hasMemory: conversationHistory?.recentTopics?.length > 0
+      });
+
       // Replace all placeholders
       return promptTemplate
         .replace(/{{username}}/g, username)
@@ -88,7 +310,11 @@ class LiroPromptGenerator {
         .replace(/{{adaptiveContext}}/g, adaptiveContextSection)
         .replace(/{{searchResults}}/g, searchResultsText)
         .replace(/{{sectorContext}}/g, sectorSection)
-        .replace(/{{vocabularyInjection}}/g, vocabularyInjectionSection);
+        .replace(/{{vocabularyInjection}}/g, vocabularyInjectionSection)
+        // NEW: Enhanced personality and quality placeholders
+        .replace(/{{characterSection}}/g, characterSection)
+        .replace(/{{cefrAdaptation}}/g, cefrAdaptationSection)
+        .replace(/{{fewShotExamples}}/g, fewShotExamplesSection);
     } catch (error) {
       logger.error('Failed to load personalized prompt template:', error);
       return this.getDefaultPrompt();

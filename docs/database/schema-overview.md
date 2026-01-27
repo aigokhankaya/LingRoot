@@ -1,9 +1,9 @@
 # Database Schema Overview
 
-> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-01-21 | **Versiyon:** 2.2
+> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-01-25 | **Versiyon:** 2.4
 
-**Database:** PostgreSQL (Supabase)  
-**Total Tables:** 78+ (including views)  
+**Database:** PostgreSQL (Supabase)
+**Total Tables:** 83+ (including views)
 **Migrations:** `/backend/migrations/`
 
 > 📘 **Detaylı Kolon Referansı:** Tüm tabloların tam kolon listesi için [complete-column-reference.md](./complete-column-reference.md) dosyasına bakın.
@@ -18,12 +18,13 @@
 | **Authentication** | device_tokens, user_settings |
 | **Content** | topics, topic_contents, content_history, books, book_chapters, chapter_audio, documents, document_sections |
 | **Vocabulary** | user_vocabulary, word_reviews, word_mastery, pattern_library |
-| **AI Chat** | conversations, messages, user_insights, user_preference_cache |
+| **AI Chat** | conversations, messages, user_insights, user_preference_cache, user_memory |
 | **Gamification** | user_gamification, user_goals, achievements, user_achievements, quest_nodes, user_quest_progress, daily_quests, xp_transactions, weekly_scores, leagues, weekly_challenges, user_challenge_progress, content_categories, user_topic_mastery, quiz_attempts |
 | **Sector English** | sectors, user_sectors, sector_content, sector_vocabulary, user_sector_content_progress, user_sector_stats, sector_quizzes, user_quiz_results, sector_modules, module_items, user_module_progress, user_module_item_progress |
 | **Payments** | payment_providers, card_transactions |
 | **Support** | support_conversations, support_messages, support_message_attachments |
 | **Analytics** | api_costs, daily_usage_patterns, content_ratings, content_feedback |
+| **Recommendations** | user_content_recommendations, recommendation_interactions, recommendation_generation_status |
 | **Other** | notifications, user_interests, user_favorites, user_book_progress, hobby_suggestions, parameters, external_services |
 
 ---
@@ -383,6 +384,40 @@ Aggregated user preferences for embedding.
 | preference_summary | TEXT | Text summary for embedding |
 | insight_count | INTEGER | Number of insights |
 
+### user_memory (NEW - Migration 0079)
+Long-term user memory for cross-session personalization.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | FK → users |
+| memory_type | VARCHAR(50) | fact, event, preference, relationship, milestone |
+| category | VARCHAR(50) | personal, learning, content, interaction |
+| content | TEXT | Memory content |
+| importance | INTEGER | 0-100 importance score |
+| first_mentioned_at | TIMESTAMPTZ | First mention timestamp |
+| last_referenced_at | TIMESTAMPTZ | Last reference timestamp |
+| mention_count | INTEGER | Times mentioned |
+| source_conversation_id | UUID | FK → conversations |
+| is_active | BOOLEAN | Active status |
+| expires_at | TIMESTAMPTZ | Expiry timestamp (nullable) |
+| metadata | JSONB | Additional metadata |
+
+### recommendation_interactions (NEW - Migration 0080)
+Tracks proactive content recommendations shown to users during chat.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | FK → users |
+| conversation_id | UUID | FK → conversations |
+| trigger_type | VARCHAR(50) | topic_detected, idle_conversation, vocabulary_opportunity, session_end |
+| recommendation_data | JSONB | Recommendation details |
+| accepted | BOOLEAN | User accepted? |
+| selected_format | VARCHAR(50) | podcast, metin, diyalog |
+| shown_at | TIMESTAMPTZ | When shown |
+| responded_at | TIMESTAMPTZ | When user responded |
+
 ---
 
 ## 5. Gamification Tables
@@ -446,7 +481,7 @@ Learning roadmap quest definitions.
 | required_daily_completions | INTEGER | Daily quest count |
 | sector_id | INTEGER | FK → sectors (optional) |
 
-### daily_quests (136 rows, 14 columns)
+### daily_quests (136 rows, 15 columns)
 Daily quest assignments.
 
 | Column | Type | Description |
@@ -456,6 +491,7 @@ Daily quest assignments.
 | quest_date | DATE | Quest date |
 | task_type | VARCHAR(50) | listen_10min, learn_5words, etc. |
 | task_title | VARCHAR(100) | Display title |
+| description | TEXT | Görevin nasıl tamamlanacağını açıklayan metin |
 | target_amount | INTEGER | Target value |
 | current_amount | INTEGER | Current progress |
 | xp_reward | INTEGER | XP reward |

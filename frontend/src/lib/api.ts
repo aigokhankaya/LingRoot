@@ -220,6 +220,9 @@ export const markTopicAudioListened = async (topicId: string, duration: number) 
 
 export const getIncompleteListenings = async () => fetchApi('topic-hierarchy/topics/incomplete');
 
+// Tek bir topic'in içerik verilerini getir (öneri sistemi için)
+export const getTopicContent = async (topicId: string) => fetchApi(`topic-hierarchy/topics/${topicId}/content`);
+
 export const saveListeningProgress = async (id: string, progress: number, duration: number) =>
     fetchApi(`content/${id}/progress`, {
         method: 'POST',

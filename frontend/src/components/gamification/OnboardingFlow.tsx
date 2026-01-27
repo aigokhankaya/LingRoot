@@ -1047,6 +1047,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
           {/* CTA Button */}
           <button
             onClick={() => {
+              // Set flag to trigger refresh on progress page
+              localStorage.setItem('onboarding_just_completed', 'true');
               onComplete();
               router.push('/progress');
             }}

@@ -29,6 +29,25 @@ export const GamificationBanner: React.FC<GamificationBannerProps> = (props) => 
     const [activeChallenge, setActiveChallenge] = useState<ActiveChallenge | null>(null);
     const [dismissed, setDismissed] = useState(false);
 
+    // Get cached streak from localStorage for instant render
+    const [cachedStreak, setCachedStreak] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem('lingroot_cached_streak');
+            if (cached) {
+                setCachedStreak(parseInt(cached, 10));
+            }
+        }
+    }, []);
+
+    // Update cache when stats change
+    useEffect(() => {
+        if (stats?.streak !== undefined && typeof window !== 'undefined') {
+            localStorage.setItem('lingroot_cached_streak', stats.streak.toString());
+        }
+    }, [stats?.streak]);
+
     // Fetch active challenge
     useEffect(() => {
         const fetchChallenge = async () => {
@@ -67,18 +86,26 @@ export const GamificationBanner: React.FC<GamificationBannerProps> = (props) => 
         fetchChallenge();
     }, []);
 
-    if (loading || dismissed) return null;
+    if (dismissed) return null;
 
     // Priority: Low streak warning > Active challenge > Daily goal
-    const streak = stats?.streak || 0;
+    // Use cached streak for instant render, then update from API
+    const streak = stats?.streak ?? cachedStreak ?? 0;
     const dailyProgress = stats?.dailyQuestsCompleted || 0;
 
     // Streak at risk (0 activity today and have a streak)
+    // Show immediately if we have cached streak data
     const isStreakAtRisk = streak > 0 && dailyProgress === 0;
+
+    // Only wait for loading if we don't have cached data and streak is not at risk
+    if (loading && cachedStreak === null && !props.alwaysShow) return null;
 
     if (isStreakAtRisk) {
         return (
-            <Card className="relative bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 mb-6 flex items-center justify-between rounded-xl shadow-lg overflow-hidden">
+            <Card
+                onClick={() => router.push('/progress')}
+                className="relative bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 mb-6 flex items-center justify-between rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl hover:scale-[1.01] transition-all duration-300"
+            >
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-10">
                     <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-white rounded-full blur-3xl" />
@@ -95,15 +122,15 @@ export const GamificationBanner: React.FC<GamificationBannerProps> = (props) => 
                     </div>
                 </div>
 
-                <button
-                    onClick={() => router.push('/progress')}
-                    className="relative bg-white text-orange-600 px-6 py-2 rounded-lg font-semibold hover:bg-orange-50 transition-colors shadow-md"
-                >
+                <div className="relative bg-white text-orange-600 px-6 py-2 rounded-lg font-semibold shadow-md">
                     Hemen Başla
-                </button>
+                </div>
 
                 <button
-                    onClick={() => setDismissed(true)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setDismissed(true);
+                    }}
                     className="absolute top-2 right-2 text-white/50 hover:text-white transition-colors"
                 >
                     ✕

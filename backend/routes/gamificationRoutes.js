@@ -1,6 +1,6 @@
 /**
  * 🎮 Gamification Routes
- * 
+ *
  * XP, Level, Streak, Achievements ve Onboarding API'ları
  */
 
@@ -10,9 +10,20 @@ const gamificationService = require('../services/gamificationService');
 const onboardingService = require('../services/onboardingService');
 const { authenticate } = require('../middleware/auth');
 const logger = require('../utils/common/logger.js');
+const {
+    gamificationLimiter,
+    xpLimiter,
+    questLimiter,
+    dailyQuestClaimLimiter,
+    streakLimiter,
+    onboardingResetLimiter
+} = require('../middleware/security');
 
 // Tüm route'lar authentication gerektirir
 router.use(authenticate);
+
+// Genel gamification rate limit
+router.use(gamificationLimiter);
 
 // ============================================
 // STATS & PROFILE
@@ -67,20 +78,48 @@ router.get('/profile', async (req, res) => {
 // XP & LEVEL
 // ============================================
 
+// XP sabitleri - güvenlik için
+const XP_LIMITS = {
+    MAX_XP_PER_REQUEST: 500,        // Tek istekte max XP
+    VALID_SOURCES: ['content', 'quiz', 'streak', 'word', 'daily_quest', 'quest', 'onboarding', 'achievement', 'sector'],
+    MAX_DESCRIPTION_LENGTH: 200
+};
+
 /**
  * POST /api/gamification/xp
  * XP ekle (Internal/Admin kullanımı için)
+ * Rate limited + validated
  */
-router.post('/xp', async (req, res) => {
+router.post('/xp', xpLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         const { amount, source, sourceId, description } = req.body;
 
-        if (!amount || amount <= 0) {
+        // Validation: amount kontrolü
+        if (!amount || typeof amount !== 'number' || amount <= 0) {
             return res.status(400).json({ success: false, error: 'Geçersiz XP miktarı' });
         }
 
-        const result = await gamificationService.addXP(userId, amount, source, sourceId, description);
+        // Güvenlik: XP üst sınırı
+        if (amount > XP_LIMITS.MAX_XP_PER_REQUEST) {
+            logger.warn(`[Gamification API] XP limit exceeded attempt: user=${userId}, amount=${amount}`);
+            return res.status(400).json({
+                success: false,
+                error: `Tek seferde maksimum ${XP_LIMITS.MAX_XP_PER_REQUEST} XP eklenebilir`
+            });
+        }
+
+        // Validation: source kontrolü
+        if (source && !XP_LIMITS.VALID_SOURCES.includes(source)) {
+            return res.status(400).json({ success: false, error: 'Geçersiz XP kaynağı' });
+        }
+
+        // Validation: description uzunluğu
+        if (description && description.length > XP_LIMITS.MAX_DESCRIPTION_LENGTH) {
+            return res.status(400).json({ success: false, error: 'Açıklama çok uzun' });
+        }
+
+        const result = await gamificationService.addXP(userId, amount, source || 'manual', sourceId, description);
 
         res.json({
             success: true,
@@ -99,8 +138,9 @@ router.post('/xp', async (req, res) => {
 /**
  * POST /api/gamification/streak/checkin
  * Günlük giriş kaydı (streak güncelleme)
+ * Rate limited
  */
-router.post('/streak/checkin', async (req, res) => {
+router.post('/streak/checkin', streakLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         const result = await gamificationService.updateStreak(userId);
@@ -118,8 +158,9 @@ router.post('/streak/checkin', async (req, res) => {
 /**
  * POST /api/gamification/streak/freeze
  * Streak dondur
+ * Rate limited - abuse prevention
  */
-router.post('/streak/freeze', async (req, res) => {
+router.post('/streak/freeze', streakLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         const result = await gamificationService.useStreakFreeze(userId);
@@ -190,11 +231,17 @@ router.get('/daily-quests', async (req, res) => {
 /**
  * POST /api/gamification/daily-quests/:questId/claim
  * Günlük görev ödülünü al
+ * Rate limited - claim spam prevention
  */
-router.post('/daily-quests/:questId/claim', async (req, res) => {
+router.post('/daily-quests/:questId/claim', dailyQuestClaimLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         const { questId } = req.params;
+
+        // Validation: questId format kontrolü
+        if (!questId || questId.length > 50) {
+            return res.status(400).json({ success: false, error: 'Geçersiz görev ID' });
+        }
 
         const result = await gamificationService.claimDailyQuest(userId, questId);
 
@@ -300,13 +347,14 @@ router.post('/onboarding/complete', async (req, res) => {
 /**
  * POST /api/gamification/onboarding/reset
  * Onboarding'i sıfırla - yol haritası ve ilerlemeyi temizle
+ * Rate limited - günde max 3 reset (abuse prevention)
  */
-router.post('/onboarding/reset', async (req, res) => {
+router.post('/onboarding/reset', onboardingResetLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         const db = require('../config/db');
 
-        logger.info(`[Gamification API] Onboarding reset requested for user: ${userId}`);
+        logger.warn(`[Gamification API] Onboarding reset requested for user: ${userId}`);
 
         // 1. user_gamification tablosunu sıfırla
         await db.query(`
@@ -367,9 +415,13 @@ router.get('/roadmap', async (req, res) => {
         const userId = req.user.id;
         const roadmap = await onboardingService.getUserRoadmap(userId);
 
+        // Onboarding durumunu da kontrol et
+        const profile = await gamificationService.getOrCreateProfile(userId);
+
         res.json({
             success: true,
-            data: roadmap
+            data: roadmap,
+            onboardingCompleted: profile?.onboarding_completed || false
         });
     } catch (error) {
         logger.error('[Gamification API] Roadmap error:', error);
@@ -377,18 +429,32 @@ router.get('/roadmap', async (req, res) => {
     }
 });
 
+// Geçerli quest tipleri - güvenlik için whitelist
+const VALID_QUEST_TYPES = ['listen', 'vocabulary', 'quiz', 'reading', 'speaking', 'milestone', 'content'];
+
 /**
  * POST /api/gamification/quests/auto-complete
  * Belirli tipteki aktif görevi otomatik tamamla
+ * Rate limited + validated
  */
-router.post('/quests/auto-complete', async (req, res) => {
+router.post('/quests/auto-complete', questLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { type } = req.body;
+        const { type, verificationData } = req.body;
 
+        // Validation: type kontrolü
         if (!type) {
             return res.status(400).json({ success: false, error: 'Task type required' });
         }
+
+        // Güvenlik: Sadece geçerli quest tipleri
+        if (!VALID_QUEST_TYPES.includes(type)) {
+            logger.warn(`[Gamification API] Invalid quest type attempt: user=${userId}, type=${type}`);
+            return res.status(400).json({ success: false, error: 'Geçersiz görev tipi' });
+        }
+
+        // Log: Auto-complete audit trail
+        logger.info(`[Gamification API] Quest auto-complete: user=${userId}, type=${type}`);
 
         const result = await onboardingService.completeActiveQuestByType(userId, type);
 
@@ -405,14 +471,31 @@ router.post('/quests/auto-complete', async (req, res) => {
 /**
  * POST /api/gamification/quests/:nodeId/complete
  * Görevi tamamla
+ * Rate limited + validated
  */
-router.post('/quests/:nodeId/complete', async (req, res) => {
+router.post('/quests/:nodeId/complete', questLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         const { nodeId } = req.params;
         const { score } = req.body;
 
-        const result = await onboardingService.completeQuest(userId, parseInt(nodeId), score);
+        // Validation: nodeId format kontrolü
+        const parsedNodeId = parseInt(nodeId);
+        if (isNaN(parsedNodeId) || parsedNodeId <= 0) {
+            return res.status(400).json({ success: false, error: 'Geçersiz görev ID' });
+        }
+
+        // Validation: score kontrolü (opsiyonel ama varsa geçerli olmalı)
+        if (score !== undefined && score !== null) {
+            if (typeof score !== 'number' || score < 0 || score > 100) {
+                return res.status(400).json({ success: false, error: 'Geçersiz skor (0-100 arası olmalı)' });
+            }
+        }
+
+        // Log: Quest completion audit trail
+        logger.info(`[Gamification API] Quest complete: user=${userId}, nodeId=${parsedNodeId}, score=${score}`);
+
+        const result = await onboardingService.completeQuest(userId, parsedNodeId, score);
 
         res.json({
             success: true,
@@ -427,17 +510,24 @@ router.post('/quests/:nodeId/complete', async (req, res) => {
 /**
  * POST /api/gamification/quests/:nodeId/start
  * Görevi başlat
+ * Rate limited
  */
-router.post('/quests/:nodeId/start', async (req, res) => {
+router.post('/quests/:nodeId/start', questLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         const { nodeId } = req.params;
 
+        // Validation: nodeId format kontrolü
+        const parsedNodeId = parseInt(nodeId);
+        if (isNaN(parsedNodeId) || parsedNodeId <= 0) {
+            return res.status(400).json({ success: false, error: 'Geçersiz görev ID' });
+        }
+
         await require('../config/db').query(`
-            UPDATE user_quest_progress 
+            UPDATE user_quest_progress
             SET status = 'in_progress', started_at = NOW()
             WHERE user_id = $1 AND node_id = $2 AND status = 'unlocked'
-        `, [userId, parseInt(nodeId)]);
+        `, [userId, parsedNodeId]);
 
         res.json({
             success: true,

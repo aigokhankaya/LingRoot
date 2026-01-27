@@ -42,11 +42,26 @@ const ProgressPage: React.FC = () => {
     available: []
   });
   const [showOnboardingFlow, setShowOnboardingFlow] = useState(false);
+  const [roadmapRefreshTrigger, setRoadmapRefreshTrigger] = useState(0);
 
-  // Check-in on page load
+  // Check-in on page load and handle post-onboarding refresh
   useEffect(() => {
     checkIn();
     fetchAchievements();
+
+    // Check if user just completed onboarding and needs data refresh
+    const justCompleted = localStorage.getItem('onboarding_just_completed');
+    if (justCompleted === 'true') {
+      console.log('[ProgressPage] Onboarding just completed, refreshing all data...');
+      localStorage.removeItem('onboarding_just_completed');
+
+      // Delay to ensure backend has finished processing
+      setTimeout(() => {
+        refreshStats();
+        setRoadmapRefreshTrigger(prev => prev + 1);
+        fetchAchievements();
+      }, 500);
+    }
   }, []);
 
   const fetchAchievements = async () => {
@@ -89,6 +104,8 @@ const ProgressPage: React.FC = () => {
           onComplete={() => {
             setShowOnboardingFlow(false);
             refreshStats();
+            // Trigger JourneyRoadmap refresh after onboarding completes
+            setRoadmapRefreshTrigger(prev => prev + 1);
           }}
         />
       )}
@@ -192,6 +209,7 @@ const ProgressPage: React.FC = () => {
           {/* 🗺️ Journey Map - PRIMARY: Either shows roadmap or onboarding CTA */}
           <section>
             <JourneyRoadmap
+              refreshTrigger={roadmapRefreshTrigger}
               onQuestClick={(quest) => {
                 console.log('Quest clicked:', quest);
                 // Route based on task_type

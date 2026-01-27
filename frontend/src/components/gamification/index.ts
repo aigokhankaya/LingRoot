@@ -23,3 +23,7 @@ export { SectorSelector } from './SectorSelector';
 export { SectorProgressCard } from './SectorProgressCard';
 export { SectorSkillTree } from './SectorSkillTree';
 
+// Quest Guidance Components
+export { QuestGuideModal } from './QuestGuideModal';
+export { ActiveQuestBanner } from './ActiveQuestBanner';
+

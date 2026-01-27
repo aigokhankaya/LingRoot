@@ -616,8 +616,20 @@ Generate a JSON roadmap with weekly milestones:
             // 6. İlk başarımı ver
             await gamificationService.awardAchievement(userId, 'FIRST_CONTENT');
 
-            // 7. Başlangıç XP ver
-            await gamificationService.addXP(userId, 100, 'onboarding', null, 'Yolculuğa hoş geldin!');
+            // 7. Başlangıç XP ver (sadece ilk kez - abuse prevention)
+            // Daha önce onboarding XP alınmış mı kontrol et
+            const previousOnboardingXP = await db.query(`
+                SELECT 1 FROM xp_transactions
+                WHERE user_id = $1 AND source = 'onboarding'
+                LIMIT 1
+            `, [userId]);
+
+            if (previousOnboardingXP.rows.length === 0) {
+                await gamificationService.addXP(userId, 100, 'onboarding', null, 'Yolculuğa hoş geldin!');
+                logger.info(`[Onboarding] First-time onboarding XP awarded to user ${userId}`);
+            } else {
+                logger.info(`[Onboarding] Skipped onboarding XP for user ${userId} (already received before)`);
+            }
 
             // 8. Sektör tercihleri kaydet (yeni) - sectorGoals dahil
             if (primarySectorId) {
@@ -659,6 +671,15 @@ Generate a JSON roadmap with weekly milestones:
                 }
             }
 
+            // 9. Sektör kelimelerinden başlangıç seti oluştur (word_reviews)
+            if (primarySectorId) {
+                try {
+                    await this.createInitialVocabularySet(userId, primarySectorId, assessedCEFR);
+                } catch (vocabError) {
+                    logger.warn('[Onboarding] Could not create initial vocabulary set:', vocabError.message);
+                }
+            }
+
             logger.info(`[Onboarding] Completed for user ${userId} (sector: ${primarySectorId || 'none'})`);
 
             return {
@@ -671,6 +692,28 @@ Generate a JSON roadmap with weekly milestones:
 
         } catch (error) {
             logger.error('[OnboardingService] completeOnboarding failed:', error);
+
+            // Recovery: Eğer temel bilgiler kaydedildiyse, onboarding_completed = true yap
+            // Böylece kullanıcı sonsuz onboarding döngüsüne girmez
+            try {
+                const profile = await db.query(
+                    'SELECT archetype FROM user_gamification WHERE user_id = $1',
+                    [userId]
+                );
+
+                // Archetype set edildiyse, temel onboarding tamamlanmış demektir
+                if (profile.rows.length > 0 && profile.rows[0].archetype) {
+                    await db.query(`
+                        UPDATE user_gamification
+                        SET onboarding_completed = true, updated_at = NOW()
+                        WHERE user_id = $1
+                    `, [userId]);
+                    logger.warn(`[OnboardingService] Recovery: onboarding_completed = true set for user ${userId} despite error`);
+                }
+            } catch (recoveryError) {
+                logger.error('[OnboardingService] Recovery failed:', recoveryError.message);
+            }
+
             throw error;
         }
     }
@@ -902,6 +945,71 @@ Generate a JSON roadmap with weekly milestones:
             throw error;
         } finally {
             client.release();
+        }
+    }
+
+    /**
+     * Sektör kelimelerinden başlangıç seti oluştur
+     * Kullanıcının CEFR seviyesine uygun 30 kelime seç ve word_reviews'a ekle
+     */
+    async createInitialVocabularySet(userId, sectorId, cefrLevel) {
+        try {
+            // CEFR seviyesine göre uygun kelimeleri belirle
+            const cefrOrder = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+            const userLevelIndex = cefrOrder.indexOf(cefrLevel);
+
+            // Kullanıcı seviyesi ve bir alt seviye kelimelerini al
+            const eligibleLevels = cefrOrder.slice(0, Math.max(userLevelIndex + 1, 2));
+
+            // Sektörden uygun kelimeleri çek (30 adet, seviyeye uygun)
+            const wordsResult = await db.query(`
+                SELECT id, word, definition_en, definition_tr, example_sentence, cefr_level
+                FROM sector_vocabulary
+                WHERE sector_id = $1 
+                AND cefr_level = ANY($2::text[])
+                ORDER BY frequency_rank ASC NULLS LAST, RANDOM()
+                LIMIT 30
+            `, [sectorId, eligibleLevels]);
+
+            if (wordsResult.rows.length === 0) {
+                logger.warn(`[Onboarding] No words found for sector ${sectorId} at levels ${eligibleLevels.join(', ')}`);
+                return { added: 0 };
+            }
+
+            // word_reviews tablosuna ekle (SRS başlangıç değerleriyle)
+            let addedCount = 0;
+            for (const word of wordsResult.rows) {
+                try {
+                    await db.query(`
+                        INSERT INTO word_reviews (
+                            user_id, word, definition, example_sentence,
+                            next_review_date, interval_days, ease_factor, 
+                            repetition_count, streak_correct, source_content_id, created_at
+                        ) VALUES (
+                            $1, $2, $3, $4,
+                            NOW()::date, 1, 2.5,
+                            0, 0, 'sector_onboarding', NOW()
+                        )
+                        ON CONFLICT (user_id, word) DO NOTHING
+                    `, [
+                        userId,
+                        word.word,
+                        word.definition_tr || word.definition_en || 'No definition',
+                        word.example_sentence || ''
+                    ]);
+                    addedCount++;
+                } catch (insertError) {
+                    // Duplicate veya diğer hatalar için devam et
+                    logger.debug(`[Onboarding] Word insert skipped: ${word.word} - ${insertError.message}`);
+                }
+            }
+
+            logger.info(`[Onboarding] Created initial vocabulary set: ${addedCount} words for user ${userId} (sector: ${sectorId}, levels: ${eligibleLevels.join(', ')})`);
+            return { added: addedCount };
+
+        } catch (error) {
+            logger.error('[OnboardingService] createInitialVocabularySet failed:', error);
+            throw error;
         }
     }
 }

@@ -43,9 +43,10 @@ import BrandWordmark from "../src/components/BrandWordmark";
 import LiroAvatar from "../src/components/LiroAvatar";
 import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
 import NotificationBell from "../src/components/NotificationBell";
-import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal, GamificationBanner } from "../src/components/gamification";
+import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal, GamificationBanner, ActiveQuestBanner } from "../src/components/gamification";
 import { useGamification } from "../src/hooks/useGamification";
 import ResumeContentCard from "../src/components/content/ResumeContentCard";
+import PersonalizedForYouSection from "../src/components/content/PersonalizedForYouSection";
 import ContentQuizModal from "../src/components/quiz/ContentQuizModal";
 import AppHeader from "../src/components/AppHeader";
 import { useAudioPlayerSafe } from "../src/context/AudioPlayerContext";
@@ -2311,6 +2312,9 @@ const Welcome: React.FC = () => {
           {/* Gamification Status Banner */}
           <GamificationBanner alwaysShow={true} />
 
+          {/* Active Quest Banner - Görev yönlendirmesi */}
+          <ActiveQuestBanner pageType="content" className="mb-4" />
+
           {error && (
             <div className="mb-8">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
@@ -2324,6 +2328,11 @@ const Welcome: React.FC = () => {
 
           {/* Dinlemeye Devam Et */}
           <ResumeContentCard onResumePlay={handleResumeContent} />
+
+          {/* Sana Özel İçerikler */}
+          <div className="mb-8">
+            <PersonalizedForYouSection maxItems={6} />
+          </div>
 
           {/* AI Content Entry Card */}
           <div
