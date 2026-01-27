@@ -782,7 +782,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   contentContainer: {
-    paddingTop: 70,
+    paddingTop: 100,
     paddingBottom: 120,
   },
   sectionTitle: {

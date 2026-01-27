@@ -258,6 +258,7 @@
     }
   },
   "common": {
+    "back": "Back",
     "error": "Error",
     "success": "Successful!",
     "ok": "OK",

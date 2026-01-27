@@ -280,13 +280,25 @@ export async function createPodcastAsync(params: {
  * Text-to-Speech API (Async)
  */
 export async function processTextToSpeechAsync(request: TTSRequest): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
+    console.log('🔊 [TTS Service] processTextToSpeechAsync called');
+    console.log('🔊 [TTS Service] Request:', JSON.stringify(request, null, 2));
+
     const client = await getApiClientAsync();
+    console.log('🔊 [TTS Service] Got API client');
+    console.log('🔊 [TTS Service] Base URL:', client.http.defaults.baseURL);
+
     try {
+        console.log('🔊 [TTS Service] Sending POST to /api/tts/process-async...');
         const response = await client.http.post('/api/tts/process-async', request, {
             timeout: 30000,
         });
+        console.log('🔊 [TTS Service] Response received:', JSON.stringify(response.data, null, 2));
         return response.data;
     } catch (error: any) {
+        console.error('🔴 [TTS Service] Error:', error.message);
+        console.error('🔴 [TTS Service] Error code:', error.code);
+        console.error('🔴 [TTS Service] Response status:', error.response?.status);
+        console.error('🔴 [TTS Service] Response data:', JSON.stringify(error.response?.data, null, 2));
         const msg = error.response?.data?.message || 'Async TTS işlemi başlatılamadı';
         const err: any = new Error(msg);
         if (error.response?.data?.code) {

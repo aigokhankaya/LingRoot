@@ -840,6 +840,10 @@ const App: React.FC = () => {
                 <i className="fas fa-cog mr-3 text-lg"></i>
                 <span>Ayarlar</span>
               </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/logs')}>
+                <i className="fas fa-chart-line mr-3 text-lg"></i>
+                <span>Performans Logları</span>
+              </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/tts-test')}>
                 <i className="fas fa-volume-up mr-3 text-lg"></i>
                 <span>TTS Test</span>

@@ -8,8 +8,6 @@ const getNotifications = async (req, res) => {
         const userId = req.user.id;
         const { limit = 20, offset = 0, unreadOnly = false } = req.query;
 
-        console.log('Fetching notifications:', { userId, limit, offset, unreadOnly });
-
         // Build query
         let query = supabase
             .from('notifications')

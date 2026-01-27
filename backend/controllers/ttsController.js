@@ -531,9 +531,10 @@ const processTtsRequest = async (req, res) => {
         inputData: { textLength: cleanedText.length, level }
       });
 
-      // Detect source language
+      // Detect source language - check for Turkish characters OR common Turkish words
       const hasTurkishChars = /[ğüşıöçĞÜŞİÖÇ]/g.test(cleanedText);
-      const sourceLanguage = hasTurkishChars ? 'Turkish' : 'Auto-detect';
+      const commonTurkishWords = /\b(ve|bir|bu|ne|var|için|ile|da|de|mi|mı|mu|mü|ben|sen|biz|siz|ama|veya|ki|gibi|kadar|sonra|önce|şimdi|nasıl|naber|selam|merhaba|tamam|evet|hayır|teşekkür|lütfen|belki|çok|az|iyi|kötü|büyük|küçük|yeni|eski|güzel|olan|olarak|daha|en|her|hiç|sadece|artık|hala|bile|zaten|yine|ancak|fakat|lakin|çünkü|eğer|acaba|neden|nasıl|nerede|ne zaman|kim|hangi)\b/gi.test(cleanedText);
+      const sourceLanguage = (hasTurkishChars || commonTurkishWords) ? 'Turkish' : 'Auto-detect';
 
       // Determine prompt variant: 'narrator' for book/document content, 'standard' otherwise
       const isBookOrDocument = inputType === 'book' || inputType === 'document';

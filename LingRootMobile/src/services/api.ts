@@ -1201,7 +1201,19 @@ export const apiService = {
   async saveUserFavorites(ids: string[]): Promise<boolean> {
     console.warn('saveUserFavorites is deprecated. Use toggleUserFavorite instead.');
     return true;
-  }
+  },
+
+  // Send performance logs to backend (fire-and-forget)
+  async sendPerfLogs(logs: string[]): Promise<boolean> {
+    try {
+      const client = await getApiClientAsync();
+      await client.http.post('/api/perf-logs', { logs });
+      return true;
+    } catch (error: any) {
+      console.warn('[PerfLogs] Failed to send logs:', error?.message);
+      return false;
+    }
+  },
 };
 
 // Vocabulary API functions
