@@ -8,7 +8,7 @@ const LINGROOT_VOICES = [
   // --- US FEMALE ---
   {
     id: 'lr_us_female_basic_1',
-    label: 'Amerikan Kadın 1 (Sıcak)',
+    label: 'Amerikan Kadın 1 (Basic)',
     gender: 'female',
     accent: 'american',
     quality: 'basic',
@@ -17,7 +17,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_us_female_premium_1',
-    label: 'Amerikan Kadın 2 (Neural)',
+    label: 'Amerikan Kadın 2 (Silver)',
     gender: 'female',
     accent: 'american',
     quality: 'premium',
@@ -26,7 +26,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_us_journey_female_1',
-    label: 'Amerikan Kadın 3 (Journey)',
+    label: 'Amerikan Kadın 3 (Gold)',
     gender: 'female',
     accent: 'american',
     quality: 'ultra',
@@ -45,7 +45,7 @@ const LINGROOT_VOICES = [
   // --- US MALE ---
   {
     id: 'lr_us_male_basic_1',
-    label: 'Amerikan Erkek 1 (Doğal)',
+    label: 'Amerikan Erkek 1 (Basic)',
     gender: 'male',
     accent: 'american',
     quality: 'basic',
@@ -54,7 +54,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_us_male_premium_1',
-    label: 'Amerikan Erkek 2 (Neural)',
+    label: 'Amerikan Erkek 2 (Silver)',
     gender: 'male',
     accent: 'american',
     quality: 'premium',
@@ -63,7 +63,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_us_journey_male_1',
-    label: 'Amerikan Erkek 3 (Journey)',
+    label: 'Amerikan Erkek 3 (Gold)',
     gender: 'male',
     accent: 'american',
     quality: 'ultra',
@@ -82,7 +82,7 @@ const LINGROOT_VOICES = [
   // --- GB FEMALE ---
   {
     id: 'lr_gb_female_basic_1',
-    label: 'İngiliz Kadın 1 (Sakin)',
+    label: 'İngiliz Kadın 1 (Basic)',
     gender: 'female',
     accent: 'british',
     quality: 'basic',
@@ -91,7 +91,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_gb_female_premium_1',
-    label: 'İngiliz Kadın 2 (Neural)',
+    label: 'İngiliz Kadın 2 (Silver)',
     gender: 'female',
     accent: 'british',
     quality: 'premium',
@@ -111,7 +111,7 @@ const LINGROOT_VOICES = [
   // --- GB MALE ---
   {
     id: 'lr_gb_male_basic_1',
-    label: 'İngiliz Erkek 1 (Doğal)',
+    label: 'İngiliz Erkek 1 (Basic)',
     gender: 'male',
     accent: 'british',
     quality: 'basic',
@@ -120,7 +120,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_gb_male_premium_1',
-    label: 'İngiliz Erkek 2 (Neural)',
+    label: 'İngiliz Erkek 2 (Silver)',
     gender: 'male',
     accent: 'british',
     quality: 'premium',
@@ -140,7 +140,7 @@ const LINGROOT_VOICES = [
   // --- AU FEMALE ---
   {
     id: 'lr_au_female_basic_1',
-    label: 'Avustralyalı Kadın 1 (Canlı)',
+    label: 'Avustralyalı Kadın 1 (Basic)',
     gender: 'female',
     accent: 'australian',
     quality: 'basic',
@@ -149,7 +149,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_au_female_premium_1',
-    label: 'Avustralyalı Kadın 2 (Neural)',
+    label: 'Avustralyalı Kadın 2 (Silver)',
     gender: 'female',
     accent: 'australian',
     quality: 'premium',
@@ -160,7 +160,7 @@ const LINGROOT_VOICES = [
   // --- IN FEMALE ---
   {
     id: 'lr_in_female_basic_1',
-    label: 'Hint Kadın 1 (Net)',
+    label: 'Hint Kadın 1 (Basic)',
     gender: 'female',
     accent: 'indian',
     quality: 'basic',
@@ -169,7 +169,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_in_female_premium_1',
-    label: 'Hint Kadın 2 (Neural)',
+    label: 'Hint Kadın 2 (Silver)',
     gender: 'female',
     accent: 'indian',
     quality: 'premium',
@@ -179,7 +179,7 @@ const LINGROOT_VOICES = [
   // --- US STUDIO (Google Only) ---
   {
     id: 'lr_us_studio_male_1',
-    label: 'Amerikan Erkek 5 (Studio)',
+    label: 'Amerikan Erkek 5 (Platinum)',
     gender: 'male',
     accent: 'american',
     quality: 'platinum',
@@ -188,20 +188,18 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_us_studio_female_1',
-    label: 'Amerikan Kadın 5 (Studio)',
+    label: 'Amerikan Kadın 5 (Platinum)',
     gender: 'female',
     accent: 'american',
     quality: 'platinum',
-    google: { name: 'en-US-Studio-O', languageCode: 'en-US' }, // Using same model as placeholder or check docs for female variant if exists, usually Studio is single or limited. Actually Studio-O is typically male-sounding or neutral. Let's use Studio-M (Male) and Studio-O (Female-ish? No, O is usually male). Let's check docs or use O for now.
-    // Correction: Studio voices are limited. Let's use 'en-US-Studio-O' for both or find another.
-    // Actually, let's just add one Studio voice for now.
+    google: { name: 'en-US-Studio-O', languageCode: 'en-US' },
     polly: { name: 'Joanna', languageCode: 'en-US', engine: 'neural' }
   },
 
   // --- US CHIRP (Google Only) ---
   {
     id: 'lr_us_chirp_female_1',
-    label: 'Amerikan Kadın 6 (Chirp)',
+    label: 'Amerikan Kadın 6 (Gold)',
     gender: 'female',
     accent: 'american',
     quality: 'gold',
@@ -210,7 +208,7 @@ const LINGROOT_VOICES = [
   },
   {
     id: 'lr_us_chirp_male_1',
-    label: 'Amerikan Erkek 6 (Chirp)',
+    label: 'Amerikan Erkek 6 (Gold)',
     gender: 'male',
     accent: 'american',
     quality: 'gold',
