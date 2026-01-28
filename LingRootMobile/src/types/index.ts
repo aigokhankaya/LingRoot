@@ -76,7 +76,7 @@ export interface Voice {
   displayName?: string;
   accent: 'american' | 'british' | 'australian' | 'canadian' | 'indian' | 'international';
   gender: 'male' | 'female';
-  category: 'standard' | 'wavenet' | 'neural2' | 'studio' | 'chirp3d' | 'neural' | 'generative' | 'ultra' | 'premium' | 'basic';
+  category: 'basic' | 'silver' | 'gold' | 'platinum' | 'neural' | 'generative' | 'ultra' | 'premium';
   emotion?: 'neutral' | 'cheerful' | 'serious' | 'professional' | 'excited' | 'calm' | 'friendly';
   ssmlSupport: boolean;
   description?: string;
@@ -156,6 +156,7 @@ export type RootStackParamList = {
   ReminderSettings: undefined;
   TtsProviderSettings: undefined;
   TopicTree: undefined;
+  AudioPlayer: { track: AudioTrack; highlightMode?: 'word' | 'sentence' };
 };
 
 export type MainTabParamList = {
