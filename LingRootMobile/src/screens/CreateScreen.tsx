@@ -457,10 +457,10 @@ const CreateScreen: React.FC = () => {
       if (category === 'silver') {
         const isWavenet = vName.includes('wavenet') || pName.includes('wavenet');
         const isNeural2 = vName.includes('neural2') || pName.includes('neural2');
-        return quality === 'premium' || isWavenet || isNeural2;
+        return quality === 'silver' || isWavenet || isNeural2;
       }
-      // Gold = Chirp3D
-      if (category === 'gold') return quality === 'gold' || quality === 'ultra' || vName.includes('chirp') || pName.includes('chirp');
+      // Gold = Chirp3D + Journey
+      if (category === 'gold') return quality === 'gold' || vName.includes('chirp') || pName.includes('chirp') || vName.includes('journey') || pName.includes('journey');
       // Platinum = Studio
       if (category === 'platinum') return quality === 'platinum' || vName.includes('studio') || pName.includes('studio');
       return false;

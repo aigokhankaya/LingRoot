@@ -16,20 +16,20 @@ const LINGROOT_VOICES = [
     polly: { name: 'Joanna', languageCode: 'en-US', engine: 'standard' }
   },
   {
-    id: 'lr_us_female_premium_1',
+    id: 'lr_us_female_silver_1',
     label: 'Amerikan Kadın 2 (Silver)',
     gender: 'female',
     accent: 'american',
-    quality: 'premium',
+    quality: 'silver',
     google: { name: 'en-US-Neural2-H', languageCode: 'en-US' },
     polly: { name: 'Salli', languageCode: 'en-US', engine: 'neural' }
   },
   {
-    id: 'lr_us_journey_female_1',
+    id: 'lr_us_female_gold_1',
     label: 'Amerikan Kadın 3 (Gold)',
     gender: 'female',
     accent: 'american',
-    quality: 'ultra',
+    quality: 'gold',
     google: { name: 'en-US-Journey-F', languageCode: 'en-US' }
   },
   {
@@ -53,20 +53,20 @@ const LINGROOT_VOICES = [
     polly: { name: 'Matthew', languageCode: 'en-US', engine: 'standard' }
   },
   {
-    id: 'lr_us_male_premium_1',
+    id: 'lr_us_male_silver_1',
     label: 'Amerikan Erkek 2 (Silver)',
     gender: 'male',
     accent: 'american',
-    quality: 'premium',
+    quality: 'silver',
     google: { name: 'en-US-Neural2-J', languageCode: 'en-US' },
     polly: { name: 'Justin', languageCode: 'en-US', engine: 'neural' }
   },
   {
-    id: 'lr_us_journey_male_1',
+    id: 'lr_us_male_gold_1',
     label: 'Amerikan Erkek 3 (Gold)',
     gender: 'male',
     accent: 'american',
-    quality: 'ultra',
+    quality: 'gold',
     google: { name: 'en-US-Journey-D', languageCode: 'en-US' }
   },
   {
@@ -90,11 +90,11 @@ const LINGROOT_VOICES = [
     polly: { name: 'Amy', languageCode: 'en-GB', engine: 'standard' }
   },
   {
-    id: 'lr_gb_female_premium_1',
+    id: 'lr_gb_female_silver_1',
     label: 'İngiliz Kadın 2 (Silver)',
     gender: 'female',
     accent: 'british',
-    quality: 'premium',
+    quality: 'silver',
     google: { name: 'en-GB-Neural2-C', languageCode: 'en-GB' },
     polly: { name: 'Emma', languageCode: 'en-GB', engine: 'neural' }
   },
@@ -119,11 +119,11 @@ const LINGROOT_VOICES = [
     polly: { name: 'Brian', languageCode: 'en-GB', engine: 'standard' }
   },
   {
-    id: 'lr_gb_male_premium_1',
+    id: 'lr_gb_male_silver_1',
     label: 'İngiliz Erkek 2 (Silver)',
     gender: 'male',
     accent: 'british',
-    quality: 'premium',
+    quality: 'silver',
     google: { name: 'en-GB-Neural2-B', languageCode: 'en-GB' },
     polly: { name: 'Arthur', languageCode: 'en-GB', engine: 'neural' }
   },
@@ -148,11 +148,11 @@ const LINGROOT_VOICES = [
     polly: { name: 'Olivia', languageCode: 'en-AU', engine: 'standard' }
   },
   {
-    id: 'lr_au_female_premium_1',
+    id: 'lr_au_female_silver_1',
     label: 'Avustralyalı Kadın 2 (Silver)',
     gender: 'female',
     accent: 'australian',
-    quality: 'premium',
+    quality: 'silver',
     google: { name: 'en-AU-Neural2-A', languageCode: 'en-AU' },
     polly: { name: 'Olivia', languageCode: 'en-AU', engine: 'neural' }
   },
@@ -168,17 +168,17 @@ const LINGROOT_VOICES = [
     polly: { name: 'Kajal', languageCode: 'en-IN', engine: 'standard' }
   },
   {
-    id: 'lr_in_female_premium_1',
+    id: 'lr_in_female_silver_1',
     label: 'Hint Kadın 2 (Silver)',
     gender: 'female',
     accent: 'indian',
-    quality: 'premium',
+    quality: 'silver',
     google: { name: 'en-IN-Wavenet-A', languageCode: 'en-IN' },
     polly: { name: 'Kajal', languageCode: 'en-IN', engine: 'neural' }
   },
-  // --- US STUDIO (Google Only) ---
+  // --- US PLATINUM (Google Studio) ---
   {
-    id: 'lr_us_studio_male_1',
+    id: 'lr_us_male_platinum_1',
     label: 'Amerikan Erkek 5 (Platinum)',
     gender: 'male',
     accent: 'american',
@@ -187,7 +187,7 @@ const LINGROOT_VOICES = [
     polly: { name: 'Matthew', languageCode: 'en-US', engine: 'neural' } // Fallback to best available
   },
   {
-    id: 'lr_us_studio_female_1',
+    id: 'lr_us_female_platinum_1',
     label: 'Amerikan Kadın 5 (Platinum)',
     gender: 'female',
     accent: 'american',
@@ -196,9 +196,9 @@ const LINGROOT_VOICES = [
     polly: { name: 'Joanna', languageCode: 'en-US', engine: 'neural' }
   },
 
-  // --- US CHIRP (Google Only) ---
+  // --- US GOLD (Google Chirp) ---
   {
-    id: 'lr_us_chirp_female_1',
+    id: 'lr_us_female_gold_2',
     label: 'Amerikan Kadın 6 (Gold)',
     gender: 'female',
     accent: 'american',
@@ -207,7 +207,7 @@ const LINGROOT_VOICES = [
     polly: { name: 'Ruth', languageCode: 'en-US', engine: 'generative' } // Closest high-end match
   },
   {
-    id: 'lr_us_chirp_male_1',
+    id: 'lr_us_male_gold_2',
     label: 'Amerikan Erkek 6 (Gold)',
     gender: 'male',
     accent: 'american',
