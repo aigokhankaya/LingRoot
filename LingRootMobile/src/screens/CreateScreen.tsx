@@ -21,11 +21,11 @@ import { pick, keepLocalCopy } from '@react-native-documents/picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import * as ttsService from '../services/ttsService';
 import * as bookService from '../services/bookService';
 import { submitContent } from '../services/contentService';
 import { getMyPlanFeatures, PlanFeatures, getUsageSummary } from '../services/subscriptionService';
-import AudioPlayer from '../components/AudioPlayer';
 import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
 import { COLORS } from '../theme/colors';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
@@ -55,6 +55,7 @@ const CreateScreen: React.FC = () => {
               : 'text'
   );
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const screenHeight = Dimensions.get('window').height;
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -65,8 +66,6 @@ const CreateScreen: React.FC = () => {
   const [isTtsJobLocked, setIsTtsJobLocked] = useState(false);
   const [ttsJobMessage, setTtsJobMessage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<any>(null);
-  const [createdTrack, setCreatedTrack] = useState<AudioTrack | null>(null);
-  const [showPlayer, setShowPlayer] = useState(false);
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
 
   // Success alert modal state
@@ -363,14 +362,14 @@ const CreateScreen: React.FC = () => {
 
 
   // Voice selection states - Default to empty
-  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('basic');
   const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [selectedAccent, setSelectedAccent] = useState<string>('all');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [showVoiceSelection, setShowVoiceSelection] = useState<boolean>(false);
-  const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard';
+  const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'basic';
   const [shouldPromoteSelectedVoiceTop, setShouldPromoteSelectedVoiceTop] = useState<boolean>(false);
   const [currentProvider, setCurrentProvider] = useState<string>('google'); // TTS provider
 
@@ -402,12 +401,12 @@ const CreateScreen: React.FC = () => {
   // Derive filters (category, accent) from a voice name like "en-GB-Chirp3-HD-Achernar"
   const deriveFiltersFromVoiceName = (voiceName?: string): { category: string; accent: string } => {
     const name = (voiceName || '').toString();
-    // Category
-    let category = 'standard';
-    if (name.includes('Chirp') || name.toLowerCase().includes('chirp')) category = 'chirp3d';
-    else if (name.includes('Studio')) category = 'studio';
-    else if (name.toLowerCase().includes('neural2')) category = 'neural2';
-    else if (name.toLowerCase().includes('wavenet')) category = 'wavenet';
+    // Category - New naming: basic, silver (wavenet+neural2), gold (chirp3d), platinum (studio)
+    let category = 'basic';
+    if (name.includes('Chirp') || name.toLowerCase().includes('chirp')) category = 'gold';
+    else if (name.includes('Studio')) category = 'platinum';
+    else if (name.toLowerCase().includes('neural2')) category = 'silver';
+    else if (name.toLowerCase().includes('wavenet')) category = 'silver';
     // Accent by language code
     let accent = 'american';
     if (name.includes('en-GB')) accent = 'british';
@@ -438,6 +437,7 @@ const CreateScreen: React.FC = () => {
   };
 
   // Helper to determine if a voice matches a specific category (Provider agnostic)
+  // New naming: basic, silver (wavenet+neural2), gold (chirp3d), platinum (studio)
   const isVoiceInCategory = (voice: any, category: string, provider: string): boolean => {
     const vName = (voice.name || '').toLowerCase();
     const pVoice = voice.providerVoice || {};
@@ -446,18 +446,23 @@ const CreateScreen: React.FC = () => {
     const quality = (voice.quality || '').toLowerCase();
 
     if (provider === 'amazon' || provider === 'polly') {
-      if (category === 'standard') return quality === 'basic' || pEngine === 'standard';
+      if (category === 'basic') return quality === 'basic' || pEngine === 'standard';
       if (category === 'neural') return quality === 'premium' || pEngine === 'neural';
       if (category === 'generative') return quality === 'generative' || quality === 'ultra' || pEngine === 'generative';
       return false;
     } else {
-      // Google (default)
-      if (category === 'standard') return quality === 'basic' || vName.includes('standard') || pName.includes('standard');
-      // Wavenet is mostly deprecated/merged into Neural/Standard, but we map 'premium' to it for backward compat if tab exists
-      if (category === 'wavenet') return quality === 'premium' || vName.includes('wavenet') || pName.includes('wavenet');
-      if (category === 'neural2') return quality === 'premium' || vName.includes('neural2') || pName.includes('neural2');
-      if (category === 'studio') return quality === 'platinum' || vName.includes('studio') || pName.includes('studio');
-      if (category === 'chirp3d') return quality === 'gold' || quality === 'ultra' || vName.includes('chirp') || pName.includes('chirp');
+      // Google (default) - New naming scheme
+      if (category === 'basic') return quality === 'basic' || vName.includes('standard') || pName.includes('standard');
+      // Silver = WaveNet + Neural2 (both $16/1M chars, merged)
+      if (category === 'silver') {
+        const isWavenet = vName.includes('wavenet') || pName.includes('wavenet');
+        const isNeural2 = vName.includes('neural2') || pName.includes('neural2');
+        return quality === 'premium' || isWavenet || isNeural2;
+      }
+      // Gold = Chirp3D
+      if (category === 'gold') return quality === 'gold' || quality === 'ultra' || vName.includes('chirp') || pName.includes('chirp');
+      // Platinum = Studio
+      if (category === 'platinum') return quality === 'platinum' || vName.includes('studio') || pName.includes('studio');
       return false;
     }
   };
@@ -469,21 +474,21 @@ const CreateScreen: React.FC = () => {
   };
 
   // Dynamic Voice Categories based on Provider
+  // New naming: Basic, Silver (WaveNet+Neural2), Gold (Chirp3D), Platinum (Studio)
   const voiceCategories: VoiceCategory[] = React.useMemo(() => {
     if (currentProvider === 'amazon' || currentProvider === 'polly') {
       return [
-        { value: 'standard', label: 'Standard', icon: 'volume-up', badge: t('create.voice.badge.free') },
+        { value: 'basic', label: 'Basic', icon: 'volume-up', badge: t('create.voice.badge.free') },
         { value: 'neural', label: 'Neural', icon: 'star', badge: t('create.voice.badge.premium') },
         { value: 'generative', label: 'Generative', icon: 'psychology', badge: 'Ultra' },
       ];
     } else {
-      // Google
+      // Google - 4 categories (WaveNet + Neural2 merged into Silver)
       return [
-        { value: 'standard', label: 'Standard', icon: 'volume-up', badge: t('create.voice.badge.free') },
-        { value: 'wavenet', label: 'WaveNet', icon: 'graphic-eq', badge: t('create.voice.badge.premium') },
-        { value: 'neural2', label: 'Neural2', icon: 'star', badge: 'Plus' },
-        { value: 'studio', label: 'Studio', icon: 'mic', badge: 'Pro' },
-        { value: 'chirp3d', label: 'Chirp', icon: 'surround-sound', badge: 'Ultra' },
+        { value: 'basic', label: 'Basic', icon: 'volume-up', badge: t('create.voice.badge.free') },
+        { value: 'silver', label: 'Silver', icon: 'graphic-eq', badge: t('create.voice.badge.premium') },
+        { value: 'gold', label: 'Gold', icon: 'surround-sound', badge: 'Ultra' },
+        { value: 'platinum', label: 'Platinum', icon: 'mic', badge: 'Pro' },
       ];
     }
   }, [currentProvider, t]);
@@ -506,18 +511,18 @@ const CreateScreen: React.FC = () => {
     { value: 'female', label: t('create.voice.genders.female') },
   ];
 
-  // Fetch plan features
+  // Fetch plan features (with caching - userId enables user-aware cache)
   useEffect(() => {
     const fetchPlanFeatures = async () => {
       try {
-        const result = await getMyPlanFeatures();
+        const result = await getMyPlanFeatures(user?.id);
         setPlanFeatures(result.features);
       } catch (error) {
         console.error('Error loading plan features:', error);
       }
     };
     fetchPlanFeatures();
-  }, []);
+  }, [user?.id]);
 
   // Fetch current TTS provider
   useEffect(() => {
@@ -784,22 +789,19 @@ const CreateScreen: React.FC = () => {
         const isAmazon = currentProvider === 'amazon' || currentProvider === 'polly';
 
         if (isAmazon) {
-          const isStandard = isVoiceInCategory(voice, 'standard', 'amazon') && categories.amazon_standard;
+          const isBasic = isVoiceInCategory(voice, 'basic', 'amazon') && categories.amazon_standard;
           const isNeural = isVoiceInCategory(voice, 'neural', 'amazon') && categories.amazon_neural;
           const isGenerative = isVoiceInCategory(voice, 'generative', 'amazon') && categories.amazon_generative;
-          return isStandard || isNeural || isGenerative;
+          return isBasic || isNeural || isGenerative;
         } else {
-          // Google
-          const isStandard = isVoiceInCategory(voice, 'standard', 'google') && (categories.standard ?? true); // Default true if undefined
-          const isWavenet = isVoiceInCategory(voice, 'wavenet', 'google') && (categories.wavenet || categories.neural2); // Allow wavenet if neural2 is enabled (backward compat)
-          const isNeural2 = isVoiceInCategory(voice, 'neural2', 'google') && categories.neural2;
-          const isStudio = isVoiceInCategory(voice, 'studio', 'google') && categories.studio;
-          const isChirp = isVoiceInCategory(voice, 'chirp3d', 'google') && categories.chirp3d;
+          // Google - New naming: basic, silver (wavenet+neural2), gold (chirp3d), platinum (studio)
+          const isBasic = isVoiceInCategory(voice, 'basic', 'google') && (categories.standard ?? true); // Default true if undefined
+          // Silver = WaveNet + Neural2 merged (both allowed if either wavenet or neural2 is enabled in plan)
+          const isSilver = isVoiceInCategory(voice, 'silver', 'google') && (categories.wavenet || categories.neural2);
+          const isGold = isVoiceInCategory(voice, 'gold', 'google') && categories.chirp3d;
+          const isPlatinum = isVoiceInCategory(voice, 'platinum', 'google') && categories.studio;
 
-          const result = isStandard || isWavenet || isNeural2 || isStudio || isChirp;
-          if (!result && voices.length < 5) { // Log detailed failure for first few voices
-            // console.log(`❌ [Filter Fail] ${voice.name} | Q:${voice.quality} | S:${categories.standard}/${isStandard} W:${categories.wavenet}/${isWavenet} N:${categories.neural2}/${isNeural2}`);
-          }
+          const result = isBasic || isSilver || isGold || isPlatinum;
           return result;
         }
       });
@@ -895,11 +897,11 @@ const CreateScreen: React.FC = () => {
   // Update filtered voices when filters change
   useEffect(() => {
     // Kategori değiştiğinde veya filtreler değiştiğinde backend'den filtrele
-    if (selectedVoiceCategory !== 'standard') {
-      // Neural veya diğer kategoriler seçiliyse backend'den filtrele (accent/gender ile birlikte)
+    if (selectedVoiceCategory !== 'basic') {
+      // Silver/Gold/Platinum kategorileri seçiliyse backend'den filtrele (accent/gender ile birlikte)
       fetchFilteredVoices(selectedAccent, selectedGender, selectedVoiceCategory);
     } else if (selectedAccent !== 'all' || selectedGender !== 'all') {
-      // Sadece accent/gender filtresi varsa (standard kategoride) backend'den filtrele
+      // Sadece accent/gender filtresi varsa (basic kategoride) backend'den filtrele
       fetchFilteredVoices(selectedAccent, selectedGender);
     } else {
       // Hiç filtre yoksa tüm sesleri getir
@@ -1304,8 +1306,11 @@ const CreateScreen: React.FC = () => {
         words: safeWords,
       };
 
-      setCreatedTrack(newTrack);
-      setShowPlayer(true);
+      // Navigate to AudioPlayer screen instead of using modal
+      navigation.navigate('AudioPlayer', {
+        track: newTrack,
+        highlightMode: 'word'
+      });
 
       // Firebase Analytics: Podcast creation completed
       AnalyticsHelper.logEvent('content_creation_complete', {
@@ -2182,22 +2187,6 @@ const CreateScreen: React.FC = () => {
           <Text style={styles.createButtonText}>{globalCreateLabel}</Text>
         </TouchableOpacity>
       </ScrollView>
-
-      {/* Audio Player Modal */}
-      {createdTrack && (
-        <AudioPlayer
-          track={createdTrack}
-          visible={showPlayer}
-          onClose={() => {
-            setShowPlayer(false);
-            setCreatedTrack(null);
-            // Navigate to Library after closing player
-            navigation.navigate('Library' as never);
-          }}
-          timepoints={createdTrack.timepoints || []}
-          words={createdTrack.words || []}
-        />
-      )}
 
       {/* Success Alert Modal */}
       <Modal
