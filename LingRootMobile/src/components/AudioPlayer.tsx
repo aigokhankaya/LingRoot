@@ -39,6 +39,7 @@ interface AudioPlayerProps {
   timepoints?: Timepoint[];
   words?: string[];
   initialHighlightMode?: 'word' | 'sentence';
+  asScreen?: boolean; // When true, renders without Modal wrapper (for use as navigation screen)
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -50,6 +51,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   timepoints = [],
   words = [],
   initialHighlightMode = 'word',
+  asScreen = false,
 }) => {
   const insets = useSafeAreaInsets();
   const { language, t } = useLanguage();
@@ -86,6 +88,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
+  const [isClosing, setIsClosing] = useState(false); // Track if modal is closing to hide Skia early
 
   // Debug: Log pageIndex changes
   useEffect(() => {
@@ -615,6 +618,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         setCurrentSentenceIndex(-1);
         setCurrentDialogueIndex(-1);
         setSelectedWords(new Set());
+        setWordPopup(null); // Close any open word popup to prevent frozen UI
+        setIsClosing(false); // Reset closing state
 
         // Reset refs as well
         durationRef.current = 0;
@@ -623,6 +628,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }, 350);
 
       return () => clearTimeout(timer);
+    } else {
+      // Reset isClosing when modal opens
+      setIsClosing(false);
     }
 
     return () => {
@@ -692,11 +700,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       await stopAllAudio();
 
       // CRITICAL: Log audio URL to verify which file is being loaded
-      console.log(`🎵 [AUDIO LOAD] Loading audio from URL: ${track.url}`);
+      // Use url or mp3_url (API returns mp3_url, but AudioTrack interface has both)
+      const audioUrl = track.url || track.mp3_url;
+      console.log(`🎵 [AUDIO LOAD] Loading audio from URL: ${audioUrl}`);
       console.log(`🎵 [AUDIO LOAD] Track ID: ${track.id}, Title: ${track.adapted_text?.substring(0, 50)}...`);
 
+      if (!audioUrl) {
+        throw new Error('No audio URL available');
+      }
+
       // Create TrackPlayer-backed sound
-      const newSound = await createSound(track.url);
+      const newSound = await createSound(audioUrl);
       setSound(newSound);
 
       // Set up status update listener first
@@ -746,7 +760,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         if (status.isPlaying && !wasPlayingRef.current) {
           AnalyticsHelper.logEvent('audio_play_start', {
             content_id: track.id,
-            audio_url: track.url,
+            audio_url: track.url || track.mp3_url,
             duration: duration / 1000 // seconds
           });
         }
@@ -1474,8 +1488,31 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Custom close handler - hides Skia first to prevent iOS freeze
+  const handleSafeClose = useCallback(() => {
+    perfLog.mark('audioPlayer:safeClose:start');
+    // First hide Skia components
+    setIsClosing(true);
+    // Wait for next frame to ensure Skia is unmounted, then close modal
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        onClose();
+        perfLog.mark('audioPlayer:safeClose:afterOnClose');
+      }, 50);
+    });
+  }, [onClose]);
+
   const renderHighlightedText = () => {
-    console.log(`🎨 [AudioPlayer] renderHighlightedText - showPatterns: ${showPatterns}, level: ${track.level}`);
+    console.log(`🎨 [AudioPlayer] renderHighlightedText - showPatterns: ${showPatterns}, level: ${track.level}, isClosing: ${isClosing}`);
+
+    // Don't render Skia components when closing to prevent iOS freeze
+    if (isClosing) {
+      return (
+        <View style={{ padding: 16 }}>
+          <Text style={{ color: '#666', textAlign: 'center' }}>...</Text>
+        </View>
+      );
+    }
 
     // Always render word/sentence highlighting (Skia-based)
     if (highlightMode === 'word') {
@@ -1577,6 +1614,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         onWordPositionChange={handleWordPositionChange}
         patternData={patternData}
         showPatterns={showPatterns}
+        visible={visible}
       />
     );
 
@@ -1595,7 +1633,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     //     mode="word"
     //   />
     // );
-  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress, patternData, showPatterns]);
+  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress, patternData, showPatterns, visible]);
 
   const handleSentencePressCallback = useCallback((sentenceIndex: number, sentenceText: string) => {
     const totalDuration = duration / 1000;
@@ -1618,9 +1656,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         containerWidth={screenWidth - 32}
         onSentencePress={handleSentencePressCallback}
         onWordLongPress={handleWordLongPress}
+        visible={visible}
       />
     );
-  }, [sentences, currentSentenceIndex, selectedWords, handleSentencePressCallback, handleWordLongPress]);
+  }, [sentences, currentSentenceIndex, selectedWords, handleSentencePressCallback, handleWordLongPress, visible]);
 
   const handleDialoguePress = useCallback((index: number) => {
     if (!dialogueSegments || dialogueSegments.length === 0) {
@@ -1837,23 +1876,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const progressPercentage = duration > 0 ? (position / duration) * 100 : 0;
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-      presentationStyle="fullScreen"
-      onDismiss={() => perfLog.mark('modal:onDismiss')}
-    >
+  // Inner content - rendered with or without Modal wrapper based on asScreen prop
+  const playerContent = (
       <View style={[styles.container, { paddingTop: insets.top + 56 }]}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: Math.max(8, insets.top + 8) }]}>
           <TouchableOpacity
-            onPress={() => {
-              perfLog.mark('audioPlayer:closeBtn:pressed');
-              onClose();
-              perfLog.mark('audioPlayer:closeBtn:afterOnClose');
-            }}
+            onPress={handleSafeClose}
             style={styles.closeButton}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
@@ -1895,11 +1924,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         {/* Extra floating close button to guarantee tappable area */}
         <TouchableOpacity
-          onPress={() => {
-            perfLog.mark('audioPlayer:floatingCloseBtn:pressed');
-            onClose();
-            perfLog.mark('audioPlayer:floatingCloseBtn:afterOnClose');
-          }}
+          onPress={handleSafeClose}
           style={[
             styles.floatingClose,
             { top: Math.max(12, insets.top + 6) }
@@ -2155,10 +2180,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </View>
 
         {/* Word info popup */}
-        {wordPopup && (
+        {visible && wordPopup && (
           <Modal
             transparent
-            visible
+            visible={true}
             animationType="fade"
             onRequestClose={() => {
               setWordPopup(null);
@@ -2301,6 +2326,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </Modal>
         )}
       </View>
+  );
+
+  // When used as a screen (via React Navigation), render without Modal wrapper
+  if (asScreen) {
+    return playerContent;
+  }
+
+  // When used as a modal component, wrap in Modal
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      onRequestClose={handleSafeClose}
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+      onDismiss={() => perfLog.mark('modal:onDismiss')}
+    >
+      {playerContent}
     </Modal>
   );
 };

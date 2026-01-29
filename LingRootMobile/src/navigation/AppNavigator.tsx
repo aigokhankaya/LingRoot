@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
 import BlurHeader from '../components/BlurHeader';
+import KeyboardToggleOverlay from '../components/KeyboardToggleOverlay';
 import perfLog from '../utils/performanceLogger';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -40,6 +41,7 @@ import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
 import TtsProviderSettingsScreen from '../screens/TtsProviderSettingsScreen';
 import LiroScreen from '../screens/LiroScreen';
+import AudioPlayerScreen from '../screens/AudioPlayerScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -544,168 +546,182 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer
-      ref={navigationRef}
-      onReady={() => {
-        setNavReady(true);
-        const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
-        if (currentRouteName) {
-          logScreenView(currentRouteName, currentRouteName);
-        }
-      }}
-      onStateChange={async () => {
-        const previousRouteName = (global as any).__currentRouteName;
-        const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+    <View style={{ flex: 1 }}>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={() => {
+          setNavReady(true);
+          const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+          if (currentRouteName) {
+            logScreenView(currentRouteName, currentRouteName);
+          }
+        }}
+        onStateChange={async () => {
+          const previousRouteName = (global as any).__currentRouteName;
+          const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
 
-        if (previousRouteName !== currentRouteName && currentRouteName) {
-          await logScreenView(currentRouteName, currentRouteName);
-          perfLog.setScreen(currentRouteName);
-        }
-        (global as any).__currentRouteName = currentRouteName;
-      }}
-    >
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <>
-            <Stack.Screen
-              name="Main"
-              component={MainTabs}
-              options={{ headerBackTitle: t('common.back') }}
-            />
-            <Stack.Screen
-              name="TopicTree"
-              component={TopicTreeScreen}
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                headerTitle: language === 'tr' ? 'Konu Ağacım' : 'My Topic Tree',
-              }}
-            />
-            <Stack.Screen
-              name="Vocabulary"
-              component={VocabularyScreen}
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                headerTitle: language === 'tr' ? 'Kelimelerim' : 'My Vocabulary',
-              }}
-            />
-            <Stack.Screen
-              name="Liro"
-              component={LiroScreen}
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                headerTitle: 'LIRO',
-              }}
-            />
-            <Stack.Screen
-              name="Settings"
-              component={AccountSettingsScreen}
-              options={({ navigation }) => ({
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                headerTitle: t('profile.accountSettings'),
-              })}
-            />
-            <Stack.Screen
-              name="Membership"
-              component={MembershipScreen}
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-              }}
-            />
-            <Stack.Screen
-              name="Packages"
-              component={PackagesScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="Chat"
-              component={ChatScreen}
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                headerTitle: language === 'tr' ? 'Destek' : 'Support',
-              }}
-            />
-            <Stack.Screen
-              name="PatternList"
-              component={PatternListScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="PrivacyPolicy"
-              component={PrivacyPolicyScreen}
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                headerTitle: language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy',
-              }}
-            />
-            <Stack.Screen
-              name="TermsOfService"
-              component={TermsOfServiceScreen}
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
-              }}
-            />
-            <Stack.Screen
-              name="ReminderSettings"
-              component={ReminderSettingsScreen}
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                headerBackground: () => <BlurHeader />,
-                headerTintColor: COLORS.slate900,
-                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
-              }}
-            />
-            <Stack.Screen
-              name="TtsProviderSettings"
-              component={TtsProviderSettingsScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
-          </>
-        ) : (
-          <Stack.Screen name="Auth" component={AuthStack} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+          if (previousRouteName !== currentRouteName && currentRouteName) {
+            await logScreenView(currentRouteName, currentRouteName);
+            perfLog.setScreen(currentRouteName);
+          }
+          (global as any).__currentRouteName = currentRouteName;
+        }}
+      >
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {user ? (
+            <>
+              <Stack.Screen
+                name="Main"
+                component={MainTabs}
+                options={{ headerBackTitle: t('common.back') }}
+              />
+              <Stack.Screen
+                name="TopicTree"
+                component={TopicTreeScreen}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: language === 'tr' ? 'Konu Ağacım' : 'My Topic Tree',
+                  headerBackTitle: t('common.back'),
+                }}
+              />
+              <Stack.Screen
+                name="Vocabulary"
+                component={VocabularyScreen}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: language === 'tr' ? 'Kelimelerim' : 'My Vocabulary',
+                  headerBackTitle: t('common.back'),
+                }}
+              />
+              <Stack.Screen
+                name="Liro"
+                component={LiroScreen}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: 'LIRO',
+                }}
+              />
+              <Stack.Screen
+                name="Settings"
+                component={AccountSettingsScreen}
+                options={({ navigation }) => ({
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: t('profile.accountSettings'),
+                })}
+              />
+              <Stack.Screen
+                name="Membership"
+                component={MembershipScreen}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                }}
+              />
+              <Stack.Screen
+                name="Packages"
+                component={PackagesScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="Chat"
+                component={ChatScreen}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: language === 'tr' ? 'Destek' : 'Support',
+                }}
+              />
+              <Stack.Screen
+                name="PatternList"
+                component={PatternListScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="PrivacyPolicy"
+                component={PrivacyPolicyScreen}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy',
+                }}
+              />
+              <Stack.Screen
+                name="TermsOfService"
+                component={TermsOfServiceScreen}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
+                }}
+              />
+              <Stack.Screen
+                name="ReminderSettings"
+                component={ReminderSettingsScreen}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
+                }}
+              />
+              <Stack.Screen
+                name="TtsProviderSettings"
+                component={TtsProviderSettingsScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="AudioPlayer"
+                component={AudioPlayerScreen}
+                options={{
+                  headerShown: false,
+                  presentation: 'modal',
+                  gestureEnabled: true,
+                }}
+              />
+            </>
+          ) : (
+            <Stack.Screen name="Auth" component={AuthStack} />
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+      <KeyboardToggleOverlay />
+    </View>
   );
 };
 

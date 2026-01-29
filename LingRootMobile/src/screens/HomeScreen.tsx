@@ -19,7 +19,6 @@ import { getUserAudioCount, getUserAudioHistory } from '../services/contentServi
 import { getMyPlanFeatures, PlanFeatures } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 import { AudioTrack } from '../types';
-import AudioPlayer from '../components/AudioPlayer';
 import perfLog from '../utils/performanceLogger';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -48,8 +47,6 @@ const HomeScreen: React.FC = () => {
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState(true);
   const [recentTracks, setRecentTracks] = useState<AudioTrack[]>([]);
-  const [selectedTrack, setSelectedTrack] = useState<AudioTrack | null>(null);
-  const [showPlayer, setShowPlayer] = useState(false);
 
   // Animations
   const slideUpAnim = useRef(new Animated.Value(20)).current;
@@ -193,12 +190,12 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  // Fetch plan features
+  // Fetch plan features (with caching - userId enables user-aware cache)
   const fetchPlanFeatures = async () => {
     perfLog.start('fetchPlanFeatures', 'HomeScreen');
     try {
-      setFeaturesLoading(true);
-      const result = await getMyPlanFeatures();
+      // Pass userId to enable user-aware caching
+      const result = await getMyPlanFeatures(user?.id);
       setPlanFeatures(result.features);
     } catch (error) {
       console.error('Error loading plan features:', error);
@@ -512,13 +509,9 @@ const HomeScreen: React.FC = () => {
           {recentTracks.length > 0 && (
             <View style={styles.jumpBackInSection}>
               <Text style={styles.jumpBackInTitle}>
-                {language === 'tr' ? 'Kaldığın Yerden Devam Et' : 'Jump Back In'}
+                {language === 'tr' ? 'Son 5 Kayıt' : 'Last 5 Records'}
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.jumpBackInList}
-              >
+              <View style={styles.jumpBackInList}>
                 {recentTracks.map((track) => {
                   const levelColors: { [key: string]: string } = {
                     'A1': '#10B981', 'A2': '#3B82F6', 'B1': '#8B5CF6',
@@ -530,14 +523,28 @@ const HomeScreen: React.FC = () => {
                       track.input_type === 'podcast' ? 'Podcast' : 'Text';
                   const duration = track.duration ? `${Math.round(track.duration / 60)}m` : '';
 
+                  // Get display title from adapted_text or translated_text (first ~50 chars)
+                  const getDisplayTitle = (): string => {
+                    const text = track.adapted_text || track.translated_text || track.title;
+                    if (!text || text === 'Untitled') {
+                      return language === 'tr' ? 'Başlıksız' : 'Untitled';
+                    }
+                    // Take first ~50 characters for vertical layout
+                    if (text.length <= 50) return text;
+                    const truncated = text.substring(0, 50);
+                    const lastSpace = truncated.lastIndexOf(' ');
+                    return (lastSpace > 25 ? truncated.substring(0, lastSpace) : truncated) + '...';
+                  };
+
                   return (
                     <TouchableOpacity
                       key={track.id}
                       style={styles.jumpBackInCard}
                       activeOpacity={0.9}
                       onPress={() => {
-                        setSelectedTrack(track);
-                        setShowPlayer(true);
+                        // Navigate to Library and pass track to open player there
+                        // This avoids iOS freeze issue with nested modals
+                        navigation.navigate('Library', { playTrack: track });
                       }}
                     >
                       <View style={styles.jumpBackInIconContainer}>
@@ -545,7 +552,7 @@ const HomeScreen: React.FC = () => {
                       </View>
                       <View style={styles.jumpBackInContent}>
                         <Text style={styles.jumpBackInTrackTitle} numberOfLines={1}>
-                          {track.title || 'Untitled'}
+                          {getDisplayTitle()}
                         </Text>
                         <View style={styles.jumpBackInMeta}>
                           <View style={[styles.jumpBackInLevelBadge, { backgroundColor: levelColor }]}>
@@ -559,7 +566,7 @@ const HomeScreen: React.FC = () => {
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
           )}
           {/* Tip Box */}
@@ -583,19 +590,6 @@ const HomeScreen: React.FC = () => {
         </Animated.View>
       </ScrollView>
 
-      {/* Audio Player Modal */}
-      {selectedTrack && (
-        <AudioPlayer
-          track={selectedTrack}
-          visible={showPlayer}
-          onClose={() => {
-            setShowPlayer(false);
-            setSelectedTrack(null);
-          }}
-          timepoints={selectedTrack.timepoints || []}
-          words={selectedTrack.words || []}
-        />
-      )}
     </SafeAreaView>
   );
 };
@@ -1045,17 +1039,15 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   jumpBackInList: {
-    paddingRight: 24,
-    gap: 12,
+    gap: 10,
   },
   jumpBackInCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 14,
-    paddingRight: 20,
-    minWidth: 180,
+    borderRadius: 16,
+    padding: 12,
+    paddingRight: 16,
     shadowColor: '#94a3b8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,

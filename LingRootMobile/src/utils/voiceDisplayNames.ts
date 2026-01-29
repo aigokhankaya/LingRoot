@@ -32,7 +32,8 @@ interface VoiceDisplayEntry {
   tr: string;
 }
 
-const LINGROOT_VOICE_DISPLAY_NAMES: Record<LingrootVoiceId, VoiceDisplayEntry> = {
+const LINGROOT_VOICE_DISPLAY_NAMES: Record<string, VoiceDisplayEntry> = {
+  // === Legacy voice IDs (backward compatibility) ===
   // Basic voices
   lr_us_female_basic_1: { en: 'American Female 1', tr: 'Amerikan Kadın 1' },
   lr_us_male_basic_1: { en: 'American Male 1', tr: 'Amerikan Erkek 1' },
@@ -60,6 +61,43 @@ const LINGROOT_VOICE_DISPLAY_NAMES: Record<LingrootVoiceId, VoiceDisplayEntry> =
   lr_us_male_generative_1: { en: 'American Male 4', tr: 'Amerikan Erkek 4' },
   lr_gb_female_generative_1: { en: 'British Female 3', tr: 'İngiliz Kadın 3' },
   lr_gb_male_generative_1: { en: 'British Male 3', tr: 'İngiliz Erkek 3' },
+
+  // === New active voice IDs (tier-based naming) ===
+  // en-US Basic
+  lr_us_standard_f: { en: 'American Female Basic 1', tr: 'Amerikan Kadın Basic 1' },
+  lr_us_standard_j: { en: 'American Male Basic 1', tr: 'Amerikan Erkek Basic 1' },
+  // en-US Silver
+  lr_us_wavenet_f: { en: 'American Female Silver 1', tr: 'Amerikan Kadın Silver 1' },
+  lr_us_wavenet_j: { en: 'American Male Silver 1', tr: 'Amerikan Erkek Silver 1' },
+  lr_us_neural2_f: { en: 'American Female Silver 2', tr: 'Amerikan Kadın Silver 2' },
+  lr_us_neural2_j: { en: 'American Male Silver 2', tr: 'Amerikan Erkek Silver 2' },
+  // en-US Gold
+  lr_us_chirp3hd_callirrhoe: { en: 'American Female Gold 1', tr: 'Amerikan Kadın Gold 1' },
+  lr_us_chirp3hd_laomedeia: { en: 'American Female Gold 2', tr: 'Amerikan Kadın Gold 2' },
+  lr_us_chirp3hd_algenib: { en: 'American Male Gold 1', tr: 'Amerikan Erkek Gold 1' },
+  lr_us_chirp3hd_algieba: { en: 'American Male Gold 2', tr: 'Amerikan Erkek Gold 2' },
+  lr_us_chirp3hd_sadachbia: { en: 'American Male Gold 3', tr: 'Amerikan Erkek Gold 3' },
+  // en-US Platinum
+  lr_us_studio_o: { en: 'American Female Platinum 1', tr: 'Amerikan Kadın Platinum 1' },
+  lr_us_studio_q: { en: 'American Male Platinum 1', tr: 'Amerikan Erkek Platinum 1' },
+
+  // en-GB Basic
+  lr_gb_standard_c: { en: 'British Female Basic 1', tr: 'İngiliz Kadın Basic 1' },
+  lr_gb_standard_b: { en: 'British Male Basic 1', tr: 'İngiliz Erkek Basic 1' },
+  // en-GB Silver
+  lr_gb_wavenet_f: { en: 'British Female Silver 1', tr: 'İngiliz Kadın Silver 1' },
+  lr_gb_wavenet_b: { en: 'British Male Silver 1', tr: 'İngiliz Erkek Silver 1' },
+  lr_gb_neural2_c: { en: 'British Female Silver 2', tr: 'İngiliz Kadın Silver 2' },
+  lr_gb_neural2_b: { en: 'British Male Silver 2', tr: 'İngiliz Erkek Silver 2' },
+  // en-GB Gold
+  lr_gb_chirp3hd_aoede: { en: 'British Female Gold 1', tr: 'İngiliz Kadın Gold 1' },
+  lr_gb_chirp3hd_sulafat: { en: 'British Female Gold 2', tr: 'İngiliz Kadın Gold 2' },
+  lr_gb_chirp3hd_sadaltager: { en: 'British Male Gold 1', tr: 'İngiliz Erkek Gold 1' },
+  lr_gb_chirp3hd_iapetus: { en: 'British Male Gold 2', tr: 'İngiliz Erkek Gold 2' },
+  lr_gb_chirp3hd_algieba: { en: 'British Male Gold 3', tr: 'İngiliz Erkek Gold 3' },
+  // en-GB Platinum
+  lr_gb_studio_c: { en: 'British Female Platinum 1', tr: 'İngiliz Kadın Platinum 1' },
+  lr_gb_studio_b: { en: 'British Male Platinum 1', tr: 'İngiliz Erkek Platinum 1' },
 };
 
 /**
@@ -75,7 +113,7 @@ export function getVoiceDisplayName(
     return fallback || '';
   }
 
-  const entry = (LINGROOT_VOICE_DISPLAY_NAMES as Record<string, VoiceDisplayEntry>)[id];
+  const entry = LINGROOT_VOICE_DISPLAY_NAMES[id];
   if (entry) {
     return language === 'tr' ? entry.tr : entry.en;
   }

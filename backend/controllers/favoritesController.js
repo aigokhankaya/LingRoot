@@ -81,8 +81,8 @@ exports.getFavorites = async (req, res) => {
         const { type } = req.query;
 
         let query = `
-      SELECT id, item_type, item_id, created_at 
-      FROM user_favorites 
+      SELECT id, item_type, item_id, created_at
+      FROM user_favorites
       WHERE user_id = $1
     `;
         const params = [userId];
@@ -106,6 +106,103 @@ exports.getFavorites = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Favoriler getirilemedi'
+        });
+    }
+};
+
+/**
+ * Get favorite content items with full details
+ */
+exports.getFavoriteDetails = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        logger.info(`[getFavoriteDetails] Starting for user: ${userId}`);
+
+        // 1) Get favorite content_item IDs from user_favorites table
+        const favQuery = `
+            SELECT item_id
+            FROM user_favorites
+            WHERE user_id = $1 AND item_type = 'content_item'
+            ORDER BY created_at DESC
+        `;
+        logger.info(`[getFavoriteDetails] Fetching favorites...`);
+        const favResult = await db.query(favQuery, [userId]);
+        logger.info(`[getFavoriteDetails] Found ${favResult.rows.length} favorites`);
+
+        if (favResult.rows.length === 0) {
+            return res.json({ success: true, data: [], total: 0 });
+        }
+
+        const favoriteIds = favResult.rows.map(r => r.item_id);
+
+        // 2) Fetch content details from contenthistory
+        // contenthistory.id is UUID type, so use UUIDs directly
+        logger.info(`[getFavoriteDetails] favoriteIds: ${JSON.stringify(favoriteIds)}`);
+
+        if (favoriteIds.length === 0) {
+            logger.info(`[getFavoriteDetails] No favorite IDs, returning empty`);
+            return res.json({ success: true, data: [], total: 0 });
+        }
+
+        const detailsQuery = `
+            SELECT
+                id,
+                user_id,
+                input,
+                input_type,
+                level,
+                mp3_url,
+                vtt_url,
+                words,
+                timepoints,
+                created_at,
+                translated_text,
+                adapted_text
+            FROM contenthistory
+            WHERE user_id = $1
+            AND id::text = ANY($2::text[])
+            AND mp3_url IS NOT NULL
+        `;
+        logger.info(`[getFavoriteDetails] Fetching content details with query params: userId=${userId}, favoriteIds=${JSON.stringify(favoriteIds)}`);
+        const detailsResult = await db.query(detailsQuery, [userId, favoriteIds]);
+        logger.info(`[getFavoriteDetails] Found ${detailsResult.rows.length} content items`);
+
+        // 3) Transform data
+        const transformed = detailsResult.rows.map(item => ({
+            id: String(item.id),
+            title: item.adapted_text || item.translated_text || item.input || 'Başlıksız',
+            url: item.mp3_url,
+            mp3_url: item.mp3_url,
+            level: item.level || 'B1',
+            duration: typeof item.duration === 'number' ? item.duration : 180,
+            created_at: item.created_at,
+            input_type: item.input_type,
+            translated_text: item.translated_text,
+            adapted_text: item.adapted_text,
+            original_turkish: item.input,
+            words: item.words,
+            timepoints: item.timepoints
+        }));
+
+        // 4) Order by favorite order
+        const idOrder = new Map(favoriteIds.map((id, idx) => [String(id), idx]));
+        transformed.sort((a, b) => (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999));
+
+        res.json({
+            success: true,
+            data: transformed,
+            total: transformed.length
+        });
+
+    } catch (error) {
+        logger.error('[getFavoriteDetails] Error:', error);
+        logger.error('[getFavoriteDetails] Error message:', error?.message || 'No message');
+        logger.error('[getFavoriteDetails] Error stack:', error?.stack || 'No stack');
+        logger.error('[getFavoriteDetails] Error stringified:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        res.status(500).json({
+            success: false,
+            message: 'Favori detayları getirilemedi',
+            error: error?.message || String(error)
         });
     }
 };

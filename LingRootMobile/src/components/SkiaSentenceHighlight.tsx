@@ -35,6 +35,7 @@ interface SkiaSentenceHighlightProps {
   containerWidth?: number;
   onSentencePress?: (index: number, text: string) => void;
   onWordLongPress?: (word: string, index: number) => void;
+  visible?: boolean; // Whether parent modal is visible - used to prevent rendering during close
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -48,6 +49,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
   containerWidth = SCREEN_WIDTH - 32,
   onSentencePress,
   onWordLongPress,
+  visible = true,
 }) => {
   // Skia Paragraph API - Zero Reflow Architecture
   const INTERNAL_PADDING = 8; // Kenarlardan 8px boşluk
@@ -221,6 +223,11 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
       (boundary) => boundary.y >= chunk.startY && boundary.y < chunk.endY
     );
   };
+
+  // Early return when not visible - prevents Skia Canvas from rendering during modal close
+  if (!visible) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>

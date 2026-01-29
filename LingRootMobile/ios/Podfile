@@ -76,6 +76,8 @@ target 'LingRootMobile' do
         config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
         config.build_settings['COPY_PHASE_STRIP'] = 'NO'
         config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
+        # Fix Xcode 16 CLErrorDomain / NSFileProviderDomain module verification errors during Archive
+        config.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
       end
     end
 

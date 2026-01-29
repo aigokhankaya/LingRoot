@@ -2069,7 +2069,7 @@ const CreateScreen: React.FC = () => {
               <Icon name="record-voice-over" size={24} color={COLORS.primary} />
               <View style={styles.voiceSelectionInfo}>
                 <Text style={styles.voiceSelectionText}>
-                  {selectedVoice ? `${getVoiceDisplayName(selectedVoice, language)} (${selectedVoice})` : t('create.voice.selectPrompt')}
+                  {selectedVoice ? getVoiceDisplayName(selectedVoice, language, selectedVoice) : t('create.voice.selectPrompt')}
                 </Text>
                 <Text style={styles.voiceSelectionSubtext}>
                   {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
@@ -2105,7 +2105,13 @@ const CreateScreen: React.FC = () => {
               ) : (
                 <View>
                   <ScrollView style={styles.voiceList}>
-                    {getFilteredVoicesByCategory().map((item) => (
+                    {getFilteredVoicesByCategory()
+                      .sort((a, b) => {
+                        const nameA = getVoiceDisplayName(a.name, language, a.displayName || a.name);
+                        const nameB = getVoiceDisplayName(b.name, language, b.displayName || b.name);
+                        return nameA.localeCompare(nameB);
+                      })
+                      .map((item) => (
                       <TouchableOpacity
                         key={item.name}
                         style={[
@@ -2118,7 +2124,7 @@ const CreateScreen: React.FC = () => {
                       >
                         <View style={styles.voiceItemInfo}>
                           <Text style={styles.voiceItemName}>
-                            {`${getVoiceDisplayName(item.name, language, item.name)} (${item.name})`}
+                            {getVoiceDisplayName(item.name, language, item.displayName || item.name)}
                           </Text>
                           <Text style={styles.voiceItemDescription}>
                             {(item.accent === 'american' && t('create.voice.accents.american')) ||
