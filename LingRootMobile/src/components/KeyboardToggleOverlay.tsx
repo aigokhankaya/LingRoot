@@ -1,15 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Keyboard, Platform, StyleSheet, TextInput, View, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Keyboard, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const ANIMATION_DURATION_MS = 180;
 
 const KeyboardToggleOverlay: React.FC = () => {
   const [visible, setVisible] = useState(false);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [hiddenViaToggle, setHiddenViaToggle] = useState(false);
-  const keyboardHeightRef = useRef(0);
-  const lastFocusedFieldRef = useRef<any>(null);
   const bottomAnim = useRef(new Animated.Value(-100)).current;
 
   const animateToBottom = (to: number) => {
@@ -23,30 +19,13 @@ const KeyboardToggleOverlay: React.FC = () => {
 
   useEffect(() => {
     const onShow = (e: any) => {
-      setIsKeyboardVisible(true);
-      setHiddenViaToggle(false);
-      keyboardHeightRef.current = e?.endCoordinates?.height || 0;
-      // Remember currently focused input handle
-      try {
-        const focused = (TextInput as any).State?.currentlyFocusedInput?.() || (TextInput as any).State?.currentlyFocusedField?.();
-        lastFocusedFieldRef.current = focused || null;
-      } catch {}
       setVisible(true);
       animateToBottom((e?.endCoordinates?.height || 0) + 12);
     };
 
     const onHide = () => {
-      setIsKeyboardVisible(false);
-      if (hiddenViaToggle && lastFocusedFieldRef.current) {
-        // Keep button visible at bottom for re-open action
-        setVisible(true);
-        animateToBottom(20);
-      } else {
-        // User hid keyboard by tapping elsewhere → hide button
-        setVisible(false);
-        animateToBottom(-100);
-        lastFocusedFieldRef.current = null;
-      }
+      setVisible(false);
+      animateToBottom(-100);
     };
 
     const subShow = Keyboard.addListener('keyboardDidShow', onShow);
@@ -55,53 +34,27 @@ const KeyboardToggleOverlay: React.FC = () => {
       subShow.remove();
       subHide.remove();
     };
-  }, [bottomAnim, hiddenViaToggle]);
+  }, [bottomAnim]);
 
-  const handleToggle = () => {
-    if (isKeyboardVisible) {
-      setHiddenViaToggle(true);
-      try {
-        Keyboard.dismiss();
-      } catch {}
-    } else {
-      // Try to re-focus last focused input to bring keyboard back
-      try {
-        const focusMethod = (TextInput as any).State?.focusTextInput;
-        if (focusMethod && lastFocusedFieldRef.current) {
-          focusMethod(lastFocusedFieldRef.current);
-          setHiddenViaToggle(false);
-        } else if (lastFocusedFieldRef.current?.focus) {
-          lastFocusedFieldRef.current.focus();
-          setHiddenViaToggle(false);
-        }
-      } catch {}
-    }
+  const handleDismiss = () => {
+    Keyboard.dismiss();
   };
 
   if (!visible) return null;
 
   return (
-    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      <Animated.View
-        pointerEvents="box-none"
-        style={[
-          styles.container,
-          { bottom: bottomAnim, right: 12 },
-        ]}
-      >
-        <TouchableOpacity style={styles.button} onPress={handleToggle} activeOpacity={0.8}>
-          <Icon name={isKeyboardVisible ? 'keyboard-hide' : 'keyboard'} size={22} color="#fff" />
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
+    <Animated.View style={[styles.container, { bottom: bottomAnim }]}>
+      <TouchableOpacity style={styles.button} onPress={handleDismiss} activeOpacity={0.8}>
+        <Icon name="keyboard-hide" size={22} color="#fff" />
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
+    right: 12,
     zIndex: 9999,
   },
   button: {
@@ -120,5 +73,3 @@ const styles = StyleSheet.create({
 });
 
 export default KeyboardToggleOverlay;
-
-

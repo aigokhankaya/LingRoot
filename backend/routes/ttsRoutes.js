@@ -25,8 +25,7 @@ const logger = require('../utils/common/logger.js');
 const { authenticate } = require('../middleware/auth');
 const { ttsLimiter, podcastLimiter } = require('../middleware/security');
 const { limiters } = require('../utils/infra/concurrencyLimiter.js');
-const { addJob, getPriorityByPlan } = require('../utils/infra/bullQueue.js'); // ✅ BullMQ
-const jobQueue = require('../utils/infra/jobQueue.js'); // Legacy support
+const jobQueue = require('../utils/infra/jobQueue.js');
 const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/notifications/pushNotification.js');
 
 // Helper function to write podcast-specific logs
@@ -92,7 +91,7 @@ router.post(
   }
 );
 
-// POST /api/tts/process-async – Async TTS processing with notification
+// POST /api/tts/process-async – Async TTS processing with notification (in-memory jobQueue)
 router.post(
   "/process-async",
   ttsLimiter,
@@ -110,37 +109,32 @@ router.post(
         return res.status(401).json({ success: false, message: 'User not authenticated' });
       }
 
-      // Check for existing active jobs using BullMQ?
-      // Note: BullMQ doesn't easily support "one active job per user" check without scanning.
-      // For now, we rely on the worker to handle concurrency or rate limits.
-      // Or we can keep using a lightweight Redis key for this check if strictly needed.
+      // Prevent multiple concurrent async jobs per user
+      const existingJob = jobQueue.getActiveJobForUser(userId);
+      if (existingJob) {
+        logger.info(`[AsyncTTS] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
+        return res.status(409).json({
+          success: false,
+          code: 'TTS_JOB_IN_PROGRESS',
+          message: 'Zaten devam eden bir ses oluşturma işleminiz var. Lütfen bitmesini bekleyin.',
+          jobId: existingJob.id,
+          status: existingJob.status,
+        });
+      }
 
-      // Prepare job data
-      const jobData = {
-        userId,
-        // Capture auth token for use in worker (required for Supabase RLS or backend checks)
-        token: req.headers.authorization ? req.headers.authorization.split(' ')[1] : null,
-        requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        requestBody: req.body,
-        file: req.file ? {
-          originalname: req.file.originalname,
-          mimetype: req.file.mimetype,
-          buffer: req.file.buffer.toString('base64'), // Buffer to string for JSON safety
-          encoding: req.file.encoding
-        } : null
-      };
+      // Capture request data before response is sent
+      const requestBody = req.body;
+      const file = req.file;
+      const token = req.headers.authorization ? req.headers.authorization.split(' ')[1] : null;
 
-      // Get priority based on user plan
-      const userPlan = req.user.current_plan || 'free';
-      const priority = getPriorityByPlan(userPlan);
-
-      // Add to BullMQ
-      const job = await addJob('tts-processing', 'process-tts', jobData, {
-        priority,
-        removeOnComplete: true
+      // Create job in in-memory queue
+      const job = jobQueue.createJob(userId, {
+        type: 'tts',
+        requestBody,
+        file: file ? { originalname: file.originalname, mimetype: file.mimetype } : null,
       });
 
-      logger.info(`[AsyncTTS] Job ${job.id} created for user ${userId} with priority ${priority}`);
+      logger.info(`[AsyncTTS] Job ${job.id} created for user ${userId}`);
 
       // Return job ID immediately
       res.json({
@@ -148,6 +142,109 @@ router.post(
         jobId: job.id,
         message: 'Audio creation started. You will receive a notification when it\'s ready.',
         estimatedTime: '2-5 minutes'
+      });
+
+      // Process in background
+      setImmediate(async () => {
+        try {
+          jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
+
+          // Create mock request/response for handleTTSRequest
+          const mockReq = {
+            body: requestBody,
+            file: file || null,
+            user: { id: userId },
+            headers: {
+              'content-type': file ? 'multipart/form-data' : 'application/json',
+              'authorization': token ? `Bearer ${token}` : 'Bearer worker-internal-token'
+            },
+            is: (type) => {
+              if (file) return type === 'multipart/form-data';
+              return type === 'application/json';
+            },
+            get: (header) => {
+              if (header === 'Content-Type') {
+                return file ? 'multipart/form-data' : 'application/json';
+              }
+              return null;
+            }
+          };
+
+          const result = await new Promise((resolve, reject) => {
+            const mockRes = {
+              statusCode: 200,
+              json: (data) => {
+                if (data.success) {
+                  resolve(data);
+                } else {
+                  reject(new Error(data.message || 'TTS processing failed'));
+                }
+              },
+              status: function (code) {
+                this.statusCode = code;
+                return this;
+              }
+            };
+
+            handleTTSRequest(mockReq, mockRes, (error) => {
+              if (error) {
+                reject(error);
+              }
+            });
+          });
+
+          // Update job as completed
+          jobQueue.updateJob(job.id, {
+            status: 'completed',
+            progress: 100,
+            result
+          });
+
+          // Send push notification
+          try {
+            await sendPushNotification(userId, {
+              title: '🎵 Ses Dosyanız Hazır!',
+              body: 'Dinlemek için tıklayın.',
+              type: 'audio_created',
+              data: {
+                jobId: job.id,
+                audioId: result.contenthistory_id || result.audio_id || result.id,
+                contenthistory_id: result.contenthistory_id,
+                mp3_url: result.mp3_url,
+                title: result.adapted_text?.substring(0, 50) || 'Audio',
+                level: requestBody.level,
+                input_type: 'text'
+              }
+            });
+          } catch (notifError) {
+            logger.error(`[AsyncTTS] Notification error:`, notifError.message);
+          }
+
+          logger.info(`[AsyncTTS] Job ${job.id} completed successfully`);
+
+        } catch (error) {
+          logger.error(`[AsyncTTS] Job ${job.id} error:`, error);
+
+          jobQueue.updateJob(job.id, {
+            status: 'failed',
+            error: error.message
+          });
+
+          // Send failure notification
+          try {
+            await sendPushNotification(userId, {
+              title: '❌ Ses Oluşturulamadı',
+              body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
+              type: 'tts_failed',
+              data: {
+                jobId: job.id,
+                error: error.message
+              }
+            });
+          } catch (notifError) {
+            logger.error(`[AsyncTTS] Failure notification error:`, notifError.message);
+          }
+        }
       });
 
     } catch (error) {

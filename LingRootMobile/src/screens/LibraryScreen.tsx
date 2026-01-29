@@ -5,13 +5,13 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   TextInput,
   Alert,
   ActivityIndicator,
   ScrollView,
   InteractionManager,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import perfLog from '../utils/performanceLogger';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
@@ -21,12 +21,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAudioContext } from '../contexts/AudioContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import AudioPlayer from '../components/AudioPlayer';
 import { COLORS } from '../theme/colors';
 
 type ContentType = 'all' | 'podcast' | 'text' | 'topic' | 'file' | 'book';
 
 const LibraryScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { isTrackPlaying, currentTrack, isPlaying } = useAudioContext();
@@ -37,10 +37,10 @@ const LibraryScreen: React.FC = () => {
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<AudioTrack | null>(null);
-  const [playerVisible, setPlayerVisible] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favoriteTracks, setFavoriteTracks] = useState<AudioTrack[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
   const { user } = useAuth();
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
@@ -202,8 +202,11 @@ const LibraryScreen: React.FC = () => {
           setAudioTracks(merged);
         }
 
-        setSelectedTrack(track);
-        setPlayerVisible(true);
+        // Navigate to AudioPlayer screen instead of showing modal
+        navigation.navigate('AudioPlayer', {
+          track: track,
+          highlightMode: highlightMode
+        });
       } catch (e) {
         // Silent error - player will not open if something goes wrong
       } finally {
@@ -218,6 +221,36 @@ const LibraryScreen: React.FC = () => {
 
     resolveNotificationAudio();
   }, [route, navigation]);
+
+  // Handle track passed from HomeScreen's "Kaldığın Yerden Devam Et" section
+  useEffect(() => {
+    const params: any = (route as any).params || {};
+    const playTrack = params.playTrack;
+
+    if (!playTrack) {
+      return;
+    }
+
+    console.log('[Library] Received playTrack from HomeScreen:', playTrack.id);
+
+    // Use InteractionManager to wait for navigation animation to complete
+    const task = InteractionManager.runAfterInteractions(() => {
+      // Navigate to AudioPlayer screen instead of showing modal
+      navigation.navigate('AudioPlayer', {
+        track: playTrack,
+        highlightMode: highlightMode
+      });
+
+      // Clear param so it doesn't trigger again
+      try {
+        navigation.setParams({ playTrack: undefined });
+      } catch {
+        // ignore
+      }
+    });
+
+    return () => task.cancel();
+  }, [route, navigation, highlightMode]);
 
   // Fetch audio history from API with search and filter parameters
   const fetchAudioHistory = async (showLoading = true, nextPage?: number, resetList = false) => {
@@ -390,17 +423,23 @@ const LibraryScreen: React.FC = () => {
     }
   };
 
-  // Favoriler toggle'ı: Favoriler yüklenmemişse önce yükleyip sonra filtreyi aç
+  // Favoriler toggle'ı: Backend'ten tüm favorileri çekip ayrı state'te tut
   const handleToggleFavorites = async () => {
     const enabling = !showFavoritesOnly;
     if (enabling) {
+      setLoadingFavorites(true);
+      setShowFavoritesOnly(true);
+
       // 1) Favori ID'lerini yükle
       if (!favoriteIds || favoriteIds.length === 0) {
         await loadFavorites();
       }
-      // 2) Backend'ten favori detaylarını tek çağrıda çek ve listeye ekle
+
+      // 2) Backend'ten TÜM favori detaylarını çek ve ayrı state'e kaydet
       try {
+        console.log('[Library] Fetching favorite details...');
         const favDetails = await apiService.getUserFavoriteDetails();
+        console.log('[Library] Favorite details received:', favDetails?.length || 0, 'items');
         if (Array.isArray(favDetails) && favDetails.length > 0) {
           const mapped = favDetails.map((item: any) => ({
             id: String(item.id),
@@ -417,18 +456,19 @@ const LibraryScreen: React.FC = () => {
             timepoints: Array.isArray(item.timepoints) ? item.timepoints : undefined,
             words: Array.isArray(item.words) ? item.words : undefined,
           } as AudioTrack));
-          const existingIds = new Set(audioTracksRef.current.map(t => t.id));
-          const merged = [...audioTracksRef.current, ...mapped.filter(t => !existingIds.has(t.id))];
-          setAudioTracks(merged);
-          audioTracksRef.current = merged;
+          // Favori ID'lerini de güncelle
+          setFavoriteIds(mapped.map(t => t.id));
+          // Ayrı favoriteTracks state'ine kaydet
+          setFavoriteTracks(mapped);
+        } else {
+          setFavoriteTracks([]);
         }
       } catch (e) {
-
+        console.error('Error fetching favorite details:', e);
+        setFavoriteTracks([]);
+      } finally {
+        setLoadingFavorites(false);
       }
-      // 3) Sonra filtreyi aç ve arka plan hidrasyonu devreye girsin
-      setShowFavoritesOnly(true);
-      setHasUserScrolled(true);
-      ensureFavoritesCoverage();
     } else {
       setShowFavoritesOnly(false);
     }
@@ -535,15 +575,27 @@ const LibraryScreen: React.FC = () => {
     return colors[level];
   };
 
-  // Client-side filtering: Only filter for favorites since search/level/type are handled by backend
-  const filteredTracks = audioTracks.filter((track) => {
-    // Only apply favorites filter client-side
-    const matchesFav = !showFavoritesOnly || isFavorite(track.id);
-    return matchesFav;
+  // Favoriler modunda favoriteTracks kullan, normal modda audioTracks
+  const baseTracks = showFavoritesOnly ? favoriteTracks : audioTracks;
+
+  // Client-side filtering for favorites view (level, type, search)
+  const filteredTracks = baseTracks.filter((track) => {
+    // Level filter
+    if (selectedLevel !== 'all' && track.level !== selectedLevel) return false;
+    // Type filter
+    if (selectedType !== 'all' && track.input_type !== selectedType) return false;
+    // Search filter
+    if (searchText) {
+      const searchLower = searchText.toLowerCase();
+      const titleMatch = (track.title || '').toLowerCase().includes(searchLower);
+      const adaptedMatch = (track.adapted_text || '').toLowerCase().includes(searchLower);
+      const translatedMatch = (track.translated_text || '').toLowerCase().includes(searchLower);
+      if (!titleMatch && !adaptedMatch && !translatedMatch) return false;
+    }
+    return true;
   });
 
-  // For favorites view, show all matching tracks
-  // For normal view, backend already handles pagination
+  // displayedTracks is the final filtered list
   const displayedTracks = filteredTracks;
 
   // When search text or filters change, fetch from backend with new parameters
@@ -629,22 +681,11 @@ const LibraryScreen: React.FC = () => {
   const handlePlayTrack = (track: AudioTrack) => {
     // Parse words/timepoints lazily only when user selects a track
     const parsed = parseTrackData(track);
-    setSelectedTrack(parsed);
-    setPlayerVisible(true);
-  };
-
-  const handleClosePlayer = () => {
-    perfLog.mark('library:handleClosePlayer:start');
-    setPlayerVisible(false);
-    perfLog.mark('library:handleClosePlayer:afterSetPlayerVisible');
-    // Delay clearing selectedTrack so the Modal slide-out animation
-    // completes before the AudioPlayer component is unmounted.
-    // Unmounting mid-animation causes an iOS native Modal freeze.
-    setTimeout(() => {
-      setSelectedTrack(null);
-      perfLog.mark('library:handleClosePlayer:trackCleared');
-    }, 400);
-    perfLog.mark('library:handleClosePlayer:end');
+    // Navigate to AudioPlayer screen instead of showing modal
+    navigation.navigate('AudioPlayer', {
+      track: parsed,
+      highlightMode: highlightMode
+    });
   };
 
   const renderAudioTrack = ({ item }: { item: AudioTrack }) => {
@@ -735,7 +776,7 @@ const LibraryScreen: React.FC = () => {
   // Not authenticated state
   if (!user?.id) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyState}>
           <Icon name="account-circle" size={64} color="#ccc" />
           <Text style={styles.emptyTitle}>{language === 'tr' ? 'Giriş Yapılmadı' : 'Not Logged In'}</Text>
@@ -753,12 +794,12 @@ const LibraryScreen: React.FC = () => {
             <Text style={styles.retryButtonText}>{language === 'tr' ? 'Giriş Yap' : 'Log In'}</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{language === 'tr' ? 'Kütüphane' : 'Library'}</Text>
         <TouchableOpacity
@@ -906,7 +947,7 @@ const LibraryScreen: React.FC = () => {
             ) : null
           }
         />
-      ) : showFavoritesOnly && (isHydratingFavorites || favoriteIds.length > 0) ? (
+      ) : showFavoritesOnly && loadingFavorites ? (
         <View style={styles.emptyState}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{language === 'tr' ? 'Favoriler yükleniyor...' : 'Loading favorites...'}</Text>
@@ -930,18 +971,7 @@ const LibraryScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Audio Player Modal */}
-      {selectedTrack && (
-        <AudioPlayer
-          track={selectedTrack}
-          visible={playerVisible}
-          onClose={handleClosePlayer}
-          timepoints={selectedTrack.timepoints || []}
-          words={selectedTrack.words || []}
-          initialHighlightMode={highlightMode}
-        />
-      )}
-    </SafeAreaView>
+    </View>
   );
 };
 

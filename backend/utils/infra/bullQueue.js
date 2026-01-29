@@ -8,7 +8,7 @@
  * - Backpressure handling
  */
 
-const { Queue, QueueEvents } = require('bullmq');
+const { Queue } = require('bullmq');
 const { getConnection, checkRedisAvailability } = require('../storage/redisClient.js');
 const logger = require('../common/logger.js');
 
@@ -55,7 +55,6 @@ const getPriorityByPlan = (userPlan) => {
 
 // Queue instances (lazy initialization)
 let queues = {};
-let queueEvents = {};
 
 /**
  * Get or create a queue
@@ -72,17 +71,6 @@ const getQueue = (name) => {
         queues[name] = new Queue(name, {
             connection,
             defaultJobOptions
-        });
-
-        // Queue events for monitoring
-        queueEvents[name] = new QueueEvents(name, { connection });
-
-        queueEvents[name].on('completed', ({ jobId }) => {
-            logger.debug(`[BullQueue:${name}] Job ${jobId} completed`);
-        });
-
-        queueEvents[name].on('failed', ({ jobId, failedReason }) => {
-            logger.error(`[BullQueue:${name}] Job ${jobId} failed: ${failedReason}`);
         });
 
         logger.info(`[BullQueue] Queue '${name}' initialized`);
@@ -177,11 +165,9 @@ const getAllQueueStats = async () => {
 const closeAllQueues = async () => {
     for (const name of Object.keys(queues)) {
         await queues[name].close();
-        await queueEvents[name].close();
         logger.info(`[BullQueue] Queue '${name}' closed`);
     }
     queues = {};
-    queueEvents = {};
 };
 
 // Retryable error types

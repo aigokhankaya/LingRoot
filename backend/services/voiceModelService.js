@@ -3,7 +3,7 @@ const { supabase } = require('../utils/storage/supabaseClient.js');
 const { listGoogleVoices } = require('../utils/audio/googleTTS.js');
 const { listAzureVoices, isAzureTTSAvailable } = require('../utils/audio/azureTTS.js');
 const { listPollyVoices, isPollyAvailable } = require('../utils/audio/amazonPolly.js');
-const { getLingrootVoices, mapLingrootToProviderVoice, getDefaultLingrootVoiceId } = require('../utils/audio/lingrootVoices.js');
+const { getLingrootVoices, mapLingrootToProviderVoice, getDefaultLingrootVoiceId, resolveOldId } = require('../utils/audio/lingrootVoices.js');
 
 /**
  * tts_provider'ı settings tablosundan oku (default: google)
@@ -83,14 +83,15 @@ const listVoices = async (languageCode = 'en-US') => {
     try {
         const ttsProvider = await getTtsProvider();
 
-        const lingrootVoices = getLingrootVoices().map(v => ({
+        const lingrootVoices = getLingrootVoices().filter(v => v.active).map(v => ({
             id: v.id,
             name: v.id,
             displayName: v.label,
             gender: v.gender,
             accent: v.accent,
             quality: v.quality,
-            // Provider-specific hints for debugging/admin tools
+            voiceType: v.voiceType,
+            locale: v.locale,
             providerVoice: mapLingrootToProviderVoice(v.id, ttsProvider),
         }));
 
@@ -119,8 +120,8 @@ const getFilteredVoices = async ({ accent, gender, category }) => {
     try {
         const ttsProvider = await getTtsProvider();
 
-        let voices = getLingrootVoices();
-        logger.info(`🎯 [VOICE FILTER] Starting with ${voices.length} Lingroot voices`);
+        let voices = getLingrootVoices().filter(v => v.active);
+        logger.info(`🎯 [VOICE FILTER] Starting with ${voices.length} active Lingroot voices`);
 
         // Accent filter (american / british / australian / indian / all)
         if (accent && accent !== 'all') {
@@ -137,10 +138,10 @@ const getFilteredVoices = async ({ accent, gender, category }) => {
         // Category -> map to Lingroot quality tiers
         if (category && category !== 'all') {
             const c = String(category).toLowerCase();
-            if (c === 'standard') {
+            if (c === 'standard' || c === 'basic') {
                 voices = voices.filter(v => v.quality === 'basic');
-            } else if (c === 'neural' || c === 'wavenet' || c === 'neural2') {
-                voices = voices.filter(v => v.quality === 'premium');
+            } else if (c === 'silver' || c === 'neural' || c === 'wavenet' || c === 'neural2') {
+                voices = voices.filter(v => v.quality === 'silver');
             } else if (c === 'chirp3d' || c === 'gold') {
                 voices = voices.filter(v => v.quality === 'gold');
             } else if (c === 'studio' || c === 'platinum') {
@@ -157,6 +158,8 @@ const getFilteredVoices = async ({ accent, gender, category }) => {
             gender: v.gender,
             accent: v.accent,
             quality: v.quality,
+            voiceType: v.voiceType,
+            locale: v.locale,
             providerVoice: mapLingrootToProviderVoice(v.id, ttsProvider),
         }));
 
@@ -166,7 +169,7 @@ const getFilteredVoices = async ({ accent, gender, category }) => {
             provider: ttsProvider,
             voices: payload,
             filters: { accent, gender, category },
-            totalCount: getLingrootVoices().length,
+            totalCount: getLingrootVoices().filter(v => v.active).length,
             filteredCount: payload.length
         };
 

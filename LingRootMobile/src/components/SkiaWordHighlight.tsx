@@ -51,6 +51,7 @@ interface SkiaWordHighlightProps {
     example_sentence_tr?: string;
   }>; // Full pattern data with translations
   showPatterns?: boolean; // Whether to show pattern highlighting
+  visible?: boolean; // Whether parent modal is visible - used to reset internal state
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -82,6 +83,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   onWordPositionChange,
   patternData = [],
   showPatterns = false,
+  visible = true,
 }) => {
   console.log(`🎨 [SkiaWordHighlight] Received props - showPatterns: ${showPatterns}, patternData.length: ${patternData.length}`);
   if (showPatterns && patternData.length > 0) {
@@ -90,6 +92,13 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
 
   // State for pattern popup
   const [selectedPattern, setSelectedPattern] = useState<typeof patternData[0] | null>(null);
+
+  // Reset pattern popup when parent becomes invisible (e.g., AudioPlayer closes)
+  useEffect(() => {
+    if (!visible) {
+      setSelectedPattern(null);
+    }
+  }, [visible]);
 
   // Calculate pattern phrase ranges (startIndex, endIndex)
   const patternRanges = useMemo(() => {
@@ -472,6 +481,12 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     );
   };
 
+  // Early return when not visible - prevents Skia Canvas from rendering during modal close
+  // This fixes iOS freeze issue where Skia continues rendering after parent unmounts
+  if (!visible) {
+    return null;
+  }
+
   // STEP 3 & 4: Render chunks with Static Paragraph + Dynamic Highlight
   if (!isFontReady || !paragraph) {
     return (
@@ -694,8 +709,9 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
       })}
 
       {/* Pattern Popup Modal - New Design with gradient header */}
+      {visible && selectedPattern && (
       <Modal
-        visible={selectedPattern !== null}
+        visible={true}
         transparent
         animationType="fade"
         onRequestClose={() => setSelectedPattern(null)}
@@ -779,6 +795,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           </View>
         </TouchableOpacity>
       </Modal>
+      )}
     </View>
   );
 });

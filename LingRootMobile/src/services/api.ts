@@ -1195,7 +1195,16 @@ export const apiService = {
   },
 
   async getUserFavoriteDetails(): Promise<any[]> {
-    return [];
+    try {
+      const client = await getApiClientAsync();
+      console.log('[API] Calling getUserFavoriteDetails...');
+      const response = await client.http.get('/api/favorites/details');
+      console.log('[API] getUserFavoriteDetails response:', response.data?.data?.length || 0, 'items');
+      return response.data?.data || [];
+    } catch (error: any) {
+      console.error('[API] Error fetching favorite details:', error?.message || error);
+      return [];
+    }
   },
 
   async saveUserFavorites(ids: string[]): Promise<boolean> {

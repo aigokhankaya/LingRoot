@@ -14,7 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { IAP_PRODUCTS, requestSubscription, restorePurchases } from '../services/iap';
-import { getSubscriptionPlans, getUsageSummary } from '../services/subscriptionService';
+import { getSubscriptionPlans, getUsageSummary, invalidatePlanFeaturesCache } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 
 interface SubscriptionPlan {
@@ -139,6 +139,8 @@ const PackagesScreen: React.FC = () => {
       if (result.ok) {
         console.log('[PackagesScreen] ✅ Purchase successful');
         console.log('[PackagesScreen] Success message:', result.message);
+        // Invalidate plan features cache so HomeScreen/CreateScreen fetch fresh data
+        await invalidatePlanFeaturesCache();
         Alert.alert(
           'Başarılı',
           result.message || `${plan.name} aboneliği başarıyla satın alındı`,
@@ -193,6 +195,8 @@ const PackagesScreen: React.FC = () => {
       const result = await restorePurchases();
 
       if (result.ok) {
+        // Invalidate plan features cache so HomeScreen/CreateScreen fetch fresh data
+        await invalidatePlanFeaturesCache();
         Alert.alert(
           language === 'tr' ? 'Başarılı' : 'Success',
           result.message || (language === 'tr'
