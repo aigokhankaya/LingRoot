@@ -8,7 +8,7 @@ import { TypingIndicator } from '../../src/components/chat/TypingIndicator';
 import { SmartPromptSuggester } from '../../src/components/chat/SmartPromptSuggester';
 import { ChatCTAButtons } from '../../src/components/chat/ChatCTAButtons';
 import { ActionConfirmModal } from '../../src/components/chat/ActionConfirmModal';
-import { getApiUrl } from '../../src/lib/api';
+import { getApiUrl, getUserSettings } from '../../src/lib/api';
 import OutputSection from '../../src/components/OutputSection';
 
 interface Message {
@@ -48,6 +48,7 @@ export default function ChatPage() {
     topic: string;
   }>({ isOpen: false, type: null, topic: '' });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [defaultVoice, setDefaultVoice] = useState<string>('lr_us_wavenet_f');
 
   // Sidebar toggle state - ChatGPT style
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -136,6 +137,45 @@ export default function ChatPage() {
     }
   };
 
+  const stripLiroCommentary = (text: string): string => {
+    if (!text) return '';
+    // Priority 1: [CONTENT]...[/CONTENT] markers
+    const contentMatch = text.match(/\[CONTENT\]([\s\S]*?)\[\/CONTENT\]/);
+    if (contentMatch && contentMatch[1]?.trim()) {
+      return contentMatch[1].trim();
+    }
+    // Priority 2: --- separators (legacy fallback)
+    const parts = text.split('---');
+    if (parts.length >= 3) {
+      const middle = parts.slice(1, -1).join('---').trim();
+      if (middle) return middle;
+    }
+    // Priority 3: Filter out Turkish commentary paragraphs
+    const paragraphs = text.split(/\n\n+/);
+    if (paragraphs.length >= 2) {
+      const isLikelyTurkish = (p: string): boolean => {
+        const t = p.trim();
+        if (!t) return false;
+        // Turkish-specific characters (never in English text)
+        if (/[çşğıİŞÇĞüöÜÖ]/.test(t)) return true;
+        // Common Turkish filler/commentary starters
+        if (/^(Hmm|Hm\b|Tabii|Tabi\b|Harika|Tamam|Peki|Buyur|Haydi|Evet|Şimdi|İşte|Sonuç\s+olarak)/i.test(t)) return true;
+        return false;
+      };
+      const nonTurkish = paragraphs.filter(p => {
+        const t = p.trim();
+        if (!t) return false;
+        return !isLikelyTurkish(t);
+      });
+      if (nonTurkish.length > 0) {
+        const result = nonTurkish.join('\n\n').trim();
+        if (result) return result;
+      }
+    }
+    // Fallback: return full text
+    return text;
+  };
+
   const handleConfirmCTA = async () => {
     setIsProcessing(true);
     try {
@@ -155,6 +195,7 @@ export default function ChatPage() {
             input: modalState.topic,
             level: 'B1',
             speakingRate: 0.8,
+            voice: defaultVoice,
           }),
         });
         result = await response.json();
@@ -169,6 +210,7 @@ export default function ChatPage() {
             topic: modalState.topic,
             level: 'B1',
             duration: '10',
+            voice: defaultVoice,
           }),
         });
 
@@ -180,6 +222,7 @@ export default function ChatPage() {
 
         result = data;
       } else if (modalState.type === 'tts') {
+        const cleanedMessage = stripLiroCommentary(lastMessage);
         const response = await fetch(getApiUrl('/api/tts/process'), {
           method: 'POST',
           headers: {
@@ -188,9 +231,10 @@ export default function ChatPage() {
           },
           body: JSON.stringify({
             type: 'text',
-            input: lastMessage,
+            input: cleanedMessage,
             level: 'B1',
             speakingRate: 0.8,
+            voice: defaultVoice,
           }),
         });
 
@@ -439,6 +483,20 @@ export default function ChatPage() {
   const handleNewChat = () => {
     router.push('/chat/new');
   };
+
+  // Load default voice setting
+  useEffect(() => {
+    const loadDefaultVoice = async () => {
+      try {
+        const settings = await getUserSettings();
+        const dv = settings?.data?.default_voice;
+        if (dv && typeof dv === 'string') {
+          setDefaultVoice(dv);
+        }
+      } catch {}
+    };
+    if (isAuthenticated) loadDefaultVoice();
+  }, [isAuthenticated]);
 
   // Load conversations on mount
   useEffect(() => {

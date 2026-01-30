@@ -483,7 +483,7 @@ const HomeScreen: React.FC = () => {
                     <Icon name="local-library" size={22} color={FEATURE_COLORS.indigo.text} />
                   </View>
                   <Text style={styles.libraryTitle}>
-                    {language === 'tr' ? 'Kitap Kütüphanesi' : 'Book Library'}
+                    {language === 'tr' ? 'Kütüphane' : 'Library'}
                   </Text>
                   <Text style={styles.librarySubtitle}>
                     {language === 'tr' ? 'Sürükleyici okuma & dinleme' : 'Immersive reading & listening'}

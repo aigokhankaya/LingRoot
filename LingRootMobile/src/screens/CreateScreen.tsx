@@ -77,11 +77,22 @@ const CreateScreen: React.FC = () => {
   const [errorAlertTitle, setErrorAlertTitle] = useState('');
   const [errorAlertMessage, setErrorAlertMessage] = useState('');
   const [errorAlertAction, setErrorAlertAction] = useState<{ label: string; onPress: () => void } | null>(null);
+  const [errorAlertType, setErrorAlertType] = useState<'error' | 'success' | 'info'>('error');
 
   const showError = (title: string, message: string, action?: { label: string; onPress: () => void }) => {
     setErrorAlertTitle(title);
     setErrorAlertMessage(message);
     setErrorAlertAction(action || null);
+    // Auto-detect type from title
+    const successKey = t('common.success');
+    const infoKey = t('common.info');
+    if (title === successKey) {
+      setErrorAlertType('success');
+    } else if (title === infoKey) {
+      setErrorAlertType('info');
+    } else {
+      setErrorAlertType('error');
+    }
     setShowErrorAlert(true);
   };
 
@@ -367,10 +378,12 @@ const CreateScreen: React.FC = () => {
   const [selectedAccent, setSelectedAccent] = useState<string>('all');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
+  const [allVoices, setAllVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [showVoiceSelection, setShowVoiceSelection] = useState<boolean>(false);
   const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'basic';
   const [shouldPromoteSelectedVoiceTop, setShouldPromoteSelectedVoiceTop] = useState<boolean>(false);
+  const [defaultVoiceName, setDefaultVoiceName] = useState<string>('');
   const [currentProvider, setCurrentProvider] = useState<string>('google'); // TTS provider
 
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -398,23 +411,30 @@ const CreateScreen: React.FC = () => {
     C2: t('create.cefrDescriptions.C2'),
   } as const;
 
-  // Derive filters (category, accent) from a voice name like "en-GB-Chirp3-HD-Achernar"
-  const deriveFiltersFromVoiceName = (voiceName?: string): { category: string; accent: string } => {
+  // Derive filters (category, accent, gender) from a voice name
+  // Supports both Google TTS format (en-GB-Chirp3-HD-Achernar) and Lingroot ID format (lr_gb_chirp3hd_aoede)
+  const deriveFiltersFromVoiceName = (voiceName?: string): { category: string; accent: string; gender: string } => {
     const name = (voiceName || '').toString();
-    // Category - New naming: basic, silver (wavenet+neural2), gold (chirp3d), platinum (studio)
+    const nameLower = name.toLowerCase();
+    // Category
     let category = 'basic';
-    if (name.includes('Chirp') || name.toLowerCase().includes('chirp')) category = 'gold';
-    else if (name.includes('Studio')) category = 'platinum';
-    else if (name.toLowerCase().includes('neural2')) category = 'silver';
-    else if (name.toLowerCase().includes('wavenet')) category = 'silver';
-    // Accent by language code
+    if (nameLower.includes('chirp')) category = 'gold';
+    else if (nameLower.includes('studio')) category = 'platinum';
+    else if (nameLower.includes('neural2')) category = 'silver';
+    else if (nameLower.includes('wavenet')) category = 'silver';
+    // Accent - check both en-XX (Google TTS) and _xx_ (Lingroot ID) patterns
     let accent = 'american';
-    if (name.includes('en-GB')) accent = 'british';
-    else if (name.includes('en-AU')) accent = 'australian';
-    else if (name.includes('en-CA')) accent = 'canadian';
-    else if (name.includes('en-IN')) accent = 'indian';
-    else if (name.includes('en-US')) accent = 'american';
-    return { category, accent };
+    if (name.includes('en-GB') || nameLower.includes('_gb_')) accent = 'british';
+    else if (name.includes('en-AU') || nameLower.includes('_au_')) accent = 'australian';
+    else if (name.includes('en-CA') || nameLower.includes('_ca_')) accent = 'canadian';
+    else if (name.includes('en-IN') || nameLower.includes('_in_')) accent = 'indian';
+    else if (name.includes('en-US') || nameLower.includes('_us_')) accent = 'american';
+    // Gender - derive from display name mapping (e.g. "British Female Gold 1" → female)
+    let gender = 'all';
+    const displayName = getVoiceDisplayName(name, 'en', '').toLowerCase();
+    if (displayName.includes('female')) gender = 'female';
+    else if (displayName.includes('male')) gender = 'male';
+    return { category, accent, gender };
   };
 
   // Accent normalization helper: maps codes like GB/US and languageCode (en-GB, en-US)
@@ -495,21 +515,59 @@ const CreateScreen: React.FC = () => {
 
 
 
-  // Voice filters
-  const accentOptions = [
-    { value: 'all', label: t('create.voice.filters.all') },
-    { value: 'american', label: t('create.voice.accents.american') },
-    { value: 'british', label: t('create.voice.accents.british') },
-    { value: 'australian', label: t('create.voice.accents.australian') },
-    { value: 'canadian', label: t('create.voice.accents.canadian') },
-    { value: 'indian', label: t('create.voice.accents.indian') },
-  ];
+  // Voices filtered by plan permissions + selected category (used to derive dynamic filter options)
+  const voicesForCurrentCategory = React.useMemo(() => {
+    if (allVoices.length === 0) return [];
 
-  const genderOptions = [
-    { value: 'all', label: t('create.voice.filters.all') },
-    { value: 'male', label: t('create.voice.genders.male') },
-    { value: 'female', label: t('create.voice.genders.female') },
-  ];
+    let voices = allVoices;
+    if (planFeatures?.voice_categories) {
+      const cats = planFeatures.voice_categories;
+      const isAmazon = currentProvider === 'amazon' || currentProvider === 'polly';
+      voices = voices.filter(voice => {
+        if (isAmazon) {
+          return (isVoiceInCategory(voice, 'basic', 'amazon') && cats.amazon_standard) ||
+            (isVoiceInCategory(voice, 'neural', 'amazon') && cats.amazon_neural) ||
+            (isVoiceInCategory(voice, 'generative', 'amazon') && cats.amazon_generative);
+        }
+        return (isVoiceInCategory(voice, 'basic', 'google') && (cats.standard ?? true)) ||
+          (isVoiceInCategory(voice, 'silver', 'google') && (cats.wavenet || cats.neural2)) ||
+          (isVoiceInCategory(voice, 'gold', 'google') && cats.chirp3d) ||
+          (isVoiceInCategory(voice, 'platinum', 'google') && cats.studio);
+      });
+    }
+
+    return voices.filter(v => isVoiceInCategory(v, selectedVoiceCategory, currentProvider));
+  }, [allVoices, selectedVoiceCategory, currentProvider, planFeatures]);
+
+  // Voice filters - dynamic based on selected category
+  const accentOptions = React.useMemo(() => {
+    const allOption = { value: 'all', label: t('create.voice.filters.all') };
+    const fullList = [
+      { value: 'american', label: t('create.voice.accents.american') },
+      { value: 'british', label: t('create.voice.accents.british') },
+      { value: 'australian', label: t('create.voice.accents.australian') },
+      { value: 'canadian', label: t('create.voice.accents.canadian') },
+      { value: 'indian', label: t('create.voice.accents.indian') },
+    ];
+
+    if (voicesForCurrentCategory.length === 0) return [allOption, ...fullList];
+
+    const accents: Set<string> = new Set(voicesForCurrentCategory.map(v => v.accent).filter(Boolean));
+    return [allOption, ...fullList.filter(opt => accents.has(opt.value))];
+  }, [voicesForCurrentCategory, t]);
+
+  const genderOptions = React.useMemo(() => {
+    const allOption = { value: 'all', label: t('create.voice.filters.all') };
+    const fullGenders = [
+      { value: 'male', label: t('create.voice.genders.male') },
+      { value: 'female', label: t('create.voice.genders.female') },
+    ];
+
+    if (voicesForCurrentCategory.length === 0) return [allOption, ...fullGenders];
+
+    const genders: Set<string> = new Set(voicesForCurrentCategory.map(v => v.gender).filter(Boolean));
+    return [allOption, ...fullGenders.filter(opt => genders.has(opt.value))];
+  }, [voicesForCurrentCategory, t]);
 
   // Fetch plan features (with caching - userId enables user-aware cache)
   useEffect(() => {
@@ -598,6 +656,7 @@ const CreateScreen: React.FC = () => {
 
 
         // Web tarafıyla birebir: Backend zaten filtreleyip gönderiyor → UI tarafında tekrar filtreleme yok
+        setAllVoices(processedVoices);
         setAvailableVoices(processedVoices);
         setSelectedVoice((prev: string) => {
           const source = processedVoices;
@@ -859,23 +918,31 @@ const CreateScreen: React.FC = () => {
     }
   };
 
-  // Load voices, then load default voice and apply matching filters so it appears selected
-  useEffect(() => {
-    (async () => {
-      try {
-        await fetchAvailableVoices();
-        const settings = await ttsService.getUserSettings();
-        const dv = settings?.default_voice;
-        // Only apply default voice automatically if it looks like a Lingroot ID
-        if (dv && typeof dv === 'string' && dv.startsWith('lr_')) {
-          setSelectedVoice(dv);
-          setShouldPromoteSelectedVoiceTop(true);
-        }
-      } catch (e) {
+  // Load voices and apply default voice every time screen gets focus
+  useFocusEffect(
+    React.useCallback(() => {
+      (async () => {
+        try {
+          await fetchAvailableVoices();
+          const settings = await ttsService.getUserSettings();
+          const dv = settings?.data?.default_voice;
+          if (dv && typeof dv === 'string') {
+            setDefaultVoiceName(dv);
+            setSelectedVoice(dv);
+            setShouldPromoteSelectedVoiceTop(true);
+            const { category, accent, gender } = deriveFiltersFromVoiceName(dv);
+            setSelectedVoiceCategory(category);
+            setSelectedAccent(accent);
+            setSelectedGender(gender);
+          } else {
+            setDefaultVoiceName('');
+          }
+        } catch (e) {
 
-      }
-    })();
-  }, []);
+        }
+      })();
+    }, [])
+  );
 
   // Keep selected voice at top whenever available voices change
   useEffect(() => {
@@ -1966,16 +2033,18 @@ const CreateScreen: React.FC = () => {
                     onPress={() => {
                       const newCategory = category.value;
                       setSelectedVoiceCategory(newCategory);
-                      // Reset voice selection when category changes
+                      // Reset accent/gender filters when category changes
+                      setSelectedAccent('all');
+                      setSelectedGender('all');
+                      // Reset voice selection for new category
                       const filteredVoices = filterVoices(
                         availableVoices,
                         newCategory,
-                        selectedGender,
-                        selectedAccent
+                        'all',
+                        'all'
                       );
                       if (filteredVoices.length > 0) {
-                        const preferred = filteredVoices.find(v => (selectedGender === 'all') || v.gender === selectedGender);
-                        setSelectedVoice(preferred?.name || filteredVoices[0].name);
+                        setSelectedVoice(filteredVoices[0].name);
                       }
                     }}
                   >
@@ -2068,9 +2137,16 @@ const CreateScreen: React.FC = () => {
             >
               <Icon name="record-voice-over" size={24} color={COLORS.primary} />
               <View style={styles.voiceSelectionInfo}>
-                <Text style={styles.voiceSelectionText}>
-                  {selectedVoice ? getVoiceDisplayName(selectedVoice, language, selectedVoice) : t('create.voice.selectPrompt')}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.voiceSelectionText}>
+                    {selectedVoice ? getVoiceDisplayName(selectedVoice, language, selectedVoice) : t('create.voice.selectPrompt')}
+                  </Text>
+                  {defaultVoiceName !== '' && selectedVoice === defaultVoiceName && (
+                    <View style={styles.defaultVoiceBadge}>
+                      <Text style={styles.defaultVoiceBadgeText}>Default</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.voiceSelectionSubtext}>
                   {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
                 </Text>
@@ -2123,9 +2199,16 @@ const CreateScreen: React.FC = () => {
                         }}
                       >
                         <View style={styles.voiceItemInfo}>
-                          <Text style={styles.voiceItemName}>
-                            {getVoiceDisplayName(item.name, language, item.displayName || item.name)}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.voiceItemName}>
+                              {getVoiceDisplayName(item.name, language, item.displayName || item.name)}
+                            </Text>
+                            {defaultVoiceName !== '' && item.name === defaultVoiceName && (
+                              <View style={styles.defaultVoiceBadge}>
+                                <Text style={styles.defaultVoiceBadgeText}>Default</Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={styles.voiceItemDescription}>
                             {(item.accent === 'american' && t('create.voice.accents.american')) ||
                               (item.accent === 'british' && t('create.voice.accents.british')) ||
@@ -2150,17 +2233,24 @@ const CreateScreen: React.FC = () => {
                       onPress={async () => {
                         try {
                           await ttsService.saveDefaultVoiceSetting(selectedVoice);
+                          setDefaultVoiceName(selectedVoice);
                           setShouldPromoteSelectedVoiceTop(true);
-                          showError(
-                            t('common.success'),
-                            language === 'tr' ? 'Varsayılan ses kaydedildi' : 'Default voice saved'
-                          );
                           setShowVoiceSelection(false);
+                          // Delay feedback modal to avoid iOS modal overlap freeze
+                          setTimeout(() => {
+                            showError(
+                              t('common.success'),
+                              language === 'tr' ? 'Varsayılan ses kaydedildi' : 'Default voice saved'
+                            );
+                          }, 400);
                         } catch (e: any) {
-                          showError(
-                            t('common.error'),
-                            e.message || (language === 'tr' ? 'Kaydedilemedi' : 'Could not save')
-                          );
+                          setShowVoiceSelection(false);
+                          setTimeout(() => {
+                            showError(
+                              t('common.error'),
+                              e.message || (language === 'tr' ? 'Kaydedilemedi' : 'Could not save')
+                            );
+                          }, 400);
                         }
                       }}
                       disabled={!selectedVoice}
@@ -2250,7 +2340,7 @@ const CreateScreen: React.FC = () => {
           </View>
         </TouchableOpacity>
       </Modal>
-      {/* Error Alert Modal */}
+      {/* Alert Modal (Error / Success / Info) */}
       <Modal
         visible={showErrorAlert}
         transparent
@@ -2263,13 +2353,29 @@ const CreateScreen: React.FC = () => {
           onPress={() => setShowErrorAlert(false)}
         >
           <View style={styles.successModalContainer}>
-            {/* Error Icon */}
+            {/* Icon */}
             <View style={styles.successIconContainer}>
               <LinearGradient
-                colors={[COLORS.danger, '#B91C1C']}
+                colors={
+                  errorAlertType === 'success'
+                    ? [COLORS.brandTeal, '#0D9488']
+                    : errorAlertType === 'info'
+                      ? [COLORS.brandOrange, '#D97706']
+                      : [COLORS.danger, '#B91C1C']
+                }
                 style={styles.successIconGradient}
               >
-                <Icon name="error-outline" size={40} color="#FFFFFF" />
+                <Icon
+                  name={
+                    errorAlertType === 'success'
+                      ? 'check-circle'
+                      : errorAlertType === 'info'
+                        ? 'info'
+                        : 'error-outline'
+                  }
+                  size={40}
+                  color="#FFFFFF"
+                />
               </LinearGradient>
             </View>
 
@@ -2286,7 +2392,10 @@ const CreateScreen: React.FC = () => {
             {/* Action Button (e.g. "Paket Al") */}
             {errorAlertAction && (
               <TouchableOpacity
-                style={styles.errorActionButton}
+                style={[
+                  styles.errorActionButton,
+                  errorAlertType !== 'error' && { backgroundColor: COLORS.brandTeal, shadowColor: COLORS.brandTeal },
+                ]}
                 onPress={errorAlertAction.onPress}
                 activeOpacity={0.8}
               >
@@ -2300,7 +2409,11 @@ const CreateScreen: React.FC = () => {
             <TouchableOpacity
               style={[
                 styles.successModalButton,
-                errorAlertAction ? styles.errorDismissButton : styles.errorPrimaryButton,
+                errorAlertAction
+                  ? styles.errorDismissButton
+                  : errorAlertType === 'error'
+                    ? styles.errorPrimaryButton
+                    : null,
               ]}
               onPress={() => setShowErrorAlert(false)}
               activeOpacity={0.8}
@@ -2704,6 +2817,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  defaultVoiceBadge: {
+    backgroundColor: COLORS.brandTeal + '18',
+    borderWidth: 1,
+    borderColor: COLORS.brandTeal + '40',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  defaultVoiceBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.brandTeal,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   textInputDisabled: {
     backgroundColor: COLORS.slate50,

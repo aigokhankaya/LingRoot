@@ -611,6 +611,7 @@ const AppNavigator = () => {
                   headerTintColor: COLORS.slate900,
                   headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                   headerTitle: 'LIRO',
+                  headerBackTitle: t('common.back'),
                 }}
               />
               <Stack.Screen
@@ -623,6 +624,7 @@ const AppNavigator = () => {
                   headerTintColor: COLORS.slate900,
                   headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                   headerTitle: t('profile.accountSettings'),
+                  headerBackTitle: t('common.back'),
                 })}
               />
               <Stack.Screen
@@ -634,6 +636,7 @@ const AppNavigator = () => {
                   headerBackground: () => <BlurHeader />,
                   headerTintColor: COLORS.slate900,
                   headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerBackTitle: t('common.back'),
                 }}
               />
               <Stack.Screen
@@ -647,12 +650,7 @@ const AppNavigator = () => {
                 name="Chat"
                 component={ChatScreen}
                 options={{
-                  headerShown: true,
-                  headerTransparent: true,
-                  headerBackground: () => <BlurHeader />,
-                  headerTintColor: COLORS.slate900,
-                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
-                  headerTitle: language === 'tr' ? 'Destek' : 'Support',
+                  headerShown: false,
                 }}
               />
               <Stack.Screen
@@ -696,6 +694,7 @@ const AppNavigator = () => {
                   headerTintColor: COLORS.slate900,
                   headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                   headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
+                  headerBackTitle: t('common.back'),
                 }}
               />
               <Stack.Screen

@@ -146,8 +146,16 @@ Do NOT create: NewSyncedTextPlayer, new AudioPlayer, new Button, inline `<button
 ```
 Types: `feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `test:`, `chore:`
  
+## Token Efficiency
+
+- **Explore/Task agent kullanma** — dosya yolları belli veya tahmin edilebilir ise doğrudan `Glob` + `Read` kullan.
+- Explore agent sadece codebase yapısı tamamen bilinmiyorsa veya açık uçlu araştırma gerektiğinde kullanılmalı.
+- Bilinen dizin yapısı: `frontend/src/`, `backend/`, `LingRootMobile/src/`, `packages/api-client/`.
+- Ekran dosyaları: `LingRootMobile/src/screens/`, bileşenler: `LingRootMobile/src/components/` & `frontend/src/components/`.
+- Navigation: `LingRootMobile/src/navigation/AppNavigator.tsx`.
+
 ## Error & Uncertainty Handling
- 
+
 - If uncertain about architecture/rules → **NEVER assume** → ask user.
 - If agent makes an error → state it, propose rollback, get approval before critical changes.
 - Build/test failure → fix before continuing.

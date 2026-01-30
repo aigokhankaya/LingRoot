@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   SafeAreaView,
   View,
@@ -14,6 +14,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -21,7 +22,9 @@ import { getApiBaseUrl } from '../services/environmentConfig';
 import AudioPlayer from '../components/AudioPlayer';
 import { SmartPromptSuggester } from '../components/chat/SmartPromptSuggester';
 import { AudioTrack, Timepoint } from '../types';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+import { getUserSettings } from '../services/ttsService';
 
 interface AnimatedFeatureButtonProps {
   titleTr: string;
@@ -85,6 +88,7 @@ interface Conversation {
 }
 
 const LiroScreen: React.FC = () => {
+  const navigation = useNavigation();
   const { language } = useLanguage();
   const [apiUrl, setApiUrl] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -104,6 +108,8 @@ const LiroScreen: React.FC = () => {
   const [liroPlayerVisible, setLiroPlayerVisible] = useState(false);
   const [liroTrack, setLiroTrack] = useState<AudioTrack | null>(null);
   const scrollViewRef = useRef<ScrollView | null>(null);
+  const [defaultVoice, setDefaultVoice] = useState<string>('lr_us_wavenet_f');
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   const ctaDisabled = !(ctaTopicReady || ctaContentReady);
 
@@ -127,6 +133,19 @@ const LiroScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const loadDefaultVoice = async () => {
+      try {
+        const settings = await getUserSettings();
+        const dv = settings?.data?.default_voice;
+        if (dv && typeof dv === 'string') {
+          setDefaultVoice(dv);
+        }
+      } catch {}
+    };
+    loadDefaultVoice();
+  }, []);
+
+  useEffect(() => {
     if (!apiUrl) return;
     fetchConversations();
   }, [apiUrl]);
@@ -141,6 +160,30 @@ const LiroScreen: React.FC = () => {
   useEffect(() => {
     AnalyticsHelper.logScreenView('Liro_Chat', 'LiroScreen');
   }, []);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 8 }}>
+          <TouchableOpacity
+            style={{ padding: 4 }}
+            onPress={() => {
+              setIsSidebarOpen(true);
+              fetchConversations();
+            }}
+          >
+            <Icon name="menu" size={22} color="#111827" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ padding: 4 }}
+            onPress={handleNewChat}
+          >
+            <Icon name="add-circle-outline" size={22} color="#27BEAA" />
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  });
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -305,11 +348,26 @@ const LiroScreen: React.FC = () => {
   };
 
   const extractTopicFromMessages = (): string => {
+    const fallback =
+      language === 'tr' ? 'Belirlenen konu' : 'Selected topic';
+
+    // Priority 1: Use the last user message — it contains the actual topic request
+    const userMessages = messages.filter(
+      message => message.role === 'user'
+    );
+    if (userMessages.length > 0) {
+      const lastUserMessage = userMessages[userMessages.length - 1].content;
+      if (lastUserMessage.trim()) {
+        return lastUserMessage.slice(0, 200).trim();
+      }
+    }
+
+    // Priority 2: Try quoted text in assistant message
     const assistantMessages = messages.filter(
       message => message.role === 'assistant'
     );
     if (assistantMessages.length === 0) {
-      return language === 'tr' ? 'Belirlenen konu' : 'Selected topic';
+      return fallback;
     }
 
     const lastMessage = assistantMessages[assistantMessages.length - 1].content;
@@ -318,10 +376,13 @@ const LiroScreen: React.FC = () => {
       return match[1] || match[2];
     }
 
-    const firstSentence = lastMessage.split(/[.!?]/)[0];
-    const fallback =
-      language === 'tr' ? 'Belirlenen konu' : 'Selected topic';
-    return (firstSentence.slice(0, 80).trim() || fallback) as string;
+    // Priority 3: First meaningful sentence (skip single-word Turkish fillers)
+    const sentences = lastMessage.split(/[.!?]/).filter(s => s.trim().length > 5);
+    if (sentences.length > 0) {
+      return sentences[0].slice(0, 80).trim();
+    }
+
+    return fallback;
   };
 
   const formatDate = (iso: string): string => {
@@ -387,7 +448,7 @@ const LiroScreen: React.FC = () => {
       created_at: createdAt,
       translated_text: audioResult?.translated_text || audioResult?.translatedText,
       adapted_text: audioResult?.adapted_text || audioResult?.adaptedText,
-      original_turkish: audioResult?.original_turkish,
+      original_turkish: stripLiroCommentary(audioResult?.original_turkish || audioResult?.originalMessage || audioResult?.translated_text || audioResult?.translatedText || ''),
       timepoints: normalizeTimepoints(audioResult?.timepoints),
       words: normalizeWords(audioResult?.words),
       real_duration: audioResult?.real_duration,
@@ -399,6 +460,45 @@ const LiroScreen: React.FC = () => {
 
     setLiroTrack(track);
     setLiroPlayerVisible(true);
+  };
+
+  const stripLiroCommentary = (text: string): string => {
+    if (!text) return '';
+    // Priority 1: [CONTENT]...[/CONTENT] markers
+    const contentMatch = text.match(/\[CONTENT\]([\s\S]*?)\[\/CONTENT\]/);
+    if (contentMatch && contentMatch[1]?.trim()) {
+      return contentMatch[1].trim();
+    }
+    // Priority 2: --- separators (legacy fallback)
+    const parts = text.split('---');
+    if (parts.length >= 3) {
+      const middle = parts.slice(1, -1).join('---').trim();
+      if (middle) return middle;
+    }
+    // Priority 3: Filter out Turkish commentary paragraphs
+    const paragraphs = text.split(/\n\n+/);
+    if (paragraphs.length >= 2) {
+      const isLikelyTurkish = (p: string): boolean => {
+        const t = p.trim();
+        if (!t) return false;
+        // Turkish-specific characters (never in English text)
+        if (/[çşğıİŞÇĞüöÜÖ]/.test(t)) return true;
+        // Common Turkish filler/commentary starters
+        if (/^(Hmm|Hm\b|Tabii|Tabi\b|Harika|Tamam|Peki|Buyur|Haydi|Evet|Şimdi|İşte|Sonuç\s+olarak)/i.test(t)) return true;
+        return false;
+      };
+      const nonTurkish = paragraphs.filter(p => {
+        const t = p.trim();
+        if (!t) return false;
+        return !isLikelyTurkish(t);
+      });
+      if (nonTurkish.length > 0) {
+        const result = nonTurkish.join('\n\n').trim();
+        if (result) return result;
+      }
+    }
+    // Fallback: return full text
+    return text;
   };
 
   const getLastAssistantMessage = (): string => {
@@ -461,6 +561,7 @@ const LiroScreen: React.FC = () => {
             input: topic,
             level: desiredLevel,
             speakingRate: 0.8,
+            voice: defaultVoice,
           }),
         });
         if (!response.ok) {
@@ -480,6 +581,7 @@ const LiroScreen: React.FC = () => {
             topic,
             level: desiredLevel,
             duration: '10',
+            voice: defaultVoice,
           }),
         });
         if (!response.ok) {
@@ -491,6 +593,7 @@ const LiroScreen: React.FC = () => {
         if (!lastMessage) {
           throw new Error('No assistant message');
         }
+        const cleanedMessage = stripLiroCommentary(lastMessage);
         const desiredLevel = getDesiredCefrLevel();
         const response = await fetch(`${apiUrl}/api/tts/process`, {
           method: 'POST',
@@ -500,9 +603,10 @@ const LiroScreen: React.FC = () => {
           },
           body: JSON.stringify({
             type: 'text',
-            input: lastMessage,
+            input: cleanedMessage,
             level: desiredLevel,
             speakingRate: 0.8,
+            voice: defaultVoice,
           }),
         });
         if (!response.ok) {
@@ -654,6 +758,12 @@ const LiroScreen: React.FC = () => {
     sendMessage(text);
   };
 
+  const handleMessageLongPress = (message: LiroMessage) => {
+    Clipboard.setString(message.content);
+    setCopiedMessageId(message.id);
+    setTimeout(() => setCopiedMessageId(null), 1500);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -661,25 +771,6 @@ const LiroScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => {
-              setIsSidebarOpen(true);
-              fetchConversations();
-            }}
-          >
-            <Icon name="menu" size={22} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>LIRO</Text>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={handleNewChat}
-          >
-            <Icon name="add-circle-outline" size={22} color="#27BEAA" />
-          </TouchableOpacity>
-        </View>
-
         <ScrollView
           ref={scrollViewRef}
           style={styles.scroll}
@@ -740,8 +831,10 @@ const LiroScreen: React.FC = () => {
           ) : (
             <View style={styles.messagesList}>
               {messages.map(message => (
-                <View
+                <TouchableOpacity
                   key={message.id}
+                  activeOpacity={0.8}
+                  onLongPress={() => handleMessageLongPress(message)}
                   style={[
                     styles.messageRow,
                     message.role === 'user'
@@ -766,8 +859,13 @@ const LiroScreen: React.FC = () => {
                     >
                       {message.content}
                     </Text>
+                    {copiedMessageId === message.id && (
+                      <Text style={styles.copiedFeedback}>
+                        {language === 'tr' ? 'Kopyalandı' : 'Copied'}
+                      </Text>
+                    )}
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
@@ -1049,7 +1147,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingTop: 44,
+    paddingBottom: 24,
   },
   heroSection: {
     marginBottom: 24,
@@ -1256,6 +1355,12 @@ const styles = StyleSheet.create({
   messageTextAssistant: {
     color: '#111827',
     fontSize: 14,
+  },
+  copiedFeedback: {
+    fontSize: 11,
+    color: '#27BEAA',
+    fontWeight: '600',
+    marginTop: 4,
   },
   typingRow: {
     flexDirection: 'row',
