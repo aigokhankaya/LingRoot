@@ -122,9 +122,8 @@ export async function getTopicSuggestions(topic: string, level?: string): Promis
  */
 export async function saveDefaultVoiceSetting(voiceName: string): Promise<void> {
     const client = await getApiClientAsync();
-    await client.http.post('/api/users/settings', {
-        key: 'default_voice',
-        value: voiceName
+    await client.http.post('/api/user-settings/default-voice', {
+        voice: voiceName
     });
 }
 
@@ -133,7 +132,7 @@ export async function saveDefaultVoiceSetting(voiceName: string): Promise<void> 
  */
 export async function getUserSettings(): Promise<any> {
     const client = await getApiClientAsync();
-    const response = await client.http.get('/api/users/settings');
+    const response = await client.http.get('/api/user-settings');
     return response.data;
 }
 
