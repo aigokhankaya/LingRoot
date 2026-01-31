@@ -540,8 +540,7 @@ const processTtsRequest = async (req, res) => {
       const isBookOrDocument = inputType === 'book' || inputType === 'document';
       const promptVariant = isBookOrDocument ? 'narrator' : 'standard';
 
-      console.log(`🎯 [OPTIMIZED TTS] Using single-call translate+adapt for ${sourceLanguage} → EN (${level}) [Variant: ${promptVariant}]`);
-      logger.info(`[${requestId}] [OPTIMIZED] Starting unified translate+adapt: ${sourceLanguage} → EN at ${level} (variant: ${promptVariant})`);
+      logger.info(`[${requestId}] [TTS] Starting unified translate+adapt: ${sourceLanguage} -> EN at ${level} (variant: ${promptVariant})`);
 
       // MOOD ANALYSIS FOR NON-TOPIC INPUTS (Director Agent)
       if (!skipTranslateAndAdapt && isBookOrDocument) {
@@ -578,9 +577,7 @@ const processTtsRequest = async (req, res) => {
             }
           }
 
-          logger.info(`[${requestId}] [OPTIMIZED] Translate+Adapt complete in single call`);
-          console.log(`✅ [OPTIMIZED] Single call complete: ${textToAdapt.length} chars, ${openaiUsage.total_tokens} tokens`);
-          console.log(`💰 [TOKEN SAVINGS] Estimated ~43% savings vs old 2-step method`);
+          logger.info(`[${requestId}] [TTS] Translate+Adapt complete in single call: ${textToAdapt.length} chars, ${openaiUsage.total_tokens} tokens`);
         } else {
           throw new Error('Optimized translate+adapt returned empty result');
         }
@@ -619,12 +616,11 @@ const processTtsRequest = async (req, res) => {
     }
 
     // --- Step 2.7: Extract Daily Usage Patterns ---
-    console.log(`[${requestId}] 🎯 STEP 2.7: Starting daily pattern extraction...`);
+    logger.info(`[${requestId}] [TTS] STEP 2.7: Starting daily pattern extraction`);
     let dailyUsagePatterns = [];
     let patternUsage = null;
     try {
-      console.log(`[${requestId}] 🎯 About to call extractDailyUsagePatterns with text length: ${textToAdapt.length}`);
-      logger.info(`[${requestId}] Extracting daily usage patterns from adapted text...`);
+      logger.info(`[${requestId}] [TTS] Extracting daily usage patterns from adapted text (length: ${textToAdapt.length})`);
       logRequestStep(requestId, 'dailyPatterns:start', { textLength: textToAdapt.length });
 
       const patternExtraction = await extractDailyUsagePatterns(textToAdapt, level, requestId);
@@ -633,12 +629,10 @@ const processTtsRequest = async (req, res) => {
 
       // Check if extraction was skipped
       if (patternExtraction.skipped) {
-        console.log(`[${requestId}] ⏭️  Daily pattern extraction skipped: ${patternExtraction.reason} (existing: ${patternExtraction.existingCount || 0})`);
-        logger.info(`[${requestId}] Daily pattern extraction skipped: ${patternExtraction.reason}`);
+        logger.info(`[${requestId}] [TTS] Daily pattern extraction skipped: ${patternExtraction.reason} (existing: ${patternExtraction.existingCount || 0})`);
       } else if (patternUsage) {
         // Detailed token log for Daily Pattern Extraction
-        console.log(`[${requestId}] 📊 DAILY PATTERNS OpenAI Call - Model: ${patternUsage.model || 'gpt-4o-mini'}, Input: ${patternUsage.prompt_tokens || 0} tokens, Output: ${patternUsage.completion_tokens || 0} tokens, Total: ${patternUsage.total_tokens || 0} tokens`);
-        logger.info(`[${requestId}] Daily patterns token usage: input=${patternUsage.prompt_tokens}, output=${patternUsage.completion_tokens}, total=${patternUsage.total_tokens}`);
+        logger.info(`[${requestId}] [TTS] Daily patterns OpenAI call - Model: ${patternUsage.model || 'gpt-4o-mini'}, Input: ${patternUsage.prompt_tokens || 0}, Output: ${patternUsage.completion_tokens || 0}, Total: ${patternUsage.total_tokens || 0} tokens`);
       }
 
       logger.info(`[${requestId}] Daily usage patterns extracted: ${dailyUsagePatterns.length} patterns`);
@@ -686,18 +680,16 @@ const processTtsRequest = async (req, res) => {
       }
 
       // Summary log for all OpenAI calls
-      console.log(`[${requestId}] 📊 TOTAL OpenAI Usage - Calls: ${openaiCallCount}, Total Input: ${openaiUsage.prompt_tokens} tokens, Total Output: ${openaiUsage.completion_tokens} tokens, Grand Total: ${openaiUsage.total_tokens} tokens`);
-      logger.info(`[${requestId}] Total OpenAI usage summary: calls=${openaiCallCount}, input=${openaiUsage.prompt_tokens}, output=${openaiUsage.completion_tokens}, total=${openaiUsage.total_tokens}`);
+      logger.info(`[${requestId}] [TTS] Total OpenAI usage - Calls: ${openaiCallCount}, Input: ${openaiUsage.prompt_tokens}, Output: ${openaiUsage.completion_tokens}, Total: ${openaiUsage.total_tokens} tokens`);
     } catch (patternError) {
-      console.error(`[${requestId}] ❌ PATTERN EXTRACTION ERROR:`, patternError);
-      logger.error(`[${requestId}] Daily usage pattern extraction failed: ${patternError.message}`, {
+      logger.error(`[${requestId}] [TTS] Daily usage pattern extraction failed: ${patternError.message}`, {
         stack: patternError.stack,
         name: patternError.name
       });
       logRequestStep(requestId, 'dailyPatterns:error', { error: patternError.message });
       // Continue with TTS even if pattern extraction fails
     }
-    console.log(`[${requestId}] 🎯 Pattern extraction complete. Patterns found: ${dailyUsagePatterns.length}`);
+    logger.info(`[${requestId}] [TTS] Pattern extraction complete. Patterns found: ${dailyUsagePatterns.length}`);
 
     // --- Check if no_tts flag is set (text generation only) ---
     if (req.body.no_tts === true) {
@@ -750,7 +742,7 @@ const processTtsRequest = async (req, res) => {
       logRequestStep(requestId, 'chunkText:preTTS:error', { error: 'textToAdapt is empty.' });
       return res.status(400).json({ success: false, message: "No text to chunk after translation." });
     }
-    console.log("[DEBUG] chunkText input (preTTS):", textToAdapt);
+    logger.debug(`[TTS] chunkText input (preTTS): ${textToAdapt}`);
     const preChunks = preChunkTextByByteLimit(textToAdapt, 4500);
     const initialChunks = preChunks.flatMap(part => chunkText(part, 4500));
     logRequestStep(requestId, 'chunkText:preTTS:start', { textToAdapt, chunkCount: initialChunks.length });
@@ -993,7 +985,7 @@ const processTtsRequest = async (req, res) => {
           }
 
           // RETURN CHAPTER CACHED RESULT IMMEDIATELY!
-          console.log('🎯 [CHAPTER CACHE RETURN] Using chapter cache return');
+          logger.info(`[${requestId}] [TTS] Using chapter cache return`);
           return res.status(200).json({
             success: true,
             message: adaptedText,
@@ -1048,7 +1040,7 @@ const processTtsRequest = async (req, res) => {
         });
 
         // RETURN CONTENT CACHED RESULT IMMEDIATELY!
-        console.log('🎯 [CONTENT CACHE RETURN] Using content cache return');
+        logger.info(`[${requestId}] [TTS] Using content cache return`);
         return res.status(200).json({
           success: true,
           message: adaptedText,
@@ -1192,7 +1184,7 @@ const processTtsRequest = async (req, res) => {
         // 🎯 Voice ve gender bilgilerini log'la
         logger.info(`[${requestId}] 🎙️ TTS Chunk ${i + 1} Success - Voice: ${ttsResult.voiceName || selectedVoice}, Gender: ${ttsResult.actualGender || 'unknown'}, Method: ${ttsResult.timingMethod || 'unknown'}`);
         if (ttsResult.actualGender) {
-          console.log(`🎙️ [VOICE DEBUG] Chunk ${i + 1} - Expected Voice: ${selectedVoice} -> Actual Gender: ${ttsResult.actualGender}`);
+          logger.debug(`[TTS] Chunk ${i + 1} - Expected Voice: ${selectedVoice} -> Actual Gender: ${ttsResult.actualGender}`);
         }
 
         // Audio segment'ini sakla
@@ -1742,7 +1734,7 @@ const processTtsRequest = async (req, res) => {
     }
 
     // Debug: Çeviri ve adaptasyon sonuçlarını logla
-    console.log('🔍 [TTS RESPONSE DEBUG]', {
+    logger.debug(`[TTS] Response debug`, {
       translationResult: translationResult ? translationResult.substring(0, 100) + '...' : 'EMPTY',
       adaptedText: adaptedText ? adaptedText.substring(0, 100) + '...' : 'EMPTY',
       isCacheHit: req.body.is_cached || false,
@@ -1750,7 +1742,7 @@ const processTtsRequest = async (req, res) => {
       hasAdaptedText: !!adaptedText
     });
 
-    console.log('🎯 [MAIN RETURN] Using main return statement with translated fields');
+    logger.info(`[${requestId}] [TTS] Using main return statement with translated fields`);
 
     const responseData = {
       success: true,
@@ -2039,8 +2031,7 @@ const translateToEnglish = async (req, res) => {
     // Select the appropriate CEFR prompt based on the level
     const promptFile = `cefr_${level}.txt`;
     const promptPath = path.join(__dirname, '../prompts', promptFile);
-    console.log(`🎯 [TTS CONTROLLER] Using prompt file: ${promptFile} for level: ${level}`);
-    logger.info(`🎯 TTS Controller - Selected prompt file: ${promptFile} for level: ${level}`);
+    logger.info(`[TTS] Selected prompt file: ${promptFile} for level: ${level}`);
     const promptText = fs.readFileSync(promptPath, 'utf-8');
     // Use the prompt in the translation process
     const result = await translateToEnglishWithOpenAI(text, promptText);

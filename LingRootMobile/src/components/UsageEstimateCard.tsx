@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getUsageSummary } from '../services/subscriptionService';
-import { computeCostAwareEstimates, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory, formatNumberTR, type UsageSummary } from '../utils/usageEstimates';
+import { computeCostAwareEstimates, CHARS_PER_AUDIO_MINUTE, formatNumberTR, type UsageSummary } from '../utils/usageEstimates';
 import { useLanguage } from '../contexts/LanguageContext';
 import { COLORS } from '../theme/colors';
 
@@ -13,7 +13,7 @@ interface Props {
 const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     let mounted = true;
@@ -40,13 +40,18 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
       <View style={styles.card}>
         <ActivityIndicator size="small" color={COLORS.brandTeal} />
         <Text style={styles.cardTitle}>
-          {language === 'tr' ? 'Kullanım tahminleri yükleniyor...' : 'Loading usage estimates...'}
+          {t('usage.loading')}
         </Text>
       </View>
     );
   }
 
   const perCategory = computeCostAwareEstimates(summary);
+  const tierKeys = Object.keys(perCategory);
+  const providerLabel = summary?.ttsProvider === 'google' ? 'Google TTS'
+    : summary?.ttsProvider === 'polly' ? 'Amazon Polly'
+    : summary?.ttsProvider || 'TTS';
+  const firstTierEst = tierKeys.length > 0 ? perCategory[tierKeys[0]] : null;
   const exceeded = !!summary?.isExceeded;
   const isFreeTrialExhausted = !!(summary as any)?.isFreeTrialExhausted;
   const planName = (summary as any)?.plan?.name || (summary as any)?.plantype;
@@ -80,14 +85,14 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
             <Icon name="card-giftcard" size={20} color={isFreeTrialExhausted ? '#C62828' : COLORS.brandTeal} />
           </View>
           <Text style={[styles.cardTitle, isFreeTrialExhausted && { color: '#C62828' }]}>
-            {language === 'tr' ? 'Ücretsiz Deneme' : 'Free Trial'}
+            {t('usage.freeTrial.title')}
           </Text>
         </View>
 
         <View style={{ marginTop: 16 }}>
           <View style={styles.row}>
             <Text style={styles.label}>
-              {language === 'tr' ? 'Oluşturulan Ses' : 'Created Audios'}
+              {t('usage.freeTrial.createdAudios')}
             </Text>
             <Text style={[styles.value, isFreeTrialExhausted && { color: '#C62828' }]}>
               {audioCount} / {maxAudioCount}
@@ -96,7 +101,7 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
 
           <View style={[styles.row, { marginTop: 10 }]}>
             <Text style={styles.label}>
-              {language === 'tr' ? 'Kalan Hak' : 'Remaining Credits'}
+              {t('usage.freeTrial.remainingCredits')}
             </Text>
             <View style={[styles.remainingBadge, { backgroundColor: remainingCount > 0 ? 'rgba(39, 190, 170, 0.1)' : 'rgba(198, 40, 40, 0.1)' }]}>
               <Text style={[styles.remainingText, { color: remainingCount > 0 ? COLORS.brandTeal : '#C62828' }]}>
@@ -110,9 +115,7 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
           <View style={styles.exceededBox}>
             <Icon name="error" size={16} color="#C62828" />
             <Text style={styles.exceededText}>
-              {language === 'tr'
-                ? 'Ücretsiz deneme hakkınız doldu. Premium pakete geçin.'
-                : 'Your free trial credits are exhausted. Upgrade to premium.'}
+              {t('usage.freeTrial.exhausted')}
             </Text>
           </View>
         )}
@@ -127,7 +130,7 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
           <Icon name="insights" size={20} color={exceeded ? '#C62828' : COLORS.brandIndigo} />
         </View>
         <Text style={[styles.cardTitle, exceeded && { color: '#C62828' }]}>
-          {language === 'tr' ? 'Kullanım Tahmini' : 'Usage Estimate'}
+          {t('usage.title')}
         </Text>
       </View>
 
@@ -136,7 +139,7 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
       <View style={{ marginTop: 12 }}>
         <View style={styles.row}>
           <Text style={styles.label}>
-            {language === 'tr' ? 'Paket' : 'Plan'}
+            {t('usage.plan')}
           </Text>
           <View style={styles.planBadge}>
             <Text style={styles.planBadgeText}>
@@ -146,7 +149,7 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>
-            {language === 'tr' ? 'Geçerlilik' : 'Valid until'}
+            {t('usage.validUntil')}
           </Text>
           <Text style={styles.value}>
             {formattedEnd}
@@ -159,67 +162,70 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
       {/* Per-category cost-aware section */}
       <View style={styles.categorySection}>
         <Text style={styles.categorySectionTitle}>
-          {language === 'tr' ? 'Kategoriye göre kalan kullanım' : 'Remaining usage by category'}
+          {t('usage.categoryTitle')}
         </Text>
-        {((['standard', 'neural', 'generative'] as VoiceCategory[])).map((cat, idx, arr) => (
-          <View
-            key={cat}
-            style={[
-              styles.categoryItem,
-              idx < arr.length - 1 && styles.categoryItemBorder
-            ]}
-          >
-            <View style={styles.row}>
-              <Text style={styles.categoryLabel}>
-                {cat === 'neural' ? 'Neural (Premium)' :
-                  cat === 'generative' ? 'Generative (Ultra)' :
-                    cat === 'standard' ? 'Standard' : cat}
-              </Text>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.categoryValue}>
-                  {perCategory[cat].remainingChars === null
-                    ? (language === 'tr' ? 'Sınırsız' : 'Unlimited')
-                    : `${formatNumberTR(perCategory[cat].remainingChars)} ${language === 'tr' ? 'karakter' : 'characters'}`}
+        {tierKeys.map((cat, idx) => {
+          const tierLabel = summary?.ttsTiers?.[cat]?.label || cat;
+          const est = perCategory[cat];
+          if (!est) return null;
+          return (
+            <View
+              key={cat}
+              style={[
+                styles.categoryItem,
+                idx < tierKeys.length - 1 && styles.categoryItemBorder
+              ]}
+            >
+              <View style={styles.row}>
+                <Text style={styles.categoryLabel}>
+                  {tierLabel}
                 </Text>
-                <Text style={styles.categoryValueSub}>
-                  {perCategory[cat].remainingCharsByUsd === null
-                    ? (language === 'tr' ? 'Sınırsız' : 'Unlimited')
-                    : `${formatNumberTR(Math.floor((perCategory[cat].remainingCharsByUsd || 0) / CHARS_PER_VIDEO_MINUTE))} ${language === 'tr' ? 'dk video' : 'min video'}`}
-                </Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.categoryValue}>
+                    {est.remainingChars === null
+                      ? t('usage.unlimited')
+                      : t('usage.characters', { count: formatNumberTR(est.remainingChars) })}
+                  </Text>
+                  <Text style={styles.categoryValueSub}>
+                    {est.remainingCharsByUsd === null
+                      ? t('usage.unlimited')
+                      : t('usage.minutesAudio', { count: formatNumberTR(Math.floor((est.remainingCharsByUsd || 0) / CHARS_PER_AUDIO_MINUTE)) })}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
 
         {/* Podcast Section - Separate */}
         <View style={[styles.categoryItem, styles.podcastSection]}>
           <View style={styles.row}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Icon name="podcasts" size={18} color={COLORS.slate500} />
-              <Text style={styles.categoryLabel}>Podcast (Google TTS)</Text>
+              <Text style={styles.categoryLabel}>
+                {`Podcast (${providerLabel})`}
+              </Text>
             </View>
             <Text style={styles.categoryValue}>
-              {perCategory.standard?.remainingPodcasts === null
-                ? (language === 'tr' ? 'Sınırsız' : 'Unlimited')
-                : `~${perCategory.standard?.remainingPodcasts} ${language === 'tr' ? 'adet' : 'items'}`}
+              {firstTierEst?.remainingPodcasts === null
+                ? t('usage.unlimited')
+                : t('usage.podcastItems', { count: firstTierEst?.remainingPodcasts ?? 0 })}
             </Text>
           </View>
         </View>
 
         {(() => {
-          const cats = ['standard', 'neural', 'generative'] as VoiceCategory[];
-          // Check if key exists to avoid crash if type mismatch during HMR
-          if (!perCategory.standard) return null;
+          if (tierKeys.length === 0) return null;
+          const firstEst = perCategory[tierKeys[0]];
+          if (!firstEst) return null;
 
-          const allSame = cats.every((c) => perCategory[c]?.remainingChars === perCategory[cats[0]]?.remainingChars);
-          const charLimitExists = perCategory.standard.remainingCharsByLimit !== null;
+          const allSame = tierKeys.every((c) => perCategory[c]?.remainingChars === firstEst.remainingChars);
+          const charLimitExists = firstEst.remainingCharsByLimit !== null;
           if (allSame && charLimitExists) {
             return (
               <View style={styles.infoNote}>
                 <Text style={styles.infoNoteText}>
-                  {language === 'tr'
-                    ? 'Karakter limiti dar boğaz olduğu için tüm kategoriler aynı görünüyor.'
-                    : 'Character limit is the bottleneck, so all categories look the same.'}
+                  {t('usage.bottleneckNote')}
                 </Text>
               </View>
             );
@@ -234,7 +240,7 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
         <View style={styles.exceededBox}>
           <Icon name="error" size={16} color="#C62828" />
           <Text style={styles.exceededText}>
-            {language === 'tr' ? 'Paket kullanım sınırınız aşıldı.' : 'Your plan usage limit has been exceeded.'}
+            {t('usage.exceeded')}
           </Text>
         </View>
       )}

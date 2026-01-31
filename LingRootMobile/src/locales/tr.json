@@ -294,5 +294,24 @@
       "acceptTerms": "Lütfen şartları kabul edin",
       "generic": "Kayıt başarısız"
     }
+  },
+  "usage": {
+    "loading": "Kullanım tahminleri yükleniyor...",
+    "title": "Kullanım Tahmini",
+    "plan": "Paket",
+    "validUntil": "Geçerlilik",
+    "categoryTitle": "Kategoriye göre kalan kullanım",
+    "unlimited": "Sınırsız",
+    "characters": "{{count}} karakter",
+    "minutesAudio": "{{count}} dk ses",
+    "podcastItems": "~{{count}} adet",
+    "bottleneckNote": "Karakter limiti dar boğaz olduğu için tüm kategoriler aynı görünüyor.",
+    "exceeded": "Paket kullanım sınırınız aşıldı.",
+    "freeTrial": {
+      "title": "Ücretsiz Deneme",
+      "createdAudios": "Oluşturulan Ses",
+      "remainingCredits": "Kalan Hak",
+      "exhausted": "Ücretsiz deneme hakkınız doldu. Premium pakete geçin."
+    }
   }
 }

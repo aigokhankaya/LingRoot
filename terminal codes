@@ -194,3 +194,6 @@ F:\Main\.github\pull_request_template.md
 
 
 podcast_ling
+
+#MFA canlı loglar:
+sudo journalctl -u mfa -f 

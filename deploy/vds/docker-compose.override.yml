@@ -1,0 +1,41 @@
+# Docker Compose Override for SigNoz on Vulut VDS10 (4 Core / 10 GB / 100 GB NVMe)
+# Place this file alongside the SigNoz docker-compose.yaml:
+#   /opt/lingroot/signoz/deploy/docker/docker-compose.override.yml
+#
+# Usage:
+#   docker compose -f docker-compose.yaml -f docker-compose.override.yml up -d
+
+services:
+  clickhouse:
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 2G
+
+  zookeeper-1:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  signoz:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  otel-collector:
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 192M
+    # Note: SigNoz v0.110+ manages collector config via OpAMP dynamically.
+    # Auth is handled at Nginx layer (see nginx/lingroot-vds.conf).

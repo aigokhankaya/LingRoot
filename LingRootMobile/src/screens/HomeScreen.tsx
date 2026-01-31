@@ -136,8 +136,11 @@ const HomeScreen: React.FC = () => {
     },
   ];
 
-  // Filter features based on plan
+  const isAdmin = user?.role === 'admin';
+
+  // Filter features based on plan (admin sees all)
   const features = allFeatures.filter(feature => {
+    if (isAdmin) return true;
     if (!feature.featureKey) return true;
     if (!planFeatures?.homepage_features) {
       return (
@@ -361,7 +364,7 @@ const HomeScreen: React.FC = () => {
           </View>
 
           {/* Liro Banner */}
-          {planFeatures?.homepage_features?.liro === true && (
+          {(isAdmin || planFeatures?.homepage_features?.liro === true) && (
             <TouchableOpacity
               style={styles.liroBanner}
               activeOpacity={0.9}

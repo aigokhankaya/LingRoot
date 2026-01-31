@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, ScrollView } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import UsageEstimateCard from '../components/UsageEstimateCard';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNavigation } from '@react-navigation/native';
@@ -17,12 +18,15 @@ const MembershipScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.headerSection}>
-          <Text style={styles.title}>{language === 'tr' ? 'Paket Bilgilerim' : 'My Plan'}</Text>
-          <Text style={styles.subtitle}>{language === 'tr' ? 'Paket kullanım tahminlerin' : 'Usage estimates for your plan'}</Text>
-        </View>
         <UsageEstimateCard />
-        {/* Gelecekte: Plan adı, yenileme tarihi, sınırlar vs. eklenebilir */}
+        <View style={styles.disclaimerBox}>
+          <Icon name="info-outline" size={14} color={COLORS.slate400} />
+          <Text style={styles.disclaimerText}>
+            {language === 'tr'
+              ? 'Buradaki değerler tahminidir; gerçek kullanım ses uzunluğu ve içerik türüne göre farklılık gösterebilir.'
+              : 'These values are estimates; actual usage may vary depending on audio length and content type.'}
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -37,22 +41,19 @@ const styles = StyleSheet.create({
     paddingTop: 44,
     paddingBottom: 100,
   },
-  headerSection: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 8,
+  disclaimerBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginHorizontal: 28,
+    marginTop: 12,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: COLORS.slate800,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.slate500,
-    marginTop: 6,
+  disclaimerText: {
+    flex: 1,
+    fontSize: 11,
+    color: COLORS.slate400,
     fontWeight: '500',
+    lineHeight: 16,
   },
 });
 

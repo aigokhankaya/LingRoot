@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const { PaymentProvider, CardTransaction, User, Subscription } = require('../models');
 const { supabase } = require('../config/db');
+const logger = require('../utils/common/logger.js');
 
 // iyzico API sınıfı
 class IyzicoAPI {
@@ -243,7 +244,7 @@ exports.initCheckout = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('iyzico init checkout error:', error);
+    logger.error('[IYZICO] Init checkout error:', error);
     return res.status(500).json({ success: false, message: 'Ödeme işlemi başlatılamadı', error: error.message });
   }
 };
@@ -256,7 +257,7 @@ exports.handleCallback = async (req, res) => {
   try {
     const { status, paymentId, conversationId, mdStatus } = req.body;
 
-    console.log('iyzico callback received:', { status, paymentId, conversationId, mdStatus });
+    logger.info('[IYZICO] Callback received', { status, paymentId, conversationId, mdStatus });
 
     // Transaction'ı bul
     const transaction = await CardTransaction.findOne({
@@ -264,7 +265,7 @@ exports.handleCallback = async (req, res) => {
     });
 
     if (!transaction) {
-      console.error('Transaction not found for conversationId:', conversationId);
+      logger.error('[IYZICO] Transaction not found for conversationId:', conversationId);
       return res.redirect(`${process.env.FRONTEND_URL}/checkout/result?status=error&message=Transaction_not_found`);
     }
 
@@ -325,7 +326,7 @@ exports.handleCallback = async (req, res) => {
         .eq('id', transaction.userId);
 
       if (updateError) {
-        console.error('Error updating user plan:', updateError);
+        logger.error('[IYZICO] Error updating user plan:', updateError);
       }
 
       // Subscription kaydı oluştur
@@ -353,7 +354,7 @@ exports.handleCallback = async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL}/checkout/result?status=error&message=${encodeURIComponent(response.errorMessage || 'Payment_failed')}`);
     }
   } catch (error) {
-    console.error('iyzico callback error:', error);
+    logger.error('[IYZICO] Callback error:', error);
     return res.redirect(`${process.env.FRONTEND_URL}/checkout/result?status=error&message=Server_error`);
   }
 };
@@ -429,7 +430,7 @@ exports.refund = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('iyzico refund error:', error);
+    logger.error('[IYZICO] Refund error:', error);
     return res.status(500).json({ success: false, message: 'İade işlemi başarısız', error: error.message });
   }
 };
@@ -473,7 +474,7 @@ exports.checkBin = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('iyzico check bin error:', error);
+    logger.error('[IYZICO] Check BIN error:', error);
     return res.status(500).json({ success: false, message: 'BIN sorgulama hatası' });
   }
 };
@@ -519,7 +520,7 @@ exports.getInstallments = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('iyzico installments error:', error);
+    logger.error('[IYZICO] Installments error:', error);
     return res.status(500).json({ success: false, message: 'Taksit seçenekleri alınamadı' });
   }
 };
@@ -539,7 +540,7 @@ exports.getAllProviders = async (req, res) => {
 
     return res.json({ success: true, data: providers });
   } catch (error) {
-    console.error('Get providers error:', error);
+    logger.error('[IYZICO] Get providers error:', error);
     return res.status(500).json({ success: false, message: 'Sağlayıcılar alınamadı' });
   }
 };
@@ -566,7 +567,7 @@ exports.getProviderById = async (req, res) => {
 
     return res.json({ success: true, data: maskedProvider });
   } catch (error) {
-    console.error('Get provider error:', error);
+    logger.error('[IYZICO] Get provider error:', error);
     return res.status(500).json({ success: false, message: 'Sağlayıcı bilgisi alınamadı' });
   }
 };
@@ -638,7 +639,7 @@ exports.upsertProvider = async (req, res) => {
       data: { id: provider.id }
     });
   } catch (error) {
-    console.error('Upsert provider error:', error);
+    logger.error('[IYZICO] Upsert provider error:', error);
     return res.status(500).json({ success: false, message: 'Sağlayıcı kaydedilemedi', error: error.message });
   }
 };
@@ -683,7 +684,7 @@ exports.testProvider = async (req, res) => {
       details: testResult ? { cardType: response.cardType } : { error: response.errorMessage }
     });
   } catch (error) {
-    console.error('Test provider error:', error);
+    logger.error('[IYZICO] Test provider error:', error);
     return res.status(500).json({ success: false, message: 'Test başarısız', error: error.message });
   }
 };
@@ -740,7 +741,7 @@ exports.getAllTransactions = async (req, res) => {
       stats: stats[0] || {}
     });
   } catch (error) {
-    console.error('Get transactions error:', error);
+    logger.error('[IYZICO] Get transactions error:', error);
     return res.status(500).json({ success: false, message: 'İşlemler alınamadı' });
   }
 };
@@ -765,7 +766,7 @@ exports.getTransactionById = async (req, res) => {
 
     return res.json({ success: true, data: transaction });
   } catch (error) {
-    console.error('Get transaction error:', error);
+    logger.error('[IYZICO] Get transaction error:', error);
     return res.status(500).json({ success: false, message: 'İşlem bilgisi alınamadı' });
   }
 };
@@ -824,7 +825,7 @@ exports.getTransactionSummary = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get transaction summary error:', error);
+    logger.error('[IYZICO] Get transaction summary error:', error);
     return res.status(500).json({ success: false, message: 'Özet alınamadı' });
   }
 };

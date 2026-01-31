@@ -34,15 +34,21 @@ const getConversations = async (req, res) => {
     const userId = req.user.id;
 
     const query = `
-      SELECT 
-        id,
-        user_id,
-        subject as title,
-        created_at,
-        updated_at
-      FROM conversations
-      WHERE user_id = $1
-      ORDER BY updated_at DESC
+      SELECT
+        c.id,
+        c.user_id,
+        c.subject as title,
+        c.created_at,
+        c.updated_at,
+        EXISTS(
+          SELECT 1 FROM messages m
+          WHERE m.conversation_id = c.id
+            AND m.sender_type = 'admin'
+            AND (m.content LIKE '%[CONTENT]%' OR m.content LIKE '%[/CONTENT]%')
+        ) as has_audio
+      FROM conversations c
+      WHERE c.user_id = $1
+      ORDER BY c.updated_at DESC
       LIMIT 50
     `;
 
@@ -1257,6 +1263,90 @@ const deactivateMemory = async (req, res) => {
   }
 };
 
+/**
+ * Get daily topic for empty state card
+ * Returns a personalized topic based on user profile
+ */
+const getDailyTopic = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const level = req.query.level || 'B1';
+
+    const userProfile = await chatService.getUserProfile(userId);
+    const interests = userProfile?.interests?.list || [];
+    const recentTopics = (userProfile?.conversationHistory?.recentTopics || []).map(t =>
+      typeof t === 'string' ? t : t.topic
+    );
+
+    // Curated daily topics pool — rotated by day-of-year
+    const topicPool = [
+      'Climate Change & Daily Life',
+      'The Future of Remote Work',
+      'How Social Media Shapes Opinions',
+      'Space Exploration in 2026',
+      'Healthy Eating on a Budget',
+      'The Psychology of Habits',
+      'Artificial Intelligence in Education',
+      'Travel Tips for Solo Adventurers',
+      'Music and Its Effect on Mood',
+      'The History of the Internet',
+      'Minimalism & Simple Living',
+      'Sports Science & Performance',
+      'Street Food Around the World',
+      'How Movies Influence Culture',
+      'Entrepreneurship for Beginners',
+      'Mental Health & Self-Care',
+      'The Science of Sleep',
+      'Digital Privacy & Security',
+      'Creative Writing Techniques',
+      'Urban Gardening & Sustainability',
+    ];
+
+    // Pick topic based on day-of-year to ensure daily rotation
+    const dayOfYear = Math.floor(
+      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+    );
+    let topicIndex = (dayOfYear + (userId ? userId.charCodeAt(0) : 0)) % topicPool.length;
+
+    // Try to avoid recently used topics
+    let selectedTopic = topicPool[topicIndex];
+    if (recentTopics.length > 0) {
+      const lowerRecent = recentTopics.map(t => t.toLowerCase());
+      for (let i = 0; i < topicPool.length; i++) {
+        const candidate = topicPool[(topicIndex + i) % topicPool.length];
+        if (!lowerRecent.some(r => candidate.toLowerCase().includes(r) || r.includes(candidate.toLowerCase()))) {
+          selectedTopic = candidate;
+          break;
+        }
+      }
+    }
+
+    // If user has interests, try to pick a matching topic
+    if (interests.length > 0) {
+      const interestLower = interests.map(i => i.toLowerCase());
+      const matched = topicPool.find(t =>
+        interestLower.some(interest => t.toLowerCase().includes(interest))
+      );
+      if (matched && !recentTopics.some(r => r.toLowerCase().includes(matched.toLowerCase()))) {
+        selectedTopic = matched;
+      }
+    }
+
+    res.json({
+      success: true,
+      topic: selectedTopic,
+      level: level,
+      estimatedMinutes: 3,
+    });
+  } catch (error) {
+    logger.error('Error getting daily topic:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gunun konusu getirilemedi',
+    });
+  }
+};
+
 module.exports = {
   getConversations,
   createConversation,
@@ -1273,4 +1363,5 @@ module.exports = {
   recordRecommendationInteraction,
   getUserMemories,
   deactivateMemory,
+  getDailyTopic,
 };

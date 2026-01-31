@@ -8,6 +8,7 @@
 const { supabase } = require('../utils/storage/supabaseClient.js');
 const logger = require('../utils/common/logger.js');
 const OpenAI = require('openai');
+const { logApiCost, calculateOpenAiCost } = require('../utils/infra/costTracker.js');
 
 // Fixed model - GPT-4o-mini
 const MODEL_ID = 'gpt-4o-mini';
@@ -293,6 +294,23 @@ exports.generatePatterns = async (req, res) => {
         const estimatedCost = inputCost + outputCost;
 
         logger.info(`[LLM Pattern] COMPLETE: ${insertedCount} inserted, ${duplicateCount} duplicates, ${totalTokens} tokens, $${estimatedCost.toFixed(4)}, ${((endTime - startTime) / 1000).toFixed(1)}s`);
+
+        // Log API cost
+        const userId = req.user?.id;
+        if (userId) {
+            const usage = { prompt_tokens: totalInputTokens, completion_tokens: totalOutputTokens, total_tokens: totalTokens };
+            const cost = calculateOpenAiCost(usage, MODEL_ID);
+            logApiCost({
+                userId,
+                feature: 'pattern_generation',
+                provider: 'openai',
+                model: MODEL_ID,
+                inputQuantity: cost.promptTokens,
+                outputQuantity: cost.completionTokens,
+                costUsd: cost.totalCostUsd,
+                metadata: { type, count: numCount, inserted: insertedCount, batches: numBatches },
+            }).catch(err => logger.warn('[COST] pattern_generation log failed:', err.message));
+        }
 
         res.json({
             success: true,

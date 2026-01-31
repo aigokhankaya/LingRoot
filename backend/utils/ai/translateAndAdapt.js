@@ -63,11 +63,8 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
     const isSimpleLevel = ['A1', 'A2', 'B1'].includes(level.toUpperCase());
     const model = process.env.OPENAI_TRANSLATE_ADAPT_MODEL || (isSimpleLevel ? "gpt-4o-mini" : "gpt-4o");
 
-    console.log(`🎯 [TRANSLATE+ADAPT OPTIMIZED] Using template: ${templateName} (Level: ${level})`);
-    if (mood) console.log(`🎭 [MOOD ADAPTATION] Applying emotional tone: ${mood}`);
-
-    logger.info(`🎯 TranslateAndAdapt - Template: ${templateName} for ${sourceLanguage} → EN at ${level}${mood ? ` [Mood: ${mood}]` : ''}`);
-    console.log(`🧠 [MODEL SELECTION] Level: ${level}, Variant: ${promptVariant} -> Selected Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
+    logger.info(`[TRANSLATE_ADAPT] Template: ${templateName} for ${sourceLanguage} → EN at ${level}${mood ? ` [Mood: ${mood}]` : ''}`);
+    logger.info(`[MODEL_SELECTION] Level: ${level}, Variant: ${promptVariant} -> Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
 
     // Chunk text if needed
     const chunks = chunkText(text);
@@ -169,7 +166,7 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
     // Log savings estimate
     const estimatedOldTokens = totalTokensTotal * 1.75; // Old method used ~75% more tokens
     const savedTokens = Math.round(estimatedOldTokens - totalTokensTotal);
-    console.log(`💰 [TOKEN SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens / estimatedOldTokens * 100)}%)`);
+    logger.info(`[TOKEN_SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens / estimatedOldTokens * 100)}%)`);
 
     if (logger.llmCall) {
         logger.llmCall({
@@ -251,7 +248,7 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
     if (targetDurationMinutes && targetDurationMinutes > 0) {
         const wordCount = calculateWordCountFromDuration(targetDurationMinutes);
         durationOverride = `⚠️ CRITICAL DURATION OVERRIDE:\n- Target audio duration: ${targetDurationMinutes} minutes\n- REQUIRED word count: ${wordCount.target} words per language (±15% tolerance: ${wordCount.min}-${wordCount.max} words)\n- This OVERRIDES the default "Length" requirement.\n- Generate EXACTLY this amount of content.`;
-        console.log(`⏱️ [DURATION] Target: ${targetDurationMinutes} min → ${wordCount.target} words`);
+        logger.info(`[DURATION] Target: ${targetDurationMinutes} min -> ${wordCount.target} words`);
     }
 
     let prompt;
@@ -298,7 +295,7 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
     }
 
     const modelMode = isLongDuration ? 'Long-Form Precision' : (isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized');
-    console.log(`🧠 [MODEL SELECTION] Level: ${level}, Duration: ${targetDurationMinutes || 'n/a'} -> Selected Model: ${model} (${modelMode})`);
+    logger.info(`[MODEL_SELECTION] Level: ${level}, Duration: ${targetDurationMinutes || 'n/a'} -> Model: ${model} (${modelMode})`);
 
     // Lower temperature for long-form generations to follow word-count constraints more strictly
     const baseTemperature = (targetDurationMinutes && targetDurationMinutes >= 10) ? 0.3 : 0.7;
@@ -380,7 +377,7 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
         // Log savings estimate
         const estimatedOldTokens = usage.total_tokens * 1.5; // Old method used ~50% more tokens
         const savedTokens = Math.round(estimatedOldTokens - usage.total_tokens);
-        console.log(`💰 [TOKEN SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens / estimatedOldTokens * 100)}%)`);
+        logger.info(`[TOKEN_SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens / estimatedOldTokens * 100)}%)`);
 
         if (logger.llmCall) {
             logger.llmCall({

@@ -1,6 +1,6 @@
 # Complete Database Column Reference
 
-> **Oluşturulma:** 2026-01-21 | **Güncelleme:** 2026-01-21 | **Versiyon:** 1.0
+> **Oluşturulma:** 2026-01-21 | **Güncelleme:** 2026-01-31 | **Versiyon:** 1.1
 
 **Source:** Direct Supabase `information_schema` query  
 **Total Tables:** 78+ (includes views)  
@@ -912,6 +912,24 @@
 | assigned_at | timestamptz | ○ | now() | |
 | expires_at | timestamptz | ○ | - | |
 | is_active | boolean | ○ | true | |
+
+---
+
+## 11. Audit Tables
+
+### admin_logs
+| Column | Type | Null | Default | Key |
+|--------|------|------|---------|-----|
+| id | uuid | ✓ | gen_random_uuid() | PK |
+| admin_user_id | uuid | ○ | - | FK → users |
+| admin_email | text | ○ | - | |
+| action | text | ✓ | - | |
+| target_type | text | ○ | - | |
+| target_id | text | ○ | - | |
+| details | jsonb | ○ | - | |
+| ip_address | text | ○ | - | |
+| user_agent | text | ○ | - | |
+| created_at | timestamptz | ○ | now() | |
 
 ---
 

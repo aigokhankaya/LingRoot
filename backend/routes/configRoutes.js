@@ -3,6 +3,7 @@ const router = express.Router();
 const { getSetting } = require('../utils/infra/settings.js');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const logger = require('../utils/common/logger.js');
 
 // Public endpoint - optional authentication
 // Returns environment configuration for mobile app
@@ -40,7 +41,7 @@ router.get('/environment', async (req, res) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       const userId = decoded.id;
       
-      console.log(`[ENV CONFIG] Global environment is TEST, checking user ${userId} test status...`);
+      logger.debug(`[ENV_CONFIG] Global environment is TEST, checking user ${userId} test status`);
       
       // Check if user is marked as test user
       const userResult = await pool.query(
@@ -49,11 +50,11 @@ router.get('/environment', async (req, res) => {
       );
       
       const isTestUser = userResult.rows.length > 0 ? userResult.rows[0].is_test_user : false;
-      console.log(`[ENV CONFIG] User ${userId} is_test_user: ${isTestUser}`);
+      logger.debug(`[ENV_CONFIG] User ${userId} is_test_user: ${isTestUser}`);
       
       if (isTestUser === true) {
         // User is a test user and global env is test - return test
-        console.log(`[ENV CONFIG] Returning TEST environment for user ${userId}`);
+        logger.debug(`[ENV_CONFIG] Returning TEST environment for user ${userId}`);
         return res.json({
           success: true,
           data: {
@@ -63,7 +64,7 @@ router.get('/environment', async (req, res) => {
       }
       
       // User is authenticated but not a test user - return production
-      console.log(`[ENV CONFIG] Returning PRODUCTION environment for user ${userId} (not a test user)`);
+      logger.debug(`[ENV_CONFIG] Returning PRODUCTION environment for user ${userId} (not a test user)`);
       return res.json({
         success: true,
         data: {
@@ -73,7 +74,7 @@ router.get('/environment', async (req, res) => {
       
     } catch (jwtError) {
       // Invalid token - return production for safety
-      console.log('JWT verification failed in environment config:', jwtError.message);
+      logger.warn('[ENV_CONFIG] JWT verification failed:', jwtError.message);
       return res.json({
         success: true,
         data: {
@@ -83,7 +84,7 @@ router.get('/environment', async (req, res) => {
     }
     
   } catch (error) {
-    console.error('Error fetching environment setting:', error);
+    logger.error('[ENV_CONFIG] Error fetching environment setting:', error);
     // Return production as safe default on error
     res.json({
       success: true,

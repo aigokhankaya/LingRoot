@@ -21,6 +21,10 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { getApiBaseUrl } from '../services/environmentConfig';
 import AudioPlayer from '../components/AudioPlayer';
 import { SmartPromptSuggester } from '../components/chat/SmartPromptSuggester';
+import { DailyTopicCard } from '../components/chat/DailyTopicCard';
+import { InlineAudioCard } from '../components/chat/InlineAudioCard';
+import { ContinueBanner } from '../components/chat/ContinueBanner';
+import { ContentFormatPicker } from '../components/chat/ContentFormatPicker';
 import { AudioTrack, Timepoint } from '../types';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
@@ -85,6 +89,7 @@ interface Conversation {
   title: string;
   created_at: string;
   updated_at?: string;
+  has_audio?: boolean;
 }
 
 const LiroScreen: React.FC = () => {
@@ -110,6 +115,8 @@ const LiroScreen: React.FC = () => {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [defaultVoice, setDefaultVoice] = useState<string>('lr_us_wavenet_f');
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [savedAudioResult, setSavedAudioResult] = useState<Record<string, unknown> | null>(null);
+  const [showContinueBanner, setShowContinueBanner] = useState(false);
 
   const ctaDisabled = !(ctaTopicReady || ctaContentReady);
 
@@ -161,6 +168,46 @@ const LiroScreen: React.FC = () => {
     AnalyticsHelper.logScreenView('Liro_Chat', 'LiroScreen');
   }, []);
 
+  // E3: Load saved audio result for Continue Banner
+  useEffect(() => {
+    const loadSavedAudio = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('liro_last_audio_result');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.mp3_url) {
+            setSavedAudioResult(parsed);
+            setShowContinueBanner(true);
+          }
+        }
+      } catch {}
+    };
+    loadSavedAudio();
+  }, []);
+
+  // E3: Save audio result to AsyncStorage when content is created
+  useEffect(() => {
+    if (audioResult?.mp3_url) {
+      const toSave = {
+        mp3_url: audioResult.mp3_url,
+        level: audioResult.level || 'B1',
+        topic: extractTopicFromMessages(),
+        real_duration: audioResult.real_duration,
+        estimated_duration: audioResult.estimated_duration,
+        adapted_text: audioResult.adapted_text,
+        translated_text: audioResult.translated_text,
+        timepoints: audioResult.timepoints,
+        words: audioResult.words,
+        drift_corrected: audioResult.drift_corrected,
+        drift_amount: audioResult.drift_amount,
+        drift_percentage: audioResult.drift_percentage,
+        original_turkish: audioResult.original_turkish || audioResult.originalMessage,
+      };
+      AsyncStorage.setItem('liro_last_audio_result', JSON.stringify(toSave)).catch(() => {});
+      setShowContinueBanner(false);
+    }
+  }, [audioResult]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -192,49 +239,32 @@ const LiroScreen: React.FC = () => {
       return;
     }
 
-    const recentMessages = messages.slice(-5);
-    const assistantMessages = recentMessages.filter(
-      message => message.role === 'assistant'
-    );
+    // Tag-based CTA readiness: scan ALL assistant messages for tags
+    const allAssistantContent = messages
+      .filter(m => m.role === 'assistant')
+      .map(m => m.content)
+      .join('\n');
 
-    if (assistantMessages.length === 0) {
-      setCtaTopicReady(false);
-      setCtaContentReady(false);
-      return;
+    const hasTopic = /\[TOPIC\][\s\S]*?\[\/TOPIC\]/i.test(allAssistantContent) ||
+      /KONU KİLİTLENDİ/i.test(allAssistantContent);
+    const hasContent = /\[CONTENT\][\s\S]*?\[\/CONTENT\]/i.test(allAssistantContent);
+
+    // Fallback: keyword-based detection for backwards compatibility
+    if (!hasTopic && !hasContent) {
+      const recentMessages = messages.slice(-5);
+      const assistantMessages = recentMessages.filter(m => m.role === 'assistant');
+      if (assistantMessages.length > 0) {
+        const lastAssistant = assistantMessages[assistantMessages.length - 1].content.toLowerCase();
+        const topicKeywords = ['konu', 'hakkında', 'konusunda', 'yapalım', 'yapabiliriz', 'oluşturabiliriz'];
+        const contentKeywords = ['içerik', 'anlatım', 'podcast', 'metin'];
+        setCtaTopicReady(topicKeywords.some(kw => lastAssistant.includes(kw)));
+        setCtaContentReady(contentKeywords.some(kw => lastAssistant.includes(kw)));
+        return;
+      }
     }
 
-    const lastAssistant =
-      assistantMessages[assistantMessages.length - 1].content.toLowerCase();
-
-    const topicKeywords = [
-      'konu',
-      'hakkında',
-      'konusunda',
-      'üzerinde',
-      'ile ilgili',
-      'yapalım',
-      'yapabiliriz',
-      'oluşturabiliriz',
-    ];
-
-    const contentKeywords = [
-      'içerik',
-      'anlatım',
-      'podcast',
-      'metin',
-      'detaylı',
-      'araştır',
-    ];
-
-    const hasTopicKeyword = topicKeywords.some(keyword =>
-      lastAssistant.includes(keyword)
-    );
-    const hasContentKeyword = contentKeywords.some(keyword =>
-      lastAssistant.includes(keyword)
-    );
-
-    setCtaTopicReady(hasTopicKeyword);
-    setCtaContentReady(hasContentKeyword);
+    setCtaTopicReady(hasTopic);
+    setCtaContentReady(hasContent);
   }, [messages]);
 
   const getToken = async () => {
@@ -351,10 +381,25 @@ const LiroScreen: React.FC = () => {
     const fallback =
       language === 'tr' ? 'Belirlenen konu' : 'Selected topic';
 
-    // Priority 1: Use the last user message — it contains the actual topic request
-    const userMessages = messages.filter(
-      message => message.role === 'user'
-    );
+    // Priority 1: [TOPIC]...[/TOPIC] tag from assistant messages
+    const allAssistantContent = messages
+      .filter(m => m.role === 'assistant')
+      .map(m => m.content)
+      .join('\n');
+
+    const topicTagMatch = allAssistantContent.match(/\[TOPIC\]([\s\S]*?)\[\/TOPIC\]/i);
+    if (topicTagMatch && topicTagMatch[1]?.trim()) {
+      return topicTagMatch[1].trim();
+    }
+
+    // Priority 2: KONU KİLİTLENDİ pattern
+    const lockMatch = allAssistantContent.match(/KONU KİLİTLENDİ[:\s]*\*?\*?([^*\n]+)/i);
+    if (lockMatch && lockMatch[1]?.trim()) {
+      return lockMatch[1].trim();
+    }
+
+    // Priority 3: Use the last user message
+    const userMessages = messages.filter(m => m.role === 'user');
     if (userMessages.length > 0) {
       const lastUserMessage = userMessages[userMessages.length - 1].content;
       if (lastUserMessage.trim()) {
@@ -362,24 +407,16 @@ const LiroScreen: React.FC = () => {
       }
     }
 
-    // Priority 2: Try quoted text in assistant message
-    const assistantMessages = messages.filter(
-      message => message.role === 'assistant'
-    );
+    // Priority 4: Try quoted text in assistant message
+    const assistantMessages = messages.filter(m => m.role === 'assistant');
     if (assistantMessages.length === 0) {
       return fallback;
     }
 
     const lastMessage = assistantMessages[assistantMessages.length - 1].content;
-    const match = lastMessage.match(/"([^\"]+)"|'([^']+)'/);
-    if (match) {
-      return match[1] || match[2];
-    }
-
-    // Priority 3: First meaningful sentence (skip single-word Turkish fillers)
-    const sentences = lastMessage.split(/[.!?]/).filter(s => s.trim().length > 5);
-    if (sentences.length > 0) {
-      return sentences[0].slice(0, 80).trim();
+    const quoteMatch = lastMessage.match(/"([^"]+)"|'([^']+)'/);
+    if (quoteMatch) {
+      return quoteMatch[1] || quoteMatch[2];
     }
 
     return fallback;
@@ -651,45 +688,9 @@ const LiroScreen: React.FC = () => {
     }
   };
 
+  // D5: Onay diyalogu kaldirildi — dogrudan isleme basla
   const confirmCta = (type: CtaType) => {
-    const topic = extractTopicFromMessages();
-    let title = '';
-    let message = '';
-
-    switch (type) {
-      case 'narration':
-        title = language === 'tr' ? 'Anlatım Oluştur' : 'Create Narration';
-        message =
-          language === 'tr'
-            ? `Belirlediğimiz "${topic}" konusu için araştıracak ve seslendireceğim, onaylıyor musun?`
-            : `I will research and narrate the topic "${topic}" for you. Do you approve?`;
-        break;
-      case 'podcast':
-        title = language === 'tr' ? 'Podcast Oluştur' : 'Create Podcast';
-        message =
-          language === 'tr'
-            ? `Belirlediğimiz "${topic}" konusu için harika bir podcast oluşturacağım, onaylıyor musun?`
-            : `I will create a great podcast about "${topic}". Do you approve?`;
-        break;
-      case 'tts':
-        title = language === 'tr' ? 'Metni Seslendir' : 'Narrate Text';
-        message =
-          language === 'tr'
-            ? 'Bu metni senin için seslendireceğim, onaylıyor musun?'
-            : 'I will narrate this text for you. Do you approve?';
-        break;
-    }
-
-    Alert.alert(title, message, [
-      {
-        text: language === 'tr' ? 'İptal' : 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: language === 'tr' ? 'Onayla' : 'Confirm',
-        onPress: () => handleConfirmCta(type),
-      },
-    ]);
+    handleConfirmCta(type);
   };
 
   const sendMessage = async (rawContent: string) => {
@@ -788,45 +789,70 @@ const LiroScreen: React.FC = () => {
 
           {messages.length === 0 ? (
             <View style={styles.emptyState}>
+              {/* E3: Continue Banner — son icerik varsa goster */}
+              {showContinueBanner && savedAudioResult && (
+                <ContinueBanner
+                  title={(savedAudioResult as Record<string, unknown>).topic as string || (language === 'tr' ? 'Son icerik' : 'Last content')}
+                  level={(savedAudioResult as Record<string, unknown>).level as string || 'B1'}
+                  language={language}
+                  onListen={() => {
+                    // Set audio result and open player directly from saved data
+                    const saved = savedAudioResult as Record<string, unknown>;
+                    const mp3 = saved.mp3_url as string;
+                    if (mp3) {
+                      const track: AudioTrack = {
+                        id: `liro_saved_${Date.now()}`,
+                        title: (saved.topic as string) || 'LIRO Audio',
+                        url: buildPlayableUrl(mp3),
+                        mp3_url: mp3,
+                        level: ((saved.level as string) || 'B1') as AudioTrack['level'],
+                        duration: (saved.real_duration as number) || (saved.estimated_duration as number) || 180,
+                        created_at: new Date().toISOString(),
+                        translated_text: saved.translated_text as string,
+                        adapted_text: saved.adapted_text as string,
+                        original_turkish: saved.original_turkish as string,
+                        timepoints: normalizeTimepoints(saved.timepoints),
+                        words: normalizeWords(saved.words),
+                        real_duration: saved.real_duration as number,
+                        estimated_duration: saved.estimated_duration as number,
+                        drift_corrected: saved.drift_corrected as boolean,
+                        drift_amount: saved.drift_amount as number,
+                        drift_percentage: saved.drift_percentage as number,
+                      };
+                      setLiroTrack(track);
+                      setLiroPlayerVisible(true);
+                    }
+                    setAudioResult(savedAudioResult);
+                    setShowContinueBanner(false);
+                  }}
+                  onNewTopic={() => {
+                    setShowContinueBanner(false);
+                  }}
+                  onDismiss={() => setShowContinueBanner(false)}
+                />
+              )}
+
               <Text style={styles.emptyTitle}>
                 {language === 'tr' ? 'Merhaba! 👋' : 'Hello! 👋'}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {language === 'tr'
-                  ? 'İçerik oluşturmak için LIRO ile sohbet etmeye başla.'
+                  ? 'Icerik olusturmak icin LIRO ile sohbet etmeye basla.'
                   : 'Start chatting with LIRO to create English content.'}
               </Text>
+
+              {/* E1: Daily Topic Card */}
+              <DailyTopicCard
+                language={language}
+                onStart={(message) => handleSuggestionPress(message)}
+              />
+
               {/* SmartPromptSuggester - Popular topics for empty state */}
               <SmartPromptSuggester
                 conversationId={conversationId}
                 onSelectSuggestion={(text) => handleSuggestionPress(text)}
                 language={language}
               />
-              {/* Fallback static suggestions */}
-              <View style={styles.suggestionRow}>
-                <TouchableOpacity
-                  style={styles.suggestionChip}
-                  onPress={() =>
-                    handleSuggestionPress(
-                      'B1 seviyesinde teknoloji hakkında bir metin oluştur'
-                    )
-                  }
-                >
-                  <Text style={styles.suggestionText}>
-                    B1 seviyesinde teknoloji metni
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.suggestionChip}
-                  onPress={() =>
-                    handleSuggestionPress(
-                      'A2 seviyesinde günlük rutinler hakkında konuş'
-                    )
-                  }
-                >
-                  <Text style={styles.suggestionText}>A2 günlük rutinler</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           ) : (
             <View style={styles.messagesList}>
@@ -879,154 +905,37 @@ const LiroScreen: React.FC = () => {
             </View>
           )}
 
+          {/* E2: Inline Audio Card — chat icinde kompakt player */}
           {audioResult?.mp3_url && (
-            <View style={styles.audioCard}>
-              <Text style={styles.audioCardTitle}>
-                {language === 'tr'
-                  ? 'İçeriğin hazır!'
-                  : 'Your content is ready!'}
-              </Text>
-              <Text style={styles.audioCardSubtitle}>
-                {language === 'tr'
-                  ? 'Aşağıdan sesi dinleyebilirsin.'
-                  : 'You can listen to the audio below.'}
-              </Text>
-
-              {/* Podcast transcript as dialogue bubbles (if transcript is dialogue-style) */}
-              {audioResult.transcript && /Speaker\s+[AB]:/i.test(audioResult.transcript) && (
-                <View style={styles.podcastDialogContainer}>
-                  {audioResult.transcript
-                    .split(/\r?\n/)
-                    .map((line: string) => line.trim())
-                    .filter((line: string) => line.length > 0)
-                    .map((line: string, index: number) => {
-                      const match = line.match(/^(Speaker\s+[AB]):\s*(.*)$/i);
-                      const speakerLabel = match ? match[1] : '';
-                      const text = match ? match[2] : line;
-                      const isSpeakerA = /Speaker\s+A/i.test(speakerLabel);
-
-                      return (
-                        <View
-                          key={index}
-                          style={[
-                            styles.podcastDialogRow,
-                            isSpeakerA
-                              ? styles.podcastDialogRowA
-                              : styles.podcastDialogRowB,
-                          ]}
-                        >
-                          <View
-                            style={[
-                              styles.podcastDialogBubble,
-                              isSpeakerA
-                                ? styles.podcastDialogBubbleA
-                                : styles.podcastDialogBubbleB,
-                            ]}
-                          >
-                            {speakerLabel ? (
-                              <Text style={styles.podcastDialogSpeaker}>
-                                {speakerLabel}
-                              </Text>
-                            ) : null}
-                            <Text style={styles.podcastDialogText}>{text}</Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                </View>
-              )}
-
-              <View style={styles.audioLinksRow}>
-                {audioResult.mp3_url ? (
-                  <TouchableOpacity
-                    style={styles.audioLinkButton}
-                    onPress={openLiroAudioPlayer}
-                  >
-                    <Icon name="play-arrow" size={18} color="#FFFFFF" />
-                    <Text style={styles.audioLinkText}>
-                      {language === 'tr'
-                        ? 'Sesi Dinle'
-                        : 'Listen Audio'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
+            <InlineAudioCard
+              title={extractTopicFromMessages()}
+              level={audioResult?.level || 'B1'}
+              mp3Url={buildPlayableUrl(audioResult.mp3_url)}
+              duration={
+                typeof audioResult?.real_duration === 'number'
+                  ? audioResult.real_duration
+                  : typeof audioResult?.estimated_duration === 'number'
+                    ? audioResult.estimated_duration
+                    : 180
+              }
+              language={language}
+              onFullScreen={openLiroAudioPlayer}
+            />
           )}
 
-          <View style={styles.ctaContainer}>
-            <Text style={styles.ctaTitle}>
-              {language === 'tr'
-                ? 'İçeriğini sese dönüştür'
-                : 'Turn your content into audio'}
-            </Text>
-            <View style={styles.ctaRow}>
-              <TouchableOpacity
-                style={[
-                  styles.ctaButton,
-                  (ctaDisabled || isProcessing) && styles.ctaButtonDisabled,
-                ]}
-                disabled={ctaDisabled || isProcessing}
-                onPress={() => confirmCta('narration')}
-              >
-                {activeCta === 'narration' && isProcessing ? (
-                  <ActivityIndicator size="small" color="#111827" />
-                ) : (
-                  <Icon name="menu-book" size={18} color="#111827" />
-                )}
-                <Text style={styles.ctaButtonText}>
-                  {language === 'tr'
-                    ? 'Anlatım Oluştur'
-                    : 'Create narration'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.ctaButton,
-                  (ctaDisabled || isProcessing) && styles.ctaButtonDisabled,
-                ]}
-                disabled={ctaDisabled || isProcessing}
-                onPress={() => confirmCta('podcast')}
-              >
-                {activeCta === 'podcast' && isProcessing ? (
-                  <ActivityIndicator size="small" color="#111827" />
-                ) : (
-                  <Icon name="graphic-eq" size={18} color="#111827" />
-                )}
-                <Text style={styles.ctaButtonText}>
-                  {language === 'tr'
-                    ? 'Podcast Oluştur'
-                    : 'Create podcast'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.ctaButton,
-                  (ctaDisabled || isProcessing) && styles.ctaButtonDisabled,
-                ]}
-                disabled={ctaDisabled || isProcessing}
-                onPress={() => confirmCta('tts')}
-              >
-                {activeCta === 'tts' && isProcessing ? (
-                  <ActivityIndicator size="small" color="#111827" />
-                ) : (
-                  <Icon name="volume-up" size={18} color="#111827" />
-                )}
-                <Text style={styles.ctaButtonText}>
-                  {language === 'tr'
-                    ? 'Metni Seslendir'
-                    : 'Narrate text'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {ctaDisabled && (
-              <Text style={styles.ctaHint}>
-                {language === 'tr'
-                  ? 'Konu ve içerik netleştikten sonra bu butonlar aktif olacaktır.'
-                  : 'These actions will become available once the topic and content are clear.'}
-              </Text>
-            )}
-          </View>
+          {/* D1: Tek akilli buton + format secici */}
+          <ContentFormatPicker
+            disabled={ctaDisabled || false}
+            isProcessing={isProcessing}
+            activeCta={activeCta}
+            hasContent={ctaContentReady}
+            language={language}
+            onSelect={(type) => confirmCta(type)}
+            onCancel={() => {
+              setIsProcessing(false);
+              setActiveCta(null);
+            }}
+          />
         </ScrollView>
 
         <View style={styles.inputWrapper}>
@@ -1103,15 +1012,23 @@ const LiroScreen: React.FC = () => {
                       ]}
                       onPress={() => handleSelectConversation(conv)}
                     >
-                      <Text
-                        style={styles.sidebarItemTitle}
-                        numberOfLines={1}
-                      >
-                        {conv.title ||
-                          (language === 'tr'
-                            ? 'Başlıksız sohbet'
-                            : 'Untitled chat')}
-                      </Text>
+                      <View style={styles.sidebarItemRow}>
+                        {conv.has_audio && (
+                          <Icon name="menu-book" size={14} color="#27BEAA" style={{ marginRight: 4 }} />
+                        )}
+                        <Text
+                          style={[styles.sidebarItemTitle, { flex: 1 }]}
+                          numberOfLines={1}
+                        >
+                          {conv.title ||
+                            (language === 'tr'
+                              ? 'Basliksiz sohbet'
+                              : 'Untitled chat')}
+                        </Text>
+                        {conv.has_audio && (
+                          <Icon name="play-arrow" size={14} color="#27BEAA" />
+                        )}
+                      </View>
                       <Text style={styles.sidebarItemDate}>
                         {formatDate(conv.created_at)}
                       </Text>
@@ -1634,6 +1551,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(39, 190, 170, 0.08)',
     borderWidth: 1,
     borderColor: '#27BEAA',
+  },
+  sidebarItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   sidebarItemTitle: {
     fontSize: 14,

@@ -1,50 +1,65 @@
 // Mobile utility to compute user-friendly usage estimates from backend usage summary
+
+export type TtsTierInfo = {
+  label: string;
+  costPer1k: number;
+};
+
 export type UsageSummary = {
   hasPlan: boolean;
-  subscription?: any;
+  subscription?: unknown;
   periodStart?: string;
   usage?: { openaiTokens?: number; ttsChars?: number; openaiCostUsd?: number; ttsCostUsd?: number; totalCostUsd?: number };
   limits?: { openaiTokenLimit?: number | null; ttsCharLimit?: number | null; monthlyUsdLimit?: number | null; pricing?: { planPriceTry?: number; usdTryRate?: number; budgetUsdFromTry?: number } };
   exceeded?: { openai?: boolean; tts?: boolean; usd?: boolean };
   isExceeded?: boolean;
+  ttsProvider?: string;
+  ttsTiers?: Record<string, TtsTierInfo>;
+  // Free Trial fields
+  isFreeTrialExhausted?: boolean;
+  audioCreationCount?: number;
+  maxAudioCount?: number;
+  remainingAudioCount?: number;
+  plan?: { name?: string; price?: number };
+  plantype?: string;
 };
 
 export type UsageEstimates = {
   remainingChars: number | null; // null => unlimited or no limit
-  remainingVideoMinutes: number | null;
+  remainingAudioMinutes: number | null;
   remainingA4Pages: number | null;
   remainingPodcasts: number | null; // Avg ~10-15 min podcast
 };
 
-export const CHARS_PER_VIDEO_MINUTE = 1000;
+export const CHARS_PER_AUDIO_MINUTE = 1000;
 export const CHARS_PER_A4_PAGE = 2000;
 export const COST_PER_PODCAST_USD = 0.25; // Estimate: 10-15 min neural TTS + LLM generation
 
-const safeNumber = (v: any): number => (typeof v === 'number' && isFinite(v) ? v : 0);
+const safeNumber = (v: unknown): number => (typeof v === 'number' && isFinite(v) ? v : 0);
 
 export function computeEstimates(summary?: UsageSummary | null): UsageEstimates {
   if (!summary || !summary.hasPlan) {
-    return { remainingChars: 0, remainingVideoMinutes: 0, remainingA4Pages: 0, remainingPodcasts: 0 };
+    return { remainingChars: 0, remainingAudioMinutes: 0, remainingA4Pages: 0, remainingPodcasts: 0 };
   }
 
   const used = safeNumber(summary.usage?.ttsChars);
   const limit = summary.limits?.ttsCharLimit == null ? null : safeNumber(summary.limits?.ttsCharLimit);
 
   if (limit == null || limit === 0) {
-    return { remainingChars: null, remainingVideoMinutes: null, remainingA4Pages: null, remainingPodcasts: null };
+    return { remainingChars: null, remainingAudioMinutes: null, remainingA4Pages: null, remainingPodcasts: null };
   }
 
   const remainingChars = Math.max(0, limit - used);
-  const remainingVideoMinutes = Math.max(0, Math.floor(remainingChars / CHARS_PER_VIDEO_MINUTE));
+  const remainingAudioMinutes = Math.max(0, Math.floor(remainingChars / CHARS_PER_AUDIO_MINUTE));
   const remainingA4Pages = Math.max(0, Math.floor(remainingChars / CHARS_PER_A4_PAGE));
   // Limit-based podcast estimate (assuming 15k chars per podcast as rough conversion from chars)
   const remainingPodcasts = Math.max(0, Math.floor(remainingChars / 15000));
 
-  return { remainingChars, remainingVideoMinutes, remainingA4Pages, remainingPodcasts };
+  return { remainingChars, remainingAudioMinutes, remainingA4Pages, remainingPodcasts };
 }
 
 export function formatNumberTR(value: number | null): string {
-  if (value === null) return 'Sınırsız';
+  if (value === null) return 'Sinirsiz';
   try {
     return new Intl.NumberFormat('tr-TR').format(value);
   } catch {
@@ -53,29 +68,41 @@ export function formatNumberTR(value: number | null): string {
 }
 
 // ---------------------- COST-AWARE (per TTS category) ----------------------
-// Updated for Amazon Polly categories + Generative
-export type VoiceCategory = 'standard' | 'neural' | 'generative';
 
-// Prices per 1K chars (converted from user-provided per 1M)
-export const COST_PER_1K: Record<VoiceCategory, number> = {
-  standard: 0.004,   // $4 / 1M
-  neural: 0.016,     // $16 / 1M
-  generative: 0.030, // ~$30 / 1M (Estimated for generative/long-form)
+// Fallback tiers (Polly-based) when backend does not provide ttsTiers
+const FALLBACK_TIERS: Record<string, TtsTierInfo> = {
+  standard:   { label: 'Standard',   costPer1k: 0.004 },
+  neural:     { label: 'Neural',     costPer1k: 0.016 },
+  generative: { label: 'Generative', costPer1k: 0.030 },
 };
 
-export type CostAwarePerCategory = Record<VoiceCategory, UsageEstimates & {
+export type CategoryEstimate = UsageEstimates & {
   remainingUsdBasis: number | null;
   remainingCharsByUsd: number | null;
   remainingCharsByLimit: number | null;
-}>;
+};
+
+export type CostAwarePerCategory = Record<string, CategoryEstimate>;
 
 export function computeCostAwareEstimates(summary?: UsageSummary | null): CostAwarePerCategory {
-  const zero: UsageEstimates = { remainingChars: 0, remainingVideoMinutes: 0, remainingA4Pages: 0, remainingPodcasts: 0 };
-  const base: CostAwarePerCategory = {
-    standard: { ...zero, remainingUsdBasis: 0, remainingCharsByUsd: 0, remainingCharsByLimit: 0 },
-    neural: { ...zero, remainingUsdBasis: 0, remainingCharsByUsd: 0, remainingCharsByLimit: 0 },
-    generative: { ...zero, remainingUsdBasis: 0, remainingCharsByUsd: 0, remainingCharsByLimit: 0 },
+  const tiers = summary?.ttsTiers && Object.keys(summary.ttsTiers).length > 0
+    ? summary.ttsTiers
+    : FALLBACK_TIERS;
+
+  const zeroEstimate: CategoryEstimate = {
+    remainingChars: 0,
+    remainingAudioMinutes: 0,
+    remainingA4Pages: 0,
+    remainingPodcasts: 0,
+    remainingUsdBasis: 0,
+    remainingCharsByUsd: 0,
+    remainingCharsByLimit: 0,
   };
+
+  const base: CostAwarePerCategory = {};
+  for (const key of Object.keys(tiers)) {
+    base[key] = { ...zeroEstimate };
+  }
 
   if (!summary || !summary.hasPlan) return base;
 
@@ -86,7 +113,9 @@ export function computeCostAwareEstimates(summary?: UsageSummary | null): CostAw
 
   const usdLimitRaw = summary.limits?.monthlyUsdLimit;
   const fallbackBudget = summary.limits?.pricing?.budgetUsdFromTry;
-  const planPriceTry = (summary as any)?.subscription?.plan?.price;
+  const sub = summary.subscription as Record<string, unknown> | undefined;
+  const plan = sub?.plan as Record<string, unknown> | undefined;
+  const planPriceTry = plan?.price;
   const fallbackFromPlan = (typeof planPriceTry === 'number' && isFinite(planPriceTry) && planPriceTry > 0)
     ? Number(((planPriceTry / 40) / 3).toFixed(2))
     : null;
@@ -101,9 +130,9 @@ export function computeCostAwareEstimates(summary?: UsageSummary | null): CostAw
   const totalCost = safeNumber(summary.usage?.totalCostUsd);
   const remainingUsd = usdLimit == null ? null : Math.max(0, usdLimit - totalCost);
 
-  const out = { ...base } as CostAwarePerCategory;
-  (Object.keys(COST_PER_1K) as VoiceCategory[]).forEach((cat) => {
-    const costPer1K = COST_PER_1K[cat];
+  const out: CostAwarePerCategory = { ...base };
+  for (const cat of Object.keys(tiers)) {
+    const costPer1K = tiers[cat].costPer1k;
     const remainingCharsByUsd = remainingUsd == null ? null : Math.floor((remainingUsd * 1000) / costPer1K);
 
     let remainingChars: number | null;
@@ -112,7 +141,7 @@ export function computeCostAwareEstimates(summary?: UsageSummary | null): CostAw
     else if (remainingCharsByUsd == null) remainingChars = remainingByLimit;
     else remainingChars = Math.max(0, Math.min(remainingByLimit, remainingCharsByUsd));
 
-    const remainingVideoMinutes = remainingChars == null ? null : Math.max(0, Math.floor(remainingChars / CHARS_PER_VIDEO_MINUTE));
+    const remainingAudioMinutes = remainingChars == null ? null : Math.max(0, Math.floor(remainingChars / CHARS_PER_AUDIO_MINUTE));
     const remainingA4Pages = remainingChars == null ? null : Math.max(0, Math.floor(remainingChars / CHARS_PER_A4_PAGE));
 
     // Podcast estimate: primarily cost-based if budget exists, else char based
@@ -125,14 +154,14 @@ export function computeCostAwareEstimates(summary?: UsageSummary | null): CostAw
 
     out[cat] = {
       remainingChars: remainingChars ?? null,
-      remainingVideoMinutes,
+      remainingAudioMinutes,
       remainingA4Pages,
       remainingPodcasts,
       remainingUsdBasis: remainingUsd,
       remainingCharsByUsd,
       remainingCharsByLimit: remainingByLimit,
     };
-  });
+  }
 
   return out;
 }

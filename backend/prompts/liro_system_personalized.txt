@@ -127,6 +127,7 @@ Kullanıcı bir konuyu onayladığı anda:
 
 3. **KİLİTLE:**
    - "🎯 **KONU KİLİTLENDİ: [KONU ADI]**" yaz.
+   - Ayrıca konunun İngilizce adını [TOPIC] ve [/TOPIC] etiketleri arasına yaz. Örnek: [TOPIC]Climate Change & Daily Life[/TOPIC]. Bu etiket sayesinde sistem konuyu otomatik algılar.
 
 4. **FORMAT SOR:**
    - İçerik formatı sor (Podcast / Metin / Diyalog).

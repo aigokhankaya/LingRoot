@@ -3,7 +3,11 @@
  * Main entry point for the Express API server
  */
 
+// dotenv must be loaded before instrumentation reads env vars
 require('dotenv').config();
+
+// OTel instrumentation must be loaded before everything else
+require('./instrumentation');
 
 const express = require('express');
 const cors = require('cors');
@@ -70,6 +74,7 @@ const appleNotificationsRoutes = require('./routes/appleNotificationsRoutes.js')
 const googlePlayNotificationsRoutes = require('./routes/googlePlayNotificationsRoutes.js');
 const userSectorRoutes = require('./routes/userSectorRoutes.js');
 const perfLogsRoutes = require('./routes/perfLogsRoutes.js');
+const clientErrorRoutes = require('./routes/clientErrorRoutes.js');
 
 // Create Express app
 const app = express();
@@ -190,11 +195,12 @@ app.use('/api/mfa', mfaRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/external-services', externalServicesRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
-app.use('/api/api-costs', apiCostsRoutes);
+app.use('/api/admin', apiCostsRoutes);
 app.use('/api/apple-notifications', appleNotificationsRoutes);
 app.use('/api/google-play-notifications', googlePlayNotificationsRoutes);
 app.use('/api/user-sectors', userSectorRoutes);
 app.use('/api/perf-logs', perfLogsRoutes);
+app.use('/api/client-errors', clientErrorRoutes);
 app.use('/api/admin/jobs', require('./routes/jobRoutes.js'));
 
 // Try to load optional routes (may not exist)

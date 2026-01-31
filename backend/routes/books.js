@@ -128,8 +128,7 @@ router.get('/search', async (req, res) => {
     res.json(response);
 
   } catch (error) {
-    logger.error('Kitap arama hatası:', error);
-    console.error('Kitap arama hatası:', error);
+    logger.error('[BOOKS] Book search error:', error);
     res.status(500).json({ error: 'Kitap arama sırasında hata oluştu', details: error.message });
   }
 });
@@ -214,7 +213,7 @@ router.get('/admin/list', async (req, res) => {
 
     res.json({ success: true, data: transformed });
   } catch (error) {
-    console.error('Admin kitap listesi hatası:', error);
+    logger.error('[BOOKS] Admin book list error:', error);
     res.status(500).json({ error: 'Kitap listesi alınırken hata oluştu' });
   }
 });
@@ -344,7 +343,7 @@ router.get('/:bookId/chapters', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Kitap bölümleri getirme hatası:', error);
+    logger.error('[BOOKS] Error fetching book chapters:', error);
     res.status(500).json({ error: 'Bölümler getirilirken hata oluştu' });
   }
 });
@@ -384,7 +383,7 @@ router.get('/:bookId/chapters/:chapterId', async (req, res) => {
     res.json(response);
 
   } catch (error) {
-    console.error('Bölüm getirme hatası:', error);
+    logger.error('[BOOKS] Error fetching chapter:', error);
     res.status(500).json({ error: 'Bölüm getirilirken hata oluştu' });
   }
 });
@@ -415,7 +414,7 @@ router.get('/:bookId/chapters/:chapterId/audio', async (req, res) => {
     res.json(audio);
 
   } catch (error) {
-    console.error('Ses dosyası getirme hatası:', error);
+    logger.error('[BOOKS] Error fetching audio file:', error);
     res.status(500).json({ error: 'Ses dosyası getirilirken hata oluştu' });
   }
 });
@@ -483,7 +482,7 @@ router.post('/:bookId/chapters/:chapterId/audio', async (req, res) => {
     res.json(result);
 
   } catch (error) {
-    console.error('Ses dosyası kaydetme hatası:', error);
+    logger.error('[BOOKS] Error saving audio file:', error);
     res.status(500).json({ error: 'Ses dosyası kaydedilirken hata oluştu' });
   }
 });

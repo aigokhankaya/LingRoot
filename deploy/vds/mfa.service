@@ -1,0 +1,38 @@
+# Systemd service for LingRoot MFA (Montreal Forced Aligner)
+# Place at: /etc/systemd/system/mfa.service
+#
+# Enable:  sudo systemctl enable mfa
+# Start:   sudo systemctl start mfa
+# Logs:    journalctl -u mfa -f
+
+[Unit]
+Description=LingRoot MFA Alignment Service
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=lingroot
+WorkingDirectory=/opt/lingroot/mfa
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lingroot-mfa
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=5002
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=3G
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/lingroot/mfa /tmp
+
+[Install]
+WantedBy=multi-user.target

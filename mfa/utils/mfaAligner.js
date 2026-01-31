@@ -214,10 +214,14 @@ class MFAAligner {
     async align(corpusDir, dictPath, outputDir, debug = null, alignOptions = {}) {
         const { beam = null, retryBeam = null, singleSpeaker = false } = alignOptions || {};
 
-        // Convert Windows paths to Docker format
-        // Reverting to the logic that works in the original project:
-        // //c/foo/bar format (double slash at start, lowercase drive letter)
-        const toDockerPath = (p) => '//' + p.replace(/\\/g, '/').replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}`);
+        // Convert paths to Docker-compatible format
+        const isWindows = process.platform === 'win32';
+        const toDockerPath = (p) => {
+            if (isWindows) {
+                return '//' + p.replace(/\\/g, '/').replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}`);
+            }
+            return p;
+        };
 
         // Debug: Verify files exist before mounting
         try {
@@ -274,7 +278,9 @@ class MFAAligner {
             ];
             let currentStep = 0;
 
-            const child = spawn('cmd', ['/c', command], { shell: true, windowsHide: true });
+            const child = isWindows
+                ? spawn('cmd', ['/c', command], { shell: true, windowsHide: true })
+                : spawn('sh', ['-c', command], { shell: false });
             const self = this;
 
             child.stdout.on('data', d => { stdout += d.toString(); });
@@ -309,6 +315,8 @@ class MFAAligner {
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 if (code === 0) {
                     logger.info(`✅ MFA Success in ${elapsed}s`);
+                    // Wait for Docker volume to sync on Windows
+                    await new Promise(r => setTimeout(r, 2000));
                     resolve(outputDir);
                 } else {
                     logger.error(`❌ MFA Failed code ${code} in ${elapsed}s`);
@@ -411,6 +419,31 @@ class MFAAligner {
             cleanedTokenCount,
             shouldUseStrongFirstPass,
         });
+
+        // PRE-CHECK: Audio Duration/Size Validation
+        // Heuristic: If audio is too small for the word count, Google TTS likely failed or truncated.
+        // Example: 58 words (approx 20s) -> 80KB file (approx 1390 bytes/word). This caused failure.
+        // We set threshold slightly higher to catch these cases.
+        const MIN_BYTES_PER_WORD = 1500;
+
+        if (cleanedTokenCount > 5 && audioSize !== null) {
+            const bytesPerWord = audioSize / cleanedTokenCount;
+            if (bytesPerWord < MIN_BYTES_PER_WORD) {
+                const errorMsg = `Audio file too short relative to transcript. ` +
+                    `Words: ${cleanedTokenCount}, Size: ${audioSize}b, ` +
+                    `Ratio: ${Math.round(bytesPerWord)}b/word (Min: ${MIN_BYTES_PER_WORD}). ` +
+                    `Likely TTS truncation.`;
+
+                logger.warn(`❌ [MFA-VALIDATION] ${errorMsg}`);
+                await this.writeDebugLine(debug, {
+                    stage: 'validation-failed',
+                    error: errorMsg,
+                    ratio: bytesPerWord
+                });
+
+                throw new Error(errorMsg);
+            }
+        }
 
         let corpusDir = null, outputDir = null;
         try {
@@ -558,7 +591,51 @@ class MFAAligner {
             }
 
             const textGridPath = path.join(outputDir, 'audio.TextGrid');
-            const parsed = await this.parseTextGrid(textGridPath);
+
+            // Debug: Check what files exist in output directory
+            try {
+                const outputFiles = await fs.readdir(outputDir);
+                logger.info(`[MFA] Output directory contents: ${outputFiles.length > 0 ? outputFiles.join(', ') : '(empty)'}`);
+
+                // Also check for subdirectories
+                for (const file of outputFiles) {
+                    const filePath = path.join(outputDir, file);
+                    const stat = await fs.stat(filePath);
+                    if (stat.isDirectory()) {
+                        const subFiles = await fs.readdir(filePath);
+                        logger.info(`[MFA] Subdirectory "${file}" contents: ${subFiles.join(', ')}`);
+                    }
+                }
+            } catch (e) {
+                logger.error(`[MFA] Failed to read output dir: ${e.message}`);
+            }
+
+            // Check if TextGrid exists, if not look in subdirectories
+            let actualTextGridPath = textGridPath;
+            try {
+                await fs.access(textGridPath);
+            } catch {
+                // TextGrid not found at root, search in subdirectories
+                logger.warn(`[MFA] TextGrid not found at ${textGridPath}, searching subdirectories...`);
+                const outputFiles = await fs.readdir(outputDir);
+                for (const file of outputFiles) {
+                    const filePath = path.join(outputDir, file);
+                    const stat = await fs.stat(filePath);
+                    if (stat.isDirectory()) {
+                        const subTextGrid = path.join(filePath, 'audio.TextGrid');
+                        try {
+                            await fs.access(subTextGrid);
+                            actualTextGridPath = subTextGrid;
+                            logger.info(`[MFA] Found TextGrid at: ${actualTextGridPath}`);
+                            break;
+                        } catch {
+                            // Not here, continue
+                        }
+                    }
+                }
+            }
+
+            const parsed = await this.parseTextGrid(actualTextGridPath);
             logger.info(`✅ [MFA-SERVER] Execution finished. Returning ${parsed.length} timepoints.`);
             return parsed;
 

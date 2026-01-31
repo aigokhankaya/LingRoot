@@ -53,17 +53,14 @@ exports.rewriteToNarration = async (req, res) => {
   }
 
   const cefrLevel = (level || '').toString().trim().toUpperCase();
-  logger.info(`CEFR Level: ${cefrLevel}`);
-  console.log(`CEFR Level: ${cefrLevel}`);
+  logger.info(`[NARRATION] CEFR Level: ${cefrLevel}`);
 
   try {
     // Seviyeye göre doğru prompt dosyasını seç
     const promptFile = getPromptFileByLevel(level);
     const promptPath = path.join(__dirname, '../prompts/content', promptFile);
 
-    console.log(`🎯 [NARRATION CONTROLLER] Using prompt file: ${promptFile} for level: ${level || 'A1'}`);
-    logger.info(`🎯 Narration Controller - Selected prompt file: ${promptFile} for level: ${level || 'A1'}`);
-    logger.info(`[${requestId}] 📄 Using prompt file: ${promptFile}`);
+    logger.info(`[${requestId}] [NARRATION] Using prompt file: ${promptFile} for level: ${level || 'A1'}`);
 
     let promptTemplate = fs.readFileSync(promptPath, 'utf8');
 
@@ -74,7 +71,7 @@ exports.rewriteToNarration = async (req, res) => {
       .replace(/{{input_language}}/g, input_language || 'Turkish');
 
     // Log the full prompt being sent to OpenAI
-    logger.info(`[${requestId}] 📋 Prompt: ${prompt.substring(0, 500)}${prompt.length > 500 ? '...' : ''}`);
+    logger.debug(`[${requestId}] [NARRATION] Prompt: ${prompt.substring(0, 500)}${prompt.length > 500 ? '...' : ''}`);
 
     logger.info(`Narration rewrite request - Level: ${level || 'A1'}, Text length: ${input_text.length}`);
     logRequestStep(requestId, 'narration-rewrite:start', {
