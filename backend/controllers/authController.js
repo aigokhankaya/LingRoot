@@ -418,7 +418,6 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     logger.info('[LOGIN] req.body:', req.body);
-    console.log("[LOGIN] Gelen istek verisi:", req.body); // Bunu ekle
     const { email, password, rememberMe } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: "Lütfen e-posta ve şifre girin" });
@@ -538,7 +537,7 @@ exports.facebookLogin = async (req, res) => {
       );
       facebookUser = response.data;
 
-      console.log('[FACEBOOK_LOGIN] Kullanıcı bilgileri alındı:', { email: facebookUser.email, name: facebookUser.name });
+      logger.info('[FACEBOOK_LOGIN] User info received', { email: facebookUser.email, name: facebookUser.name });
     } catch (fbError) {
       logger.error('[FACEBOOK_LOGIN] Facebook API hatası:', fbError);
       return res.status(400).json({ success: false, code: 'INVALID_TOKEN', message: "Geçersiz Facebook access token" });
@@ -687,26 +686,22 @@ exports.googleLogin = async (req, res) => {
     const parts = credential.split('.');
     const isJWT = parts.length === 3;
 
-    console.log('[GOOGLE_LOGIN] Credential analizi:');
-    console.log('- Uzunluk:', credential.length);
-    console.log('- Bölüm sayısı:', parts.length);
-    console.log('- İlk 50 karakter:', credential.substring(0, 50));
-    console.log('- JWT olarak algılandı:', isJWT);
+    logger.debug('[GOOGLE_LOGIN] Credential analysis', { length: credential.length, parts: parts.length, isJWT });
 
     try {
       if (isJWT) {
         // JWT token decode et (One Tap durumu)
-        console.log('[GOOGLE_LOGIN] JWT credential decode ediliyor...');
+        logger.debug('[GOOGLE_LOGIN] Decoding JWT credential');
         const base64Url = credential.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         googleUser = JSON.parse(jsonPayload);
-        console.log('[GOOGLE_LOGIN] JWT decode başarılı:', { email: googleUser.email, name: googleUser.name });
+        logger.info('[GOOGLE_LOGIN] JWT decode successful', { email: googleUser.email, name: googleUser.name });
       } else {
         // Access token ile Google API'den kullanıcı bilgilerini al (OAuth popup durumu)
-        console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri alınıyor...');
+        logger.debug('[GOOGLE_LOGIN] Fetching user info with access token');
         const axios = require('axios');
 
         const response = await axios.get(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${credential}`);
@@ -717,12 +712,11 @@ exports.googleLogin = async (req, res) => {
         googleUser.given_name = googleUser.given_name || googleUser.name?.split(' ')[0];
         googleUser.family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ');
 
-        console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri başarılı:', { email: googleUser.email, name: googleUser.name });
+        logger.info('[GOOGLE_LOGIN] Access token user info received', { email: googleUser.email, name: googleUser.name });
       }
     } catch (decodeError) {
       logger.error('[GOOGLE_LOGIN] Credential decode hatası:', decodeError);
-      console.log('[GOOGLE_LOGIN] Credential tipi:', isJWT ? 'JWT' : 'Access Token');
-      console.log('[GOOGLE_LOGIN] Credential uzunluğu:', credential.length);
+      logger.error('[GOOGLE_LOGIN] Credential decode failed', { type: isJWT ? 'JWT' : 'AccessToken', length: credential.length });
       return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
     }
 
@@ -905,7 +899,7 @@ exports.appleLogin = async (req, res) => {
       }).join(''));
       appleUser = JSON.parse(jsonPayload);
 
-      console.log('[APPLE_LOGIN] Token decode başarılı:', { sub: appleUser.sub, email: appleUser.email });
+      logger.info('[APPLE_LOGIN] Token decode successful', { sub: appleUser.sub, email: appleUser.email });
     } catch (decodeError) {
       logger.error('[APPLE_LOGIN] Token decode hatası:', decodeError);
       return res.status(400).json({ success: false, code: 'INVALID_TOKEN', message: "Geçersiz Apple identity token" });
@@ -946,18 +940,17 @@ exports.appleLogin = async (req, res) => {
       }
 
       user = existingUser;
-      console.log('[APPLE_LOGIN] Mevcut kullanıcı bulundu:', { id: user.id, email: user.email });
+      logger.info('[APPLE_LOGIN] Existing user found', { id: user.id, email: user.email });
     } else {
       // Yeni kullanıcı kaydı oluştur
-      console.log('[APPLE_LOGIN] Yeni kullanıcı kaydı oluşturuluyor...');
-      console.log('[APPLE_LOGIN] providedName:', providedName);
+      logger.info('[APPLE_LOGIN] Creating new user', { providedName });
 
       const name = providedName || 'Apple User';
       const nameParts = name.split(' ');
       const firstname = nameParts[0] || 'Apple';
       const lastname = nameParts.slice(1).join(' ') || 'User';
 
-      console.log('[APPLE_LOGIN] Parsed name:', { firstname, lastname });
+      logger.debug('[APPLE_LOGIN] Parsed name', { firstname, lastname });
 
       const { data: newUser, error: insertError } = await supabase
         .from('users')
@@ -985,7 +978,7 @@ exports.appleLogin = async (req, res) => {
       }
 
       user = newUser;
-      console.log('[APPLE_LOGIN] Yeni kullanıcı oluşturuldu:', { id: user.id, email: user.email });
+      logger.info('[APPLE_LOGIN] New user created', { id: user.id, email: user.email });
 
       // Assign Free Trial plan (3 audio creation credits)
       try {

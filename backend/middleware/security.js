@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const xss = require('xss-clean');
 const hpp = require('hpp');
 const cors = require('cors');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Configure security middleware
@@ -37,7 +38,7 @@ exports.configureSecurity = (app) => {
         callback(null, true);
       }
       else {
-        console.log(`🚫 CORS blocked origin: ${origin}`);
+        logger.warn(`[CORS] Blocked origin: ${origin}`);
         callback(new Error('CORS policy violation'));
       }
     },

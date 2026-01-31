@@ -1,5 +1,6 @@
 const axios = require('axios');
 const logger = require('../common/logger.js');
+const { logApiCost, calculateGoogleSearchCost } = require('../infra/costTracker.js');
 
 /**
  * 🌐 Web Search Service
@@ -80,7 +81,7 @@ class WebSearchService {
      * @param {number} limit - Number of results to return (default 5)
      * @returns {Promise<Array>} List of search results {title, link, snippet}
      */
-    async searchWeb(query, limit = 5) {
+    async searchWeb(query, limit = 5, userId) {
         if (!this.apiKey || !this.cx) {
             logger.warn('⚠️ Web Search is disabled: Missing GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_CX');
             return [];
@@ -97,6 +98,21 @@ class WebSearchService {
                 },
                 timeout: 5000 // 5s timeout
             });
+
+            // Log API cost (even if no results, the API call was made)
+            if (userId) {
+                const cost = calculateGoogleSearchCost(1);
+                logApiCost({
+                    userId,
+                    feature: 'web_search',
+                    provider: 'google_custom_search',
+                    model: null,
+                    inputQuantity: 1,
+                    outputQuantity: response.data.items ? response.data.items.length : 0,
+                    costUsd: cost,
+                    metadata: { query },
+                }).catch(err => logger.warn('[COST] web_search log failed:', err.message));
+            }
 
             if (!response.data.items) {
                 return [];

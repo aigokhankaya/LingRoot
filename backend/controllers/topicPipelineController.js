@@ -97,13 +97,13 @@ exports.processTopicToEnglishText = async (req, res) => {
           topic,
           input_language: 'Türkçe'
         });
-        logger.info(`[${requestId}] 📄 Using template: topic/suggestions`);
+        logger.info(`[${requestId}] [TOPIC-PIPELINE] Using template: topic/suggestions`);
       } catch (err) {
         logger.error(`[${requestId}] Failed to generate suggestions prompt:`, err);
         throw err;
       }
 
-      logger.info(`[${requestId}] 📋 Prompt: ${suggestionsPrompt.substring(0, 500)}${suggestionsPrompt.length > 500 ? '...' : ''}`);
+      logger.debug(`[${requestId}] [TOPIC-PIPELINE] Prompt: ${suggestionsPrompt.substring(0, 500)}${suggestionsPrompt.length > 500 ? '...' : ''}`);
 
       const suggestionsCompletion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -167,7 +167,7 @@ exports.processTopicToEnglishText = async (req, res) => {
     // ==========================================
     const targetLanguage = input_language || 'Turkish';
     logger.info(`[${requestId}] [OPTIMIZED] Step 2: Generating bilingual content (EN + ${targetLanguage}) at ${level} level`);
-    console.log(`🎯 [OPTIMIZED PIPELINE] Single LLM call for bilingual content: "${result.selected_subtopic}" (Level: ${level})`);
+    logger.info(`[${requestId}] [TOPIC-PIPELINE] Single LLM call for bilingual content: "${result.selected_subtopic}" (Level: ${level})`);
 
     try {
       // OPTIMIZED: Single call generates both English and translated content
@@ -192,9 +192,7 @@ exports.processTopicToEnglishText = async (req, res) => {
         result.usage.translation = null;  // Not used in optimized flow
         result.usage.adaptation = null;  // Not used in optimized flow
 
-        logger.info(`[${requestId}] [OPTIMIZED] Bilingual generation complete in SINGLE call`);
-        console.log(`✅ [OPTIMIZED] EN: ${result.adapted_text.length} chars, ${targetLanguage}: ${result.narration_tr.length} chars`);
-        console.log(`💰 [TOKEN SAVINGS] Used ${bilingualResult.usage?.total_tokens || 'unknown'} tokens (estimated ~47% savings)`);
+        logger.info(`[${requestId}] [TOPIC-PIPELINE] Bilingual generation complete - EN: ${result.adapted_text.length} chars, ${targetLanguage}: ${result.narration_tr.length} chars, tokens: ${bilingualResult.usage?.total_tokens || 'unknown'}`);
 
         logRequestStep(requestId, 'topic-pipeline:bilingual:end', {
           englishLength: result.adapted_text.length,
@@ -231,7 +229,7 @@ exports.processTopicToEnglishText = async (req, res) => {
         result.qualityIssues = qualityValidation.issues;
 
         if (!qualityValidation.valid) {
-          logger.warn(`[${requestId}] ⚠️ Content quality validation failed`, {
+          logger.warn(`[${requestId}] [TOPIC-PIPELINE] Content quality validation failed`, {
             score: qualityValidation.score,
             issues: qualityValidation.issues.map(i => i.type)
           });
@@ -243,7 +241,7 @@ exports.processTopicToEnglishText = async (req, res) => {
           // Note: Content is still returned, but quality warning is logged
           // Future: Implement auto-regeneration with feedback
         } else {
-          logger.info(`[${requestId}] ✅ Content quality validation passed (score: ${qualityValidation.score})`);
+          logger.info(`[${requestId}] [TOPIC-PIPELINE] Content quality validation passed (score: ${qualityValidation.score})`);
         }
       } else {
         throw new Error('Bilingual generation returned incomplete result');
@@ -294,7 +292,7 @@ exports.processTopicToEnglishText = async (req, res) => {
 
       // Warn if information loss is too high
       if (semanticAudit.needsRegeneration) {
-        logger.warn(`[${requestId}] ⚠️ Semantic preservation below threshold. Consider regeneration.`);
+        logger.warn(`[${requestId}] [TOPIC-PIPELINE] Semantic preservation below threshold. Consider regeneration.`);
       }
     }
 
@@ -416,7 +414,7 @@ exports.getTopicSuggestions = async (req, res) => {
     logger.info(`[${requestId}] Generating topic suggestions for: "${topic}"`);
 
     const promptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
-    logger.info(`[${requestId}] 📄 Using prompt file: topic_detail_suggestions.txt`);
+    logger.info(`[${requestId}] [TOPIC-PIPELINE] Using prompt file: topic_detail_suggestions.txt`);
 
     const promptTemplate = fs.readFileSync(promptPath, 'utf8');
 
@@ -425,7 +423,7 @@ exports.getTopicSuggestions = async (req, res) => {
       .split('{{level}}').join(level || 'A1')
       .split('{{input_language}}').join('Türkçe');
 
-    logger.info(`[${requestId}] 📋 Prompt: ${prompt}`);
+    logger.debug(`[${requestId}] [TOPIC-PIPELINE] Prompt: ${prompt}`);
 
     if (!openai) {
       return res.status(503).json({ success: false, message: "Service unavailable (missing OPENAI_API_KEY)." });

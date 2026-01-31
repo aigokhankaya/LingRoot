@@ -24,6 +24,9 @@ router.get('/conversations/:conversationId/suggestions', aiChatController.getTop
 // Daily personalized suggestions for Liro chat
 router.get('/daily-suggestions', aiChatController.getDailySuggestions);
 
+// Daily topic for empty state card
+router.get('/daily-topic', aiChatController.getDailyTopic);
+
 // Feedback for daily suggestions (clicks, not_relevant etc.)
 router.post('/daily-suggestions/feedback', aiChatController.saveDailySuggestionFeedback);
 

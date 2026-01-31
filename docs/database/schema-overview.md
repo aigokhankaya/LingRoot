@@ -1,6 +1,6 @@
 # Database Schema Overview
 
-> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-01-25 | **Versiyon:** 2.4
+> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-01-31 | **Versiyon:** 2.5
 
 **Database:** PostgreSQL (Supabase)
 **Total Tables:** 83+ (including views)
@@ -24,6 +24,7 @@
 | **Payments** | payment_providers, card_transactions |
 | **Support** | support_conversations, support_messages, support_message_attachments |
 | **Analytics** | api_costs, daily_usage_patterns, content_ratings, content_feedback |
+| **Audit** | admin_logs |
 | **Recommendations** | user_content_recommendations, recommendation_interactions, recommendation_generation_status |
 | **Other** | notifications, user_interests, user_favorites, user_book_progress, hobby_suggestions, parameters, external_services |
 
@@ -772,6 +773,26 @@ Extracted phrase patterns from content.
 | pattern_count | INTEGER | Patterns found |
 | patterns | JSONB | Pattern array |
 
+### admin_logs (NEW - Migration 0080)
+Admin action audit trail for compliance and traceability.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| admin_user_id | UUID | FK → users (ON DELETE SET NULL) |
+| admin_email | TEXT | Admin email (denormalized) |
+| action | TEXT | Action identifier (e.g. 'user.delete', 'plan.update') |
+| target_type | TEXT | Resource type: user, subscription, plan, content, setting |
+| target_id | TEXT | ID of the affected resource |
+| details | JSONB | Additional context (old/new values, reason) |
+| ip_address | TEXT | Client IP address |
+| user_agent | TEXT | Client User-Agent header |
+| created_at | TIMESTAMPTZ | Record creation time |
+
+**Indexes:** `created_at DESC`, `admin_user_id`, `action`
+**RLS:** Enabled — select/insert policies for backend service role.
+**Retention:** Unlimited (compliance-grade, never deleted).
+
 ---
 
 ## 10. Other Tables
@@ -983,6 +1004,7 @@ All tables have RLS enabled. Common policies:
 | *_progress | Users see own progress | `auth.uid() = user_id` |
 | content tables | Published content visible to all | `status = 'published'` |
 | admin tables | Admin-only access | Role check in backend |
+| admin_logs | Service role insert/select | Backend service role bypasses RLS |
 
 ---
 

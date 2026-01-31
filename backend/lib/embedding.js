@@ -1,5 +1,6 @@
 const openaiClient = require('../utils/ai/openaiClient.js');
 const logger = require('../utils/common/logger.js');
+const { logApiCost, calculateEmbeddingCost } = require('../utils/infra/costTracker.js');
 
 /**
  * Text Embedding Utilities
@@ -11,13 +12,28 @@ const logger = require('../utils/common/logger.js');
  * @param {string} text - Text to embed
  * @returns {Promise<Array<number>>} - 1536-dimensional embedding vector
  */
-async function embedText(text) {
+async function embedText(text, userId) {
   if (!text || text.trim().length === 0) {
     throw new Error('Text cannot be empty');
   }
 
   try {
     const embedding = await openaiClient.generateEmbedding(text);
+
+    if (userId) {
+      const estimatedTokens = Math.ceil(text.length / 4);
+      const cost = calculateEmbeddingCost(estimatedTokens, 'text-embedding-ada-002');
+      logApiCost({
+        userId,
+        feature: 'rag_embedding',
+        provider: 'openai',
+        model: 'text-embedding-ada-002',
+        inputQuantity: estimatedTokens,
+        outputQuantity: 0,
+        costUsd: cost,
+      }).catch(err => logger.warn('[COST] rag_embedding log failed:', err.message));
+    }
+
     return embedding;
   } catch (error) {
     logger.error('Failed to embed text:', error);
@@ -30,13 +46,30 @@ async function embedText(text) {
  * @param {Array<string>} texts - Array of texts to embed
  * @returns {Promise<Array<Array<number>>>} - Array of embedding vectors
  */
-async function embedTexts(texts) {
+async function embedTexts(texts, userId) {
   if (!texts || texts.length === 0) {
     throw new Error('Texts array cannot be empty');
   }
 
   try {
     const embeddings = await openaiClient.generateEmbedding(texts);
+
+    if (userId) {
+      const totalChars = texts.reduce((sum, t) => sum + (t ? t.length : 0), 0);
+      const estimatedTokens = Math.ceil(totalChars / 4);
+      const cost = calculateEmbeddingCost(estimatedTokens, 'text-embedding-ada-002');
+      logApiCost({
+        userId,
+        feature: 'rag_embedding',
+        provider: 'openai',
+        model: 'text-embedding-ada-002',
+        inputQuantity: estimatedTokens,
+        outputQuantity: 0,
+        costUsd: cost,
+        metadata: { batchSize: texts.length },
+      }).catch(err => logger.warn('[COST] rag_embedding batch log failed:', err.message));
+    }
+
     return embeddings;
   } catch (error) {
     logger.error('Failed to embed texts:', error);

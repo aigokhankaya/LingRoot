@@ -5,6 +5,8 @@ const { supabase } = require('../utils/storage/supabaseClient.js');
 // const { logStep } = require('../utils/common/stepLogger.js');
 const { v4: uuidv4 } = require('uuid');
 const { checkLimits } = require('../utils/infra/usageLimiter.js');
+const { getTtsProvider } = require('../services/voiceModelService.js');
+const { getTtsTiers } = require('../utils/infra/costTracker.js');
 
 // Supabase client is provided by utils/supabaseClient (guarded init)
 
@@ -818,15 +820,23 @@ exports.getUsageSummary = async (req, res) => {
   try {
     const userId = req.user.id;
     const state = await checkLimits(userId);
+
+    // Resolve TTS provider & tier pricing (non-blocking for hasPlan=false)
+    let ttsProvider = 'google';
+    try { ttsProvider = await getTtsProvider(); } catch {}
+    const ttsTiers = getTtsTiers(ttsProvider);
+
     if (!state.hasPlan) {
-      return res.json({ 
-        success: true, 
-        data: { 
+      return res.json({
+        success: true,
+        data: {
           hasPlan: false,
           isExpired: state.isExpired || false,
           expiredAt: state.expiredAt,
-          message: state.message
-        } 
+          message: state.message,
+          ttsProvider,
+          ttsTiers,
+        }
       });
     }
     return res.json({
@@ -841,6 +851,8 @@ exports.getUsageSummary = async (req, res) => {
         limits: state.limits,
         exceeded: state.exceeded,
         isExceeded: state.isExceeded,
+        ttsProvider,
+        ttsTiers,
         // Free Trial özel alanları
         isFreeTrialExhausted: state.isFreeTrialExhausted || false,
         audioCreationCount: state.audioCreationCount,

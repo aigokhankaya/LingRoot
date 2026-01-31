@@ -203,10 +203,10 @@ exports.findPatternsInText = async (req, res) => {
   try {
     const { text, level } = req.body;
 
-    console.log(`🔍 [PatternController] findPatternsInText called - level: ${level}, text length: ${text?.length || 0}`);
+    logger.info(`[PATTERN] findPatternsInText called - level: ${level}, text length: ${text?.length || 0}`);
 
     if (!text) {
-      console.log('⚠️ [PatternController] Missing text');
+      logger.warn('[PATTERN] Missing text parameter');
       return res.status(400).json({
         success: false,
         message: 'Text is required'
@@ -243,15 +243,15 @@ exports.findPatternsInText = async (req, res) => {
       });
     }
 
-    console.log(`📊 [PatternController] Total patterns from pattern_library: ${data?.length || 0}`);
+    logger.info(`[PATTERN] Total patterns from pattern_library: ${data?.length || 0}`);
 
     // Debug: Log first 5 patterns to see what we're getting
     if (data && data.length > 0) {
-      console.log(`📋 [PatternController] First 5 patterns:`, data.slice(0, 5).map(p => p.text));
+      logger.debug(`[PATTERN] First 5 patterns: ${JSON.stringify(data.slice(0, 5).map(p => p.text))}`);
     }
 
     // Debug: Log part of the text being searched
-    console.log(`📝 [PatternController] Text preview (first 200 chars): ${text.substring(0, 200)}`);
+    logger.debug(`[PATTERN] Text preview (first 200 chars): ${text.substring(0, 200)}`);
 
     // Normalize function: Aggressive cleaning (keep only letters, numbers, spaces)
     const normalizeText = (str) => {
@@ -292,7 +292,7 @@ exports.findPatternsInText = async (req, res) => {
       if (!seenPatterns.has(key)) {
         seenPatterns.add(key);
         // Debug: Log pattern with translation
-        console.log(`🔍 [PatternController] Pattern "${pattern.text}" -> translation: "${pattern.translation}"`);
+        logger.debug(`[PATTERN] Pattern "${pattern.text}" -> translation: "${pattern.translation}"`);
         uniqueMatches.push({
           pattern: pattern.text,
           type: pattern.type || 'pattern',
@@ -304,7 +304,7 @@ exports.findPatternsInText = async (req, res) => {
       }
     });
 
-    console.log(`✨ [PatternController] Unique matches: ${uniqueMatches.length}`);
+    logger.info(`[PATTERN] Unique matches: ${uniqueMatches.length}`);
     logger.info(`[PatternController] Found ${uniqueMatches.length} matching patterns in text from pattern_library`);
 
     res.json({

@@ -1,0 +1,85 @@
+# OpenTelemetry Collector Configuration for LingRoot VDS
+# Place at: /opt/lingroot/signoz/otel-collector-config.yaml
+#
+# This extends the default SigNoz OTel Collector config with:
+#   - Bearer token authentication for external OTLP endpoints
+#   - Resource detection and attribute processing
+#   - Memory limiter to protect VDS resources
+
+extensions:
+  bearertokenauth:
+    token: "${OTEL_AUTH_TOKEN}"  # Set via .env or docker-compose env
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "https://lingroot.com"
+            - "https://www.lingroot.com"
+            - "http://localhost:3000"
+          allowed_headers:
+            - "Content-Type"
+            - "Authorization"
+
+processors:
+  batch:
+    send_batch_size: 1024
+    timeout: 5s
+
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 300
+    spike_limit_mib: 100
+
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: "production"
+        action: upsert
+
+  # Filter out noisy health-check spans
+  filter/health:
+    error_mode: ignore
+    traces:
+      span:
+        - 'attributes["http.target"] == "/health"'
+        - 'attributes["http.target"] == "/api/health"'
+        - 'attributes["http.target"] == "/favicon.ico"'
+
+exporters:
+  # SigNoz ClickHouse exporters (use defaults from SigNoz docker-compose)
+  clickhousetraces:
+    datasource: tcp://clickhouse:9000
+    migrations_folder: /signoz-collector/migrations/traces
+  clickhouselogs:
+    datasource: tcp://clickhouse:9000
+    migrations_folder: /signoz-collector/migrations/logs
+  clickhousemetricsv4:
+    datasource: tcp://clickhouse:9000
+
+service:
+  extensions: [bearertokenauth]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/health, batch, resource]
+      exporters: [clickhousetraces]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [clickhouselogs]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [clickhousemetricsv4]
+
+  telemetry:
+    logs:
+      level: "warn"
+    metrics:
+      address: 0.0.0.0:8888

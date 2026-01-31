@@ -2,6 +2,18 @@
 // Centralized cost calculation and logging for OpenAI, Google TTS, and Amazon Polly
 const logger = require('../common/logger.js');
 const { supabase } = require('../storage/supabaseClient.js');
+const { metrics } = require('@opentelemetry/api');
+
+// OTel cost metrics — exported to SigNoz for dashboards & alerts
+const meter = metrics.getMeter('lingroot-cost');
+const costCounter = meter.createCounter('llm_cost_usd', {
+  description: 'Cumulative API cost in USD',
+  unit: 'usd',
+});
+const tokenCounter = meter.createCounter('llm_tokens_total', {
+  description: 'Cumulative token usage',
+  unit: 'tokens',
+});
 
 // Default pricing (USD) per 1K tokens or chars. Can be overridden via ENV JSON.
 const defaultOpenAiPricing = {
@@ -23,6 +35,22 @@ const defaultTtsPricingPer1kChars = {
   'openai-standard': 0.015,  // tts-1: $15/1M chars = $0.015/1K
   'openai-hd': 0.030,        // tts-1-hd: $30/1M chars = $0.030/1K
 };
+
+// Claude pricing (USD per 1K tokens)
+const defaultClaudePricing = {
+  'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
+  'claude-3-5-sonnet': { input: 0.003, output: 0.015 },
+};
+
+// Embedding pricing (USD per 1K tokens)
+const defaultEmbeddingPricing = {
+  'text-embedding-ada-002': 0.0001,
+  'text-embedding-3-small': 0.00002,
+  'text-embedding-3-large': 0.00013,
+};
+
+// Google Custom Search: $5 / 1000 queries
+const GOOGLE_SEARCH_COST_PER_QUERY = 0.005;
 
 // Amazon Polly pricing per 1K chars
 const defaultPollyPricingPer1kChars = {
@@ -131,9 +159,97 @@ async function logApiCost({ userId, feature, provider, model, inputQuantity, out
     } else {
       logger.debug(`[COST] Logged: ${feature} | ${provider} | $${costUsd.toFixed(6)}`);
     }
+
+    // Record in OTel metrics for SigNoz dashboards
+    const metricAttrs = { provider, model: model || 'unknown', feature };
+    costCounter.add(costUsd, metricAttrs);
+    if (inputQuantity) {
+      tokenCounter.add(inputQuantity, { ...metricAttrs, direction: 'input' });
+    }
+    if (outputQuantity) {
+      tokenCounter.add(outputQuantity, { ...metricAttrs, direction: 'output' });
+    }
   } catch (err) {
     logger.error('[COST] Exception logging API cost:', err.message);
   }
+}
+
+/**
+ * Return TTS tier pricing for a given provider.
+ * @param {'google'|'polly'|string} provider
+ * @returns {Object} tier key → { label, costPer1k }
+ */
+function getTtsTiers(provider) {
+  if (provider === 'google') {
+    return {
+      basic:    { label: 'Basic',    costPer1k: defaultTtsPricingPer1kChars.Basic },
+      silver:   { label: 'Silver',   costPer1k: defaultTtsPricingPer1kChars.Premium },
+      gold:     { label: 'Gold',     costPer1k: defaultTtsPricingPer1kChars.Gold },
+      platinum: { label: 'Platinum', costPer1k: defaultTtsPricingPer1kChars.Platinum },
+    };
+  }
+  // Amazon Polly fallback
+  return {
+    standard:   { label: 'Standard',   costPer1k: defaultPollyPricingPer1kChars.standard },
+    neural:     { label: 'Neural',     costPer1k: defaultPollyPricingPer1kChars.neural },
+    generative: { label: 'Generative', costPer1k: 0.030 },
+  };
+}
+
+/**
+ * Calculate Claude API cost based on usage and model.
+ * @param {{input_tokens?: number, output_tokens?: number}} usage - Claude usage object
+ * @param {string} model - Claude model name
+ * @returns {{inputTokens: number, outputTokens: number, totalCostUsd: number}}
+ */
+function calculateClaudeCost(usage, model) {
+  const claudePricing = getPricingFromEnv('CLAUDE_PRICING_JSON', defaultClaudePricing);
+  const price = claudePricing[model] || claudePricing['claude-3-5-sonnet-20241022'];
+  const inputTokens = usage?.input_tokens || 0;
+  const outputTokens = usage?.output_tokens || 0;
+  const inputCost = (inputTokens / 1000) * (price?.input || 0);
+  const outputCost = (outputTokens / 1000) * (price?.output || 0);
+  const totalCost = inputCost + outputCost;
+  return {
+    inputTokens,
+    outputTokens,
+    totalCostUsd: Number(totalCost.toFixed(6)),
+  };
+}
+
+/**
+ * Calculate embedding cost based on token count and model.
+ * @param {number} tokenCount - Estimated token count
+ * @param {string} model - Embedding model name
+ * @returns {number} Cost in USD
+ */
+function calculateEmbeddingCost(tokenCount, model) {
+  const embeddingPricing = getPricingFromEnv('EMBEDDING_PRICING_JSON', defaultEmbeddingPricing);
+  const costPer1k = embeddingPricing[model] || embeddingPricing['text-embedding-ada-002'];
+  const cost = (tokenCount / 1000) * costPer1k;
+  return Number(cost.toFixed(6));
+}
+
+/**
+ * Calculate Google Custom Search cost.
+ * @param {number} queryCount - Number of search queries
+ * @returns {number} Cost in USD
+ */
+function calculateGoogleSearchCost(queryCount) {
+  return Number((queryCount * GOOGLE_SEARCH_COST_PER_QUERY).toFixed(6));
+}
+
+/**
+ * Calculate OpenAI TTS cost based on character count and model.
+ * @param {number} characters - Number of characters
+ * @param {string} model - TTS model ('tts-1' or 'tts-1-hd')
+ * @returns {number} Cost in USD
+ */
+function calculateOpenAiTtsCost(characters, model = 'tts-1') {
+  const tier = model === 'tts-1-hd' ? 'openai-hd' : 'openai-standard';
+  const per1k = ttsPricing[tier] || ttsPricing['openai-standard'];
+  const cost = (characters / 1000) * per1k;
+  return Number(cost.toFixed(6));
 }
 
 module.exports = {
@@ -141,4 +257,9 @@ module.exports = {
   calculateTtsCost,
   calculatePollyCost,
   logApiCost,
+  getTtsTiers,
+  calculateClaudeCost,
+  calculateEmbeddingCost,
+  calculateGoogleSearchCost,
+  calculateOpenAiTtsCost,
 };

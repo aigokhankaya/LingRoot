@@ -350,7 +350,7 @@ router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) =>
   // Global podcast limiti kontrolü
   const globalSlot = await limiters.podcast.acquire(60000); // 60 saniye timeout
   if (!globalSlot.acquired) {
-    logger.warn(`🚫 [PODCAST] Global limit - reason: ${globalSlot.reason}`);
+    logger.warn(`[PODCAST] Global limit reached - reason: ${globalSlot.reason}`);
     return res.status(503).json({
       success: false,
       code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
@@ -374,7 +374,7 @@ router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) =>
     const level = (body.level || 'B1').toString().toUpperCase();
     const duration = body.duration != null ? Number(body.duration) : 10;
 
-    logger.info(`📻 [PODCAST APP] Received create-podcast request:`, {
+    logger.info(`[PODCAST] Received create-podcast request`, {
       topic,
       level,
       duration,
@@ -467,7 +467,7 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
       includeFiller: body.includeFiller,
     });
 
-    logger.info(`📻 [AsyncPodcast] Job ${job.id} created for user ${userId}`, { topic, level, duration });
+    logger.info(`[AsyncPodcast] Job ${job.id} created for user ${userId}`, { topic, level, duration });
 
     // Return job ID immediately
     res.json({
@@ -482,7 +482,7 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
       // Global podcast limiti - arka plan işlemi için
       const globalSlot = await limiters.podcast.acquire(120000); // 2 dakika timeout
       if (!globalSlot.acquired) {
-        logger.warn(`🚫 [AsyncPodcast] Global limit - reason: ${globalSlot.reason}, jobId: ${job.id}`);
+        logger.warn(`[AsyncPodcast] Global limit reached - reason: ${globalSlot.reason}, jobId: ${job.id}`);
         jobQueue.updateJob(job.id, {
           status: 'failed',
           error: 'Sunucu yoğun, lütfen daha sonra tekrar deneyin'
@@ -664,11 +664,11 @@ router.get("/test-voices", testVoices);
 // SSML destekli sesler test endpoint'i
 router.get('/test-ssml-voices', async (req, res) => {
   try {
-    console.log('🎯 SSML VOICES TEST - Request received');
+    logger.info('[TTS-ROUTES] SSML voices test - Request received');
 
     const { languageCode = 'en-US' } = req.query;
 
-    console.log(`🎯 Testing SSML-compatible voices for language: ${languageCode}`);
+    logger.info(`[TTS-ROUTES] Testing SSML-compatible voices for language: ${languageCode}`);
 
     // Tüm sesler ve SSML destekli olanları al
     const { listGoogleVoices } = require('../utils/audio/googleTTS.js');
@@ -678,10 +678,7 @@ router.get('/test-ssml-voices', async (req, res) => {
     const ssmlSupportedVoices = allVoices.filter(voice => voice.ssmlSupport === true);
     const ssmlUnsupportedVoices = allVoices.filter(voice => voice.ssmlSupport === false);
 
-    console.log(`🎯 SSML VOICES TEST Results:
-      - Total voices: ${allVoices.length}
-      - SSML supported: ${ssmlSupportedVoices.length}
-      - SSML unsupported: ${ssmlUnsupportedVoices.length}`);
+    logger.info(`[TTS-ROUTES] SSML voices test results - Total: ${allVoices.length}, Supported: ${ssmlSupportedVoices.length}, Unsupported: ${ssmlUnsupportedVoices.length}`);
 
     // İlk 5 destekli ses örneği
     const sampleSupportedVoices = ssmlSupportedVoices.slice(0, 5);
@@ -703,7 +700,7 @@ router.get('/test-ssml-voices', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('🎯 SSML VOICES TEST failed:', error);
+    logger.error('[TTS-ROUTES] SSML voices test failed:', error);
     res.status(500).json({
       success: false,
       error: 'SSML voices test failed',
@@ -715,7 +712,7 @@ router.get('/test-ssml-voices', async (req, res) => {
 // Ultra hassas Google TTS test endpoint'i
 router.post('/test-ultra-precision', async (req, res) => {
   try {
-    console.log('🎯 ULTRA HASSAS TTS TEST - Request received');
+    logger.info('[TTS-ROUTES] Ultra precision TTS test - Request received');
 
     const { text, voice, speakingRate, languageCode } = req.body;
 
@@ -732,11 +729,7 @@ router.post('/test-ultra-precision', async (req, res) => {
       });
     }
 
-    console.log(`🎯 Testing ultra precise TTS with:
-      - Text: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"
-      - Voice: ${voice || 'en-US-Standard-C'}
-      - Speaking Rate: ${speakingRate || 1.0}x
-      - Language: ${languageCode || 'en-US'}`);
+    logger.info(`[TTS-ROUTES] Ultra precision TTS test - Text: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}", Voice: ${voice || 'en-US-Standard-C'}, Rate: ${speakingRate || 1.0}x, Lang: ${languageCode || 'en-US'}`);
 
     // Google TTS ile ultra hassas timing test
     const { synthesizeWithGoogle } = require('../utils/audio/googleTTS.js');
@@ -751,7 +744,7 @@ router.post('/test-ultra-precision', async (req, res) => {
 
     const processingTime = Date.now() - startTime;
 
-    console.log(`🎯 ULTRA HASSAS TTS TEST completed in ${processingTime}ms`);
+    logger.info(`[TTS-ROUTES] Ultra precision TTS test completed in ${processingTime}ms`);
 
     // Timing analizi
     const timingAnalysis = {
@@ -785,7 +778,7 @@ router.post('/test-ultra-precision', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('🎯 ULTRA HASSAS TTS TEST failed:', error);
+    logger.error('[TTS-ROUTES] Ultra precision TTS test failed:', error);
     res.status(500).json({
       success: false,
       error: 'Ultra hassas TTS test failed',

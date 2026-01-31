@@ -3,6 +3,7 @@ import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiBaseUrl } from './environmentConfig';
 import { EXPO_PUBLIC_MFA_API_URL } from '@env';
+import { errorLogger } from '../utils/errorLogger';
 
 // Import from unified apiClient wrapper
 import {
@@ -186,6 +187,15 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
+
+    // Report 5xx errors to SigNoz via errorLogger
+    if (error.response?.status >= 500) {
+      errorLogger.captureApiError(
+        error.config?.url || 'unknown',
+        error.response.status,
+        error,
+      );
+    }
 
     // If backend hibernated (Render 503), try waking and retry once
     if (error.response?.status === 503 && error.config && !(error.config as any).__wakeRetry) {

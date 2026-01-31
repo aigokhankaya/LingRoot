@@ -11,6 +11,7 @@ const { uploadToSupabase } = require('../utils/storage/storageUploader');
 const { createWordLevelVTTFromTimings } = require('../services/subtitleService');
 const logger = require('../utils/common/logger');
 const { v4: uuidv4 } = require('uuid');
+const { logApiCost, calculateOpenAiTtsCost } = require('../utils/infra/costTracker.js');
 
 class SectorContentTTSService {
 
@@ -73,6 +74,21 @@ class SectorContentTTSService {
                 model,
                 maxRetries: 3
             });
+
+            // Log TTS cost
+            if (content.created_by && textToSpeak.length > 0) {
+                const ttsCost = calculateOpenAiTtsCost(textToSpeak.length, model);
+                logApiCost({
+                    userId: content.created_by,
+                    feature: 'sector_content_tts',
+                    provider: 'openai',
+                    model,
+                    inputQuantity: textToSpeak.length,
+                    outputQuantity: 0,
+                    costUsd: ttsCost,
+                    metadata: { contentId, contentType: content.content_type },
+                }).catch(err => logger.warn('[COST] sector_content_tts log failed:', err.message));
+            }
 
             // 6. Upload audio to Supabase storage
             const audioFileName = `sector-content/${contentId}/${uuidv4()}.mp3`;

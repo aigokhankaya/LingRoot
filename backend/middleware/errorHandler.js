@@ -1,19 +1,27 @@
 // Error handling middleware
 const { formatError } = require('../utils/common/responseFormatter.js');
 const logger = require('../utils/common/logger.js');
+const { trace, SpanStatusCode } = require('@opentelemetry/api');
 
 /**
  * Global error handler middleware
  */
 exports.errorHandler = (err, req, res, next) => {
   // Log the error
-  logger.error(`${err.name}: ${err.message}`, { 
+  logger.error(`${err.name}: ${err.message}`, {
     stack: err.stack,
     path: req.path,
     method: req.method,
     ip: req.ip
   });
-  
+
+  // Record exception in active OTel span for SigNoz Exceptions tracking
+  const span = trace.getActiveSpan();
+  if (span) {
+    span.recordException(err);
+    span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+  }
+
   // Determine status code
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   

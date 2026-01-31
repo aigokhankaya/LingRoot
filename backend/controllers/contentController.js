@@ -561,7 +561,7 @@ exports.submitContent = async (req, res) => {
     }
 
     // Debug: Kaydedilecek verileri logla
-    console.log(' [SUBMIT CONTENT DEBUG]', {
+    logger.debug('[SUBMIT_CONTENT] Save payload', {
       input: input ? input.substring(0, 50) + '...' : 'EMPTY',
       translated_text: translated_text ? translated_text.substring(0, 50) + '...' : 'EMPTY',
       adapted_text: adapted_text ? adapted_text.substring(0, 50) + '...' : 'EMPTY',

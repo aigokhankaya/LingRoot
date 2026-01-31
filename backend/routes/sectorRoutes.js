@@ -232,7 +232,7 @@ let sectorRecommendationService;
 try {
     sectorRecommendationService = require('../services/sectorRecommendationService');
 } catch (e) {
-    console.warn('SectorRecommendationService not available:', e.message);
+    logger.warn('[SECTOR-ROUTES] SectorRecommendationService not available: ' + e.message);
 }
 
 // Kişiselleştirilmiş içerik önerileri
@@ -255,7 +255,7 @@ router.get('/:sectorId/recommendations', authenticate, async (req, res) => {
 
         res.json({ success: true, data: recommendations });
     } catch (error) {
-        console.error('Error getting recommendations:', error);
+        logger.error('[SECTOR-ROUTES] Error getting recommendations:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -275,7 +275,7 @@ router.get('/:sectorId/next-best', authenticate, async (req, res) => {
 
         res.json({ success: true, data: nextBest });
     } catch (error) {
-        console.error('Error getting next best content:', error);
+        logger.error('[SECTOR-ROUTES] Error getting next best content:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -297,7 +297,7 @@ router.get('/:sectorId/learning-path', authenticate, async (req, res) => {
 
         res.json({ success: true, data: path });
     } catch (error) {
-        console.error('Error getting learning path:', error);
+        logger.error('[SECTOR-ROUTES] Error getting learning path:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -322,7 +322,7 @@ router.get('/:sectorId/vocabulary-recommendations', authenticate, async (req, re
 
         res.json({ success: true, data: vocabRecs });
     } catch (error) {
-        console.error('Error getting vocabulary recommendations:', error);
+        logger.error('[SECTOR-ROUTES] Error getting vocabulary recommendations:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -342,7 +342,7 @@ router.get('/:sectorId/daily-summary', authenticate, async (req, res) => {
 
         res.json({ success: true, data: summary });
     } catch (error) {
-        console.error('Error getting daily summary:', error);
+        logger.error('[SECTOR-ROUTES] Error getting daily summary:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -363,7 +363,7 @@ router.get('/:sectorId/content/:contentId/vocabulary-injection', authenticate, a
 
         res.json({ success: true, data: injection });
     } catch (error) {
-        console.error('Error getting vocabulary injection:', error);
+        logger.error('[SECTOR-ROUTES] Error getting vocabulary injection:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -374,7 +374,7 @@ let sectorGamificationService;
 try {
     sectorGamificationService = require('../services/sectorGamificationService');
 } catch (e) {
-    console.warn('SectorGamificationService not available:', e.message);
+    logger.warn('[SECTOR-ROUTES] SectorGamificationService not available: ' + e.message);
 }
 
 // Sektör ilerleme özeti (Dashboard için)
@@ -500,7 +500,7 @@ let sectorChallengeService;
 try {
     sectorChallengeService = require('../services/sectorChallengeService');
 } catch (e) {
-    console.warn('SectorChallengeService not available:', e.message);
+    logger.warn('[SECTOR-ROUTES] SectorChallengeService not available: ' + e.message);
 }
 
 // Aktif sektör challenge'larını listele

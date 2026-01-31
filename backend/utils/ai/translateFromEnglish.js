@@ -4,6 +4,7 @@ require("dotenv").config();
 const logger = require('../common/logger.js');
 const fs = require("fs");
 const path = require("path");
+const { logApiCost, calculateOpenAiCost } = require('../infra/costTracker.js');
 
 // Initialize OpenAI client
 let openai;
@@ -31,7 +32,7 @@ try {
  * @param {object} requestLogger - Optional request logger
  * @returns {Promise<{text: string, usage: object, model: string}>} - Translated text with usage stats
  */
-async function translateFromEnglish(englishText, inputLanguage, level, requestLogger) {
+async function translateFromEnglish(englishText, inputLanguage, level, requestLogger, userId) {
     if (!openai) {
         logger.error("OpenAI client is not initialized. Cannot translate.");
         throw new Error("OpenAI client not initialized");
@@ -45,8 +46,7 @@ async function translateFromEnglish(englishText, inputLanguage, level, requestLo
     const promptFile = `translate_from_english_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../../prompts/content/${promptFile}`);
 
-    console.log(`🎯 [TRANSLATE FROM ENGLISH] Using prompt file: ${promptFile} for ${inputLanguage} (Level: ${level})`);
-    logger.info(`🎯 Translate From English - Selected prompt file: ${promptFile} for input language: ${inputLanguage} (Level: ${level})`);
+    logger.info(`[TRANSLATE_FROM_EN] Using prompt file: ${promptFile} for ${inputLanguage} (Level: ${level})`);
 
     let promptTemplate;
     try {
@@ -129,6 +129,19 @@ async function translateFromEnglish(englishText, inputLanguage, level, requestLo
 
     if (requestLogger) {
         requestLogger.log(`[openai:usage:translateFromEnglish]` + JSON.stringify({ usage, model }));
+    }
+
+    if (userId) {
+        const cost = calculateOpenAiCost(usage, model);
+        logApiCost({
+            userId,
+            feature: 'translate_from_english',
+            provider: 'openai',
+            model,
+            inputQuantity: cost.promptTokens,
+            outputQuantity: cost.completionTokens,
+            costUsd: cost.totalCostUsd,
+        }).catch(err => logger.warn('[COST] translate_from_english log failed:', err.message));
     }
 
     return {

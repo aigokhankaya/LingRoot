@@ -12,6 +12,7 @@ const mammoth = require("mammoth");
 const fetch = require('node-fetch');
 const { JSDOM } = require('jsdom');
 const { fetchYoutubeTranscript } = require('../content/youtubeTranscriptService.js');
+const { logApiCost, calculateOpenAiCost } = require('../infra/costTracker.js');
 
 // Initialize OpenAI client (similar to cefrAdapter, consider refactoring to a shared client)
 let openai;
@@ -39,12 +40,11 @@ try {
  * @param {string} level - CEFR level (A1-C2)
  * @returns {Promise<{text: string, detectedLang: string}>}
  */
-async function translateToEnglishWithOpenAI(text, level = 'A1', requestLogger) {
+async function translateToEnglishWithOpenAI(text, level = 'A1', requestLogger, userId) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
     const promptFile = 'translate_to_english.txt';
     const promptPath = path.join(__dirname, '../../prompts/translate_to_english.txt');
-    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for text translation at level ${level}`);
-    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for text translation at level ${level}`);
+    logger.info(`[INPUT_EXTRACTOR] Using prompt file: ${promptFile} for text translation at level ${level}`);
     const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     const { chunkText } = require('../content/textProcessor.js');
     const chunks = chunkText(text);
@@ -89,6 +89,18 @@ async function translateToEnglishWithOpenAI(text, level = 'A1', requestLogger) {
     };
     if (requestLogger) {
         requestLogger.log(`[openai:usage:translate]` + JSON.stringify({ usage, model }));
+    }
+    if (userId) {
+        const cost = calculateOpenAiCost(usage, model);
+        logApiCost({
+            userId,
+            feature: 'input_extract_translate',
+            provider: 'openai',
+            model,
+            inputQuantity: cost.promptTokens,
+            outputQuantity: cost.completionTokens,
+            costUsd: cost.totalCostUsd,
+        }).catch(err => logger.warn('[COST] input_extract_translate log failed:', err.message));
     }
     return { text: textJoined, usage, model };
 }
@@ -196,9 +208,7 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
         return null;
     }
 
-    logger.info(`[OPTIMIZED] Generating bilingual narration for topic: ${topic} at level ${level}`);
-    console.log(`🎯 [OPTIMIZED TOPIC GENERATION] Single LLM call for: "${topic}" (Level: ${level}, Lang: ${inputLanguage})`);
-    if (mood) console.log(`🎭 [MOOD] ${mood}`);
+    logger.info(`[OPTIMIZED] Generating bilingual narration for topic: ${topic} at level ${level}${mood ? ` [Mood: ${mood}]` : ''}`);
 
     try {
         // OPTIMIZED: Single LLM call for both English and translated content
@@ -214,9 +224,7 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
             return null;
         }
 
-        logger.info(`[OPTIMIZED] Generated ${result.englishText.length} chars EN + ${result.translatedText.length} chars ${inputLanguage}`);
-        console.log(`✅ [OPTIMIZED COMPLETE] EN: ${result.englishText.length} chars, ${inputLanguage}: ${result.translatedText.length} chars`);
-        console.log(`💰 [TOKEN SAVINGS] Used ${result.usage?.total_tokens || 'unknown'} tokens in single call`);
+        logger.info(`[OPTIMIZED] Generated ${result.englishText.length} chars EN + ${result.translatedText.length} chars ${inputLanguage}, tokens: ${result.usage?.total_tokens || 'unknown'}`);
 
         return {
             englishText: result.englishText,
@@ -336,7 +344,7 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
 }
 
 // Transcript temizleme fonksiyonu (örnek)
-async function cleanTranscriptWithPrompt(rawTranscript) {
+async function cleanTranscriptWithPrompt(rawTranscript, userId) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot clean transcript.");
         return null;
@@ -344,8 +352,7 @@ async function cleanTranscriptWithPrompt(rawTranscript) {
     logger.info(`Cleaning transcript with prompt...`);
     const promptFile = 'rewrite_transcript_clean.txt';
     const promptPath = path.join(__dirname, "../../prompts/rewrite_transcript_clean.txt");
-    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for transcript cleaning`);
-    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for transcript cleaning`);
+    logger.info(`[INPUT_EXTRACTOR] Using prompt file: ${promptFile} for transcript cleaning`);
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     const prompt = promptTemplate.replace(/\{\{transkript\}\}/g, rawTranscript);
     try {
@@ -359,6 +366,19 @@ async function cleanTranscriptWithPrompt(rawTranscript) {
         });
         const cleaned = completion.choices[0]?.message?.content?.trim();
         const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
+        if (userId) {
+            const cost = calculateOpenAiCost(usage, 'gpt-4o');
+            logApiCost({
+                userId,
+                feature: 'input_extract_clean',
+                provider: 'openai',
+                model: 'gpt-4o',
+                inputQuantity: cost.promptTokens,
+                outputQuantity: cost.completionTokens,
+                costUsd: cost.totalCostUsd,
+            }).catch(err => logger.warn('[COST] input_extract_clean log failed:', err.message));
+        }
 
         if (cleaned) {
             logger.info(`Successfully cleaned transcript.`);
@@ -374,12 +394,11 @@ async function cleanTranscriptWithPrompt(rawTranscript) {
 }
 
 // İngilizceye çeviri fonksiyonu (örnek)
-async function translateToEnglishWithPrompt(text) {
+async function translateToEnglishWithPrompt(text, userId) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
     const promptFile = 'translate_to_english.txt';
     const promptPath = path.join(__dirname, "../../prompts/translate_to_english.txt");
-    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for text translation to English`);
-    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for text translation to English`);
+    logger.info(`[INPUT_EXTRACTOR] Using prompt file: ${promptFile} for text translation to English`);
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     const prompt = promptTemplate.replace(/\{\{metin\}\}/g, text);
     const completion = await openai.chat.completions.create({
@@ -391,15 +410,27 @@ async function translateToEnglishWithPrompt(text) {
         temperature: 0.2,
     });
     const translated = completion.choices[0]?.message?.content?.trim() || text;
+    const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    if (userId) {
+        const cost = calculateOpenAiCost(usage, 'gpt-4o');
+        logApiCost({
+            userId,
+            feature: 'input_extract_translate_prompt',
+            provider: 'openai',
+            model: 'gpt-4o',
+            inputQuantity: cost.promptTokens,
+            outputQuantity: cost.completionTokens,
+            costUsd: cost.totalCostUsd,
+        }).catch(err => logger.warn('[COST] input_extract_translate_prompt log failed:', err.message));
+    }
     return { text: translated, detectedLang: "auto" };
 }
 
-async function rewriteTranscriptClean(text, requestLogger) {
+async function rewriteTranscriptClean(text, requestLogger, userId) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
     const promptFile = 'rewrite_transcript_clean.txt';
     const promptPath = path.join(__dirname, '../../prompts/rewrite_transcript_clean.txt');
-    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for transcript cleaning`);
-    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for transcript cleaning`);
+    logger.info(`[INPUT_EXTRACTOR] Using prompt file: ${promptFile} for transcript cleaning`);
     const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, text);
     if (requestLogger) {
@@ -416,6 +447,19 @@ async function rewriteTranscriptClean(text, requestLogger) {
     });
     const cleaned = completion.choices[0]?.message?.content?.trim();
     const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
+    if (userId) {
+        const cost = calculateOpenAiCost(usage, 'gpt-4o');
+        logApiCost({
+            userId,
+            feature: 'input_extract_rewrite',
+            provider: 'openai',
+            model: 'gpt-4o',
+            inputQuantity: cost.promptTokens,
+            outputQuantity: cost.completionTokens,
+            costUsd: cost.totalCostUsd,
+        }).catch(err => logger.warn('[COST] input_extract_rewrite log failed:', err.message));
+    }
 
     if (!cleaned) {
         logger.error('rewriteTranscriptClean: OpenAI response did not contain cleaned transcript.');

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const contentController = require('../controllers/contentController');
 const { authenticate } = require('../middleware/authMiddleware');
+const logger = require('../utils/common/logger.js');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
@@ -100,7 +101,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
     res.json({ text });
   } catch (err) {
-    console.error(err);
+    logger.error('[CONTENT-ROUTES] File processing error:', err);
     res.status(500).json({ error: 'Dosya işlenirken hata oluştu.' });
   } finally {
     fs.unlinkSync(file.path);

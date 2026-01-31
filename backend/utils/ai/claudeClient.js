@@ -1,4 +1,5 @@
 const logger = require('../common/logger.js');
+const { logApiCost, calculateClaudeCost } = require('../infra/costTracker.js');
 
 /**
  * Claude 4.5 AI Client
@@ -76,14 +77,28 @@ class ClaudeClient {
       }
 
       const data = await response.json();
-      
+
       // Extract text content from Claude's response
       const content = data.content?.[0]?.text || '';
-      
-      logger.info('✅ Claude response received', { 
+
+      logger.info('✅ Claude response received', {
         length: content.length,
-        usage: data.usage 
+        usage: data.usage
       });
+
+      // Log API cost if userId is provided in options
+      if (options.userId && data.usage) {
+        const costData = calculateClaudeCost(data.usage, this.model);
+        logApiCost({
+          userId: options.userId,
+          feature: options.feature || 'liro_chat_claude',
+          provider: 'anthropic',
+          model: this.model,
+          inputQuantity: costData.inputTokens,
+          outputQuantity: costData.outputTokens,
+          costUsd: costData.totalCostUsd,
+        }).catch(err => logger.warn('[COST] liro_chat_claude log failed:', err.message));
+      }
 
       return content;
 

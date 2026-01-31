@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
 const planController = require('../controllers/planController');
+const auditLogController = require('../controllers/auditLogController');
 const { getTtsProviderSetting, setTtsProviderSetting } = require('../controllers/adminController');
 const adminBookController = require('../controllers/adminBookController');
 const notificationController = require('../controllers/notificationController');
@@ -97,6 +98,11 @@ router.delete('/notifications/:id', notificationController.deleteNotificationAdm
 
 // Subscription maintenance
 router.post('/subscriptions/downgrade-expired', adminController.downgradeExpiredSubscriptions);
+
+// Audit logs
+router.post('/audit-logs', auditLogController.createAuditLog);
+router.get('/audit-logs', auditLogController.getAuditLogs);
+router.get('/audit-logs/actions', auditLogController.getAuditLogActions);
 
 module.exports = router;
 

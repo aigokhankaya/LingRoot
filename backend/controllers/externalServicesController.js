@@ -1,11 +1,12 @@
 const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Get all external services
  */
 const getAllExternalServices = async (req, res) => {
   try {
-    console.log('🔧 [CONTROLLER] Fetching all external services...');
+    logger.info('[EXTERNAL-SERVICES] Fetching all external services');
     
     const { data, error } = await supabase
       .from('external_services')
@@ -22,14 +23,14 @@ const getAllExternalServices = async (req, res) => {
       api_token_masked: '***'
     }));
 
-    console.log(`🔧 [CONTROLLER] Found ${data.length} services`);
+    logger.info(`[EXTERNAL-SERVICES] Found ${data.length} services`);
 
     res.json({
       success: true,
       data: maskedData
     });
   } catch (error) {
-    console.error('❌ [CONTROLLER] Error fetching external services:', error);
+    logger.error('[EXTERNAL-SERVICES] Error fetching external services:', error);
     res.status(500).json({
       success: false,
       message: 'Dış servisler alınırken hata oluştu',
@@ -63,7 +64,7 @@ const getExternalServiceById = async (req, res) => {
       data: data
     });
   } catch (error) {
-    console.error('Error fetching external service:', error);
+    logger.error('[EXTERNAL-SERVICES] Error fetching external service:', error);
     res.status(500).json({
       success: false,
       message: 'Servis bilgisi alınırken hata oluştu',
@@ -98,7 +99,7 @@ const getExternalServiceByName = async (req, res) => {
       data: data
     });
   } catch (error) {
-    console.error('Error fetching external service by name:', error);
+    logger.error('[EXTERNAL-SERVICES] Error fetching external service by name:', error);
     res.status(500).json({
       success: false,
       message: 'Servis bilgisi alınırken hata oluştu',
@@ -154,7 +155,7 @@ const createExternalService = async (req, res) => {
       data: data
     });
   } catch (error) {
-    console.error('Error creating external service:', error);
+    logger.error('[EXTERNAL-SERVICES] Error creating external service:', error);
     
     if (error.code === '23505') { // Unique violation
       return res.status(409).json({
@@ -225,7 +226,7 @@ const updateExternalService = async (req, res) => {
       data: data
     });
   } catch (error) {
-    console.error('Error updating external service:', error);
+    logger.error('[EXTERNAL-SERVICES] Error updating external service:', error);
     
     if (error.code === '23505') { // Unique violation
       return res.status(409).json({
@@ -269,7 +270,7 @@ const deleteExternalService = async (req, res) => {
       data: data
     });
   } catch (error) {
-    console.error('Error deleting external service:', error);
+    logger.error('[EXTERNAL-SERVICES] Error deleting external service:', error);
     res.status(500).json({
       success: false,
       message: 'Dış servis silinirken hata oluştu',
@@ -317,7 +318,7 @@ const toggleServiceStatus = async (req, res) => {
       data: data
     });
   } catch (error) {
-    console.error('Error toggling service status:', error);
+    logger.error('[EXTERNAL-SERVICES] Error toggling service status:', error);
     res.status(500).json({
       success: false,
       message: 'Servis durumu güncellenirken hata oluştu',
