@@ -1324,18 +1324,17 @@ const processTtsRequest = async (req, res) => {
 
     logger.info(`[${requestId}] Optimized VTT created - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Clean words: ${allCleanWords.length}, Original words: ${allOriginalWords.length}`);
 
-    // --- Step 9: MFA Alignment (High-Accuracy Word Timestamps) ---
+    // --- Step 9: Forced Alignment (High-Accuracy Word Timestamps) ---
     let mfaWordTimings = null;
-    // const useMFA = false; // Temporarily disabled for debugging
-    //const useMFA = true; // Force enable for debugging
     const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
     const mfaDebugEnabled = process.env.MFA_DEBUG_DUMP === 'true';
 
     if (mfaDebugEnabled) {
-      logger.info(`[${requestId}] MFA debug dump enabled (file id will be: text_${requestId}_${uniqueId})`);
+      logger.info(`[${requestId}] Alignment debug dump enabled (file id will be: text_${requestId}_${uniqueId})`);
     }
 
     if (useMFA) {
+      const alignStartTime = Date.now();
       try {
         logger.info(`[${requestId}] 🎯 Starting MFA alignment for high-accuracy timestamps...`);
 
@@ -1366,11 +1365,14 @@ const processTtsRequest = async (req, res) => {
         // Cleanup temp audio file
         await fs.promises.unlink(tempAudioPath).catch(() => { });
 
+        const alignElapsed = Math.round((Date.now() - alignStartTime) / 1000);
         logger.info(`[${requestId}] ✅ MFA alignment complete - ${mfaWordTimings.length} words aligned`);
+        logger.info(`[${requestId}] ⏱️ MFA running time: ${alignElapsed} seconds`);
         logger.info(`[${requestId}] 🔍 MFA sample timing:`, mfaWordTimings.slice(0, 3));
 
       } catch (mfaError) {
-        logger.warn(`[${requestId}] ⚠️ MFA alignment failed, falling back to TTS timepoints: ${mfaError.message}`);
+        const alignElapsed = Math.round((Date.now() - alignStartTime) / 1000);
+        logger.warn(`[${requestId}] ⚠️ MFA alignment failed after ${alignElapsed} seconds, falling back to TTS timepoints: ${mfaError.message}`);
         // Continue with TTS timepoints if MFA fails
       }
     }
@@ -1411,14 +1413,14 @@ const processTtsRequest = async (req, res) => {
     let timepoints;
 
     if (mfaWordTimings && mfaWordTimings.length > 0) {
-      // Convert MFA timings to our timepoint format
+      // Convert MFA alignment timings to our timepoint format
       timepoints = mfaWordTimings.map((timing, index) => ({
         word: timing.word,
         timeSeconds: timing.startTime,
         endTimeSeconds: timing.endTime,
         index: index,
         hasRealTiming: true,
-        source: 'mfa' // Mark as MFA-generated
+        source: 'mfa'
       }));
 
       logger.info(`✅ Using MFA timepoints - ${timepoints.length} words with acoustic alignment`);
