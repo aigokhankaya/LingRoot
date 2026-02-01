@@ -222,6 +222,11 @@ try {
 app.use(notFound);
 app.use(errorHandler);
 
+// Server timeouts (TTS + MFA pipeline can take several minutes)
+httpServer.requestTimeout = 10 * 60 * 1000;  // 10 min
+httpServer.headersTimeout = 65 * 1000;        // 65s (must be > keepAliveTimeout)
+httpServer.keepAliveTimeout = 60 * 1000;      // 60s
+
 // Start server
 const PORT = process.env.PORT || 5001;
 

@@ -65,7 +65,7 @@ export default function AdminRolesPage() {
                 // TODO: Implement actual data fetching from a secure backend endpoint or Supabase function.
                 // This endpoint should verify the caller is an admin.
                 const logs = await fetchAdminLogs();
-                setAuditLogs(logs);
+                setAuditLogs(logs.data);
                 setLoadingLogs(false);
 
             } catch (err: any) {
@@ -117,7 +117,7 @@ export default function AdminRolesPage() {
             // Refetch logs to show the new entry
             setLoadingLogs(true);
             const updatedLogs = await fetchAdminLogs();
-            setAuditLogs(updatedLogs);
+            setAuditLogs(updatedLogs.data);
             setLoadingLogs(false);
             alert(`Simulated: Admin ${newAdminEmail} added. Action logged.`);
 
@@ -163,7 +163,7 @@ export default function AdminRolesPage() {
                 // Refetch logs to show the new entry
                 setLoadingLogs(true);
                 const updatedLogs = await fetchAdminLogs();
-                setAuditLogs(updatedLogs);
+                setAuditLogs(updatedLogs.data);
                 setLoadingLogs(false);
                 alert(`Simulated: Admin ${adminEmail} removed. Action logged.`);
 
@@ -287,7 +287,7 @@ export default function AdminRolesPage() {
                                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                     {auditLogs.map((log) => (
                                         <tr key={log.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{new Date(log.timestamp).toLocaleString()}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{new Date(log.created_at).toLocaleString()}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{log.admin_email || 'N/A'}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{log.action}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
