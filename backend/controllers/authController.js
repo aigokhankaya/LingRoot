@@ -9,6 +9,11 @@ const { logStep } = require('../utils/common/stepLogger.js');
 const { v4: uuidv4 } = require('uuid');
 const { sendRegistrationNotification } = require('../utils/notifications/registrationNotifier.js');
 const { sendMail } = require('../utils/notifications/mailer.js');
+const { OAuth2Client } = require('google-auth-library');
+const appleSignin = require('apple-signin-auth');
+
+// Google OAuth client for JWT verification
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const _JWT_SECRET = process.env.JWT_SECRET;
 const _JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
@@ -32,9 +37,9 @@ if (process.env.NODE_ENV === 'production') {
 const JWT_SECRET = _JWT_SECRET || "lingroot-secret-key-for-development";
 const JWT_REFRESH_SECRET = _JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
 
-// Make tokens effectively non-expiring by default (very long lifetime)
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "3650d"; // ~10 years
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "3650d"; // ~10 years
+// Token expiration defaults
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";  // 15 minutes
+const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d"; // 7 days
 
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
 
@@ -224,9 +229,12 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, code: 'INVALID_PHONE', message: "Geçersiz telefon numarası formatı" });
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_SHORT', message: "Şifre en az 6 karakter olmalıdır" });
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_SHORT', message: "Şifre en az 8 karakter olmalıdır" });
+    }
+    if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_WEAK', message: "Şifre en az 1 büyük harf ve 1 rakam içermelidir" });
     }
 
     // Check if email already exists
@@ -532,9 +540,10 @@ exports.facebookLogin = async (req, res) => {
     let facebookUser;
 
     try {
-      const response = await axios.get(
-        `https://graph.facebook.com/me?fields=id,name,email,first_name,last_name,picture.type(large)&access_token=${credential}`
-      );
+      const response = await axios.get('https://graph.facebook.com/me', {
+        params: { fields: 'id,name,email,first_name,last_name,picture.type(large)' },
+        headers: { Authorization: `Bearer ${credential}` }
+      });
       facebookUser = response.data;
 
       logger.info('[FACEBOOK_LOGIN] User info received', { email: facebookUser.email, name: facebookUser.name });
@@ -690,21 +699,22 @@ exports.googleLogin = async (req, res) => {
 
     try {
       if (isJWT) {
-        // JWT token decode et (One Tap durumu)
-        logger.debug('[GOOGLE_LOGIN] Decoding JWT credential');
-        const base64Url = credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        googleUser = JSON.parse(jsonPayload);
-        logger.info('[GOOGLE_LOGIN] JWT decode successful', { email: googleUser.email, name: googleUser.name });
+        // JWT token verify with Google's public keys (One Tap)
+        logger.debug('[GOOGLE_LOGIN] Verifying JWT credential with Google');
+        const ticket = await googleClient.verifyIdToken({
+          idToken: credential,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        googleUser = ticket.getPayload();
+        logger.info('[GOOGLE_LOGIN] JWT verification successful', { email: googleUser.email, name: googleUser.name });
       } else {
         // Access token ile Google API'den kullanıcı bilgilerini al (OAuth popup durumu)
         logger.debug('[GOOGLE_LOGIN] Fetching user info with access token');
         const axios = require('axios');
 
-        const response = await axios.get(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${credential}`);
+        const response = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${credential}` }
+        });
         googleUser = response.data;
 
         // JWT formatına uygun hale getir
@@ -888,20 +898,18 @@ exports.appleLogin = async (req, res) => {
       return res.status(400).json({ success: false, code: 'MISSING_TOKEN', message: "Apple identity token gerekli" });
     }
 
-    // Apple identity token'ı decode et (JWT)
+    // Apple identity token'i imza dogrulamasi ile verify et
     let appleUser;
 
     try {
-      const base64Url = credential.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      appleUser = JSON.parse(jsonPayload);
+      appleUser = await appleSignin.verifyIdToken(credential, {
+        audience: process.env.APPLE_CLIENT_ID,
+        ignoreExpiration: false,
+      });
 
-      logger.info('[APPLE_LOGIN] Token decode successful', { sub: appleUser.sub, email: appleUser.email });
+      logger.info('[APPLE_LOGIN] Token verification successful', { sub: appleUser.sub, email: appleUser.email });
     } catch (decodeError) {
-      logger.error('[APPLE_LOGIN] Token decode hatası:', decodeError);
+      logger.error('[APPLE_LOGIN] Token verification failed:', decodeError.message);
       return res.status(400).json({ success: false, code: 'INVALID_TOKEN', message: "Geçersiz Apple identity token" });
     }
 
@@ -1209,6 +1217,23 @@ exports.updateLevel = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) {
+      try {
+        const { getConnection, checkRedisAvailability } = require('../utils/storage/redisClient');
+        if (checkRedisAvailability()) {
+          const decoded = jwt.decode(token);
+          const ttl = decoded && decoded.exp ? decoded.exp - Math.floor(Date.now() / 1000) : 900;
+          if (ttl > 0) {
+            const redis = getConnection();
+            await redis.setex(`bl:${token}`, ttl, '1');
+            logger.info('[LOGOUT] Token blacklisted', { userId: req.user?.id, ttl });
+          }
+        }
+      } catch (blErr) {
+        logger.warn('[LOGOUT] Token blacklist failed (non-blocking):', blErr.message);
+      }
+    }
     return res.status(200).json({ success: true, message: "Çıkış yapıldı" });
   } catch (error) {
     logger.error("Logout error", error);
@@ -1216,9 +1241,11 @@ exports.logout = async (req, res) => {
   }
 };
 
-// 6 haneli sayısal kod üretir
+// 6 haneli kriptografik olarak guvenli sayisal kod uretir
 function generateNumericCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const buffer = crypto.randomBytes(4);
+  const num = buffer.readUInt32BE(0) % 900000 + 100000;
+  return num.toString();
 }
 
 function parseExpiryMs(expires) {
@@ -1253,7 +1280,7 @@ exports.forgotPassword = async (req, res) => {
     if (!user) return res.json({ success: true, message: 'If the email exists, a reset code has been sent.' });
 
     const code = generateNumericCode();
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 dk
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 dk
 
     const { error: updErr } = await supabase
       .from('users')
@@ -1265,8 +1292,12 @@ exports.forgotPassword = async (req, res) => {
       .eq('id', user.id);
     if (updErr) throw updErr;
 
-    // TEST LOG: Print reset code to backend logs for quick testing
-    logger.info(`[RESET-CODE] email=${email} code=${code} expires=${expiresAt}`);
+    // Log reset event without exposing the code
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug(`[RESET-CODE] email=${email} code=${code} expires=${expiresAt}`);
+    } else {
+      logger.info(`[RESET-CODE] Reset code generated for email=${email} expires=${expiresAt}`);
+    }
 
     // Mail gönder (SMTP varsa), yoksa logla
     try {
@@ -1277,8 +1308,7 @@ exports.forgotPassword = async (req, res) => {
         text: `Şifre sıfırlama kodunuz: ${code}\n\nKod 15 dakika geçerlidir.`,
       });
     } catch (mailErr) {
-      logger.warn('Reset email send skipped or failed (logged instead):', mailErr?.message);
-      logger.info(`[RESET-FALLBACK] Code for ${email}: ${code}`);
+      logger.warn(`[RESET-FALLBACK] Reset email send failed for ${email}:`, mailErr?.message);
     }
 
     return res.json({ success: true, message: 'Reset code sent if email exists.' });

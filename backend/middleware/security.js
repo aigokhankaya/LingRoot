@@ -113,6 +113,22 @@ exports.passwordResetLimiter = rateLimit({
 });
 
 /**
+ * Refresh token endpoint için yumusak rate limit
+ * Token flood saldirisini onler, session continuity'i bozmaz
+ */
+exports.refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 dakika
+  max: 30, // 15 dk'da max 30 refresh istegi
+  message: {
+    success: false,
+    code: 'RATE_LIMIT_EXCEEDED',
+    message: 'Too many refresh requests. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
  * TTS endpoint için maliyet koruması
  * OpenAI/Google TTS API maliyetlerini kontrol altında tutar
  */
