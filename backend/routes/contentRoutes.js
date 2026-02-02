@@ -12,7 +12,18 @@ const textract = require('textract');
 const fs = require('fs');
 const path = require('path');
 
-const upload = multer({ dest: 'uploads/' });
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.md', '.html', '.epub', '.rtf', '.odt', '.doc'];
+const upload = multer({
+  dest: 'uploads/',
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return cb(new Error('Desteklenmeyen dosya formati: ' + ext));
+    }
+    cb(null, true);
+  }
+});
 
 // Process content routes
 router.post('/process-link', contentController.processLink);
@@ -59,6 +70,22 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   const ext = path.extname(file.originalname).toLowerCase();
   let text = '';
   try {
+    // Magic bytes validation for binary file types
+    const MAGIC_TYPES = {
+      '.pdf': ['application/pdf'],
+      '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
+      '.epub': ['application/epub+zip', 'application/zip'],
+      '.odt': ['application/zip'],
+      '.doc': ['application/msword', 'application/x-cfb'],
+    };
+    if (MAGIC_TYPES[ext]) {
+      const FileType = require('file-type');
+      const detected = await FileType.fromFile(file.path);
+      if (detected && !MAGIC_TYPES[ext].includes(detected.mime)) {
+        fs.unlinkSync(file.path);
+        return res.status(400).json({ error: 'Dosya icerigi uzantiyla uyusmuyor' });
+      }
+    }
     if (ext === '.pdf') {
       const dataBuffer = fs.readFileSync(file.path);
       const data = await pdfParse(dataBuffer);

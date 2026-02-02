@@ -30,12 +30,18 @@ const sanitizeLogContent = (content) => {
     return content;
   }
 
-  // Base64 benzeri karmaşık içerik olabilecek kısımları tespit et
-  // Genellikle / ile başlayan ve çok uzun alfanumerik karakterlerden oluşan
-  const complexContentRegex = /\/[A-Za-z0-9+/=]{100,}/g;
+  // Mask sensitive patterns: tokens, codes, credentials, secrets
+  let sanitized = content
+    .replace(/code=\d{4,}/g, 'code=******')
+    .replace(/token=[A-Za-z0-9._-]{10,}/g, 'token=******')
+    .replace(/access_token=[A-Za-z0-9._-]{10,}/g, 'access_token=******')
+    .replace(/credential=[A-Za-z0-9._-]{10,}/g, 'credential=******')
+    .replace(/Bearer [A-Za-z0-9._-]{10,}/g, 'Bearer ******')
+    .replace(/password["']?\s*[:=]\s*["']?[^"'\s,}{]+/gi, 'password=******');
 
-  // Bu tür içerikleri kısalt
-  let sanitized = content.replace(complexContentRegex, '[BINARY_DATA]');
+  // Base64 benzeri karmaşık içerik olabilecek kısımları tespit et
+  const complexContentRegex = /\/[A-Za-z0-9+/=]{100,}/g;
+  sanitized = sanitized.replace(complexContentRegex, '[BINARY_DATA]');
 
   // Çok uzun satırları kısalt (300 karakterden uzun)
   if (sanitized.length > 300) {

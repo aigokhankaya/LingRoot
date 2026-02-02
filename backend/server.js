@@ -86,7 +86,20 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "https://www.googleapis.com", "https://graph.facebook.com", "https://appleid.apple.com"],
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+        }
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }
 }));
 app.use(hpp());
 
@@ -113,7 +126,7 @@ app.use(cors({
             callback(null, true);
         } else {
             logger.warn(`CORS blocked origin: ${origin}`);
-            callback(null, true); // Allow anyway for now, log for debugging
+            callback(new Error(`Origin ${origin} not allowed by CORS`));
         }
     },
     credentials: true,
@@ -124,13 +137,28 @@ app.use(cors({
 // Request ID middleware
 app.use(requestIdMiddleware);
 
-// Body parsing middleware
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Production response sanitizer — strip error details from JSON responses
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+      if (body && typeof body === 'object' && body.error && !body.success) {
+        const { error, ...rest } = body;
+        return originalJson(rest);
+      }
+      return originalJson(body);
+    };
+    next();
+  });
+}
 
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/public', express.static(path.join(__dirname, 'public')));
+// Body parsing middleware — general 1MB limit (upload routes override separately)
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Static files (no directory listing, no dotfiles)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { index: false, dotfiles: 'deny' }));
+app.use('/public', express.static(path.join(__dirname, 'public'), { index: false, dotfiles: 'deny' }));
 
 // Request logging
 app.use((req, res, next) => {
@@ -189,7 +217,11 @@ app.use('/api/config', configRoutes);
 app.use('/api/parameters', parameterRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/metrics', metricsRoutes);
-app.use('/api/debug', debugRoutes);
+if (process.env.NODE_ENV === 'development') {
+  app.use('/api/debug', debugRoutes);
+} else {
+  logger.info('[SECURITY] Debug routes disabled in production');
+}
 app.use('/api/srs', srsRoutes);
 app.use('/api/mfa', mfaRoutes);
 app.use('/api/account', accountRoutes);

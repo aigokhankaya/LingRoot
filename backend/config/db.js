@@ -57,11 +57,11 @@ logger.debug(`[DB] Resolved host (unmasked): ${resolvedHost}`);
 const pool = new Pool({
   host: resolvedHost,
   port: configuredHost === 'aws-0-eu-central-1.pooler.supabase.com' ? 6543 : (process.env.PGPORT || process.env.DB_PORT || 6543),
-  user: configuredHost === 'aws-0-eu-central-1.pooler.supabase.com' ? 'postgres.ffqfcmmbeeieouoghrac' : (process.env.PGUSER || process.env.DB_USER || 'postgres.ffqfcmmbeeieouoghrac'),
+  user: process.env.PGUSER || process.env.DB_USER || 'postgres',
   password: process.env.PGPASSWORD || process.env.DB_PASSWORD || process.env.DB_PASS,
   database: process.env.PGDATABASE || process.env.DB_NAME || 'postgres',
   // Supabase ve üretim ortamları için SSL'i etkinleştir
-  ssl: useSSL ? { rejectUnauthorized: false } : false,
+  ssl: useSSL ? { rejectUnauthorized: process.env.NODE_ENV === 'production' } : false,
   max: 20, // Bağlantı havuzu boyutu
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,

@@ -282,6 +282,16 @@ exports.handleCallback = async (req, res) => {
     // iyzico'dan ödeme tamamlama isteği
     const { api, provider } = await getIyzicoAPI();
 
+    // Server-side payment verification before completing
+    const verifyRequest = { locale: 'tr', conversationId, paymentId };
+    const verifyResponse = await api.makeRequest('/payment/detail', verifyRequest);
+    if (!verifyResponse || verifyResponse.status !== 'success') {
+      logger.error('[IYZICO] Server-side payment verification failed', { paymentId, conversationId, verifyStatus: verifyResponse?.status });
+      await transaction.update({ status: 'failed', errorCode: 'VERIFY_FAILED', errorMessage: 'Server-side verification failed' });
+      return res.redirect(`${process.env.FRONTEND_URL}/checkout/result?status=error&message=Payment_verification_failed`);
+    }
+    logger.info('[IYZICO] Server-side payment verified', { paymentId, conversationId });
+
     const completeRequest = {
       locale: 'tr',
       conversationId: conversationId,

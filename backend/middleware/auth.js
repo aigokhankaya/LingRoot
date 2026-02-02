@@ -7,8 +7,24 @@ const logger = require('../utils/common/logger.js'); // Import logger
 
 // Supabase client comes from shared client; if missing, middleware will respond 500 on protected routes
 
-// JWT secret key
+// JWT secret key — production requires env variable
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'lingroot-secret-key-for-development')) {
+  logger.error('[SECURITY_CRITICAL] JWT_SECRET is not set or using default insecure key in PRODUCTION! Exiting...');
+  process.exit(1);
+}
 const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
+
+// Redis token blacklist check helper
+const { getConnection, checkRedisAvailability } = require('../utils/storage/redisClient');
+async function isTokenBlacklisted(token) {
+  try {
+    if (!checkRedisAvailability()) return false;
+    const result = await getConnection().get(`bl:${token}`);
+    return result === '1';
+  } catch {
+    return false; // Fail open — don't block requests if Redis is down
+  }
+}
 
 // Performance measurement helper (silent)
 const measureTime = async (operation, description) => {
@@ -35,9 +51,14 @@ exports.authenticate = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
+    // Check token blacklist (logout invalidation)
+    if (await isTokenBlacklisted(token)) {
+      return res.status(401).json({ success: false, message: "Token has been revoked.", code: "TOKEN_REVOKED" });
+    }
+
     // Verify token with performance measurement
     const decoded = await measureTime(
-      () => jwt.verify(token, JWT_SECRET),
+      () => jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }),
       'JWT Verification'
     );
 
@@ -119,9 +140,15 @@ exports.optionalAuth = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
     logger.debug(`Token extracted for optional auth on path: ${path}`);
 
+    // Check blacklist
+    if (await isTokenBlacklisted(token)) {
+      req.user = null;
+      return next();
+    }
+
     // Try to verify token
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
       logger.debug(`Optional auth token verified for user ID: ${decoded.id}, path: ${path}`);
 
       // If Supabase is not configured, proceed without user
