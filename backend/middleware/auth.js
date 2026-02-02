@@ -22,7 +22,10 @@ async function isTokenBlacklisted(token) {
     const result = await getConnection().get(`bl:${token}`);
     return result === '1';
   } catch {
-    return false; // Fail open — don't block requests if Redis is down
+    // V-04: Intentional fail-open design. JWT TTL is 15 minutes, so the risk
+    // window when Redis is unavailable is small. Blocking all requests on Redis
+    // failure would cause a full outage, which is worse than a brief blacklist gap.
+    return false;
   }
 }
 

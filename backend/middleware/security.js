@@ -1,7 +1,6 @@
 // Security middleware
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const xss = require('xss-clean');
 const hpp = require('hpp');
 const cors = require('cors');
 const logger = require('../utils/common/logger.js');
@@ -49,9 +48,6 @@ exports.configureSecurity = (app) => {
   };
 
   app.use(cors(corsOptions));
-
-  // Data sanitization against XSS
-  app.use(xss());
 
   // Prevent parameter pollution
   app.use(hpp());

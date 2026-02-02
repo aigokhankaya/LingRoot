@@ -3,6 +3,7 @@ import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../services/secureStorage';
 import NotificationService from '../services/notificationService';
 import { registerPushTokenWithBackend, setupPushTokenRefreshListener } from '../services/pushTokenService';
 import {
@@ -113,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuthState = async () => {
     try {
       // Check if we have a stored token first
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = await secureStorage.getItem('auth_token');
       const storedUser = await AsyncStorage.getItem('user_data');
 
       console.log('🔍 [AUTH CHECK] Token exists:', !!token);
@@ -202,9 +203,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           } else {
             const errorText = await response.text();
             if (response.status === 401) {
-              await AsyncStorage.removeItem('auth_token');
+              await secureStorage.removeItem('auth_token');
               await AsyncStorage.removeItem('user_data');
-              try { await AsyncStorage.removeItem('refresh_token'); } catch { }
+              try { await secureStorage.removeItem('refresh_token'); } catch { }
               setUser(null);
             } else {
               try {
@@ -309,14 +310,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Store token and user data in AsyncStorage
         if (data.data.token) {
-          console.log('🔐 [AUTH] Saving token to AsyncStorage:', data.data.token.substring(0, 20) + '...');
-          await AsyncStorage.setItem('auth_token', data.data.token);
+          console.log('🔐 [AUTH] Saving token to SecureStore:', data.data.token.substring(0, 20) + '...');
+          await secureStorage.setItem('auth_token', data.data.token);
           await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
           console.log('✅ [AUTH] Token saved successfully');
           // Store refresh token if provided by backend
           try {
             if (data.data.refreshToken) {
-              await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
+              await secureStorage.setItem('refresh_token', data.data.refreshToken);
               console.log('✅ [AUTH] Refresh token saved');
             }
           } catch { }
@@ -373,10 +374,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     setIsLoading(true);
     try {
-      // Clear AsyncStorage
-      await AsyncStorage.removeItem('auth_token');
+      // Clear tokens (SecureStore) and user data (AsyncStorage)
+      await secureStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_data');
-      try { await AsyncStorage.removeItem('refresh_token'); } catch { }
+      try { await secureStorage.removeItem('refresh_token'); } catch { }
 
       // Sign out from social providers
       await signOutFromSocialProviders();
@@ -462,11 +463,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
 
       if (data.data.token) {
-        await AsyncStorage.setItem('auth_token', data.data.token);
+        await secureStorage.setItem('auth_token', data.data.token);
         await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
         try {
           if (data.data.refreshToken) {
-            await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
+            await secureStorage.setItem('refresh_token', data.data.refreshToken);
           }
         } catch { }
       }
