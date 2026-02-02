@@ -13,6 +13,7 @@ import {
   TextInput,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../services/secureStorage';
 import { Platform } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -295,7 +296,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setLoadingPatterns(true);
 
       const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
-      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
+      const token = await secureStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
 
       const response = await fetch(`${apiUrl}/api/patterns/find`, {
         method: 'POST',

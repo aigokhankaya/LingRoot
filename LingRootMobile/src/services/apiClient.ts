@@ -14,6 +14,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createApiClient, setAxios, LingRootApiClient } from '@lingroot/api-client';
 import { getApiBaseUrl } from './environmentConfig';
+import secureStorage from './secureStorage';
 
 // Initialize axios for the shared client (cast to any to avoid version mismatch)
 setAxios(axios as any);
@@ -56,23 +57,23 @@ export async function initializeApiClient(): Promise<LingRootApiClient> {
             timeout: 180000, // 3 minutes for Render cold start
 
             getToken: async () => {
-                return AsyncStorage.getItem(TOKEN_KEY);
+                return secureStorage.getItem(TOKEN_KEY);
             },
 
             setToken: async (token: string) => {
-                await AsyncStorage.setItem(TOKEN_KEY, token);
+                await secureStorage.setItem(TOKEN_KEY, token);
             },
 
             getRefreshToken: async () => {
-                return AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+                return secureStorage.getItem(REFRESH_TOKEN_KEY);
             },
 
             setRefreshToken: async (token: string) => {
-                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, token);
+                await secureStorage.setItem(REFRESH_TOKEN_KEY, token);
             },
 
             clearTokens: async () => {
-                await AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY]);
+                await secureStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY]);
             },
 
             onUnauthorized: () => {

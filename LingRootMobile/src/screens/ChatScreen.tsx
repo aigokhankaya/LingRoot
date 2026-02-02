@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../services/secureStorage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 // import DocumentPicker from 'react-native-document-picker';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -105,7 +106,7 @@ const ChatScreen: React.FC = ({ navigation, route }: any) => {
 
   const getToken = async () => {
     // Prefer new key; keep backward compatibility with old key
-    const token = await AsyncStorage.getItem('auth_token');
+    const token = await secureStorage.getItem('auth_token');
     if (token && token !== 'null' && token !== 'undefined') return token;
     const legacy = await AsyncStorage.getItem('lingroot_token');
     return legacy || '';

@@ -16,6 +16,7 @@ import { apiService } from './src/services/api';
 import { initializeApiClient } from './src/services/apiClient';
 import { initErrorLogger } from './src/utils/errorLogger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from './src/services/secureStorage';
 import { getApiBaseUrl } from './src/services/environmentConfig';
 
 export default function App() {
@@ -34,9 +35,12 @@ export default function App() {
         await initializeApiClient();
         console.log('🔗 [APP] API Client initialized');
 
+        // Migrate tokens from AsyncStorage to SecureStore (one-time, idempotent)
+        await secureStorage.migrateToSecureStorage();
+
         // Initialize error logger for SigNoz reporting
         const baseUrl = await getApiBaseUrl();
-        initErrorLogger(baseUrl, () => AsyncStorage.getItem('auth_token'));
+        initErrorLogger(baseUrl, () => secureStorage.getItem('auth_token'));
 
         // iOS: perform full init on launch
         if (Platform.OS === 'ios') {

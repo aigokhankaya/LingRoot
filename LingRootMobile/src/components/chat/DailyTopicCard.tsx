@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../../services/secureStorage';
 import { getApiBaseUrl } from '../../services/environmentConfig';
 
 interface DailyTopicCardProps {
@@ -65,7 +66,7 @@ export const DailyTopicCard: React.FC<DailyTopicCardProps> = ({ language, onStar
   };
 
   const getToken = async () => {
-    const token = await AsyncStorage.getItem('auth_token');
+    const token = await secureStorage.getItem('auth_token');
     if (token && token !== 'null' && token !== 'undefined') return token;
     const legacy = await AsyncStorage.getItem('lingroot_token');
     return legacy || '';

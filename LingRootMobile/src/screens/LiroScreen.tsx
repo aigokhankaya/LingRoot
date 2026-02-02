@@ -17,6 +17,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../services/secureStorage';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getApiBaseUrl } from '../services/environmentConfig';
 import AudioPlayer from '../components/AudioPlayer';
@@ -268,7 +269,7 @@ const LiroScreen: React.FC = () => {
   }, [messages]);
 
   const getToken = async () => {
-    const token = await AsyncStorage.getItem('auth_token');
+    const token = await secureStorage.getItem('auth_token');
     if (token && token !== 'null' && token !== 'undefined') return token;
     const legacy = await AsyncStorage.getItem('lingroot_token');
     return legacy || '';

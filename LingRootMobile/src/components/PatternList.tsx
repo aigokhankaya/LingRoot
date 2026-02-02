@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../services/secureStorage';
 import { getApiBaseUrl } from '../services/environmentConfig';
 
 interface Pattern {
@@ -37,7 +38,7 @@ export const PatternList: React.FC<PatternListProps> = ({ text, level }) => {
       
       // Get API base URL and token from environment config
       const apiUrl = await getApiBaseUrl();
-      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
+      const token = await secureStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
       
       console.log(`📍 [PatternList] Using API URL: ${apiUrl}`);
       console.log(`🔐 [PatternList] Token exists: ${!!token}`);

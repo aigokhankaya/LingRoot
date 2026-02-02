@@ -15,6 +15,9 @@ const appleSignin = require('apple-signin-auth');
 // Google OAuth client for JWT verification
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Dummy hash for constant-time comparison when user is not found (timing attack prevention)
+const DUMMY_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+
 const _JWT_SECRET = process.env.JWT_SECRET;
 const _JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
@@ -440,7 +443,10 @@ exports.login = async (req, res) => {
       .single();
     if (error) logger.error('[LOGIN] Error fetching user:', error);
 
-    if (error || !user || !(await bcrypt.compare(password, user.password))) {
+    // Always run bcrypt.compare to prevent timing-based user enumeration
+    const hashToCompare = (error || !user) ? DUMMY_HASH : user.password;
+    const isPasswordValid = await bcrypt.compare(password, hashToCompare);
+    if (error || !user || !isPasswordValid) {
       logger.warn('[LOGIN] Invalid credentials for email:', email);
       // Record failed attempt only if user exists (to avoid user enumeration)
       if (user?.id) {
@@ -1137,7 +1143,10 @@ exports.changePassword = async (req, res) => {
       .eq("id", userId)
       .single();
 
-    if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+    // Always run bcrypt.compare to prevent timing-based user enumeration
+    const hashToCompare = !user ? DUMMY_HASH : user.password;
+    const isPasswordValid = await bcrypt.compare(currentPassword, hashToCompare);
+    if (!user || !isPasswordValid) {
       return res.status(401).json({ success: false, message: "Mevcut şifre yanlış" });
     }
 
