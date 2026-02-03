@@ -110,6 +110,7 @@ const { getTtsProvider, getDefaultVoiceForProvider } = voiceModelService;
  */
 const processTtsRequest = async (req, res) => {
   const requestId = uuidv4();
+  const processingStartTime = Date.now();
   let stepSequence = 1;
   logger.info(`[${requestId}] Received TTS request.`);
 
@@ -1594,7 +1595,7 @@ const processTtsRequest = async (req, res) => {
           user_id: userId,
           level: level || 'B1',
           mp3_url: finalMp3Url,
-          input: req.body.input || '',
+          input: inputType === 'file' ? (rawText || req.body.input || '') : (req.body.input || ''),
           translated_text: translatedText || translationResult || '',
           adapted_text: textToAdapt || '',
           input_type: req.body.type || 'text',
@@ -1618,6 +1619,7 @@ const processTtsRequest = async (req, res) => {
           // LLM usage breakdown for detailed cost analytics (prompt-level detail)
           llm_usage_details: usageBreakdown.length > 0 ? JSON.stringify(usageBreakdown) : null,
           detected_mood: detectedMood || null,
+          processing_duration_ms: Date.now() - processingStartTime,
         };
 
         logger.info(`[${requestId}] 📋 Insert data:`, JSON.stringify(insertData, null, 2));

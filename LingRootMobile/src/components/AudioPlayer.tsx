@@ -31,7 +31,11 @@ import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
 import { useCustomAlert } from '../contexts/AlertContext';
+import { CopilotStep, walkthroughable } from 'react-native-copilot';
+import { AUDIOPLAYER_TOUR_STEPS } from './GuideTour';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+
+const WalkthroughableView = walkthroughable(View);
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -41,6 +45,7 @@ interface AudioPlayerProps {
   words?: string[];
   initialHighlightMode?: 'word' | 'sentence';
   asScreen?: boolean; // When true, renders without Modal wrapper (for use as navigation screen)
+  enableTour?: boolean; // When true, wraps key elements with CopilotStep for guide tour
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -53,9 +58,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   words = [],
   initialHighlightMode = 'word',
   asScreen = false,
+  enableTour = false,
 }) => {
   const insets = useSafeAreaInsets();
   const { language, t } = useLanguage();
+  const lang = language === 'tr' ? 'tr' : 'en';
   const { showAlert } = useCustomAlert();
   const { setCurrentTrack, setIsPlaying, isPlaying, currentTrack, sound, setSound, stopAllAudio } = useAudioContext();
   const [isLoading, setIsLoading] = useState(false);
@@ -1893,34 +1900,63 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </TouchableOpacity>
 
           {/* Show Original Text toggle - works for both podcast and text content */}
-          <TouchableOpacity
-            style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
-            onPress={() => {
-              // Toggle showOriginal state
-              setShowOriginal(prev => !prev);
-              // For non-podcast content, also scroll to the original text page
-              // For podcast content, stay on the same page - originals are shown inline
-              if (!isPodcastTranscript) {
-                if (!showOriginal) {
-                  horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
-                  setPageIndex(1);
-                } else {
-                  horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
-                  setPageIndex(0);
+          {enableTour ? (
+            <CopilotStep order={2} name="playerOriginalToggle" text={AUDIOPLAYER_TOUR_STEPS.playerOriginalToggle[lang]}>
+              <WalkthroughableView>
+                <TouchableOpacity
+                  style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
+                  onPress={() => {
+                    setShowOriginal(prev => !prev);
+                    if (!isPodcastTranscript) {
+                      if (!showOriginal) {
+                        horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+                        setPageIndex(1);
+                      } else {
+                        horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+                        setPageIndex(0);
+                      }
+                    }
+                  }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
+                    {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
+                  </Text>
+                  {isPodcastTranscript && (
+                    <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
+                      <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </WalkthroughableView>
+            </CopilotStep>
+          ) : (
+            <TouchableOpacity
+              style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
+              onPress={() => {
+                setShowOriginal(prev => !prev);
+                if (!isPodcastTranscript) {
+                  if (!showOriginal) {
+                    horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+                    setPageIndex(1);
+                  } else {
+                    horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+                    setPageIndex(0);
+                  }
                 }
-              }
-            }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
-              {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
-            </Text>
-            {isPodcastTranscript && (
-              <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
-                <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
-              </View>
-            )}
-          </TouchableOpacity>
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
+                {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
+              </Text>
+              {isPodcastTranscript && (
+                <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
+                  <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Extra floating close button to guarantee tappable area */}
@@ -1977,38 +2013,73 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }}
           style={{ flex: 1 }}
         >
-          <View style={{ width: screenWidth, flex: 1 }}>
-            <ScrollView
-              ref={scrollViewRef}
-              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-              scrollEventThrottle={16}
-              removeClippedSubviews={false}
-              bounces={true}
-              onLayout={(event) => {
-                const { height } = event.nativeEvent.layout;
-                setTextViewportHeight(height);
-              }}
-              onScroll={(event) => {
-                const offsetY = event.nativeEvent.contentOffset.y;
-                scrollOffsetRef.current = offsetY;
-                // Debug: Log scroll position occasionally
-                if (Math.floor(offsetY) % 100 === 0) {
-                  console.log(`📜 [SCROLL] Offset: ${offsetY.toFixed(0)}px`);
-                }
-              }}
-            >
-              <View style={styles.textWrapper}>
-                {pageIndex === 0 && (
-                  isPodcastTranscript
-                    ? renderPodcastDialogues()
-                    : renderHighlightedText()
-                )}
-              </View>
-            </ScrollView>
-          </View>
+          {enableTour ? (
+            <CopilotStep order={1} name="playerText" text={AUDIOPLAYER_TOUR_STEPS.playerText[lang]}>
+              <WalkthroughableView style={{ width: screenWidth, flex: 1 }}>
+                <ScrollView
+                  ref={scrollViewRef}
+                  style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
+                  contentContainerStyle={{ paddingHorizontal: 16 }}
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                  scrollEventThrottle={16}
+                  removeClippedSubviews={false}
+                  bounces={true}
+                  onLayout={(event) => {
+                    const { height } = event.nativeEvent.layout;
+                    setTextViewportHeight(height);
+                  }}
+                  onScroll={(event) => {
+                    const offsetY = event.nativeEvent.contentOffset.y;
+                    scrollOffsetRef.current = offsetY;
+                    if (Math.floor(offsetY) % 100 === 0) {
+                      console.log(`📜 [SCROLL] Offset: ${offsetY.toFixed(0)}px`);
+                    }
+                  }}
+                >
+                  <View style={styles.textWrapper}>
+                    {pageIndex === 0 && (
+                      isPodcastTranscript
+                        ? renderPodcastDialogues()
+                        : renderHighlightedText()
+                    )}
+                  </View>
+                </ScrollView>
+              </WalkthroughableView>
+            </CopilotStep>
+          ) : (
+            <View style={{ width: screenWidth, flex: 1 }}>
+              <ScrollView
+                ref={scrollViewRef}
+                style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
+                contentContainerStyle={{ paddingHorizontal: 16 }}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                removeClippedSubviews={false}
+                bounces={true}
+                onLayout={(event) => {
+                  const { height } = event.nativeEvent.layout;
+                  setTextViewportHeight(height);
+                }}
+                onScroll={(event) => {
+                  const offsetY = event.nativeEvent.contentOffset.y;
+                  scrollOffsetRef.current = offsetY;
+                  if (Math.floor(offsetY) % 100 === 0) {
+                    console.log(`📜 [SCROLL] Offset: ${offsetY.toFixed(0)}px`);
+                  }
+                }}
+              >
+                <View style={styles.textWrapper}>
+                  {pageIndex === 0 && (
+                    isPodcastTranscript
+                      ? renderPodcastDialogues()
+                      : renderHighlightedText()
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+          )}
           <View style={{ width: screenWidth, flex: 1 }}>
             <ScrollView
               style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
@@ -2068,117 +2139,219 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         )}
 
         {/* Controls */}
-        <View style={styles.controlsContainer}>
-          {/* Mode Toggle - GİZLENDİ: 'Cümle' butonu gizlendi */}
+        {enableTour ? (
+          <CopilotStep order={3} name="playerControls" text={AUDIOPLAYER_TOUR_STEPS.playerControls[lang]}>
+            <WalkthroughableView style={styles.controlsContainer}>
+              {isTestEnvironment && (
+                <View style={styles.manualSeekContainer}>
+                  <TextInput
+                    style={styles.timeInput}
+                    placeholder="Sn"
+                    keyboardType="numeric"
+                    maxLength={4}
+                    value={manualSeconds}
+                    onChangeText={setManualSeconds}
+                  />
+                  <Text style={styles.timeSeparator}>.</Text>
+                  <TextInput
+                    style={styles.timeInput}
+                    placeholder="Ms"
+                    keyboardType="numeric"
+                    maxLength={3}
+                    value={manualMillis}
+                    onChangeText={setManualMillis}
+                  />
+                  <TouchableOpacity
+                    style={styles.seekButton}
+                    onPress={() => {
+                      const seconds = parseFloat(manualSeconds || '0');
+                      const millis = parseFloat(manualMillis || '0');
+                      const totalMs = (seconds * 1000) + millis;
+                      console.log(`🎯 [MANUAL SEEK] Seeking to ${seconds}.${millis}s (${totalMs}ms)`);
+                      handleSeek(totalMs);
+                    }}
+                  >
+                    <Text style={styles.seekButtonText}>Git</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
-          {/* Debug Button - GİZLENDİ */}
-          {/* GIZLENDI - Debug butonu kaldırıldı */}
+              <View style={styles.progressContainer}>
+                <Text style={styles.timeText}>{formatTime(position)}</Text>
+                <TouchableOpacity
+                  style={styles.progressBar}
+                  activeOpacity={0.8}
+                  hitSlop={{ top: 12, bottom: 12, left: 0, right: 0 }}
+                  onPress={(e) => {
+                    const { locationX } = e.nativeEvent;
+                    const progressBarWidth = screenWidth - 32 - 100;
+                    const percentage = locationX / progressBarWidth;
+                    const seekPosition = percentage * duration;
+                    console.log(`📊 [PROGRESS BAR] Clicked at ${locationX}px, seeking to ${(seekPosition / 1000).toFixed(2)}s`);
+                    handleSeek(seekPosition);
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${progressPercentage}%` }
+                    ]}
+                  />
+                </TouchableOpacity>
+                <Text style={styles.timeText}>{formatTime(duration)}</Text>
+              </View>
 
-          {/* Manual Seek Time Input - Only visible in TEST environment */}
-          {isTestEnvironment && (
-            <View style={styles.manualSeekContainer}>
-              <TextInput
-                style={styles.timeInput}
-                placeholder="Sn"
-                keyboardType="numeric"
-                maxLength={4}
-                value={manualSeconds}
-                onChangeText={setManualSeconds}
-              />
-              <Text style={styles.timeSeparator}>.</Text>
-              <TextInput
-                style={styles.timeInput}
-                placeholder="Ms"
-                keyboardType="numeric"
-                maxLength={3}
-                value={manualMillis}
-                onChangeText={setManualMillis}
-              />
+              <View style={styles.playbackControls}>
+                <CopilotStep order={4} name="playerSpeed" text={AUDIOPLAYER_TOUR_STEPS.playerSpeed[lang]}>
+                  <WalkthroughableView>
+                    <TouchableOpacity
+                      style={styles.speedButton}
+                      onPress={handleSpeedChange}
+                    >
+                      <Text style={styles.speedText}>{playbackRate}x</Text>
+                    </TouchableOpacity>
+                  </WalkthroughableView>
+                </CopilotStep>
+
+                <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={handlePlayPause}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Icon name="hourglass-empty" size={32} color="#FFFFFF" />
+                  ) : (
+                    <Icon
+                      name={isPlaying ? "pause" : "play-arrow"}
+                      size={32}
+                      color="#FFFFFF"
+                    />
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.infoButton}
+                  onPress={() => showAlert(
+                    'Bilgi',
+                    `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}\nCümle sayısı: ${sentences.length}\nAktif cümle: ${currentSentenceIndex + 1}`,
+                    [{ text: 'OK', style: 'default' }],
+                    'info-outline',
+                    '#3B82F6'
+                  )}
+                >
+                  <Icon name="info" size={24} color="#666" />
+                </TouchableOpacity>
+
+                <View style={styles.levelBadgeBottom}>
+                  <Text style={styles.levelText}>{track.level}</Text>
+                </View>
+              </View>
+            </WalkthroughableView>
+          </CopilotStep>
+        ) : (
+          <View style={styles.controlsContainer}>
+            {isTestEnvironment && (
+              <View style={styles.manualSeekContainer}>
+                <TextInput
+                  style={styles.timeInput}
+                  placeholder="Sn"
+                  keyboardType="numeric"
+                  maxLength={4}
+                  value={manualSeconds}
+                  onChangeText={setManualSeconds}
+                />
+                <Text style={styles.timeSeparator}>.</Text>
+                <TextInput
+                  style={styles.timeInput}
+                  placeholder="Ms"
+                  keyboardType="numeric"
+                  maxLength={3}
+                  value={manualMillis}
+                  onChangeText={setManualMillis}
+                />
+                <TouchableOpacity
+                  style={styles.seekButton}
+                  onPress={() => {
+                    const seconds = parseFloat(manualSeconds || '0');
+                    const millis = parseFloat(manualMillis || '0');
+                    const totalMs = (seconds * 1000) + millis;
+                    console.log(`🎯 [MANUAL SEEK] Seeking to ${seconds}.${millis}s (${totalMs}ms)`);
+                    handleSeek(totalMs);
+                  }}
+                >
+                  <Text style={styles.seekButtonText}>Git</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={styles.progressContainer}>
+              <Text style={styles.timeText}>{formatTime(position)}</Text>
               <TouchableOpacity
-                style={styles.seekButton}
-                onPress={() => {
-                  const seconds = parseFloat(manualSeconds || '0');
-                  const millis = parseFloat(manualMillis || '0');
-                  const totalMs = (seconds * 1000) + millis;
-                  console.log(`🎯 [MANUAL SEEK] Seeking to ${seconds}.${millis}s (${totalMs}ms)`);
-                  handleSeek(totalMs);
+                style={styles.progressBar}
+                activeOpacity={0.8}
+                hitSlop={{ top: 12, bottom: 12, left: 0, right: 0 }}
+                onPress={(e) => {
+                  const { locationX } = e.nativeEvent;
+                  const progressBarWidth = screenWidth - 32 - 100;
+                  const percentage = locationX / progressBarWidth;
+                  const seekPosition = percentage * duration;
+                  console.log(`📊 [PROGRESS BAR] Clicked at ${locationX}px, seeking to ${(seekPosition / 1000).toFixed(2)}s`);
+                  handleSeek(seekPosition);
                 }}
               >
-                <Text style={styles.seekButtonText}>Git</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <Text style={styles.timeText}>{formatTime(position)}</Text>
-            <TouchableOpacity
-              style={styles.progressBar}
-              activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 0, right: 0 }}
-              onPress={(e) => {
-                const { locationX } = e.nativeEvent;
-                const progressBarWidth = screenWidth - 32 - 100; // Total width minus padding and time text
-                const percentage = locationX / progressBarWidth;
-                const seekPosition = percentage * duration;
-                console.log(`📊 [PROGRESS BAR] Clicked at ${locationX}px, seeking to ${(seekPosition / 1000).toFixed(2)}s`);
-                handleSeek(seekPosition);
-              }}
-            >
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${progressPercentage}%` }
-                ]}
-              />
-            </TouchableOpacity>
-            <Text style={styles.timeText}>{formatTime(duration)}</Text>
-          </View>
-
-          {/* Playback Controls */}
-          <View style={styles.playbackControls}>
-            <TouchableOpacity
-              style={styles.speedButton}
-              onPress={handleSpeedChange}
-            >
-              <Text style={styles.speedText}>{playbackRate}x</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.playButton}
-              onPress={handlePlayPause}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Icon name="hourglass-empty" size={32} color="#FFFFFF" />
-              ) : (
-                <Icon
-                  name={isPlaying ? "pause" : "play-arrow"}
-                  size={32}
-                  color="#FFFFFF"
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${progressPercentage}%` }
+                  ]}
                 />
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+              <Text style={styles.timeText}>{formatTime(duration)}</Text>
+            </View>
 
-            <TouchableOpacity
-              style={styles.infoButton}
-              onPress={() => showAlert(
-                'Bilgi',
-                `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}\nCümle sayısı: ${sentences.length}\nAktif cümle: ${currentSentenceIndex + 1}`,
-                [{ text: 'OK', style: 'default' }],
-                'info-outline',
-                '#3B82F6'
-              )}
-            >
-              <Icon name="info" size={24} color="#666" />
-            </TouchableOpacity>
+            <View style={styles.playbackControls}>
+              <TouchableOpacity
+                style={styles.speedButton}
+                onPress={handleSpeedChange}
+              >
+                <Text style={styles.speedText}>{playbackRate}x</Text>
+              </TouchableOpacity>
 
-            {/* Level Badge */}
-            <View style={styles.levelBadgeBottom}>
-              <Text style={styles.levelText}>{track.level}</Text>
+              <TouchableOpacity
+                style={styles.playButton}
+                onPress={handlePlayPause}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Icon name="hourglass-empty" size={32} color="#FFFFFF" />
+                ) : (
+                  <Icon
+                    name={isPlaying ? "pause" : "play-arrow"}
+                    size={32}
+                    color="#FFFFFF"
+                  />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.infoButton}
+                onPress={() => showAlert(
+                  'Bilgi',
+                  `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}\nCümle sayısı: ${sentences.length}\nAktif cümle: ${currentSentenceIndex + 1}`,
+                  [{ text: 'OK', style: 'default' }],
+                  'info-outline',
+                  '#3B82F6'
+                )}
+              >
+                <Icon name="info" size={24} color="#666" />
+              </TouchableOpacity>
+
+              <View style={styles.levelBadgeBottom}>
+                <Text style={styles.levelText}>{track.level}</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Word info popup */}
         {visible && wordPopup && (

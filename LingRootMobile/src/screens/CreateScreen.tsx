@@ -27,10 +27,20 @@ import * as bookService from '../services/bookService';
 import { submitContent } from '../services/contentService';
 import { getMyPlanFeatures, PlanFeatures, getUsageSummary } from '../services/subscriptionService';
 import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
+import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+import {
+  TourProvider,
+  CreateTooltip,
+  CREATE_TOUR_STEPS,
+  CREATE_TOUR_KEY,
+  useTourAutoStart,
+} from '../components/GuideTour';
 
-const CreateScreen: React.FC = () => {
+const WalkthroughableView = walkthroughable(View);
+
+const CreateScreenContent: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation();
   const prevModeRef = useRef<string>(
@@ -56,6 +66,9 @@ const CreateScreen: React.FC = () => {
   );
   const { t, language } = useLanguage();
   const { user } = useAuth();
+  const lang = language === 'tr' ? 'tr' : 'en';
+  const scrollViewRef = useRef<ScrollView>(null);
+  useTourAutoStart(CREATE_TOUR_KEY, 800, scrollViewRef);
   const screenHeight = Dimensions.get('window').height;
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -1508,6 +1521,7 @@ const CreateScreen: React.FC = () => {
       )}
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -1769,7 +1783,8 @@ const CreateScreen: React.FC = () => {
         )}
 
         {((mode === 'text' || mode === 'youtube') || (mode === 'suggestion' && (suggestionResults.length > 0 || inputText.length > 0))) && (
-          <View style={styles.inputSection}>
+          <CopilotStep order={1} name="createTextInput" text={CREATE_TOUR_STEPS.createTextInput[lang]}>
+          <WalkthroughableView style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
             {mode === 'youtube' && (
               <View style={{ marginBottom: 10 }}>
@@ -1832,7 +1847,8 @@ const CreateScreen: React.FC = () => {
                 <Text style={styles.charCount}>{t('create.input.charCount', { count: inputText.length })}</Text>
               </>
             )}
-          </View>
+          </WalkthroughableView>
+          </CopilotStep>
         )}
 
         {/* Divider hidden in single-mode screens */}
@@ -1960,7 +1976,8 @@ const CreateScreen: React.FC = () => {
           )
         )}
 
-        <View style={styles.settingsSection}>
+        <CopilotStep order={2} name="createCefrLevel" text={CREATE_TOUR_STEPS.createCefrLevel[lang]}>
+        <WalkthroughableView style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>{t('create.cefr.title')}</Text>
           <View style={styles.levelSelector}>
             {levels.map((level) => (
@@ -1987,7 +2004,8 @@ const CreateScreen: React.FC = () => {
             ))}
           </View>
           <Text style={styles.levelDescription}>{levelDescriptions[selectedLevel]}</Text>
-        </View>
+        </WalkthroughableView>
+        </CopilotStep>
 
         {false && (
           <View style={styles.settingsSection}>
@@ -2017,7 +2035,8 @@ const CreateScreen: React.FC = () => {
 
         {/* Voice Selection Section */}
         {!isPodcastMode && (
-          <View style={styles.settingsSection}>
+          <CopilotStep order={3} name="createVoiceSelect" text={CREATE_TOUR_STEPS.createVoiceSelect[lang]}>
+          <WalkthroughableView style={styles.settingsSection}>
             <Text style={styles.sectionTitle}>{t('create.voice.title')}</Text>
 
             {/* Voice Categories */}
@@ -2153,7 +2172,8 @@ const CreateScreen: React.FC = () => {
               </View>
               <Icon name="arrow-forward-ios" size={16} color={COLORS.primary} />
             </TouchableOpacity>
-          </View>
+          </WalkthroughableView>
+          </CopilotStep>
         )}
 
         {/* Voice Selection Modal - uses RN Modal so it opens in viewport regardless of scroll */}
@@ -2267,6 +2287,8 @@ const CreateScreen: React.FC = () => {
         </Modal>
 
         {/* Create Button - Now inside ScrollView */}
+        <CopilotStep order={4} name="createButton" text={CREATE_TOUR_STEPS.createButton[lang]}>
+        <WalkthroughableView>
         <TouchableOpacity
           style={[
             styles.createButton,
@@ -2282,6 +2304,8 @@ const CreateScreen: React.FC = () => {
           )}
           <Text style={styles.createButtonText}>{globalCreateLabel}</Text>
         </TouchableOpacity>
+        </WalkthroughableView>
+        </CopilotStep>
       </ScrollView>
 
       {/* Success Alert Modal */}
@@ -3176,4 +3200,10 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CreateScreen; 
+const CreateScreen: React.FC = () => (
+  <TourProvider tooltip={CreateTooltip}>
+    <CreateScreenContent />
+  </TourProvider>
+);
+
+export default CreateScreen;

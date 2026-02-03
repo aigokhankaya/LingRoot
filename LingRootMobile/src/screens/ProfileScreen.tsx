@@ -20,13 +20,28 @@ import type { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import NotificationService from '../services/notificationService';
+import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
+import {
+  TourProvider,
+  ProfileTooltip,
+  PROFILE_TOUR_STEPS,
+  PROFILE_TOUR_KEY,
+  PROFILE_MENU_TOUR_MAP,
+  useTourAutoStart,
+} from '../components/GuideTour';
 
-const ProfileScreen: React.FC = () => {
+const WalkthroughableView = walkthroughable(View);
+
+const ProfileScreenContent: React.FC = () => {
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const lang = language === 'tr' ? 'tr' : 'en';
+
+  // Guide tour auto-start
+  useTourAutoStart(PROFILE_TOUR_KEY, 800);
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -155,39 +170,59 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <View style={styles.header}>
-          {/* Profile Avatar */}
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'U'}
-              </Text>
-            </View>
-            <View style={styles.editAvatarButton}>
-              <Icon name="edit" size={14} color={COLORS.brandOrange} />
-            </View>
-          </View>
+        <CopilotStep order={1} name="profileInfo" text={PROFILE_TOUR_STEPS.profileInfo[lang]}>
+          <WalkthroughableView>
+            <View style={styles.header}>
+              {/* Profile Avatar */}
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'U'}
+                  </Text>
+                </View>
+                <View style={styles.editAvatarButton}>
+                  <Icon name="edit" size={14} color={COLORS.brandOrange} />
+                </View>
+              </View>
 
-          {!!user?.full_name && (
-            <Text style={styles.name}>{user.full_name}</Text>
-          )}
-          {!!user?.email && <Text style={styles.emailBold}>{user.email}</Text>}
-        </View>
+              {!!user?.full_name && (
+                <Text style={styles.name}>{user.full_name}</Text>
+              )}
+              {!!user?.email && <Text style={styles.emailBold}>{user.email}</Text>}
+            </View>
+          </WalkthroughableView>
+        </CopilotStep>
 
         <View style={styles.menu}>
-          {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuItem}
-              onPress={item.action}
-            >
-              <View style={styles.menuIconContainer}>
-                <Icon name={item.icon} size={22} color={COLORS.slate600} />
-              </View>
-              <Text style={styles.menuText}>{item.title}</Text>
-              <Icon name="chevron-right" size={20} color={COLORS.slate300} />
-            </TouchableOpacity>
-          ))}
+          {menuItems.map((item) => {
+            const tourStep = PROFILE_MENU_TOUR_MAP[item.id];
+            const menuItemEl = (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.menuItem}
+                onPress={item.action}
+              >
+                <View style={styles.menuIconContainer}>
+                  <Icon name={item.icon} size={22} color={COLORS.slate600} />
+                </View>
+                <Text style={styles.menuText}>{item.title}</Text>
+                <Icon name="chevron-right" size={20} color={COLORS.slate300} />
+              </TouchableOpacity>
+            );
+
+            if (tourStep) {
+              const stepText = PROFILE_TOUR_STEPS[tourStep.name]?.[lang] || '';
+              return (
+                <CopilotStep key={item.id} order={tourStep.order} name={tourStep.name} text={stepText}>
+                  <WalkthroughableView>
+                    {menuItemEl}
+                  </WalkthroughableView>
+                </CopilotStep>
+              );
+            }
+
+            return menuItemEl;
+          })}
         </View>
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
@@ -464,4 +499,10 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProfileScreen; 
+const ProfileScreen: React.FC = () => (
+  <TourProvider tooltip={ProfileTooltip}>
+    <ProfileScreenContent />
+  </TourProvider>
+);
+
+export default ProfileScreen;

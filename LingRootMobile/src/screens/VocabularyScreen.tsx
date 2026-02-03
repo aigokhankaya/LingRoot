@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
@@ -33,12 +34,23 @@ import { ReminderSettingsService } from '../services/reminderSettingsService';
 import NotificationService from '../services/notificationService';
 import { COLORS } from '../theme/colors';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+import {
+  TourProvider,
+  VocabularyTooltip,
+  VOCABULARY_TOUR_STEPS,
+  VOCABULARY_TOUR_KEY,
+  useTourAutoStart,
+  roundedMaskPath,
+} from '../components/GuideTour';
+
+const WalkthroughableView = walkthroughable(View);
 
 const { width } = Dimensions.get('window');
 
-export default function VocabularyScreen({ navigation, route }: any) {
+function VocabularyScreenContent({ navigation, route }: any) {
   const { user } = useAuth();
   const { t, language } = useLanguage();
+  const lang = language === 'tr' ? 'tr' : 'en';
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +75,8 @@ export default function VocabularyScreen({ navigation, route }: any) {
     isEnabled: true
   });
   const [isReminderModalVisible, setIsReminderModalVisible] = useState(false);
+
+  useTourAutoStart(VOCABULARY_TOUR_KEY, 1000, scrollViewRef);
 
   // CEFR Seviyeleri Konfigürasyonu
   const wordLevels = {
@@ -587,83 +601,95 @@ export default function VocabularyScreen({ navigation, route }: any) {
       >
         <>
           {/* İstatistikler */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statsHeader}>
-              <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
-              <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
-                <Ionicons name="add" size={24} color="#3B82F6" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{stats.total}</Text>
-                <Text style={styles.statLabel}>{t('vocabulary.totalWords')}</Text>
+          <CopilotStep order={1} name="vocabStats" text={VOCABULARY_TOUR_STEPS.vocabStats[lang]}>
+            <WalkthroughableView style={styles.statsContainer}>
+              <View style={styles.statsHeader}>
+                <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
+                <CopilotStep order={2} name="vocabAddWord" text={VOCABULARY_TOUR_STEPS.vocabAddWord[lang]}>
+                  <WalkthroughableView>
+                    <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
+                      <Ionicons name="add" size={24} color="#3B82F6" />
+                    </TouchableOpacity>
+                  </WalkthroughableView>
+                </CopilotStep>
               </View>
-              <View style={styles.statCard}>
-                <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.learned}</Text>
-                <Text style={styles.statLabel}>{t('vocabulary.learned')}</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.total}</Text>
+                  <Text style={styles.statLabel}>{t('vocabulary.totalWords')}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.learned}</Text>
+                  <Text style={styles.statLabel}>{t('vocabulary.learned')}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.notLearned}</Text>
+                  <Text style={styles.statLabel}>{t('vocabulary.notLearned')}</Text>
+                </View>
               </View>
-              <View style={styles.statCard}>
-                <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.notLearned}</Text>
-                <Text style={styles.statLabel}>{t('vocabulary.notLearned')}</Text>
-              </View>
-            </View>
-          </View>
+            </WalkthroughableView>
+          </CopilotStep>
 
           {/* Arama ve Filtreleme */}
           <View style={styles.searchContainer}>
-            <View style={styles.searchInputContainer}>
-              <Ionicons name="search" size={20} color="#9CA3AF" />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={language === 'tr' ? 'Kelime veya anlam ara...' : 'Search word or meaning...'}
-                value={searchTerm}
-                onChangeText={setSearchTerm}
-              />
-            </View>
+            <CopilotStep order={3} name="vocabSearch" text={VOCABULARY_TOUR_STEPS.vocabSearch[lang]}>
+              <WalkthroughableView style={styles.searchInputContainer}>
+                <Ionicons name="search" size={20} color="#9CA3AF" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={language === 'tr' ? 'Kelime veya anlam ara...' : 'Search word or meaning...'}
+                  value={searchTerm}
+                  onChangeText={setSearchTerm}
+                />
+              </WalkthroughableView>
+            </CopilotStep>
 
             {/* Status Filters - Row 1 */}
-            <View style={styles.filterRow}>
-              <TouchableOpacity
-                style={[styles.filterButton, learnedFilter === 'all' && styles.statusFilterActive]}
-                onPress={() => setLearnedFilter('all')}
-              >
-                <Text style={[styles.filterText, learnedFilter === 'all' && styles.statusFilterActiveText]}>
-                  {language === 'tr' ? 'Tümü' : 'All'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.filterButton, learnedFilter === 'learned' && styles.statusFilterActive]}
-                onPress={() => setLearnedFilter('learned')}
-              >
-                <Text style={[styles.filterText, learnedFilter === 'learned' && styles.statusFilterActiveText]}>
-                  {language === 'tr' ? 'Öğrenildi' : 'Learned'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.filterButton, learnedFilter === 'unlearned' && styles.statusFilterActive]}
-                onPress={() => setLearnedFilter('unlearned')}
-              >
-                <Text style={[styles.filterText, learnedFilter === 'unlearned' && styles.statusFilterActiveText]}>
-                  {language === 'tr' ? 'Yeni' : 'New'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* CEFR Level Filters - Row 2 */}
-            <View style={[styles.filterRow, { marginTop: 8 }]}>
-              {Object.entries(wordLevels).map(([level, data]) => (
+            <CopilotStep order={4} name="vocabFilters" text={VOCABULARY_TOUR_STEPS.vocabFilters[lang]}>
+              <WalkthroughableView style={styles.filterRow}>
                 <TouchableOpacity
-                  key={level}
-                  style={[styles.filterButton, activeLevel === level && styles.activeFilter]}
-                  onPress={() => setActiveLevel(activeLevel === level ? 'all' : level)}
+                  style={[styles.filterButton, learnedFilter === 'all' && styles.statusFilterActive]}
+                  onPress={() => setLearnedFilter('all')}
                 >
-                  <Text style={[styles.filterText, activeLevel === level && styles.activeFilterText]}>
-                    {level.toUpperCase()}
+                  <Text style={[styles.filterText, learnedFilter === 'all' && styles.statusFilterActiveText]}>
+                    {language === 'tr' ? 'Tümü' : 'All'}
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </View>
+                <TouchableOpacity
+                  style={[styles.filterButton, learnedFilter === 'learned' && styles.statusFilterActive]}
+                  onPress={() => setLearnedFilter('learned')}
+                >
+                  <Text style={[styles.filterText, learnedFilter === 'learned' && styles.statusFilterActiveText]}>
+                    {language === 'tr' ? 'Öğrenildi' : 'Learned'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterButton, learnedFilter === 'unlearned' && styles.statusFilterActive]}
+                  onPress={() => setLearnedFilter('unlearned')}
+                >
+                  <Text style={[styles.filterText, learnedFilter === 'unlearned' && styles.statusFilterActiveText]}>
+                    {language === 'tr' ? 'Yeni' : 'New'}
+                  </Text>
+                </TouchableOpacity>
+              </WalkthroughableView>
+            </CopilotStep>
+
+            {/* CEFR Level Filters - Row 2 */}
+            <CopilotStep order={5} name="vocabLevelFilter" text={VOCABULARY_TOUR_STEPS.vocabLevelFilter[lang]}>
+              <WalkthroughableView style={[styles.filterRow, { marginTop: 8 }]}>
+                {Object.entries(wordLevels).map(([level, data]) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[styles.filterButton, activeLevel === level && styles.activeFilter]}
+                    onPress={() => setActiveLevel(activeLevel === level ? 'all' : level)}
+                  >
+                    <Text style={[styles.filterText, activeLevel === level && styles.activeFilterText]}>
+                      {level.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </WalkthroughableView>
+            </CopilotStep>
           </View>
 
           {/* Kelime Listesi - Loading State handled locally */}
@@ -687,13 +713,21 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 </TouchableOpacity>
               </View>
             ) : filteredWords.length > 0 ? (
-              <FlatList
-                ref={flatListRef}
-                data={filteredWords}
-                renderItem={renderWord}
-                keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-                scrollEnabled={false}
-              />
+              <>
+                {/* First word card wrapped in CopilotStep for tour */}
+                <CopilotStep order={6} name="vocabWordCard" text={VOCABULARY_TOUR_STEPS.vocabWordCard[lang]}>
+                  <WalkthroughableView>
+                    {renderWord({ item: filteredWords[0] })}
+                  </WalkthroughableView>
+                </CopilotStep>
+                <FlatList
+                  ref={flatListRef}
+                  data={filteredWords.slice(1)}
+                  renderItem={renderWord}
+                  keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                  scrollEnabled={false}
+                />
+              </>
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="book-outline" size={48} color="#9CA3AF" />
@@ -1279,4 +1313,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-}); 
+});
+
+export default function VocabularyScreen(props: Record<string, unknown>) {
+  return (
+    <TourProvider tooltip={VocabularyTooltip} maskPath={roundedMaskPath}>
+      <VocabularyScreenContent {...props} />
+    </TourProvider>
+  );
+}
