@@ -11,8 +11,15 @@
  * Created: 2026-02-02
  */
 
-import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Lazy-load expo-secure-store to avoid crash when native module is not linked
+let SecureStore: typeof import('expo-secure-store') | null = null;
+try {
+  SecureStore = require('expo-secure-store');
+} catch {
+  console.warn('[SecureStorage] expo-secure-store native module not available, using AsyncStorage fallback');
+}
 
 // Keys that hold sensitive tokens — stored in SecureStore
 const SECURE_KEYS = new Set(['auth_token', 'refresh_token']);
@@ -21,7 +28,7 @@ const SECURE_KEYS = new Set(['auth_token', 'refresh_token']);
  * Get an item. Sensitive keys are read from SecureStore, others from AsyncStorage.
  */
 async function getItem(key: string): Promise<string | null> {
-    if (SECURE_KEYS.has(key)) {
+    if (SECURE_KEYS.has(key) && SecureStore) {
         try {
             return await SecureStore.getItemAsync(key);
         } catch {
@@ -36,7 +43,7 @@ async function getItem(key: string): Promise<string | null> {
  * Set an item. Sensitive keys are written to SecureStore, others to AsyncStorage.
  */
 async function setItem(key: string, value: string): Promise<void> {
-    if (SECURE_KEYS.has(key)) {
+    if (SECURE_KEYS.has(key) && SecureStore) {
         try {
             await SecureStore.setItemAsync(key, value);
             // Remove from AsyncStorage if it was there (post-migration cleanup)
@@ -55,7 +62,7 @@ async function setItem(key: string, value: string): Promise<void> {
  * Remove an item from both stores to ensure it is fully deleted.
  */
 async function removeItem(key: string): Promise<void> {
-    if (SECURE_KEYS.has(key)) {
+    if (SECURE_KEYS.has(key) && SecureStore) {
         try { await SecureStore.deleteItemAsync(key); } catch { /* ignore */ }
     }
     try { await AsyncStorage.removeItem(key); } catch { /* ignore */ }
@@ -73,6 +80,7 @@ async function multiRemove(keys: string[]): Promise<void> {
  * Call once at app startup. Idempotent — safe to call repeatedly.
  */
 async function migrateToSecureStorage(): Promise<void> {
+    if (!SecureStore) return; // Skip migration if native module is unavailable
     for (const key of SECURE_KEYS) {
         try {
             // Check if already in SecureStore

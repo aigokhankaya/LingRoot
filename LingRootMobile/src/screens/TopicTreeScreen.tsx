@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -12,20 +12,32 @@ import {
   generateTopicNarrationFromSubject,
   Topic
 } from '../services/topicService';
-import { AudioTrack, Timepoint, CEFRLevel } from '../types';
+import { AudioTrack, Timepoint, CEFRLevel, TTSRequest } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
+import * as ttsService from '../services/ttsService';
+import { getUsageSummary } from '../services/subscriptionService';
 import AudioPlayer from '../components/AudioPlayer';
 import CustomAlert, { CustomAlertButton } from '../components/CustomAlert';
+import VoiceSelector, { VoiceSelectionResult } from '../components/VoiceSelector';
 import { COLORS } from '../theme/colors';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const TopicTreeScreen: React.FC = () => {
   const { language } = useLanguage();
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Voice selection from VoiceSelector component
+  const [voiceSelection, setVoiceSelection] = useState<VoiceSelectionResult | null>(null);
+
+  // Success modal
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [successEstimatedTime, setSuccessEstimatedTime] = useState('');
 
   // Creation State
   const [mainTitle, setMainTitle] = useState('');
@@ -246,6 +258,134 @@ const TopicTreeScreen: React.FC = () => {
     }
   };
 
+  const handleCreateAudio = async () => {
+    if (!activeTopic) return;
+    if (!voiceSelection?.voiceName) {
+      showAlert(
+        language === 'tr' ? 'Uyarı' : 'Warning',
+        language === 'tr' ? 'Lütfen önce bir ses seçin.' : 'Please select a voice first.',
+        [{ text: 'OK', style: 'default' }],
+        'warning',
+        '#F59E0B'
+      );
+      return;
+    }
+
+    const topicSubject = activeTopic.description
+      ? `${activeTopic.title}: ${activeTopic.description}`
+      : activeTopic.title || '';
+    const lvl = activeTopic.level || selectedLevel;
+
+    setIsGeneratingNarration(true);
+    try {
+      // Usage limit pre-check
+      try {
+        const summary = await getUsageSummary();
+        const sData = (summary as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+        if (summary?.success && (sData?.isExceeded || sData?.hasPlan === false)) {
+          showAlert(
+            language === 'tr' ? 'Hata' : 'Error',
+            sData?.hasPlan === false
+              ? 'Aktif paketiniz yok. Lütfen Apple Store üzerinden paket satın alın.'
+              : 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.',
+            [
+              { text: 'OK', style: 'default' },
+              {
+                text: language === 'tr' ? 'Paket Al' : 'Get Package',
+                style: 'default',
+                onPress: () => (navigation as Record<string, unknown> & { navigate: (screen: string) => void }).navigate('Packages'),
+              },
+            ],
+            'error-outline',
+            '#EF4444'
+          );
+          return;
+        }
+      } catch {
+        // silent - continue with the request anyway
+      }
+
+      // Generate narration text from topic subject
+      const res = await generateTopicNarrationFromSubject(topicSubject, lvl);
+      const data = (res as Record<string, unknown>)?.data || res;
+      const generatedText = (data as Record<string, unknown>)?.translated_text as string ||
+        (data as Record<string, unknown>)?.adapted_text as string || '';
+
+      if (!generatedText) {
+        showAlert(
+          language === 'tr' ? 'Hata' : 'Error',
+          language === 'tr' ? 'Metin oluşturulamadı' : 'Could not generate text',
+          [{ text: 'OK', style: 'default' }],
+          'error-outline',
+          '#EF4444'
+        );
+        return;
+      }
+
+      // Build TTS request and fire async
+      const speakingRate = lvl === 'A1' ? 0.8 : 1.0;
+      const request: TTSRequest = {
+        type: 'text',
+        input: generatedText,
+        level: lvl as CEFRLevel,
+        speakingRate,
+        voice: voiceSelection.voiceName,
+        sesHizi: speakingRate,
+        voiceName: voiceSelection.voiceName,
+        gender: voiceSelection.gender as 'male' | 'female' | 'neutral',
+        accent: voiceSelection.accent as TTSRequest['accent'],
+        topic_id: activeTopic.id,
+        engine: voiceSelection.engine,
+      };
+
+      const ttsResponse = await ttsService.processTextToSpeechAsync(request);
+
+      if (ttsResponse.success) {
+        setSuccessEstimatedTime(ttsResponse.estimatedTime || '2-5 minutes');
+        setShowSuccessAlert(true);
+
+        AnalyticsHelper.logEvent('content_creation_complete', {
+          type: 'narration',
+          content_type: 'topic_tree',
+          level: lvl,
+          voice: voiceSelection.voiceName,
+          status: 'async_started',
+        });
+      } else {
+        showAlert(
+          language === 'tr' ? 'Hata' : 'Error',
+          language === 'tr' ? 'Ses oluşturulamadı' : 'Could not create audio',
+          [{ text: 'OK', style: 'default' }],
+          'error-outline',
+          '#EF4444'
+        );
+      }
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === 'TTS_JOB_IN_PROGRESS') {
+        showAlert(
+          language === 'tr' ? 'Bilgi' : 'Info',
+          language === 'tr'
+            ? 'Ses oluşturma süreci devam ediyor. Lütfen mevcut işlemin bitmesini bekleyin.'
+            : 'An audio creation process is already running. Please wait for it to finish.',
+          [{ text: 'OK', style: 'default' }],
+          'info-outline',
+          '#3B82F6'
+        );
+      } else {
+        showAlert(
+          language === 'tr' ? 'Hata' : 'Error',
+          error?.message || (language === 'tr' ? 'Bir hata oluştu' : 'An error occurred'),
+          [{ text: 'OK', style: 'default' }],
+          'error-outline',
+          '#EF4444'
+        );
+      }
+    } finally {
+      setIsGeneratingNarration(false);
+    }
+  };
+
   const levels = buildLevels();
   const hasAudio = !!activeTopic?.latest_content?.mp3_url;
 
@@ -310,81 +450,10 @@ const TopicTreeScreen: React.FC = () => {
               );
             })
           )}
-        </View>
 
-        {/* ACTIONS FOR SELECTED TOPIC */}
-        {activeTopic && (
-          <View style={styles.actionsCard}>
-            <View style={styles.actionsHeader}>
-              <Text style={styles.actionsTitle} numberOfLines={1}>{activeTopic.title}</Text>
-              <View style={styles.badge}><Text style={styles.badgeText}>{activeTopic.level || 'B1'}</Text></View>
-            </View>
-
-            <View style={styles.actionsGrid}>
-              {/* CREATE AUDIO - Primary Action */}
-              <TouchableOpacity
-                style={[styles.actionBtnPrimary, isGeneratingNarration && { opacity: 0.7 }]}
-                disabled={isGeneratingNarration}
-                onPress={async () => {
-                  // Build subject from topic title + description (like web version)
-                  const topicSubject = activeTopic?.description
-                    ? `${activeTopic.title}: ${activeTopic.description}`
-                    : activeTopic?.title || '';
-                  const lvl = activeTopic?.level || selectedLevel;
-
-                  setIsGeneratingNarration(true);
-                  try {
-                    // First generate the narration text from subject
-                    const res = await generateTopicNarrationFromSubject(topicSubject, lvl);
-                    const data = (res as any)?.data || res;
-
-                    // Get the Turkish text to put in the input field
-                    const generatedText = data?.translated_text || data?.adapted_text || '';
-
-                    if (generatedText) {
-                      // Navigate to Create screen with generated text
-                      (navigation as any).navigate('Main', {
-                        screen: 'Create',
-                        params: {
-                          mode: 'text',
-                          initialText: generatedText,
-                          topicId: activeTopic?.id,
-                          topicLevel: lvl
-                        },
-                      });
-                    } else {
-                      showAlert(
-                        language === 'tr' ? 'Hata' : 'Error',
-                        language === 'tr' ? 'Metin oluşturulamadı' : 'Could not generate text',
-                        [{ text: 'OK', style: 'default' }],
-                        'error-outline',
-                        '#EF4444'
-                      );
-                    }
-                  } catch (err: any) {
-                    showAlert(
-                      language === 'tr' ? 'Hata' : 'Error',
-                      err?.message || (language === 'tr' ? 'Metin oluşturulamadı' : 'Could not generate text'),
-                      [{ text: 'OK', style: 'default' }],
-                      'error-outline',
-                      '#EF4444'
-                    );
-                  } finally {
-                    setIsGeneratingNarration(false);
-                  }
-                }}>
-                {isGeneratingNarration ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Icon name="campaign" size={22} color="#FFFFFF" />
-                )}
-                <Text style={styles.actionBtnLabelPrimary}>
-                  {isGeneratingNarration
-                    ? (language === 'tr' ? 'Oluşturuluyor...' : 'Generating...')
-                    : (language === 'tr' ? 'Ses Oluştur' : 'Create Audio')}
-                </Text>
-              </TouchableOpacity>
-
+          {/* TOPIC MANAGEMENT ACTIONS - inside selection card */}
+          {activeTopic && (
+            <View style={styles.topicActionsGrid}>
               {hasAudio && (
                 <TouchableOpacity style={styles.actionBtn} onPress={handleListen}>
                   <Icon name="headset" size={22} color={COLORS.brandTeal} />
@@ -404,6 +473,40 @@ const TopicTreeScreen: React.FC = () => {
                 <Text style={[styles.actionBtnLabel, { color: '#EF4444' }]}>{language === 'tr' ? 'Sil' : 'Delete'}</Text>
               </TouchableOpacity>
             </View>
+          )}
+        </View>
+
+        {/* AUDIO CREATION CARD */}
+        {activeTopic && (
+          <View style={styles.actionsCard}>
+            <View style={styles.actionsHeader}>
+              <Text style={styles.actionsTitle} numberOfLines={1}>{activeTopic.title}</Text>
+              <View style={styles.badge}><Text style={styles.badgeText}>{activeTopic.level || 'B1'}</Text></View>
+            </View>
+
+            <VoiceSelector
+              onVoiceChange={setVoiceSelection}
+              userId={user?.id}
+              language={language}
+              compact
+            />
+
+            <TouchableOpacity
+              style={[styles.actionBtnPrimary, { marginTop: 12 }, isGeneratingNarration && { opacity: 0.7 }]}
+              disabled={isGeneratingNarration}
+              onPress={handleCreateAudio}
+            >
+              {isGeneratingNarration ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Icon name="campaign" size={22} color="#FFFFFF" />
+              )}
+              <Text style={styles.actionBtnLabelPrimary}>
+                {isGeneratingNarration
+                  ? (language === 'tr' ? 'Oluşturuluyor...' : 'Generating...')
+                  : (language === 'tr' ? 'Ses Oluştur' : 'Create Audio')}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -474,6 +577,54 @@ const TopicTreeScreen: React.FC = () => {
       {/* AUDIO PLAYER */}
       {audioTrack && <AudioPlayer track={audioTrack} visible={audioModalVisible} onClose={() => { setAudioModalVisible(false); setAudioTrack(null); }} timepoints={audioTimepoints} words={audioWords} initialHighlightMode="word" />}
 
+      {/* SUCCESS MODAL */}
+      <Modal
+        visible={showSuccessAlert}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSuccessAlert(false)}
+      >
+        <TouchableOpacity
+          style={styles.successModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSuccessAlert(false)}
+        >
+          <View style={styles.successModalContainer}>
+            <View style={styles.successIconContainer}>
+              <LinearGradient
+                colors={[COLORS.brandTeal, '#0D9488']}
+                style={styles.successIconGradient}
+              >
+                <Icon name="check" size={40} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+            <Text style={styles.successModalTitle}>
+              {language === 'tr' ? 'İşlem Başlatıldı!' : 'Processing Started!'}
+            </Text>
+            <Text style={styles.successModalMessage}>
+              {language === 'tr'
+                ? `Sesiniz arka planda oluşturuluyor.\n${successEstimatedTime} içinde bildirim alacaksınız.`
+                : `Your audio is being created in the background.\nYou'll receive a notification in ${successEstimatedTime}.`}
+            </Text>
+            <View style={styles.successProgressRow}>
+              <Icon name="notifications-active" size={16} color={COLORS.brandTeal} />
+              <Text style={styles.successProgressText}>
+                {language === 'tr' ? 'Bildirim gönderilecek' : 'Notification will be sent'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.successModalButton}
+              onPress={() => setShowSuccessAlert(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.successModalButtonText}>
+                {language === 'tr' ? 'Tamam' : 'OK'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* CUSTOM ALERT */}
       <CustomAlert
         visible={alertVisible}
@@ -526,6 +677,7 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   badgeText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  topicActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   actionBtn: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   actionBtnPrimary: { flexBasis: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 12, backgroundColor: '#F97316' },
   actionBtnDanger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
@@ -553,6 +705,18 @@ const styles = StyleSheet.create({
   modalBtnSecondaryText: { fontSize: 14, fontWeight: '700', color: '#475569' },
   modalBtnPrimary: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#14B8A6', alignItems: 'center' },
   modalBtnPrimaryText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+
+  // Success Modal
+  successModalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  successModalContainer: { width: '100%', maxWidth: 340, backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.2, shadowRadius: 40, elevation: 24 },
+  successIconContainer: { marginBottom: 20 },
+  successIconGradient: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', shadowColor: COLORS.brandTeal, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8 },
+  successModalTitle: { fontSize: 22, fontWeight: '800', color: '#1E293B', textAlign: 'center', marginBottom: 12, letterSpacing: -0.3 },
+  successModalMessage: { fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 24, marginBottom: 20, fontWeight: '500' },
+  successProgressRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.brandTeal + '10', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, marginBottom: 24, gap: 8 },
+  successProgressText: { fontSize: 13, color: COLORS.brandTeal, fontWeight: '600' },
+  successModalButton: { width: '100%', backgroundColor: COLORS.brandTeal, paddingVertical: 16, borderRadius: 16, alignItems: 'center', shadowColor: COLORS.brandTeal, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 4 },
+  successModalButtonText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });
 
 export default TopicTreeScreen;

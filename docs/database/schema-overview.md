@@ -1,6 +1,6 @@
 # Database Schema Overview
 
-> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-01-31 | **Versiyon:** 2.5
+> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-02-03 | **Versiyon:** 2.6
 
 **Database:** PostgreSQL (Supabase)
 **Total Tables:** 83+ (including views)
@@ -257,6 +257,7 @@ User-uploaded documents (PDF, etc.).
 | mime_type | TEXT | File type |
 | page_count | INTEGER | Number of pages |
 | cover_image_url | TEXT | Cover image |
+| original_text | TEXT | Full original extracted text |
 | author | TEXT | Document author |
 
 ### document_sections (528 rows)

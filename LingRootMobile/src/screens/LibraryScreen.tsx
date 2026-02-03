@@ -21,11 +21,21 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAudioContext } from '../contexts/AudioContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
+import {
+  TourProvider,
+  LibraryTooltip,
+  LIBRARY_TOUR_STEPS,
+  LIBRARY_TOUR_KEY,
+  useTourAutoStart,
+} from '../components/GuideTour';
+
+const WalkthroughableView = walkthroughable(View);
 
 type ContentType = 'all' | 'podcast' | 'text' | 'topic' | 'file' | 'book';
 
-const LibraryScreen: React.FC = () => {
+const LibraryScreenContent: React.FC = () => {
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -51,6 +61,10 @@ const LibraryScreen: React.FC = () => {
   const audioTracksRef = useRef<AudioTrack[]>([]);
   const pageRef = useRef<number>(1);
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word');
+  const lang = language === 'tr' ? 'tr' : 'en';
+
+  // Guide tour auto-start
+  useTourAutoStart(LIBRARY_TOUR_KEY, 800);
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -688,7 +702,7 @@ const LibraryScreen: React.FC = () => {
     });
   };
 
-  const renderAudioTrack = ({ item }: { item: AudioTrack }) => {
+  const renderAudioTrack = ({ item, index }: { item: AudioTrack; index: number }) => {
     const isCurrentlyPlaying = isTrackPlaying(item.id);
 
     // Debug log sadece durumu değişen track'ler için
@@ -708,7 +722,7 @@ const LibraryScreen: React.FC = () => {
       }
     };
 
-    return (
+    const card = (
       <TouchableOpacity
         style={[
           styles.trackCard,
@@ -768,6 +782,18 @@ const LibraryScreen: React.FC = () => {
         </TouchableOpacity>
       </TouchableOpacity>
     );
+
+    if (index === 0) {
+      return (
+        <CopilotStep order={5} name="libraryTrackItem" text={LIBRARY_TOUR_STEPS.libraryTrackItem[lang]}>
+          <WalkthroughableView>
+            {card}
+          </WalkthroughableView>
+        </CopilotStep>
+      );
+    }
+
+    return card;
   };
 
   // Loading state handled inline now
@@ -802,66 +828,80 @@ const LibraryScreen: React.FC = () => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{language === 'tr' ? 'Kütüphane' : 'Library'}</Text>
-        <TouchableOpacity
-          style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
-          onPress={handleToggleFavorites}
-        >
-          <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#FFFFFF' : '#FFFFFF'} />
-          <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
-            {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Icon name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={language === 'tr' ? 'Ses dosyalarında ara...' : 'Search in audio files...'}
-            placeholderTextColor="#999"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-        </View>
-      </View>
-
-      {/* Type Filters */}
-      <View style={styles.typeFilterContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.typeFilterContent}
-        >
-          {typeOptions.map((opt) => (
+        <CopilotStep order={2} name="libraryFavorites" text={LIBRARY_TOUR_STEPS.libraryFavorites[lang]}>
+          <WalkthroughableView>
             <TouchableOpacity
-              key={opt.id}
-              style={[
-                styles.typeChip,
-                selectedType === opt.id && styles.typeChipActive,
-              ]}
-              onPress={() => setSelectedType(opt.id)}
+              style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
+              onPress={handleToggleFavorites}
             >
-              <Icon
-                name={opt.icon}
-                size={16}
-                color={selectedType === opt.id ? '#FFFFFF' : COLORS.slate500}
-                style={{ marginRight: 6 }}
-              />
-              <Text
-                style={[
-                  styles.typeChipText,
-                  selectedType === opt.id && styles.typeChipTextActive,
-                ]}
-              >
-                {language === 'tr' ? opt.labelTr : opt.labelEn}
+              <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#FFFFFF' : '#FFFFFF'} />
+              <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
+                {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </WalkthroughableView>
+        </CopilotStep>
       </View>
 
-      <View style={styles.levelFilter}>
+      <CopilotStep order={1} name="librarySearch" text={LIBRARY_TOUR_STEPS.librarySearch[lang]}>
+        <WalkthroughableView>
+          <View style={styles.searchContainer}>
+            <View style={styles.searchBox}>
+              <Icon name="search" size={20} color="#666" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={language === 'tr' ? 'Ses dosyalarında ara...' : 'Search in audio files...'}
+                placeholderTextColor="#999"
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+            </View>
+          </View>
+        </WalkthroughableView>
+      </CopilotStep>
+
+      {/* Type Filters */}
+      <CopilotStep order={3} name="libraryTypeFilter" text={LIBRARY_TOUR_STEPS.libraryTypeFilter[lang]}>
+        <WalkthroughableView>
+          <View style={styles.typeFilterContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.typeFilterContent}
+            >
+              {typeOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[
+                    styles.typeChip,
+                    selectedType === opt.id && styles.typeChipActive,
+                  ]}
+                  onPress={() => setSelectedType(opt.id)}
+                >
+                  <Icon
+                    name={opt.icon}
+                    size={16}
+                    color={selectedType === opt.id ? '#FFFFFF' : COLORS.slate500}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.typeChipText,
+                      selectedType === opt.id && styles.typeChipTextActive,
+                    ]}
+                  >
+                    {language === 'tr' ? opt.labelTr : opt.labelEn}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </WalkthroughableView>
+      </CopilotStep>
+
+      <CopilotStep order={4} name="libraryLevelFilter" text={LIBRARY_TOUR_STEPS.libraryLevelFilter[lang]}>
+        <WalkthroughableView>
+          <View style={styles.levelFilter}>
         {/* Row 1: A1, A2, B1 */}
         <View style={styles.levelFilterRow}>
           {(['A1', 'A2', 'B1'] as CEFRLevel[]).map((level) => (
@@ -907,7 +947,9 @@ const LibraryScreen: React.FC = () => {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+          </View>
+        </WalkthroughableView>
+      </CopilotStep>
 
       {loading && filteredTracks.length === 0 ? (
         <View style={styles.loadingContainer}>
@@ -974,6 +1016,12 @@ const LibraryScreen: React.FC = () => {
     </View>
   );
 };
+
+const LibraryScreen: React.FC = () => (
+  <TourProvider tooltip={LibraryTooltip}>
+    <LibraryScreenContent />
+  </TourProvider>
+);
 
 const styles = StyleSheet.create({
   container: {

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform, NativeModules } from 'react-native';
 import trTranslations from '../locales/tr.json';
 import enTranslations from '../locales/en.json';
 
@@ -29,13 +30,38 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   const [language, setLanguageState] = useState<Language>('en'); // Default to English
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load saved language from storage
+  // Load saved language from storage, or detect system language on first install
   useEffect(() => {
     const loadLanguage = async () => {
       try {
         const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
         if (savedLanguage && (savedLanguage === 'tr' || savedLanguage === 'en')) {
           setLanguageState(savedLanguage as Language);
+        } else {
+          // First install: detect system language and persist it
+          let systemLang = 'en';
+          try {
+            const { getLocales } = require('expo-localization');
+            const locales = getLocales();
+            systemLang = locales[0]?.languageCode ?? 'en';
+          } catch {
+            // expo-localization native module not available, fall back to RN
+            try {
+              const locale =
+                Platform.OS === 'ios'
+                  ? NativeModules.SettingsManager?.settings?.AppleLocale ||
+                    NativeModules.SettingsManager?.settings?.AppleLanguages?.[0]
+                  : NativeModules.I18nManager?.localeIdentifier;
+              if (typeof locale === 'string' && locale.startsWith('tr')) {
+                systemLang = 'tr';
+              }
+            } catch {
+              // ignore
+            }
+          }
+          const detected: Language = systemLang === 'tr' ? 'tr' : 'en';
+          setLanguageState(detected);
+          await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, detected);
         }
       } catch (error) {
       } finally {
