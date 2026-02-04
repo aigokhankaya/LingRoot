@@ -350,7 +350,7 @@ exports.searchPatterns = async (req, res) => {
       // For Turkish, search in translation field
       const result = await supabase
         .from('pattern_library')
-        .select('*')
+        .select('id, text, translation, type, lang, cefr_level, category, created_at, updated_at')
         .or(`text.ilike.%${searchQuery}%,translation.ilike.%${searchQuery}%`)
         .eq('lang', 'tr')
         .limit(50);
@@ -360,7 +360,7 @@ exports.searchPatterns = async (req, res) => {
       // For English, search in text field
       const result = await supabase
         .from('pattern_library')
-        .select('*')
+        .select('id, text, translation, type, lang, cefr_level, category, created_at, updated_at')
         .or(`text.ilike.%${searchQuery}%,translation.ilike.%${searchQuery}%`)
         .eq('lang', 'en')
         .limit(50);

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const contentController = require('../controllers/contentController');
 const { authenticate } = require('../middleware/authMiddleware');
+const { contentLimiter } = require('../middleware/security');
+const { redisCache } = require('../middleware/redisCache');
 const logger = require('../utils/common/logger.js');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
@@ -25,19 +27,19 @@ const upload = multer({
   }
 });
 
-// Process content routes
-router.post('/process-link', contentController.processLink);
-router.post('/process-text', contentController.processText);
-router.post('/process-file', contentController.processFile);
-router.post('/process-youtube', contentController.processYoutube);
-router.post('/process-web', contentController.processWeb);
-router.post('/process-book', contentController.processBook);
-router.post('/process-spotify', contentController.processSpotify);
-router.post('/process-suggestions', contentController.processSuggestions);
-router.post('/process-hashtag', contentController.processHashtag);
+// Process content routes (AI API calls - require authentication)
+router.post('/process-link', authenticate, contentController.processLink);
+router.post('/process-text', authenticate, contentController.processText);
+router.post('/process-file', authenticate, contentController.processFile);
+router.post('/process-youtube', authenticate, contentController.processYoutube);
+router.post('/process-web', authenticate, contentController.processWeb);
+router.post('/process-book', authenticate, contentController.processBook);
+router.post('/process-spotify', authenticate, contentController.processSpotify);
+router.post('/process-suggestions', authenticate, contentController.processSuggestions);
+router.post('/process-hashtag', authenticate, contentController.processHashtag);
 
 // Haber detayı için özel endpoint
-router.post('/article-details', contentController.fetchArticleDetails);
+router.post('/article-details', authenticate, contentController.fetchArticleDetails);
 
 // ✅ Yeni eklenen route:
 router.post('/submit', authenticate, contentController.submitContent);
@@ -50,17 +52,17 @@ router.get('/count', authenticate, contentController.getContentCount);
 router.get('/audio-count', authenticate, contentController.getContentCount);
 
 // Content history routes
-router.get('/history', authenticate, contentController.getContentHistory);
-router.get('/history/:id', authenticate, contentController.getContentById);
-router.delete('/history/:id', authenticate, contentController.deleteContent);
+router.get('/history', authenticate, contentLimiter, redisCache('content:history', 120), contentController.getContentHistory);
+router.get('/history/:id', authenticate, contentLimiter, contentController.getContentById);
+router.delete('/history/:id', authenticate, contentLimiter, contentController.deleteContent);
 
 // Progress tracking & Resume
-router.get('/in-progress', authenticate, contentController.getInProgress);
-router.put('/:id/progress', authenticate, contentController.updateProgress);
+router.get('/in-progress', authenticate, contentLimiter, contentController.getInProgress);
+router.put('/:id/progress', authenticate, contentLimiter, contentController.updateProgress);
 
 // Content Quizzes
-router.get('/:id/quiz', authenticate, contentController.generateQuiz);
-router.post('/:id/quiz/submit', authenticate, contentController.submitQuiz);
+router.get('/:id/quiz', authenticate, contentLimiter, contentController.generateQuiz);
+router.post('/:id/quiz/submit', authenticate, contentLimiter, contentController.submitQuiz);
 
 router.post('/', authenticate, contentController.createContent);
 // router.get('/history', authenticate, contentController.getUserContentHistory); // ÇAKIŞMA ÖNLENDİ

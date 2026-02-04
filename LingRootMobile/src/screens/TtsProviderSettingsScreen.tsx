@@ -324,4 +324,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TtsProviderSettingsScreen;
+export default React.memo(TtsProviderSettingsScreen);

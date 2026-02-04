@@ -67,8 +67,10 @@ try {
   // Silent error handling
 }
 
+// Global listener stored for cleanup capability
+let notificationTapListener: { remove(): void } | null = null;
 try {
-  DeviceEventEmitter.addListener('LingRootNotificationTapped', (data: any) => {
+  notificationTapListener = DeviceEventEmitter.addListener('LingRootNotificationTapped', (data: any) => {
     const wordId = data?.wordId;
     if (wordId) {
       const svc = NotificationService.getInstance?.();
@@ -322,6 +324,13 @@ class NotificationService {
       });
     }
     return { remove: () => { try { PushNotificationIOS.removeEventListener('notification'); } catch {} try { PushNotificationIOS.removeEventListener('localNotification'); } catch {} this.responseCallback = null; } };
+  }
+
+  public cleanup(): void {
+    notificationTapListener?.remove();
+    notificationTapListener = null;
+    this.responseCallback = null;
+    this.pendingWordId = null;
   }
 
   public consumePendingWordId(): string | null { const id = this.pendingWordId; this.pendingWordId = null; return id; }

@@ -8,7 +8,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Animated,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { CopilotStep, walkthroughable, useCopilot } from 'react-native-copilot';
@@ -33,8 +33,6 @@ import {
 
 const WalkthroughableView = walkthroughable(View);
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 // Feature card colors
 const FEATURE_COLORS = {
   blue: { bg: '#eff6ff', text: '#3b82f6', border: '#dbeafe', accent: '#3b82f6' },
@@ -48,6 +46,7 @@ const FEATURE_COLORS = {
 };
 
 const HomeScreenContent: React.FC = () => {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const navigation = useNavigation();
@@ -215,8 +214,25 @@ const HomeScreenContent: React.FC = () => {
           loading: false
         });
 
+        // Map raw API data to AudioTrack format (ensures original_turkish is populated)
+        const mappedTracks: AudioTrack[] = audioTracks.map((item: any) => ({
+          id: String(item.id),
+          title: item.adapted_text || item.translated_text || item.input || 'Untitled',
+          url: item.mp3_url || item.url || '',
+          level: item.level || 'B1',
+          duration: typeof item?.duration === 'number' ? item.duration : 180,
+          created_at: item.created_at,
+          input_type: item.input_type,
+          translated_text: item.translated_text,
+          adapted_text: item.adapted_text,
+          original_turkish: item.input || '',
+          mp3_url: item.mp3_url,
+          timepoints: item.timepoints ?? [],
+          words: item.words ?? [],
+        }));
+
         // Set recent tracks for Jump Back In (last 5)
-        setRecentTracks(audioTracks.slice(0, 5));
+        setRecentTracks(mappedTracks.slice(0, 5));
       } else {
         setStats({ audioCount: 0, totalDuration: 0, loading: false });
         setRecentTracks([]);
@@ -492,7 +508,10 @@ const HomeScreenContent: React.FC = () => {
                   key={feature.id}
                   style={[
                     styles.featureCard,
-                    { borderLeftColor: colorSet.accent }
+                    {
+                      width: (SCREEN_WIDTH - 48 - 12) / 2,
+                      borderLeftColor: colorSet.accent
+                    }
                   ]}
                   activeOpacity={0.9}
                   onPress={() => handleFeaturePress(feature)}
@@ -613,9 +632,8 @@ const HomeScreenContent: React.FC = () => {
                       style={styles.jumpBackInCard}
                       activeOpacity={0.9}
                       onPress={() => {
-                        // Navigate to Library and pass track to open player there
-                        // This avoids iOS freeze issue with nested modals
-                        navigation.navigate('Library', { playTrack: track });
+                        // Navigate directly to AudioPlayer screen
+                        navigation.navigate('AudioPlayer', { track, highlightMode: 'word' } as any);
                       }}
                     >
                       <View style={styles.jumpBackInIconContainer}>
@@ -906,7 +924,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   featureCard: {
-    width: (SCREEN_WIDTH - 48 - 12) / 2,
     height: 140,
     backgroundColor: COLORS.surface,
     borderRadius: 24,
@@ -1172,4 +1189,4 @@ const HomeScreen: React.FC = () => (
   </TourProvider>
 );
 
-export default HomeScreen;
+export default React.memo(HomeScreen);

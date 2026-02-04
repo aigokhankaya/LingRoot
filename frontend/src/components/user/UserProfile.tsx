@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { User } from '@/types/user';
 import { updateUser } from '@/services/userService';
 import Button from '@/components/common/Button';
@@ -42,10 +43,12 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdate }) => {
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <div className="flex items-center space-x-4 mb-6">
-        <img
+        <Image
           src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}`}
           alt={user.name}
-          className="h-16 w-16 rounded-full"
+          width={64}
+          height={64}
+          className="rounded-full object-cover"
         />
         <div>
           <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>

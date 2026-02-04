@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { getApiUrl } from './api';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
@@ -194,7 +194,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
 
     return () => clearInterval(interval);
   }, [checkTokenExpiry]);
-  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string; code?: string }> => {
+  const login = useCallback(async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string; code?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
       console.log("[API URL]", getApiUrl('/auth/login'));
@@ -341,11 +341,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       // If backend returned structured error previously, preserve code if present
       return { success: false, message: error.message || 'Giriş sırasında bir hata oluştu.', code: (error && (error as any).code) || undefined };
     }
-  };
+  }, []);
 
   /* checkTokenExpiry moved up */
 
-  const loginWithGoogle = async (credential: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
+  const loginWithGoogle = useCallback(async (credential: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] loginWithGoogle() called');
 
@@ -430,9 +430,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       }
       return { success: false, message: error.message || 'Google ile giriş sırasında bir hata oluştu.' };
     }
-  };
+  }, []);
 
-  const register = async (
+  const register = useCallback(async (
     firstName: string,
     lastName: string,
     email: string,
@@ -471,9 +471,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       }
       return { success: false, message: error.message || 'Kayıt sırasında bir hata oluştu.' };
     }
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    user, isAuthenticated, isLoading, login, loginWithGoogle, logout, register
+  }), [user, isAuthenticated, isLoading, login, loginWithGoogle, logout, register]);
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, loginWithGoogle, logout, register }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

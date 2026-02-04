@@ -507,6 +507,11 @@ const ChatScreen: React.FC = ({ navigation, route }: any) => {
           keyExtractor={(item) => item.id}
           style={styles.conversationsList}
           showsVerticalScrollIndicator={false}
+          getItemLayout={(_data, index) => ({
+            length: 72,
+            offset: 72 * index,
+            index,
+          })}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
@@ -601,6 +606,8 @@ const ChatScreen: React.FC = ({ navigation, route }: any) => {
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           contentContainerStyle={styles.messagesListContent}
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
         />
 
         <View style={styles.inputWrapper}>
@@ -1198,4 +1205,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ChatScreen;
+export default React.memo(ChatScreen);

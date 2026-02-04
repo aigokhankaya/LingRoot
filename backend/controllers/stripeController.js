@@ -22,7 +22,7 @@ const getStripeConfig = async () => {
   try {
     const { data: provider, error } = await supabase
       .from('payment_providers')
-      .select('*')
+      .select('id, name, secret_key, settings, environment, is_active, created_at, updated_at')
       .eq('name', 'stripe')
       .eq('is_active', true)
       .single();
@@ -88,7 +88,7 @@ exports.createPaymentIntent = async (req, res) => {
     // Plan bilgisini al
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('*')
+      .select('id, name, price, currency, description, interval, stripe_price_id, is_active')
       .eq('id', planId)
       .single();
 
@@ -196,7 +196,7 @@ exports.createCheckoutSession = async (req, res) => {
     // Plan bilgisini al
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('*')
+      .select('id, name, price, currency, description, interval, stripe_price_id, is_active')
       .eq('id', planId)
       .single();
 
@@ -376,7 +376,7 @@ exports.getPaymentStatus = async (req, res) => {
     // Transaction kaydını güncelle
     const { data: transaction } = await supabase
       .from('card_transactions')
-      .select('*')
+      .select('id, user_id, payment_provider_id, plan_id, transaction_type, status, amount, currency, stripe_payment_intent_id, created_at, processed_at')
       .eq('stripe_payment_intent_id', paymentIntentId)
       .single();
 
@@ -543,7 +543,7 @@ exports.adminRefund = async (req, res) => {
     // Transaction'ı bul
     const { data: transaction, error: txError } = await supabase
       .from('card_transactions')
-      .select('*')
+      .select('id, user_id, payment_provider_id, plan_id, transaction_type, status, amount, currency, stripe_payment_intent_id, stripe_payment_id, refunded_amount, created_at, processed_at')
       .eq('id', transactionId)
       .single();
 

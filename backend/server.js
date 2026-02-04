@@ -13,6 +13,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const hpp = require('hpp');
+const compression = require('compression');
 const path = require('path');
 const { createServer } = require('http');
 
@@ -102,6 +103,7 @@ app.use(helmet({
     hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }
 }));
 app.use(hpp());
+app.use(compression());
 
 // CORS configuration
 const allowedOrigins = [

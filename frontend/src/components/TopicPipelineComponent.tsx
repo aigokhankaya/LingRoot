@@ -81,7 +81,7 @@ export default function TopicPipelineComponent() {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:5001/api/topic-pipeline/suggestions', {
+      const response = await fetch('/api/topic-pipeline/suggestions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ export default function TopicPipelineComponent() {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:5001/api/topic-pipeline/generate', {
+      const response = await fetch('/api/topic-pipeline/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -9,7 +9,7 @@ import {
   Modal,
   Alert,
   FlatList,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,9 +45,8 @@ import {
 
 const WalkthroughableView = walkthroughable(View);
 
-const { width } = Dimensions.get('window');
-
 function VocabularyScreenContent({ navigation, route }: any) {
+  const { width } = useWindowDimensions();
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const lang = language === 'tr' ? 'tr' : 'en';
@@ -601,19 +600,19 @@ function VocabularyScreenContent({ navigation, route }: any) {
       >
         <>
           {/* İstatistikler */}
-          <CopilotStep order={1} name="vocabStats" text={VOCABULARY_TOUR_STEPS.vocabStats[lang]}>
-            <WalkthroughableView style={styles.statsContainer}>
-              <View style={styles.statsHeader}>
-                <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
-                <CopilotStep order={2} name="vocabAddWord" text={VOCABULARY_TOUR_STEPS.vocabAddWord[lang]}>
-                  <WalkthroughableView>
-                    <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
-                      <Ionicons name="add" size={24} color="#3B82F6" />
-                    </TouchableOpacity>
-                  </WalkthroughableView>
-                </CopilotStep>
-              </View>
-              <View style={styles.statsGrid}>
+          <View style={styles.statsContainer}>
+            <View style={styles.statsHeader}>
+              <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
+              <CopilotStep order={2} name="vocabAddWord" text={VOCABULARY_TOUR_STEPS.vocabAddWord[lang]}>
+                <WalkthroughableView>
+                  <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
+                    <Ionicons name="add" size={24} color="#3B82F6" />
+                  </TouchableOpacity>
+                </WalkthroughableView>
+              </CopilotStep>
+            </View>
+            <CopilotStep order={1} name="vocabStats" text={VOCABULARY_TOUR_STEPS.vocabStats[lang]}>
+              <WalkthroughableView style={styles.statsGrid}>
                 <View style={styles.statCard}>
                   <Text style={styles.statNumber}>{stats.total}</Text>
                   <Text style={styles.statLabel}>{t('vocabulary.totalWords')}</Text>
@@ -626,9 +625,9 @@ function VocabularyScreenContent({ navigation, route }: any) {
                   <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.notLearned}</Text>
                   <Text style={styles.statLabel}>{t('vocabulary.notLearned')}</Text>
                 </View>
-              </View>
-            </WalkthroughableView>
-          </CopilotStep>
+              </WalkthroughableView>
+            </CopilotStep>
+          </View>
 
           {/* Arama ve Filtreleme */}
           <View style={styles.searchContainer}>
@@ -724,8 +723,13 @@ function VocabularyScreenContent({ navigation, route }: any) {
                   ref={flatListRef}
                   data={filteredWords.slice(1)}
                   renderItem={renderWord}
-                  keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                  keyExtractor={(item) => item.id?.toString() || `word-${item.word}`}
                   scrollEnabled={false}
+                  getItemLayout={(_data, index) => ({
+                    length: 80,
+                    offset: 80 * index,
+                    index,
+                  })}
                 />
               </>
             ) : (
@@ -1315,10 +1319,12 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function VocabularyScreen(props: Record<string, unknown>) {
+function VocabularyScreen(props: Record<string, unknown>) {
   return (
     <TourProvider tooltip={VocabularyTooltip} maskPath={roundedMaskPath}>
       <VocabularyScreenContent {...props} />
     </TourProvider>
   );
 }
+
+export default React.memo(VocabularyScreen);

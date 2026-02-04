@@ -1191,18 +1191,14 @@ export const apiService = {
   },
 
   // Toggle favorite - Uses @lingroot/api-client
+  // Throws on error so callers can revert optimistic UI updates
   async toggleUserFavorite(itemId: string, itemType: string = 'content_item'): Promise<boolean> {
-    try {
-      const client = await getApiClientAsync();
-      const response = await client.http.post('/api/favorites/toggle', {
-        itemType,
-        itemId
-      });
-      return response.data?.success || false;
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      return false;
-    }
+    const client = await getApiClientAsync();
+    const response = await client.http.post('/api/favorites/toggle', {
+      itemType,
+      itemId
+    });
+    return response.data?.success || false;
   },
 
   async getUserFavoriteDetails(): Promise<any[]> {

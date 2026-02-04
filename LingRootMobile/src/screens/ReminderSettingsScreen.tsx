@@ -649,4 +649,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ReminderSettingsScreen;
+export default React.memo(ReminderSettingsScreen);

@@ -180,7 +180,7 @@ async function handleSubscriptionRenewal(notificationId, transactionId, productI
     // Find subscription by apple_transaction_id
     const { data: subscription, error: findError } = await supabase
       .from('subscriptions')
-      .select('*')
+      .select('id, user_id, apple_transaction_id, environment, status, enddate, plantype, created_at, updated_at')
       .eq('apple_transaction_id', transactionId)
       .single();
 

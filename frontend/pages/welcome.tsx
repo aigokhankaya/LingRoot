@@ -7,22 +7,21 @@ import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
-  FaUserEdit,
-  FaVolumeUp,
-  FaBook,
-  FaCheckCircle,
-  FaExclamationCircle,
-  FaSitemap,
-  FaPodcast,
-  FaLightbulb,
-  FaYoutube,
-  FaFileWord,
-  FaFileAlt,
-  FaLink,
-  FaGraduationCap,
-  FaPlus,
-  FaBriefcase,
-} from 'react-icons/fa';
+  UserPen,
+  Volume2,
+  BookOpen,
+  CheckCircle,
+  AlertCircle,
+  Network,
+  Radio,
+  Lightbulb,
+  Youtube,
+  FileText,
+  Link2,
+  GraduationCap,
+  Plus,
+  Briefcase,
+} from 'lucide-react';
 import { MessageSquare } from 'lucide-react';
 import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails, createDocumentFromText, DocumentRecord, DocumentSection } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
@@ -470,17 +469,17 @@ const Welcome: React.FC = () => {
 
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
-    { id: 'topic_tree', name: t('content_type_topic_tree'), icon: <FaSitemap /> },
-    { id: 'book', name: t('book'), icon: <FaBook /> },
-    { id: 'podcast', name: t('podcast'), icon: <FaPodcast /> },
-    { id: 'topic', name: t('content_type_hobbies'), icon: <FaLightbulb /> },
-    { id: 'youtube', name: t('youtube'), icon: <FaYoutube /> },
-    { id: 'youtube_v2', name: 'YouTube Transcript YENİ Versiyon', icon: <FaYoutube /> },
-    { id: 'document', name: t('document'), icon: <FaFileWord /> },
-    { id: 'text', name: t('text'), icon: <FaFileAlt /> },
-    { id: 'sectors', name: t('web_link'), icon: <FaBriefcase /> },
-    { id: 'subject', name: t('subject'), icon: <FaGraduationCap /> },
-    { id: 'custom', name: t('content_type_custom'), icon: <FaPlus /> },
+    { id: 'topic_tree', name: t('content_type_topic_tree'), icon: <Network /> },
+    { id: 'book', name: t('book'), icon: <BookOpen /> },
+    { id: 'podcast', name: t('podcast'), icon: <Radio /> },
+    { id: 'topic', name: t('content_type_hobbies'), icon: <Lightbulb /> },
+    { id: 'youtube', name: t('youtube'), icon: <Youtube /> },
+    { id: 'youtube_v2', name: 'YouTube Transcript YENİ Versiyon', icon: <Youtube /> },
+    { id: 'document', name: t('document'), icon: <FileText /> },
+    { id: 'text', name: t('text'), icon: <FileText /> },
+    { id: 'sectors', name: t('web_link'), icon: <Briefcase /> },
+    { id: 'subject', name: t('subject'), icon: <GraduationCap /> },
+    { id: 'custom', name: t('content_type_custom'), icon: <Plus /> },
   ];
 
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster

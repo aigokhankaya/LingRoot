@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 import {
     ArrowLeft, BookOpen, User, FileText,
     Headphones, Play, Pause, Loader2, Wand2, AlertCircle, ChevronDown, ChevronUp
@@ -310,9 +311,9 @@ export default function BookDetailsPage() {
                 <Card className="border-0 shadow-lg overflow-hidden bg-white">
                     <div className="flex flex-col md:flex-row">
                         {/* Cover Image Side */}
-                        <div className="w-full md:w-64 h-64 md:h-auto bg-slate-100 flex-shrink-0 relative">
+                        <div className="relative w-full md:w-64 h-64 md:h-auto bg-slate-100 flex-shrink-0">
                             {book.cover_url ? (
-                                <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                                <Image src={book.cover_url} alt={book.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 256px" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-300">
                                     <BookOpen className="w-20 h-20" />

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { SWRConfig } from 'swr';
 import { AuthProvider } from '@/lib/auth';
 import { MembershipProvider } from '@/context/MembershipContext';
 import { RTLProvider } from '@/components/providers/RTLProvider';
@@ -19,13 +20,19 @@ export default function ClientLayout({
   }, []);
 
   return (
-    <AuthProvider>
-      <AnalyticsTracker />
-      <MembershipProvider>
-        <RTLProvider>
-          {children}
-        </RTLProvider>
-      </MembershipProvider>
-    </AuthProvider>
+    <SWRConfig value={{
+      revalidateOnFocus: false,
+      shouldRetryOnError: true,
+      errorRetryCount: 2,
+    }}>
+      <AuthProvider>
+        <AnalyticsTracker />
+        <MembershipProvider>
+          <RTLProvider>
+            {children}
+          </RTLProvider>
+        </MembershipProvider>
+      </AuthProvider>
+    </SWRConfig>
   );
 }

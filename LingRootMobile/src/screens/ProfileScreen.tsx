@@ -505,4 +505,4 @@ const ProfileScreen: React.FC = () => (
   </TourProvider>
 );
 
-export default ProfileScreen;
+export default React.memo(ProfileScreen);

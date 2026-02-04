@@ -8,29 +8,63 @@ exports.getUserStats = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Get vocabulary count
-    const { data: vocabulary, error: vocabError } = await supabase
-      .from('user_vocabulary')
-      .select('id, created_at, is_learned')
-      .eq('user_id', userId);
+    // Get activity data (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Today's date for daily goal query
+    const today = new Date().toISOString().split('T')[0];
+    const todayStart = new Date(today + 'T00:00:00.000Z').toISOString();
+    const todayEnd = new Date(today + 'T23:59:59.999Z').toISOString();
+
+    // Run all 6 queries in parallel (split vocabulary into 2 count queries for efficiency)
+    const [vocabTotalResult, vocabLearnedResult, subscriptionResult, recentVocabResult, todayContentResult] = await Promise.all([
+      // Get total vocabulary count (count only, no data)
+      supabase
+        .from('user_vocabulary')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      // Get learned vocabulary count (count only, no data)
+      supabase
+        .from('user_vocabulary')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_learned', true),
+      // Get audio creation count
+      supabase
+        .from('subscriptions')
+        .select('audio_creation_count, plantype')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      // Get recent vocabulary (last 30 days) - only dates needed for streak calculation
+      supabase
+        .from('user_vocabulary')
+        .select('created_at')
+        .eq('user_id', userId)
+        .gte('created_at', thirtyDaysAgo.toISOString()),
+      // Get today's content for daily goal (only duration_seconds needed)
+      supabase
+        .from('content_history')
+        .select('duration_seconds')
+        .eq('user_id', userId)
+        .gte('created_at', todayStart)
+        .lte('created_at', todayEnd),
+    ]);
+
+    const { count: totalWords, error: vocabError } = vocabTotalResult;
     if (vocabError) {
       logger.error('Error fetching vocabulary stats:', vocabError);
     }
 
-    const totalWords = vocabulary?.length || 0;
-    const learnedWords = vocabulary?.filter(v => v.is_learned)?.length || 0;
+    const { count: learnedWords, error: vocabLearnedError } = vocabLearnedResult;
+    if (vocabLearnedError) {
+      logger.error('Error fetching learned vocabulary stats:', vocabLearnedError);
+    }
 
-    // Get audio creation count
-    const { data: subscription, error: subError } = await supabase
-      .from('subscriptions')
-      .select('audio_creation_count, plantype')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
+    const { data: subscription, error: subError } = subscriptionResult;
     if (subError) {
       logger.error('Error fetching subscription stats:', subError);
     }
@@ -38,16 +72,7 @@ exports.getUserStats = async (req, res) => {
     const audioCreationCount = subscription?.audio_creation_count || 0;
     const currentPlan = subscription?.plantype || 'Free Trial';
 
-    // Get activity data (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const { data: recentVocab, error: recentVocabError } = await supabase
-      .from('user_vocabulary')
-      .select('created_at')
-      .eq('user_id', userId)
-      .gte('created_at', thirtyDaysAgo.toISOString());
-
+    const { data: recentVocab, error: recentVocabError } = recentVocabResult;
     if (recentVocabError) {
       logger.error('Error fetching recent vocabulary:', recentVocabError);
     }
@@ -100,18 +125,7 @@ exports.getUserStats = async (req, res) => {
     longestStreak = Math.max(longestStreak, tempStreak);
 
     // Calculate daily goal progress based on actual listening time
-    const today = new Date().toISOString().split('T')[0];
-    const todayStart = new Date(today + 'T00:00:00.000Z').toISOString();
-    const todayEnd = new Date(today + 'T23:59:59.999Z').toISOString();
-
-    // Fetch today's content history to calculate listening duration
-    const { data: todayContent, error: contentError } = await supabase
-      .from('content_history')
-      .select('duration_seconds')
-      .eq('user_id', userId)
-      .gte('created_at', todayStart)
-      .lte('created_at', todayEnd);
-
+    const { data: todayContent, error: contentError } = todayContentResult;
     if (contentError) {
       logger.error('Error fetching today content for daily goal:', contentError);
     }
@@ -138,9 +152,9 @@ exports.getUserStats = async (req, res) => {
 
     const stats = {
       vocabulary: {
-        total: totalWords,
-        learned: learnedWords,
-        inProgress: totalWords - learnedWords
+        total: totalWords || 0,
+        learned: learnedWords || 0,
+        inProgress: (totalWords || 0) - (learnedWords || 0)
       },
       subscription: {
         plan: currentPlan,

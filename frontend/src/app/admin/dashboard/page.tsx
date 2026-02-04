@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from "next-themes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -22,20 +22,27 @@ import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import * as echarts from 'echarts';
+import * as echarts from 'echarts/core';
+import { BarChart, PieChart, HeatmapChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent, LegendComponent, TitleComponent, VisualMapComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
+echarts.use([BarChart, PieChart, HeatmapChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, VisualMapComponent, CanvasRenderer]);
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } from '@/services/userService';
 // Paket Bilgilerim kullanıcı dashboard'ına taşındı
-import AdminChatInterface from '@/components/AdminChatInterface';
 import TtsProviderSelector from '@/components/admin/TtsProviderSelector';
 import EnvironmentSelector from '@/components/admin/EnvironmentSelector';
 import PaymentEnvironmentSelector from '@/components/admin/PaymentEnvironmentSelector';
-import ApiCostDashboard from '@/components/admin/ApiCostDashboard';
-import JobDashboard from '@/components/admin/JobDashboard';
 
-const App: React.FC = () => {
+const AdminChatInterface = dynamic(() => import('@/components/AdminChatInterface'), { ssr: false });
+const ApiCostDashboard = dynamic(() => import('@/components/admin/ApiCostDashboard'), { ssr: false });
+const JobDashboard = dynamic(() => import('@/components/admin/JobDashboard'), { ssr: false });
+
+const AppContent: React.FC = () => {
 
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("kullanici-yonetimi");
@@ -2075,5 +2082,15 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default function App() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    }>
+      <AppContent />
+    </Suspense>
+  );
+}
 

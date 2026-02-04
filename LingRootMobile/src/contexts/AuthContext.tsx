@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService } from '../services/api';
@@ -251,7 +251,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
     try {
 
@@ -356,9 +356,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // silent in production
       throw error;
     }
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, fullName?: string, phoneNumber?: string) => {
+  const signUp = useCallback(async (email: string, password: string, fullName?: string, phoneNumber?: string) => {
     setIsLoading(true);
     try {
       await authService.signUp(email, password, fullName, phoneNumber);
@@ -369,9 +369,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     setIsLoading(true);
     try {
       // Clear tokens (SecureStore) and user data (AsyncStorage)
@@ -391,10 +391,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, []);
 
   // Social authentication handler
-  const handleSocialAuth = async (socialResult: SocialAuthResult) => {
+  const handleSocialAuth = useCallback(async (socialResult: SocialAuthResult) => {
     const API_BASE_URL = await getApiBaseUrl();
 
     // Determine endpoint based on provider
@@ -494,9 +494,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       throw new Error(data.message || 'Sosyal giriş başarısız');
     }
-  };
+  }, []);
 
-  const signInWithGoogleProvider = async () => {
+  const signInWithGoogleProvider = useCallback(async () => {
     setIsLoading(true);
     try {
       const isConnected = await apiService.checkConnectivity();
@@ -511,9 +511,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, [handleSocialAuth]);
 
-  const signInWithFacebookProvider = async () => {
+  const signInWithFacebookProvider = useCallback(async () => {
     setIsLoading(true);
     try {
       const isConnected = await apiService.checkConnectivity();
@@ -528,9 +528,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, [handleSocialAuth]);
 
-  const signInWithAppleProvider = async () => {
+  const signInWithAppleProvider = useCallback(async () => {
     setIsLoading(true);
     try {
       const isConnected = await apiService.checkConnectivity();
@@ -553,9 +553,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, [handleSocialAuth]);
 
-  const updateUserProfile = async (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => {
+  const updateUserProfile = useCallback(async (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => {
     if (!user) throw new Error('Oturum bulunamadı');
     try {
       await apiService.updateProfile(user.id, data as any);
@@ -569,9 +569,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       throw new Error(error?.message || 'Profil güncelleme başarısız');
     }
-  };
+  }, [user]);
 
-  const value: AuthContextType = {
+  const value: AuthContextType = useMemo(() => ({
     user,
     isLoading,
     signIn,
@@ -581,7 +581,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithGoogle: signInWithGoogleProvider,
     signInWithFacebook: signInWithFacebookProvider,
     signInWithApple: signInWithAppleProvider,
-  };
+  }), [user, isLoading, signIn, signUp, signOut, updateUserProfile, signInWithGoogleProvider, signInWithFacebookProvider, signInWithAppleProvider]);
 
   return (
     <AuthContext.Provider value={value}>

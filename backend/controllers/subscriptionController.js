@@ -67,14 +67,14 @@ exports.createCheckoutSession = async (req, res) => {
       });
     }
 
-    // Get plan details
-    logger.debug(`Fetching plan details for Plan ID: ${planId}`);
-    const { data: plan, error: planError } = await supabase
-      .from("subscription_plans")
-      .select("*")
-      .eq("id", planId)
-      .single();
+    // Fetch plan and user details in parallel (independent queries)
+    logger.debug(`Fetching plan (${planId}) and user (${userId}) details in parallel`);
+    const [planResult, userResult] = await Promise.all([
+      supabase.from("subscription_plans").select("*").eq("id", planId).single(),
+      supabase.from("users").select("email").eq("id", userId).single(),
+    ]);
 
+    const { data: plan, error: planError } = planResult;
     if (planError || !plan) {
       logger.warn(`Create checkout session failed: Plan ID ${planId} not found or Supabase error:`, planError);
       return res.status(404).json({
@@ -83,14 +83,7 @@ exports.createCheckoutSession = async (req, res) => {
       });
     }
 
-    // Get user details
-    logger.debug(`Fetching user details for User ID: ${userId}`);
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("email")
-      .eq("id", userId)
-      .single();
-
+    const { data: user, error: userError } = userResult;
     if (userError || !user) {
       logger.warn(`Create checkout session failed: User ID ${userId} not found or Supabase error:`, userError);
       return res.status(404).json({
@@ -378,7 +371,7 @@ exports.getUserSubscription = async (req, res) => {
       if (sub.plan_id) {
         const { data: p } = await supabase
           .from('subscription_plans')
-          .select('*')
+          .select('id, name, price, plantype, is_active, audio_limit, features, monthly_price, yearly_price, description, interval, created_at')
           .eq('id', sub.plan_id)
           .single();
         plan = p || null;
@@ -683,7 +676,7 @@ exports.mockIyzicoPayment = async (req, res) => {
     // Verify plan exists and active
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('*')
+      .select('id, name, price, plantype, is_active, audio_limit, features, interval, created_at')
       .eq('id', planId)
       .eq('is_active', true)
       .single();

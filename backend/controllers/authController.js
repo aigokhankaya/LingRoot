@@ -9,11 +9,7 @@ const { logStep } = require('../utils/common/stepLogger.js');
 const { v4: uuidv4 } = require('uuid');
 const { sendRegistrationNotification } = require('../utils/notifications/registrationNotifier.js');
 const { sendMail } = require('../utils/notifications/mailer.js');
-const { OAuth2Client } = require('google-auth-library');
-const appleSignin = require('apple-signin-auth');
-
-// Google OAuth client for JWT verification
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const { googleLoginService, facebookLoginService, appleLoginService } = require('../services/oauthService.js');
 
 // Dummy hash for constant-time comparison when user is not found (timing attack prevention)
 const DUMMY_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
@@ -45,51 +41,6 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";  // 15 minutes
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d"; // 7 days
 
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
-
-// Helper function to send verification email
-const sendVerificationEmail = async (email, verificationToken, firstName = '', lastName = '') => {
-  try {
-    // Update user with verification token
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const { error: verErr } = await supabase
-      .from('users')
-      .update({
-        verification_token: verificationToken,
-        verification_expires: verificationExpires,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('email', email);
-
-    if (verErr) {
-      logger.warn('[SEND_VERIFICATION] Failed to set verification token:', verErr);
-      throw verErr;
-    }
-
-    // Generate verification URL
-    const frontendBaseUrl = process.env.FRONTEND_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_FRONTEND_URL || '';
-    const verifyUrl = frontendBaseUrl
-      ? `${frontendBaseUrl.replace(/\/$/, '')}/verify?token=${encodeURIComponent(verificationToken)}`
-      : `https://lingloops-backend.onrender.com/api/auth/verify-email/${encodeURIComponent(verificationToken)}`;
-
-    // Send email
-    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'LingRoot Kullanıcısı';
-    await sendMail({
-      to: email,
-      subject: 'LingRoot Hesap Aktivasyonu',
-      text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 24 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
-      html: `<p>Merhaba ${fullName},</p>
-             <p>Hesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:</p>
-             <p><a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">Hesabımı Doğrula</a></p>
-             <p>Bağlantı 24 saat geçerlidir.</p>
-             <p>Teşekkürler,<br/>LingRoot Ekibi</p>`
-    });
-
-    logger.info(`[SEND_VERIFICATION] Verification email sent to ${email}`);
-  } catch (error) {
-    logger.error('[SEND_VERIFICATION] Failed to send verification email:', error);
-    throw error;
-  }
-};
 
 // Always issue a long-lived token based on env config
 const generateToken = (id, email, role, _rememberMe = false) => {
@@ -301,7 +252,7 @@ exports.register = async (req, res) => {
     try {
       const { data: trialPlan, error: planErr } = await supabase
         .from('subscription_plans')
-        .select('*')
+        .select('id, name, price, plantype, is_active, audio_limit, features, monthly_price, yearly_price, description, created_at')
         .eq('name', 'Free Trial')
         .eq('is_active', true)
         .maybeSingle();
@@ -438,7 +389,7 @@ exports.login = async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select("*")
+      .select("id, email, password, role, isverified, firstname, lastname, phonenumber, stripecustomerid, membership_status, default_level, cefr_level, verificationtoken, resetpasswordtoken")
       .eq("email", email)
       .single();
     if (error) logger.error('[LOGIN] Error fetching user:', error);
@@ -477,8 +428,8 @@ exports.login = async (req, res) => {
 
     // Remove sensitive data before sending response
     delete user.password;
-    delete user.verificationToken;
-    delete user.resetPasswordToken;
+    delete user.verificationtoken;
+    delete user.resetpasswordtoken;
 
     // Attach normalized name fields
     user.full_name = safeFull;
@@ -508,7 +459,7 @@ exports.getCurrentUser = async (req, res) => {
     const { id } = req.user;
     const { data: user, error } = await supabase
       .from('users')
-      .select("*")
+      .select("id, email, role, isverified, firstname, lastname, phonenumber, stripecustomerid, membership_status, membershipStatus, default_level, cefr_level, created_at, updated_at")
       .eq("id", id)
       .single();
 
@@ -518,8 +469,8 @@ exports.getCurrentUser = async (req, res) => {
 
     // Remove sensitive data
     delete user.password;
-    delete user.verificationToken;
-    delete user.resetPasswordToken;
+    delete user.verificationtoken;
+    delete user.resetpasswordtoken;
 
     // Normalize user fields for frontend
     user.role = user.role || 'user';
@@ -537,360 +488,80 @@ exports.facebookLogin = async (req, res) => {
   try {
     const { credential, rememberMe } = req.body;
 
-    if (!credential) {
-      return res.status(400).json({ success: false, code: 'MISSING_TOKEN', message: "Facebook access token gerekli" });
-    }
+    const result = await facebookLoginService(credential, rememberMe);
 
-    // Facebook Graph API'den kullanıcı bilgilerini al
-    const axios = require('axios');
-    let facebookUser;
-
+    // Record successful login
     try {
-      const response = await axios.get('https://graph.facebook.com/me', {
-        params: { fields: 'id,name,email,first_name,last_name,picture.type(large)' },
-        headers: { Authorization: `Bearer ${credential}` }
-      });
-      facebookUser = response.data;
-
-      logger.info('[FACEBOOK_LOGIN] User info received', { email: facebookUser.email, name: facebookUser.name });
-    } catch (fbError) {
-      logger.error('[FACEBOOK_LOGIN] Facebook API hatası:', fbError);
-      return res.status(400).json({ success: false, code: 'INVALID_TOKEN', message: "Geçersiz Facebook access token" });
-    }
-
-    const { email, name, first_name, last_name } = facebookUser;
-
-    if (!email) {
-      return res.status(400).json({ success: false, code: 'EMAIL_REQUIRED', message: "Facebook hesabından email alınamadı" });
-    }
-
-    // Kullanıcının zaten var olup olmadığını kontrol et
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select("*")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (fetchError) {
-      logger.error('[FACEBOOK_LOGIN] Kullanıcı sorgulama hatası:', fetchError);
-      return res.status(500).json({ success: false, code: 'DB_ERROR', message: "Veritabanı hatası" });
-    }
-
-    let user;
-
-    if (existingUser) {
-      // Mevcut kullanıcı - email doğrulanmış mı kontrol et
-      if (!existingUser.isverified) {
-        return res.status(403).json({
-          success: false,
-          message: "Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.",
-          code: "EMAIL_NOT_VERIFIED"
-        });
-      }
-
-      // Kullanıcı aktif, giriş yapabilir
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('users')
-        .update({ updated_at: new Date().toISOString() })
-        .eq("id", existingUser.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        logger.error('[FACEBOOK_LOGIN] Kullanıcı güncelleme hatası:', updateError);
-        return res.status(500).json({ success: false, code: 'UPDATE_FAILED', message: "Kullanıcı güncellenemedi" });
-      }
-
-      user = updatedUser;
-    } else {
-      // Yeni kullanıcı oluştur - aktivasyon gerekli
-      const verificationToken = crypto.randomBytes(32).toString('hex');
-
-      const newUserData = {
-        firstname: first_name || name?.split(' ')[0] || 'Facebook',
-        lastname: last_name || name?.split(' ').slice(1).join(' ') || 'User',
-        email: email,
-        phonenumber: null,
-        password: 'facebook-oauth',
-        role: "user",
-        isverified: false, // Aktivasyon gerekli
-        verificationtoken: verificationToken,
-        dailycontentused: 0,
-        lastcontentdate: null,
-        stripecustomerid: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { data: createdUser, error: createError } = await supabase
-        .from('users')
-        .insert([newUserData])
-        .select()
-        .single();
-
-      if (createError) {
-        logger.error('[FACEBOOK_LOGIN] Kullanıcı oluşturma hatası:', createError);
-        return res.status(500).json({ success: false, code: 'CREATE_FAILED', message: "Kullanıcı oluşturulamadı" });
-      }
-
-      user = createdUser;
-
-      // Send verification email to new Facebook users
-      try {
-        await sendVerificationEmail(email, verificationToken, first_name || name?.split(' ')[0], last_name || name?.split(' ').slice(1).join(' '));
-      } catch (emailError) {
-        logger.error('[FACEBOOK_LOGIN] Verification email failed:', emailError);
-      }
-
-      // Send registration notification
-      try {
-        await sendRegistrationNotification(user);
-      } catch (notificationErr) {
-        logger.warn('[FACEBOOK_LOGIN] Registration notification failed:', notificationErr?.message);
-      }
-
-      // Return early with verification required message
-      return res.status(403).json({
-        success: false,
-        message: "Hesabınız oluşturuldu. Lütfen email adresinize gönderilen doğrulama linkine tıklayarak hesabınızı aktifleştirin.",
-        code: "EMAIL_NOT_VERIFIED"
-      });
-    }
-
-    const token = generateToken(user.id, user.email, user.role, rememberMe);
-    const refreshToken = generateRefreshToken(user.id);
-
-    delete user.password;
-    delete user.verificationToken;
-    delete user.resetPasswordToken;
-
-    try { await recordLoginAttempt(user.id, req, { success: true, message: 'facebook_login_success' }); } catch { }
+      await recordLoginAttempt(result.user.id, req, { success: true, message: 'facebook_login_success' });
+    } catch { }
 
     return res.status(200).json({
       success: true,
       message: "Facebook ile giriş başarılı",
-      data: {
-        user,
-        token,
-        refreshToken
-      }
+      data: result
     });
 
   } catch (error) {
     logger.error("Facebook login error", error);
+
+    // Handle service-layer errors
+    if (error.code) {
+      const statusCode = error.code === 'EMAIL_NOT_VERIFIED' ? 403 :
+                        error.code === 'MISSING_TOKEN' ? 400 :
+                        error.code === 'INVALID_TOKEN' ? 400 :
+                        error.code === 'EMAIL_REQUIRED' ? 400 :
+                        error.code === 'DB_ERROR' ? 500 :
+                        error.code === 'UPDATE_FAILED' ? 500 :
+                        error.code === 'CREATE_FAILED' ? 500 : 500;
+
+      return res.status(statusCode).json({
+        success: false,
+        code: error.code,
+        message: error.message
+      });
+    }
+
     return res.status(500).json({ success: false, code: 'SERVER_ERROR', message: error.message || "Sunucu hatası" });
   }
 };
-
-// Apple Login
-// Duplicate Apple Login function removed - using the updated version below
 
 exports.googleLogin = async (req, res) => {
   try {
     const { credential, rememberMe } = req.body;
 
-    if (!credential) {
-      return res.status(400).json({ success: false, message: "Google credential gerekli" });
-    }
+    const result = await googleLoginService(credential, rememberMe);
 
-    // Google credential'ı decode et
-    let googleUser;
-
-    // Credential'ın tipini belirle (JWT vs Access Token)
-    // JWT'ler 3 bölümden oluşur: header.payload.signature
-    const parts = credential.split('.');
-    const isJWT = parts.length === 3;
-
-    logger.debug('[GOOGLE_LOGIN] Credential analysis', { length: credential.length, parts: parts.length, isJWT });
-
+    // Record successful login
     try {
-      if (isJWT) {
-        // JWT token verify with Google's public keys (One Tap)
-        logger.debug('[GOOGLE_LOGIN] Verifying JWT credential with Google');
-        const ticket = await googleClient.verifyIdToken({
-          idToken: credential,
-          audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        googleUser = ticket.getPayload();
-        logger.info('[GOOGLE_LOGIN] JWT verification successful', { email: googleUser.email, name: googleUser.name });
-      } else {
-        // Access token ile Google API'den kullanıcı bilgilerini al (OAuth popup durumu)
-        logger.debug('[GOOGLE_LOGIN] Fetching user info with access token');
-        const axios = require('axios');
-
-        const response = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
-          headers: { Authorization: `Bearer ${credential}` }
-        });
-        googleUser = response.data;
-
-        // JWT formatına uygun hale getir
-        googleUser.sub = googleUser.id;
-        googleUser.given_name = googleUser.given_name || googleUser.name?.split(' ')[0];
-        googleUser.family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ');
-
-        logger.info('[GOOGLE_LOGIN] Access token user info received', { email: googleUser.email, name: googleUser.name });
-      }
-    } catch (decodeError) {
-      logger.error('[GOOGLE_LOGIN] Credential decode hatası:', decodeError);
-      logger.error('[GOOGLE_LOGIN] Credential decode failed', { type: isJWT ? 'JWT' : 'AccessToken', length: credential.length });
-      return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
-    }
-
-    const { email, name, given_name, family_name, picture } = googleUser;
-
-    if (!email) {
-      return res.status(400).json({ success: false, message: "Google hesabından email alınamadı" });
-    }
-
-    // Kullanıcının zaten var olup olmadığını kontrol et
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select("*")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (fetchError) {
-      logger.error('[GOOGLE_LOGIN] Kullanıcı sorgulama hatası:', fetchError);
-      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
-    }
-
-    let user;
-
-    if (existingUser) {
-      // Mevcut kullanıcı - email doğrulanmış mı kontrol et
-      if (!existingUser.isverified) {
-        return res.status(403).json({
-          success: false,
-          message: "Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.",
-          code: "EMAIL_NOT_VERIFIED"
-        });
-      }
-
-      // Kullanıcı aktif, giriş yapabilir
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('users')
-        .update({ updated_at: new Date().toISOString() })
-        .eq("id", existingUser.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        logger.error('[GOOGLE_LOGIN] Kullanıcı güncelleme hatası:', updateError);
-        return res.status(500).json({ success: false, code: 'UPDATE_FAILED', message: "Kullanıcı güncellenemedi" });
-      }
-
-      user = updatedUser;
-    } else {
-      // Yeni kullanıcı oluştur - Google kullanıcıları otomatik doğrulanmış ve free plan ile başlar
-      const newUserData = {
-        firstname: given_name || name?.split(' ')[0] || 'Google',
-        lastname: family_name || name?.split(' ').slice(1).join(' ') || 'User',
-        email: email,
-        phonenumber: null, // Google kullanıcıları için telefon numarası yok
-        password: 'google-oauth', // Google kullanıcıları için placeholder şifre
-        role: "user",
-        isverified: true, // Google kullanıcıları otomatik doğrulanmış
-        verificationtoken: null,
-        dailycontentused: 0,
-        lastcontentdate: null,
-        stripecustomerid: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { data: createdUser, error: createError } = await supabase
-        .from('users')
-        .insert([newUserData])
-        .select()
-        .single();
-
-      if (createError) {
-        logger.error('[GOOGLE_LOGIN] Kullanıcı oluşturma hatası:', createError);
-        return res.status(500).json({ success: false, code: 'CREATE_FAILED', message: "Kullanıcı oluşturulamadı" });
-      }
-
-      user = createdUser;
-
-      // Assign Free Trial plan (3 audio creation credits)
-      try {
-        const { data: trialPlan, error: planErr } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('name', 'Free Trial')
-          .eq('is_active', true)
-          .maybeSingle();
-
-        if (planErr) {
-          logger.error('[GOOGLE_LOGIN] Error fetching Free Trial plan:', planErr);
-        } else if (!trialPlan) {
-          logger.error('[GOOGLE_LOGIN] Free Trial plan not found in database');
-        } else {
-          const { data: newSub, error: subErr } = await supabase
-            .from('subscriptions')
-            .insert([{
-              user_id: user.id,
-              plantype: 'Free Trial',
-              stripepriceid: trialPlan.id, // Link to subscription_plans for features
-              status: 'active',
-              audio_creation_count: 0,
-              startdate: new Date().toISOString(),
-              enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }])
-            .select();
-
-          if (subErr) {
-            logger.error(`[GOOGLE_LOGIN] Error inserting subscription for user ${user.id}:`, subErr);
-          } else {
-            logger.info(`[GOOGLE_LOGIN] Free Trial plan assigned to user ${user.id}`, newSub);
-          }
-        }
-      } catch (e) {
-        logger.error('[GOOGLE_LOGIN] Failed to assign Free Trial plan:', e?.message, e);
-      }
-
-      // Send registration notification to support team for new Google users
-      try {
-        await sendRegistrationNotification(user);
-      } catch (notificationErr) {
-        logger.warn('[GOOGLE_LOGIN] Registration notification failed:', notificationErr?.message);
-      }
-
-      logger.info(`[GOOGLE_LOGIN] Yeni Google kullanıcısı oluşturuldu (otomatik doğrulanmış, free trial): ${email}`);
-    }
-
-    // JWT token oluştur
-    const token = generateToken(user.id, user.email, user.role, rememberMe);
-    const refreshToken = generateRefreshToken(user.id);
-
-    // Hassas verileri kaldır
-    delete user.password;
-    delete user.verificationToken;
-    delete user.resetPasswordToken;
-
-    // Normalize name fields (normal login ile tutarlı)
-    const safeFirst = user.firstname || user.firstName || '';
-    const safeLast = user.lastname || user.lastName || '';
-    const safeFull = [safeFirst, safeLast].filter(Boolean).join(' ').trim();
-    user.full_name = safeFull;
-    user.name = safeFull;
-
-    // Best-effort: record successful Google login
-    try { await recordLoginAttempt(user.id, req, { success: true, message: 'google_login_success' }); } catch { }
+      await recordLoginAttempt(result.user.id, req, { success: true, message: 'google_login_success' });
+    } catch { }
 
     return res.status(200).json({
       success: true,
       message: "Google ile giriş başarılı",
-      data: {
-        user,
-        token,
-        refreshToken
-      }
+      data: result
     });
 
   } catch (error) {
     logger.error("Google login error", error);
+
+    // Handle service-layer errors
+    if (error.code) {
+      const statusCode = error.code === 'EMAIL_NOT_VERIFIED' ? 403 :
+                        error.code === 'MISSING_CREDENTIAL' ? 400 :
+                        error.code === 'INVALID_CREDENTIAL' ? 400 :
+                        error.code === 'EMAIL_REQUIRED' ? 400 :
+                        error.code === 'DB_ERROR' ? 500 :
+                        error.code === 'UPDATE_FAILED' ? 500 :
+                        error.code === 'CREATE_FAILED' ? 500 : 500;
+
+      return res.status(statusCode).json({
+        success: false,
+        code: error.code,
+        message: error.message
+      });
+    }
+
     return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
   }
 };
@@ -900,172 +571,39 @@ exports.appleLogin = async (req, res) => {
   try {
     const { credential, rememberMe, email: providedEmail, name: providedName } = req.body;
 
-    if (!credential) {
-      return res.status(400).json({ success: false, code: 'MISSING_TOKEN', message: "Apple identity token gerekli" });
-    }
+    const result = await appleLoginService(credential, rememberMe, providedEmail, providedName);
 
-    // Apple identity token'i imza dogrulamasi ile verify et
-    let appleUser;
-
+    // Record successful login
     try {
-      appleUser = await appleSignin.verifyIdToken(credential, {
-        audience: process.env.APPLE_CLIENT_ID,
-        ignoreExpiration: false,
-      });
-
-      logger.info('[APPLE_LOGIN] Token verification successful', { sub: appleUser.sub, email: appleUser.email });
-    } catch (decodeError) {
-      logger.error('[APPLE_LOGIN] Token verification failed:', decodeError.message);
-      return res.status(400).json({ success: false, code: 'INVALID_TOKEN', message: "Geçersiz Apple identity token" });
-    }
-
-    // Apple ilk girişte email veriyor, sonraki girişlerde vermiyor
-    // Bu yüzden providedEmail parametresini de kontrol ediyoruz
-    const email = appleUser.email || providedEmail;
-    const appleSub = appleUser.sub; // Apple'ın unique user ID'si
-
-    if (!email && !appleSub) {
-      return res.status(400).json({ success: false, code: 'EMAIL_OR_SUB_REQUIRED', message: "Apple hesabından email veya kullanıcı ID alınamadı" });
-    }
-
-    // Kullanıcıyı email ile bul
-    let existingUser = null;
-
-    if (email) {
-      const { data, error: fetchError } = await supabase
-        .from('users')
-        .select("*")
-        .eq("email", email)
-        .maybeSingle();
-
-      if (!fetchError) existingUser = data;
-    }
-
-    let user;
-
-    if (existingUser) {
-      // Mevcut kullanıcı - email doğrulanmış mı kontrol et
-      if (!existingUser.isverified) {
-        return res.status(403).json({
-          success: false,
-          message: "Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.",
-          code: "EMAIL_NOT_VERIFIED"
-        });
-      }
-
-      user = existingUser;
-      logger.info('[APPLE_LOGIN] Existing user found', { id: user.id, email: user.email });
-    } else {
-      // Yeni kullanıcı kaydı oluştur
-      logger.info('[APPLE_LOGIN] Creating new user', { providedName });
-
-      const name = providedName || 'Apple User';
-      const nameParts = name.split(' ');
-      const firstname = nameParts[0] || 'Apple';
-      const lastname = nameParts.slice(1).join(' ') || 'User';
-
-      logger.debug('[APPLE_LOGIN] Parsed name', { firstname, lastname });
-
-      const { data: newUser, error: insertError } = await supabase
-        .from('users')
-        .insert([{
-          firstname: firstname,
-          lastname: lastname,
-          email: email,
-          phonenumber: null,
-          password: 'apple-oauth',
-          role: "user",
-          isverified: true,
-          verificationtoken: null,
-          dailycontentused: 0,
-          lastcontentdate: null,
-          stripecustomerid: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-
-      if (insertError) {
-        logger.error('[APPLE_LOGIN] Kullanıcı oluşturma hatası:', insertError);
-        return res.status(500).json({ success: false, code: 'CREATE_FAILED', message: "Kullanıcı kaydı oluşturulamadı" });
-      }
-
-      user = newUser;
-      logger.info('[APPLE_LOGIN] New user created', { id: user.id, email: user.email });
-
-      // Assign Free Trial plan (3 audio creation credits)
-      try {
-        const { data: trialPlan, error: planErr } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('name', 'Free Trial')
-          .eq('is_active', true)
-          .maybeSingle();
-
-        if (planErr) {
-          logger.error('[APPLE_LOGIN] Error fetching Free Trial plan:', planErr);
-        } else if (!trialPlan) {
-          logger.error('[APPLE_LOGIN] Free Trial plan not found in database');
-        } else {
-          const { data: newSub, error: subErr } = await supabase
-            .from('subscriptions')
-            .insert([{
-              user_id: user.id,
-              plantype: 'Free Trial',
-              stripepriceid: trialPlan.id, // Link to subscription_plans for features
-              status: 'active',
-              audio_creation_count: 0,
-              startdate: new Date().toISOString(),
-              enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }])
-            .select();
-
-          if (subErr) {
-            logger.error(`[APPLE_LOGIN] Error inserting subscription for user ${user.id}:`, subErr);
-          } else {
-            logger.info(`[APPLE_LOGIN] Free Trial plan assigned to user ${user.id}`, newSub);
-          }
-        }
-      } catch (e) {
-        logger.error('[APPLE_LOGIN] Failed to assign Free Trial plan:', e?.message, e);
-      }
-
-      // Send registration notification
-      try {
-        const registrationNotifier = require('../utils/notifications/registrationNotifier.js');
-        await registrationNotifier.sendRegistrationNotification(user);
-      } catch (notifError) {
-        logger.error('[APPLE_LOGIN] Registration notification failed:', notifError);
-      }
-    }
-
-    // JWT token oluştur
-    const token = generateToken(user.id, user.email, user.role, rememberMe);
-    const refreshToken = generateRefreshToken(user.id);
-
-    // Hassas verileri kaldır
-    delete user.password;
-    delete user.verificationToken;
-    delete user.resetPasswordToken;
-
-    // Record successful Apple login
-    try { await recordLoginAttempt(user.id, req, { success: true, message: 'apple_login_success' }); } catch { }
+      await recordLoginAttempt(result.user.id, req, { success: true, message: 'apple_login_success' });
+    } catch { }
 
     return res.status(200).json({
       success: true,
       message: "Apple ile giriş başarılı",
-      data: {
-        user,
-        token,
-        refreshToken
-      }
+      data: result
     });
 
   } catch (error) {
     logger.error("Apple login error", error);
+
+    // Handle service-layer errors
+    if (error.code) {
+      const statusCode = error.code === 'EMAIL_NOT_VERIFIED' ? 403 :
+                        error.code === 'MISSING_TOKEN' ? 400 :
+                        error.code === 'INVALID_TOKEN' ? 400 :
+                        error.code === 'EMAIL_OR_SUB_REQUIRED' ? 400 :
+                        error.code === 'DB_ERROR' ? 500 :
+                        error.code === 'UPDATE_FAILED' ? 500 :
+                        error.code === 'CREATE_FAILED' ? 500 : 500;
+
+      return res.status(statusCode).json({
+        success: false,
+        code: error.code,
+        message: error.message
+      });
+    }
+
     return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
   }
 };
@@ -1114,8 +652,8 @@ exports.updateProfile = async (req, res) => {
 
     // Remove sensitive data
     delete data[0].password;
-    delete data[0].verificationToken;
-    delete data[0].resetPasswordToken;
+    delete data[0].verificationtoken;
+    delete data[0].resetpasswordtoken;
 
     return res.status(200).json({ success: true, message: "Profil güncellendi", data: data[0] });
   } catch (error) {
@@ -1139,7 +677,7 @@ exports.changePassword = async (req, res) => {
 
     const { data: user } = await supabase
       .from('users')
-      .select("*")
+      .select("id, email, password, verificationtoken, resetpasswordtoken")
       .eq("id", userId)
       .single();
 
@@ -1424,7 +962,7 @@ exports.verifyEmail = async (req, res) => {
     try {
       const { data: trialPlan, error: planErr } = await supabase
         .from('subscription_plans')
-        .select('*')
+        .select('id, name, price, plantype, is_active, audio_limit, features, monthly_price, yearly_price, description, created_at')
         .eq('name', 'Free Trial')
         .eq('is_active', true)
         .maybeSingle();

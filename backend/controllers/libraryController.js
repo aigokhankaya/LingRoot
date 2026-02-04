@@ -12,39 +12,42 @@ exports.getLibrary = async (req, res) => {
     }
 
     try {
-        // 1. Fetch User Documents
-        const { data: documents, error: docError } = await supabase
-            .from('documents')
-            .select(`
-                id, title, author, cover_image_url, created_at, page_count,
-                user_book_progress!document_id (
-                    current_chapter_index, 
-                    progress_percentage, 
-                    is_finished, 
-                    last_accessed_at
-                )
-            `)
-            .eq('user_id', userId)
-            .eq('user_book_progress.user_id', userId); // Filter progress for current user
+        // Fetch documents and book progress in parallel (independent queries)
+        const [documentsResult, booksResult] = await Promise.all([
+            // 1. Fetch User Documents
+            supabase
+                .from('documents')
+                .select(`
+                    id, title, author, cover_image_url, created_at, page_count,
+                    user_book_progress!document_id (
+                        current_chapter_index,
+                        progress_percentage,
+                        is_finished,
+                        last_accessed_at
+                    )
+                `)
+                .eq('user_id', userId)
+                .eq('user_book_progress.user_id', userId),
+            // 2. Fetch Public Books (that user has interacted with OR favorites)
+            supabase
+                .from('user_book_progress')
+                .select(`
+                    current_chapter_index,
+                    progress_percentage,
+                    is_finished,
+                    last_accessed_at,
+                    books!book_id (
+                        id, title, authors, cover_url, language
+                    )
+                `)
+                .eq('user_id', userId)
+                .eq('content_type', 'book'),
+        ]);
 
+        const { data: documents, error: docError } = documentsResult;
         if (docError) throw docError;
 
-        // 2. Fetch Public Books (that user has interacted with OR favorites)
-        // For now, let's fetch books that have progress records
-        const { data: books, error: bookError } = await supabase
-            .from('user_book_progress')
-            .select(`
-                current_chapter_index, 
-                progress_percentage, 
-                is_finished, 
-                last_accessed_at,
-                books!book_id (
-                    id, title, authors, cover_url, language
-                )
-            `)
-            .eq('user_id', userId)
-            .eq('content_type', 'book');
-
+        const { data: books, error: bookError } = booksResult;
         if (bookError) throw bookError;
 
         // 3. Normalize and Merge Data
@@ -105,7 +108,7 @@ exports.getItemDetails = async (req, res) => {
             // Fetch Book Details
             const { data: book, error: bookError } = await supabase
                 .from('books')
-                .select('*')
+                .select('id, title, authors, cover_url, language, created_at, updated_at')
                 .eq('id', id)
                 .single();
             
@@ -114,7 +117,7 @@ exports.getItemDetails = async (req, res) => {
             // Fetch Book Chapters
             const { data: bookChapters, error: chapError } = await supabase
                 .from('book_chapters')
-                .select('*')
+                .select('id, book_id, chapter_index, chapter_title, chapter_text, created_at')
                 .eq('book_id', id)
                 .order('chapter_index', { ascending: true });
 
@@ -138,7 +141,7 @@ exports.getItemDetails = async (req, res) => {
             // Fetch Document Details
             const { data: doc, error: docError } = await supabase
                 .from('documents')
-                .select('*')
+                .select('id, user_id, title, author, cover_image_url, page_count, created_at, updated_at')
                 .eq('id', id)
                 .eq('user_id', userId)
                 .single();
@@ -148,7 +151,7 @@ exports.getItemDetails = async (req, res) => {
             // Fetch Document Sections
             const { data: docSections, error: secError } = await supabase
                 .from('document_sections')
-                .select('*')
+                .select('id, document_id, section_index, section_title, section_text, created_at')
                 .eq('document_id', id)
                 .order('section_index', { ascending: true });
 
@@ -174,7 +177,7 @@ exports.getItemDetails = async (req, res) => {
         // Fetch user progress
         const { data: progress, error: progError } = await supabase
             .from('user_book_progress')
-            .select('*')
+            .select('id, user_id, book_id, document_id, content_type, current_chapter_index, current_position_seconds, progress_percentage, is_finished, last_accessed_at, created_at, updated_at')
             .eq('user_id', userId)
             .eq('content_type', type)
             .eq(type === 'book' ? 'book_id' : 'document_id', id)

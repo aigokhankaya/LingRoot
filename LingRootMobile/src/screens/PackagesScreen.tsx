@@ -781,4 +781,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PackagesScreen;
+export default React.memo(PackagesScreen);

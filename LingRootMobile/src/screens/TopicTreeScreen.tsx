@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { CopilotStep, walkthroughable, useCopilot } from 'react-native-copilot';
 import {
   getTopicTree,
   createMainTopic,
@@ -22,11 +23,32 @@ import CustomAlert, { CustomAlertButton } from '../components/CustomAlert';
 import VoiceSelector, { VoiceSelectionResult } from '../components/VoiceSelector';
 import { COLORS } from '../theme/colors';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+import {
+  TourProvider,
+  TopicTreeTooltip,
+  TOPICTREE_TOUR_STEPS,
+  TOPICTREE_TOUR_KEY,
+  TOPICTREE_ACTIONS_TOUR_KEY,
+  useGuideTour,
+  roundedMaskPath,
+} from '../components/GuideTour';
 
-const TopicTreeScreen: React.FC = () => {
+const WalkthroughableView = walkthroughable(View);
+
+const TopicTreeScreenContent: React.FC = () => {
   const { language } = useLanguage();
+  const lang = language === 'tr' ? 'tr' : 'en';
   const navigation = useNavigation();
   const { user } = useAuth();
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // --- Tour control ---
+  const { start, copilotEvents } = useCopilot();
+  const { shouldShow, markCompleted } = useGuideTour(TOPICTREE_TOUR_KEY);
+  const { shouldShow: shouldShowActions, markCompleted: markActionsCompleted } = useGuideTour(TOPICTREE_ACTIONS_TOUR_KEY);
+  const startRef = useRef(start);
+  startRef.current = start;
+
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
@@ -144,6 +166,48 @@ const TopicTreeScreen: React.FC = () => {
   };
 
   const activeTopic = getTopicAtPath(activePath);
+
+  // --- Tour logic ---
+  const dataReady = !isLoading;
+
+  // Stop event: mark the correct sub-tour as completed based on shouldShow state
+  useEffect(() => {
+    const handler = () => {
+      // if/else if ensures only one is marked per stop event
+      if (shouldShow) markCompleted();
+      else if (shouldShowActions) markActionsCompleted();
+    };
+    copilotEvents.on('stop', handler);
+    return () => { copilotEvents.off('stop', handler); };
+  }, [copilotEvents, shouldShow, markCompleted, shouldShowActions, markActionsCompleted]);
+
+  // Tour 1: Initial tour — start from step 1 once data is loaded
+  useEffect(() => {
+    if (shouldShow && dataReady) {
+      const timer = setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+        requestAnimationFrame(() => {
+          startRef.current(undefined, scrollViewRef.current ?? undefined);
+        });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldShow, dataReady]);
+
+  // Tour 2: Actions tour — start from 'topicTreeActions' step on first topic selection
+  const tour2TriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!shouldShow && shouldShowActions && activeTopic && !tour2TriggeredRef.current) {
+      tour2TriggeredRef.current = true;
+      const timer = setTimeout(() => {
+        requestAnimationFrame(() => {
+          startRef.current('topicTreeActions', scrollViewRef.current ?? undefined);
+        });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTopic?.id, shouldShowActions, shouldShow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Actions ---
   const handleCreateMain = async () => {
@@ -392,122 +456,138 @@ const TopicTreeScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#E0F7FA', '#F1F5F9']} style={StyleSheet.absoluteFillObject} />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
-        {/* CREATE NEW TOPIC */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{language === 'tr' ? 'YENİ ANA KONU OLUŞTUR' : 'CREATE NEW MAIN TOPIC'}</Text>
+        {/* STEP 1: CREATE NEW TOPIC — always a CopilotStep */}
+        <CopilotStep order={1} name="topicTreeCreate" text={TOPICTREE_TOUR_STEPS.topicTreeCreate[lang]}>
+          <WalkthroughableView>
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>{language === 'tr' ? 'YENİ ANA KONU OLUŞTUR' : 'CREATE NEW MAIN TOPIC'}</Text>
 
-          <Text style={styles.fieldLabel}>{language === 'tr' ? 'SEVİYE' : 'LEVEL'}</Text>
-          <View style={styles.levelRow}>
-            {(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as CEFRLevel[]).map(lvl => (
-              <TouchableOpacity key={lvl} onPress={() => setSelectedLevel(lvl)} style={[styles.levelPill, selectedLevel === lvl && styles.levelPillActive]}>
-                <Text style={[styles.levelText, selectedLevel === lvl && styles.levelTextActive]}>{lvl}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.fieldLabel}>{language === 'tr' ? 'KONU BAŞLIĞI' : 'TOPIC TITLE'}</Text>
-          <TextInput
-            value={mainTitle}
-            onChangeText={setMainTitle}
-            placeholder={language === 'tr' ? 'Örn: Osmanlı Tarihi...' : 'e.g. Ottoman History...'}
-            placeholderTextColor="#94A3B8"
-            style={styles.textInput}
-          />
-
-          <TouchableOpacity onPress={handleCreateMain} disabled={isCreatingMain || !mainTitle.trim()} activeOpacity={0.8}>
-            <LinearGradient colors={['#F97316', '#FB923C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primaryBtn, (!mainTitle.trim() || isCreatingMain) && { opacity: 0.5 }]}>
-              {isCreatingMain ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryBtnText}>{language === 'tr' ? 'KONU OLUŞTUR' : 'CREATE TOPIC'}</Text>}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
-        {/* TOPIC SELECTION */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{language === 'tr' ? 'KONU SEÇİMİ' : 'TOPIC SELECTION'}</Text>
-
-          {isLoading && topics.length === 0 ? (
-            <ActivityIndicator color={COLORS.brandTeal} style={{ marginVertical: 20 }} />
-          ) : topics.length === 0 ? (
-            <Text style={styles.emptyText}>{language === 'tr' ? 'Henüz konu yok.' : 'No topics yet.'}</Text>
-          ) : (
-            levels.map((level, idx) => {
-              const selected = level.options.find(o => o.id === level.selectedId);
-              const label = level.depth === 0
-                ? (language === 'tr' ? 'Ana Konu' : 'Main Topic')
-                : (language === 'tr' ? `${level.depth}. Seviye Alt Konu` : `Level ${level.depth} Subtopic`);
-              return (
-                <View key={level.depth} style={styles.dropdownGroup}>
-                  <Text style={styles.fieldLabel}>{label}</Text>
-                  <TouchableOpacity style={styles.dropdown} onPress={() => openPicker(level.depth, level.options)}>
-                    <Text style={selected ? styles.dropdownValue : styles.dropdownPlaceholder} numberOfLines={1}>
-                      {selected ? selected.title : (language === 'tr' ? 'Seçiniz...' : 'Select...')}
-                    </Text>
-                    <Icon name="keyboard-arrow-down" size={24} color="#64748B" />
+              <Text style={styles.fieldLabel}>{language === 'tr' ? 'SEVİYE' : 'LEVEL'}</Text>
+              <View style={styles.levelRow}>
+                {(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as CEFRLevel[]).map(lvl => (
+                  <TouchableOpacity key={lvl} onPress={() => setSelectedLevel(lvl)} style={[styles.levelPill, selectedLevel === lvl && styles.levelPillActive]}>
+                    <Text style={[styles.levelText, selectedLevel === lvl && styles.levelTextActive]}>{lvl}</Text>
                   </TouchableOpacity>
-                </View>
-              );
-            })
-          )}
+                ))}
+              </View>
 
-          {/* TOPIC MANAGEMENT ACTIONS - inside selection card */}
-          {activeTopic && (
-            <View style={styles.topicActionsGrid}>
-              {hasAudio && (
-                <TouchableOpacity style={styles.actionBtn} onPress={handleListen}>
-                  <Icon name="headset" size={22} color={COLORS.brandTeal} />
-                  <Text style={styles.actionBtnLabel}>{language === 'tr' ? 'Dinle' : 'Listen'}</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.actionBtn} onPress={() => { setAiModalTopic(activeTopic); setAiModalVisible(true); }}>
-                <Icon name="auto-awesome" size={22} color="#8B5CF6" />
-                <Text style={styles.actionBtnLabel}>{language === 'tr' ? 'Alt Konu Oluştur' : 'Create Subtopic'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => { setManualModalTopic(activeTopic); setManualModalVisible(true); }}>
-                <Icon name="add-circle-outline" size={22} color="#3B82F6" />
-                <Text style={styles.actionBtnLabel}>{language === 'tr' ? 'Manuel Ekle' : 'Add Manual'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={handleDelete}>
-                <Icon name="delete-outline" size={22} color="#EF4444" />
-                <Text style={[styles.actionBtnLabel, { color: '#EF4444' }]}>{language === 'tr' ? 'Sil' : 'Delete'}</Text>
+              <Text style={styles.fieldLabel}>{language === 'tr' ? 'KONU BAŞLIĞI' : 'TOPIC TITLE'}</Text>
+              <TextInput
+                value={mainTitle}
+                onChangeText={setMainTitle}
+                placeholder={language === 'tr' ? 'Örn: Osmanlı Tarihi...' : 'e.g. Ottoman History...'}
+                placeholderTextColor="#94A3B8"
+                style={styles.textInput}
+              />
+
+              <TouchableOpacity onPress={handleCreateMain} disabled={isCreatingMain || !mainTitle.trim()} activeOpacity={0.8}>
+                <LinearGradient colors={['#F97316', '#FB923C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primaryBtn, (!mainTitle.trim() || isCreatingMain) && { opacity: 0.5 }]}>
+                  {isCreatingMain ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryBtnText}>{language === 'tr' ? 'KONU OLUŞTUR' : 'CREATE TOPIC'}</Text>}
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-          )}
-        </View>
+          </WalkthroughableView>
+        </CopilotStep>
 
-        {/* AUDIO CREATION CARD */}
-        {activeTopic && (
-          <View style={styles.actionsCard}>
-            <View style={styles.actionsHeader}>
-              <Text style={styles.actionsTitle} numberOfLines={1}>{activeTopic.title}</Text>
-              <View style={styles.badge}><Text style={styles.badgeText}>{activeTopic.level || 'B1'}</Text></View>
-            </View>
+        {/* STEP 2: TOPIC SELECTION — always a CopilotStep */}
+        <CopilotStep order={2} name="topicTreeSelect" text={TOPICTREE_TOUR_STEPS.topicTreeSelect[lang]}>
+          <WalkthroughableView>
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>{language === 'tr' ? 'KONU SEÇİMİ' : 'TOPIC SELECTION'}</Text>
 
-            <VoiceSelector
-              onVoiceChange={setVoiceSelection}
-              userId={user?.id}
-              language={language}
-              compact
-            />
-
-            <TouchableOpacity
-              style={[styles.actionBtnPrimary, { marginTop: 12 }, isGeneratingNarration && { opacity: 0.7 }]}
-              disabled={isGeneratingNarration}
-              onPress={handleCreateAudio}
-            >
-              {isGeneratingNarration ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+              {isLoading && topics.length === 0 ? (
+                <ActivityIndicator color={COLORS.brandTeal} style={{ marginVertical: 20 }} />
+              ) : topics.length === 0 ? (
+                <Text style={styles.emptyText}>{language === 'tr' ? 'Henüz konu yok.' : 'No topics yet.'}</Text>
               ) : (
-                <Icon name="campaign" size={22} color="#FFFFFF" />
+                levels.map((level) => {
+                  const selected = level.options.find(o => o.id === level.selectedId);
+                  const label = level.depth === 0
+                    ? (language === 'tr' ? 'Ana Konu' : 'Main Topic')
+                    : (language === 'tr' ? `${level.depth}. Seviye Alt Konu` : `Level ${level.depth} Subtopic`);
+                  return (
+                    <View key={level.depth} style={styles.dropdownGroup}>
+                      <Text style={styles.fieldLabel}>{label}</Text>
+                      <TouchableOpacity style={styles.dropdown} onPress={() => openPicker(level.depth, level.options)}>
+                        <Text style={selected ? styles.dropdownValue : styles.dropdownPlaceholder} numberOfLines={1}>
+                          {selected ? selected.title : (language === 'tr' ? 'Seçiniz...' : 'Select...')}
+                        </Text>
+                        <Icon name="keyboard-arrow-down" size={24} color="#64748B" />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
               )}
-              <Text style={styles.actionBtnLabelPrimary}>
-                {isGeneratingNarration
-                  ? (language === 'tr' ? 'Oluşturuluyor...' : 'Generating...')
-                  : (language === 'tr' ? 'Ses Oluştur' : 'Create Audio')}
-              </Text>
-            </TouchableOpacity>
-          </View>
+
+              {/* STEP 3: ACTION BUTTONS — nested CopilotStep, mounts when activeTopic exists */}
+              {activeTopic && (
+                <CopilotStep order={3} name="topicTreeActions" text={TOPICTREE_TOUR_STEPS.topicTreeActions[lang]}>
+                  <WalkthroughableView>
+                    <View style={styles.topicActionsGrid}>
+                      {hasAudio && (
+                        <TouchableOpacity style={styles.actionBtn} onPress={handleListen}>
+                          <Icon name="headset" size={22} color={COLORS.brandTeal} />
+                          <Text style={styles.actionBtnLabel}>{language === 'tr' ? 'Dinle' : 'Listen'}</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity style={styles.actionBtn} onPress={() => { setAiModalTopic(activeTopic); setAiModalVisible(true); }}>
+                        <Icon name="auto-awesome" size={22} color="#8B5CF6" />
+                        <Text style={styles.actionBtnLabel}>{language === 'tr' ? 'Alt Konu Oluştur' : 'Create Subtopic'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.actionBtn} onPress={() => { setManualModalTopic(activeTopic); setManualModalVisible(true); }}>
+                        <Icon name="add-circle-outline" size={22} color="#3B82F6" />
+                        <Text style={styles.actionBtnLabel}>{language === 'tr' ? 'Manuel Ekle' : 'Add Manual'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={handleDelete}>
+                        <Icon name="delete-outline" size={22} color="#EF4444" />
+                        <Text style={[styles.actionBtnLabel, { color: '#EF4444' }]}>{language === 'tr' ? 'Sil' : 'Delete'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </WalkthroughableView>
+                </CopilotStep>
+              )}
+            </View>
+          </WalkthroughableView>
+        </CopilotStep>
+
+        {/* STEP 4: AUDIO CREATION CARD — mounts when activeTopic exists */}
+        {activeTopic && (
+          <CopilotStep order={4} name="topicTreeAudioCreate" text={TOPICTREE_TOUR_STEPS.topicTreeAudioCreate[lang]}>
+            <WalkthroughableView>
+              <View style={styles.actionsCard}>
+                <View style={styles.actionsHeader}>
+                  <Text style={styles.actionsTitle} numberOfLines={1}>{activeTopic.title}</Text>
+                  <View style={styles.badge}><Text style={styles.badgeText}>{activeTopic.level || 'B1'}</Text></View>
+                </View>
+
+                <VoiceSelector
+                  onVoiceChange={setVoiceSelection}
+                  userId={user?.id}
+                  language={language}
+                  compact
+                />
+
+                <TouchableOpacity
+                  style={[styles.actionBtnPrimary, { marginTop: 12 }, isGeneratingNarration && { opacity: 0.7 }]}
+                  disabled={isGeneratingNarration}
+                  onPress={handleCreateAudio}
+                >
+                  {isGeneratingNarration ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Icon name="campaign" size={22} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.actionBtnLabelPrimary}>
+                    {isGeneratingNarration
+                      ? (language === 'tr' ? 'Oluşturuluyor...' : 'Generating...')
+                      : (language === 'tr' ? 'Ses Oluştur' : 'Create Audio')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </WalkthroughableView>
+          </CopilotStep>
         )}
 
       </ScrollView>
@@ -719,4 +799,10 @@ const styles = StyleSheet.create({
   successModalButtonText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });
 
-export default TopicTreeScreen;
+const TopicTreeScreen: React.FC = () => (
+  <TourProvider tooltip={TopicTreeTooltip} maskPath={roundedMaskPath}>
+    <TopicTreeScreenContent />
+  </TourProvider>
+);
+
+export default React.memo(TopicTreeScreen);

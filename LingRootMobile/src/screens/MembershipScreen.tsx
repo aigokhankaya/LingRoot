@@ -57,4 +57,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MembershipScreen;
+export default React.memo(MembershipScreen);
