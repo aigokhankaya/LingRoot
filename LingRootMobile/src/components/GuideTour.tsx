@@ -527,10 +527,14 @@ export function useTourAutoStart(
 
   useEffect(() => {
     if (shouldShow) {
-      const timer = setTimeout(
-        () => start(undefined, scrollViewRef?.current ?? null),
-        delay,
-      );
+      const timer = setTimeout(() => {
+        // Scroll to top before starting tour so first steps are visible
+        if (scrollViewRef?.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: false });
+        }
+        // Start copilot without passing scrollViewRef to avoid unwanted auto-scroll
+        start();
+      }, delay);
       return () => clearTimeout(timer);
     }
     // start reference changes on each provider re-render; only shouldShow should trigger this
