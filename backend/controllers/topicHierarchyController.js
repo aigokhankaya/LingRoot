@@ -201,7 +201,7 @@ exports.generateSubtopics = async (req, res) => {
     // Ana konuyu getir
     const { data: parentTopic, error: fetchError } = await supabase
       .from('topics')
-      .select('*')
+      .select('id, user_id, parent_id, title, description, level, depth, order_index, is_manual, mood_tag, keywords, created_at, updated_at')
       .eq('id', id)
       .eq('user_id', userId)
       .single();
@@ -482,7 +482,7 @@ exports.getTopicTree = async (req, res) => {
     // Tüm konuları getir (client-side'da tree'ye dönüştüreceğiz)
     const { data: topics, error } = await supabase
       .from('topics')
-      .select('*')
+      .select('id, user_id, parent_id, title, description, level, depth, order_index, is_manual, mood_tag, keywords, created_at, updated_at')
       .eq('user_id', userId)
       .order('depth', { ascending: true })
       .order('order_index', { ascending: true });
@@ -596,7 +596,7 @@ exports.getTopicPath = async (req, res) => {
       while (currentId) {
         const { data: topic } = await supabase
           .from('topics')
-          .select('*')
+          .select('id, user_id, parent_id, title, description, level, depth, order_index, is_manual, created_at')
           .eq('id', currentId)
           .eq('user_id', userId)
           .single();
@@ -640,7 +640,7 @@ exports.deleteTopicAndChildren = async (req, res) => {
     // Önce topic'in kullanıcıya ait olduğunu kontrol et
     const { data: topic, error: fetchError } = await supabase
       .from('topics')
-      .select('*')
+      .select('id, user_id, title, parent_id')
       .eq('id', id)
       .eq('user_id', userId)
       .single();
@@ -692,7 +692,7 @@ exports.createContentFromTopic = async (req, res) => {
     // Topic'i getir
     const { data: topic, error: fetchError } = await supabase
       .from('topics')
-      .select('*')
+      .select('id, user_id, title, description, level')
       .eq('id', id)
       .eq('user_id', userId)
       .single();

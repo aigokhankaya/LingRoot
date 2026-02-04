@@ -300,7 +300,7 @@ export const useWordSync = ({
     if (!audioRef.current.paused && !audioRef.current.ended) {
       animationFrameId.current = requestAnimationFrame(syncLoop);
     }
-  }, [wordTimestamps, updateLiveRegion]);
+  }, [wordTimestamps, updateLiveRegion, isPlaying]);
 
   // Döngüyü başlatan ve durduran fonksiyonlar
   const startSync = useCallback(() => {

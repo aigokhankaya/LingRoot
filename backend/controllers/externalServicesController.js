@@ -48,7 +48,7 @@ const getExternalServiceById = async (req, res) => {
 
     const { data, error } = await supabase
       .from('external_services')
-      .select('*')
+      .select('id, service_name, api_key, api_secret, base_url, is_active, settings, created_at, updated_at')
       .eq('id', id)
       .single();
 
@@ -82,7 +82,7 @@ const getExternalServiceByName = async (req, res) => {
 
     const { data, error } = await supabase
       .from('external_services')
-      .select('*')
+      .select('id, service_name, api_key, api_secret, base_url, is_active, settings, created_at, updated_at')
       .eq('service_name', serviceName)
       .eq('is_active', true)
       .single();

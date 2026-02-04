@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import {
@@ -549,10 +550,12 @@ export default function BookTab() {
                     >
                       <div className="relative w-full h-40 bg-gray-100">
                         {book.cover_url ? (
-                          <img
+                          <Image
                             src={book.cover_url}
                             alt={book.title}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 33vw"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
@@ -623,10 +626,12 @@ export default function BookTab() {
                     >
                       <div className="relative w-full h-40 bg-gray-100">
                         {book.cover_url ? (
-                          <img
+                          <Image
                             src={book.cover_url}
                             alt={book.title}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 33vw"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
@@ -680,9 +685,9 @@ export default function BookTab() {
                         onClick={() => handleResumeFromHistory(item)}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-14 bg-white rounded-md border border-gray-200 flex items-center justify-center overflow-hidden">
+                          <div className="relative w-10 h-14 bg-white rounded-md border border-gray-200 flex items-center justify-center overflow-hidden">
                             {item.cover_url ? (
-                              <img src={item.cover_url} alt="" className="w-full h-full object-cover" />
+                              <Image src={item.cover_url} alt="" fill className="object-cover" sizes="40px" />
                             ) : (
                               <i className="fas fa-book text-primary"></i>
                             )}
@@ -727,9 +732,9 @@ export default function BookTab() {
         <Card className="border border-gray-200 shadow-sm">
           <CardHeader className="pb-3 border-b">
             <div className="flex items-start gap-4">
-              <div className="w-20 h-28 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+              <div className="relative w-20 h-28 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                 {selectedBook.cover_url ? (
-                  <img src={selectedBook.cover_url} alt="" className="w-full h-full object-cover" />
+                  <Image src={selectedBook.cover_url} alt="" fill className="object-cover" sizes="80px" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
                     <i className="fas fa-book-open text-2xl text-primary/60"></i>

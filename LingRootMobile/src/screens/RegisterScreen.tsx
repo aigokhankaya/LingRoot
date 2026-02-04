@@ -11,7 +11,7 @@ import {
   ScrollView,
   Linking,
   Animated,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,8 +20,6 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { isAppleSignInAvailable } from '../services/socialAuth';
 import { COLORS } from '../theme/colors';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Phone helpers: Turkish format +90 555 123 45 67
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
@@ -48,6 +46,7 @@ const formatTRPhone = (value: string) => {
 };
 
 const RegisterScreen: React.FC = () => {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -652,4 +651,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RegisterScreen;
+export default React.memo(RegisterScreen);

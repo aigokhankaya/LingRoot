@@ -11,8 +11,10 @@ const PROFILE_TOUR_KEY = 'guide_tour_profile_completed';
 const CREATE_TOUR_KEY = 'guide_tour_create_completed';
 const AUDIOPLAYER_TOUR_KEY = 'guide_tour_audioplayer_completed';
 const VOCABULARY_TOUR_KEY = 'guide_tour_vocabulary_completed';
+const TOPICTREE_TOUR_KEY = 'guide_tour_topictree_completed';
+const TOPICTREE_ACTIONS_TOUR_KEY = 'guide_tour_topictree_actions_completed';
 
-export { HOME_TOUR_KEY, LIBRARY_TOUR_KEY, PROFILE_TOUR_KEY, CREATE_TOUR_KEY, AUDIOPLAYER_TOUR_KEY, VOCABULARY_TOUR_KEY };
+export { HOME_TOUR_KEY, LIBRARY_TOUR_KEY, PROFILE_TOUR_KEY, CREATE_TOUR_KEY, AUDIOPLAYER_TOUR_KEY, VOCABULARY_TOUR_KEY, TOPICTREE_TOUR_KEY, TOPICTREE_ACTIONS_TOUR_KEY };
 
 // ---- Home Tour Steps ----
 export const TOUR_STEPS: Record<string, { tr: string; en: string }> = {
@@ -133,8 +135,12 @@ export const PROFILE_MENU_TOUR_MAP: Record<number, { order: number; name: string
 // ---- Create Tour Steps ----
 export const CREATE_TOUR_STEPS: Record<string, { tr: string; en: string }> = {
   createTextInput: {
-    tr: 'Buraya İngilizce metin yaz veya yapıştır. AI seviyene uyarlayıp seslendirecek.',
+    tr: 'Buraya bir metin yaz veya yapıştır. AI seviyene uyarlayıp seslendirecek.',
     en: 'Write or paste English text here. AI will adapt it to your level and voice it.',
+  },
+  createPodcastConfig: {
+    tr: 'Podcast seslerini, konuyu ve içerik süresini burada ayarla.',
+    en: 'Set podcast voices, topic and content duration here.',
   },
   createCefrLevel: {
     tr: 'İngilizce seviyeni seç. İçerik bu seviyeye göre uyarlanır.',
@@ -144,6 +150,14 @@ export const CREATE_TOUR_STEPS: Record<string, { tr: string; en: string }> = {
     tr: 'Seslendirme için bir ses seç. Farklı aksan ve cinsiyetleri deneyebilirsin.',
     en: 'Choose a voice for narration. You can try different accents and genders.',
   },
+  createFileUpload: {
+    tr: 'PDF veya Word dosyanı buradan yükle. AI seviyene uyarlayıp seslendirecek.',
+    en: 'Upload your PDF or Word file here. AI will adapt it to your level and voice it.',
+  },
+  createBookSearch: {
+    tr: 'Binlerce kitap arasından arama yap, bölüm seç ve seslendir.',
+    en: 'Search thousands of books, select a chapter and convert it to audio.',
+  },
   createButton: {
     tr: 'Hazır olduğunda bu butona bas ve ses oluşturmayı başlat.',
     en: 'When ready, tap this button to start creating your audio.',
@@ -152,13 +166,9 @@ export const CREATE_TOUR_STEPS: Record<string, { tr: string; en: string }> = {
 
 // ---- AudioPlayer Tour Steps ----
 export const AUDIOPLAYER_TOUR_STEPS: Record<string, { tr: string; en: string }> = {
-  playerText: {
-    tr: 'Metin, ses ile senkronize olarak vurgulanır. Kelimelere uzun basarak kelime listene ekleyebilirsin.',
-    en: 'Text is highlighted in sync with the audio. Long press words to add them to your vocabulary.',
-  },
   playerOriginalToggle: {
-    tr: 'Orijinal metni görmek için bu butona bas. Sola kaydır veya butona tekrar bas.',
-    en: 'Tap this button to see the original text. Swipe left or tap again.',
+    tr: 'Metin ses ile senkronize vurgulanır. Kelimelere uzun bas, kelime listene ekle. Orijinal metni görmek için bu butona bas.',
+    en: 'Text is highlighted in sync with audio. Long press words to add to vocabulary. Tap this button to see original text.',
   },
   playerControls: {
     tr: 'Oynat/duraklat, hız ayarı ve ilerleme çubuğunu buradan kontrol et.',
@@ -198,10 +208,28 @@ export const VOCABULARY_TOUR_STEPS: Record<string, { tr: string; en: string }> =
   },
 };
 
+// ---- TopicTree Tour Steps ----
+export const TOPICTREE_TOUR_STEPS: Record<string, { tr: string; en: string }> = {
+  topicTreeCreate: {
+    tr: 'Buraya bir konu başlığı yaz ve seviye seç. AI bu konuda alt konular ve içerik oluşturacak.',
+    en: 'Write a topic title and select a level here. AI will generate subtopics and content for this topic.',
+  },
+  topicTreeSelect: {
+    tr: 'Oluşturduğun konuları buradan seç. Konu seçtikten sonra alt konu oluştur, ses oluştur ve silme gibi aksiyonlara erişebilirsin.',
+    en: 'Select your created topics here. After selecting a topic, you can create subtopics, generate audio, and manage your topics.',
+  },
+  topicTreeActions: {
+    tr: 'Seçili konu için alt konu oluşturabilir, manuel ekleyebilir veya konuyu silebilirsin.',
+    en: 'Create subtopics, add manually, or delete the selected topic.',
+  },
+  topicTreeAudioCreate: {
+    tr: 'Ses ve aksanı seç, ardından bu butonla konunun sesli içeriğini oluştur.',
+    en: 'Select a voice and accent, then tap this button to create audio content for the topic.',
+  },
+};
+
 // ---- Tooltip Factory ----
 function createTourTooltip(stepTexts: Record<string, { tr: string; en: string }>) {
-  const totalSteps = Object.keys(stepTexts).length;
-
   const TourTooltip: React.FC = () => {
     const {
       goToNext,
@@ -211,6 +239,7 @@ function createTourTooltip(stepTexts: Record<string, { tr: string; en: string }>
       isFirstStep,
       isLastStep,
       currentStepNumber,
+      totalStepsNumber,
     } = useCopilot();
 
     const stepName = currentStep?.name || '';
@@ -237,7 +266,7 @@ function createTourTooltip(stepTexts: Record<string, { tr: string; en: string }>
 
         <View style={tooltipStyles.bottomRow}>
           <Text style={tooltipStyles.counter}>
-            {currentStepNumber}/{totalSteps}
+            {currentStepNumber}/{totalStepsNumber}
           </Text>
 
           <View style={tooltipStyles.navButtons}>
@@ -287,6 +316,90 @@ export const ProfileTooltip = createTourTooltip(PROFILE_TOUR_STEPS);
 export const CreateTooltip = createTourTooltip(CREATE_TOUR_STEPS);
 export const AudioPlayerTooltip = createTourTooltip(AUDIOPLAYER_TOUR_STEPS);
 export const VocabularyTooltip = createTourTooltip(VOCABULARY_TOUR_STEPS);
+// TopicTree uses a custom tooltip that handles two sub-tours (steps 1-2 and 3-4)
+// within a single CopilotProvider. Counter & navigation are adjusted per sub-tour.
+const TOPIC_TOUR1_STEPS = ['topicTreeCreate', 'topicTreeSelect'];
+const TOPIC_TOUR2_STEPS = ['topicTreeActions', 'topicTreeAudioCreate'];
+
+export const TopicTreeTooltip: React.FC = () => {
+  const {
+    goToNext,
+    goToPrev,
+    stop,
+    currentStep,
+  } = useCopilot();
+
+  const stepName = currentStep?.name || '';
+  const stepConfig = TOPICTREE_TOUR_STEPS[stepName];
+  const isTR = stepConfig
+    ? currentStep?.text === stepConfig.tr
+    : true;
+
+  // Determine which sub-tour this step belongs to
+  const isTour2 = TOPIC_TOUR2_STEPS.includes(stepName);
+  const tourSteps = isTour2 ? TOPIC_TOUR2_STEPS : TOPIC_TOUR1_STEPS;
+  const displayStep = tourSteps.indexOf(stepName) + 1;
+  const displayTotal = tourSteps.length;
+  const isActuallyFirst = stepName === tourSteps[0];
+  const isActuallyLast = stepName === tourSteps[tourSteps.length - 1];
+
+  return (
+    <View style={tooltipStyles.container}>
+      <TouchableOpacity
+        style={tooltipStyles.skipButton}
+        onPress={() => stop()}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Text style={tooltipStyles.skipText}>
+          {isTR ? 'Atla' : 'Skip'}
+        </Text>
+      </TouchableOpacity>
+
+      <Text style={tooltipStyles.stepText}>
+        {currentStep?.text || ''}
+      </Text>
+
+      <View style={tooltipStyles.bottomRow}>
+        <Text style={tooltipStyles.counter}>
+          {displayStep}/{displayTotal}
+        </Text>
+
+        <View style={tooltipStyles.navButtons}>
+          {!isActuallyFirst && (
+            <TouchableOpacity
+              style={tooltipStyles.prevButton}
+              onPress={() => goToPrev()}
+            >
+              <Text style={tooltipStyles.prevButtonText}>
+                {isTR ? 'Geri' : 'Back'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {isActuallyLast ? (
+            <TouchableOpacity
+              style={tooltipStyles.nextButton}
+              onPress={() => stop()}
+            >
+              <Text style={tooltipStyles.nextButtonText}>
+                {isTR ? 'Tamam' : 'Got it!'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={tooltipStyles.nextButton}
+              onPress={() => goToNext()}
+            >
+              <Text style={tooltipStyles.nextButtonText}>
+                {isTR ? 'Sonraki' : 'Next'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+};
 
 // ---- Tooltip Styles ----
 const tooltipStyles = StyleSheet.create({
@@ -477,6 +590,9 @@ export function useGuideTour(storageKey: string = HOME_TOUR_KEY) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Reset state when key changes so shouldShow transitions through false→true correctly
+    setIsLoading(true);
+    setIsCompleted(true);
     AsyncStorage.getItem(storageKey)
       .then((value) => {
         setIsCompleted(value === 'true');
@@ -527,10 +643,14 @@ export function useTourAutoStart(
 
   useEffect(() => {
     if (shouldShow) {
-      const timer = setTimeout(
-        () => start(undefined, scrollViewRef?.current ?? null),
-        delay,
-      );
+      const timer = setTimeout(() => {
+        // Scroll to top before starting tour so first steps are visible
+        if (scrollViewRef?.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: false });
+        }
+        // Pass scrollViewRef to copilot so it auto-scrolls to each step
+        start(undefined, scrollViewRef?.current ?? undefined);
+      }, delay);
       return () => clearTimeout(timer);
     }
     // start reference changes on each provider re-render; only shouldShow should trigger this

@@ -31,7 +31,7 @@ interface GroupedPatterns {
   [level: string]: Pattern[];
 }
 
-export default function PatternListScreen() {
+function PatternListScreen() {
   const navigation = useNavigation();
   const { language } = useLanguage();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
@@ -229,6 +229,11 @@ export default function PatternListScreen() {
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
+            getItemLayout={(_data, index) => ({
+              length: 120,
+              offset: 120 * index,
+              index,
+            })}
           />
         )
       }
@@ -585,3 +590,5 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
+export default React.memo(PatternListScreen);

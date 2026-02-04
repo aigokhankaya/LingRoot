@@ -51,4 +51,4 @@ const AudioPlayerScreen: React.FC = () => (
   </TourProvider>
 );
 
-export default AudioPlayerScreen;
+export default React.memo(AudioPlayerScreen);

@@ -8,6 +8,9 @@ const { processTextPipeline } = require('../utils/common/pipeline.js');
 const { getNewsForTopic } = require('../utils/content/newsService.js');
 const { extractFromWebLink } = require('../utils/ai/inputExtractor.js');
 const gamificationService = require('../services/gamificationService');
+const { invalidateCache } = require('../middleware/redisCache');
+const contentHistoryService = require('../services/contentHistoryService');
+const quizGenerationService = require('../services/quizGenerationService');
 
 function tryParseJson(value) {
   if (value == null) return value;
@@ -226,141 +229,65 @@ exports.processHashtag = async (req, res) => {
  * Kullanıcının içerik geçmişini getiren fonksiyon. Supabase'den ilgili kayıtları çeker.
  */
 exports.getContentHistory = async (req, res) => {
-  const userId = req.user.id;
+  try {
+    const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 50;
 
-  // User ID'yi validate et
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const result = await contentHistoryService.getContentHistory(userId, page, limit);
 
-  if (!uuidRegex.test(userId)) {
-    logger.warn(`Invalid user ID in getContentHistory: ${userId}.`);
-    return res.status(400).json({ success: false, error: 'Invalid user id' });
+    return res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    logger.error('Error in getContentHistory controller:', error);
+    if (error.message === 'Invalid user id') {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+    return res.status(500).json({ success: false, error: error.message });
   }
-
-  // Mock content history removed
-
-  const { data, error } = await supabase
-    .from('contenthistory')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) return res.status(500).json({ success: false, error: error.message });
-  const normalized = (data || []).map(row => ({
-    ...row,
-    words: tryParseJson(row.words),
-    timepoints: tryParseJson(row.timepoints),
-    dialogue_segments: tryParseJson(row.dialogue_segments),
-  }));
-  return res.json({ success: true, data: normalized });
 };
 
-/**
- * Belirli bir içeriği ID ile getiren fonksiyon. Supabase'den ilgili kaydı çeker.
- */
 /**
  * Kullanıcının içerik sayısını ve toplam süresini getiren fonksiyon.
  */
 exports.getContentCount = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    // Get count
-    const { count, error: countError } = await supabase
-      .from('contenthistory')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId);
-
-    if (countError) {
-      logger.error('Error fetching content count:', countError);
-      return res.status(500).json({ success: false, error: countError.message });
-    }
-
-    // Get total duration from timepoints
-    let totalDurationSeconds = 0;
-    try {
-      const { data: contents, error: contentsError } = await supabase
-        .from('contenthistory')
-        .select('timepoints')
-        .eq('user_id', userId);
-
-      if (!contentsError && contents) {
-        for (const content of contents) {
-          if (content.timepoints) {
-            try {
-              let tp = content.timepoints;
-              // Parse if string
-              if (typeof tp === 'string') {
-                tp = JSON.parse(tp);
-              }
-              // Get duration from last timepoint
-              if (Array.isArray(tp) && tp.length > 0) {
-                const last = tp[tp.length - 1];
-                // Try different property names
-                const dur = last?.timeSeconds || last?.endTime || last?.time || last?.end || 0;
-                if (typeof dur === 'number' && dur > 0) {
-                  totalDurationSeconds += dur;
-                }
-              }
-            } catch (parseErr) {
-              // Ignore parse errors for individual items
-            }
-          }
-        }
-      }
-    } catch (durErr) {
-      logger.warn('Error calculating total duration:', durErr);
-    }
+    const result = await contentHistoryService.getContentCount(userId);
 
     return res.json({
       success: true,
-      count: count || 0,
-      total_duration_seconds: Math.round(totalDurationSeconds)
+      ...result
     });
   } catch (error) {
-    logger.error('Server error getContentCount:', error);
+    logger.error('Error in getContentCount controller:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
 
 exports.getContentById = async (req, res) => {
-  const requestId = uuidv4();
-  let stepSequence = 1;
-
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    logger.info(`Fetching content by ID: ${id} for user ID: ${userId}`);
 
-    const { data, error } = await supabase
-      .from('contenthistory')
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", userId)
-      .single();
+    const data = await contentHistoryService.getContentById(id, userId);
 
-    if (error) {
-      logger.warn(`Content ID ${id} not found or Supabase query error for user ID ${userId}:`, error);
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logger.error(`Error in getContentById controller for ID ${req.params.id}, user ID ${req.user?.id}:`, error);
+
+    if (error.message === 'Content not found') {
       return res.status(404).json({
         success: false,
         message: "İçerik bulunamadı.",
       });
     }
 
-    logger.info(`Successfully fetched content ID: ${id} for user ID: ${userId}`);
-
-    const normalized = {
-      ...data,
-      words: tryParseJson(data.words),
-      timepoints: tryParseJson(data.timepoints),
-      dialogue_segments: tryParseJson(data.dialogue_segments),
-    };
-
-    return res.status(200).json({
-      success: true,
-      data: normalized,
-    });
-  } catch (error) {
-    logger.error(`Error fetching content detail for ID ${req.params.id}, user ID ${req.user?.id}:`, error);
     return res.status(500).json({
       success: false,
       message: "İşlem sırasında beklenmeyen bir hata oluştu.",
@@ -372,53 +299,33 @@ exports.getContentById = async (req, res) => {
  * Belirli bir içeriği silen fonksiyon. Supabase'den ilgili kaydı siler.
  */
 exports.deleteContent = async (req, res) => {
-  const requestId = uuidv4();
-  let stepSequence = 1;
-
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    logger.info(`Attempting to delete content ID: ${id} for user ID: ${userId}`);
 
-    // Önce kaydın kullanıcıya ait olduğunu doğrula
-    const { data: existingData, error: fetchError } = await supabase
-      .from('contenthistory')
-      .select("id")
-      .eq("id", id)
-      .eq("user_id", userId)
-      .single();
+    await contentHistoryService.deleteContent(id, userId);
 
-    if (fetchError || !existingData) {
-      logger.warn(`Delete failed: Content ID ${id} not found or not owned by user ID ${userId}.`, fetchError);
+    return res.status(200).json({
+      success: true,
+      message: "İçerik başarıyla silindi.",
+    });
+  } catch (error) {
+    logger.error(`Error in deleteContent controller for ID ${req.params.id}, user ID ${req.user?.id}:`, error);
+
+    if (error.message === 'Content not found or access denied') {
       return res.status(404).json({
         success: false,
         message: "İçerik bulunamadı veya silme yetkiniz yok.",
       });
     }
 
-    // Kaydı sil
-    logger.info(`Deleting content ID: ${id} from database for user ID: ${userId}`);
-    const { error: deleteError } = await supabase
-      .from('contenthistory')
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
-
-    if (deleteError) {
-      logger.error(`Supabase delete error for content ID ${id}, user ID ${userId}:`, deleteError);
+    if (error.message === 'Failed to delete content') {
       return res.status(500).json({
         success: false,
         message: "İçerik silinirken hata oluştu.",
       });
     }
 
-    logger.info(`Content ID ${id} deleted successfully for user ID: ${userId}`);
-    return res.status(200).json({
-      success: true,
-      message: "İçerik başarıyla silindi.",
-    });
-  } catch (error) {
-    logger.error(`Error deleting content ID ${req.params.id} for user ID ${req.user?.id}:`, error);
     return res.status(500).json({
       success: false,
       message: "İşlem sırasında beklenmeyen bir hata oluştu.",
@@ -645,6 +552,12 @@ exports.submitContent = async (req, res) => {
       // contenthistory.words/timepoints kolonlar31 TEXT oldu1fu i e7in JSON string olarak sakla
       if (Array.isArray(timepoints) && timepoints.length > 0) {
         updatePayload.timepoints = JSON.stringify(timepoints);
+        // Pre-compute duration_seconds from last timepoint
+        const lastTp = timepoints[timepoints.length - 1];
+        const dur = lastTp?.timeSeconds || lastTp?.endTime || lastTp?.time || lastTp?.end || 0;
+        if (typeof dur === 'number' && dur > 0) {
+          updatePayload.duration_seconds = Math.round(dur);
+        }
       }
       if (Array.isArray(words) && words.length > 0) {
         updatePayload.words = JSON.stringify(words);
@@ -684,6 +597,12 @@ exports.submitContent = async (req, res) => {
       // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa JSON string olarak sakla
       if (Array.isArray(timepoints) && timepoints.length > 0) {
         insertPayload.timepoints = JSON.stringify(timepoints);
+        // Pre-compute duration_seconds from last timepoint
+        const lastTp = timepoints[timepoints.length - 1];
+        const dur = lastTp?.timeSeconds || lastTp?.endTime || lastTp?.time || lastTp?.end || 0;
+        if (typeof dur === 'number' && dur > 0) {
+          insertPayload.duration_seconds = Math.round(dur);
+        }
       }
       if (Array.isArray(words) && words.length > 0) {
         insertPayload.words = JSON.stringify(words);
@@ -725,6 +644,12 @@ exports.submitContent = async (req, res) => {
     }
 
     logger.info(`Content history saved successfully for user ID: ${user_id || 'anon'}, Record ID: ${data[0]?.id}`);
+
+    // Invalidate cached content history and stats for this user
+    if (validUserId) {
+      invalidateCache(`content:history:${validUserId}`);
+      invalidateCache(`stats:user:${validUserId}`);
+    }
 
     // Kullanım limiti kontrolü ve paketi gerekirse pasife çek
     try {
@@ -1032,7 +957,7 @@ exports.getInProgress = async (req, res) => {
 /**
  * GET /api/content/:id/quiz
  * Generate a quiz based on content vocabulary
- * 
+ *
  * ENHANCED VERSION:
  * - Multiple question types (MC, Cloze, Matching)
  * - Smart distractor selection (semantic + phonetic similarity)
@@ -1045,387 +970,39 @@ exports.generateQuiz = async (req, res) => {
     const userId = req.user.id;
     const { count = 5, types, difficulty } = req.query;
 
-    // Get content with words
-    const { data: content, error } = await supabase
-      .from('contenthistory')
-      .select('id, words, adapted_text, level')
-      .eq('id', id)
-      .eq('user_id', userId)
-      .single();
+    const quizData = await quizGenerationService.generateQuiz(id, userId, {
+      count,
+      types,
+      difficulty
+    });
 
-    if (error || !content) {
+    return res.json({
+      success: true,
+      data: quizData
+    });
+  } catch (error) {
+    logger.error('[GenerateQuiz Controller] Error:', error);
+
+    if (error.message === 'Content not found') {
       return res.status(404).json({ success: false, message: 'İçerik bulunamadı' });
     }
 
-    let words = [];
-    if (content.words) {
-      try {
-        words = typeof content.words === 'string' ? JSON.parse(content.words) : content.words;
-      } catch (e) {
-        words = [];
-      }
-    }
-
-    if (!Array.isArray(words) || words.length < 3) {
+    if (error.message.includes('Not enough words')) {
       return res.status(400).json({
         success: false,
         message: 'Bu içerikte yeterli kelime yok. En az 3 kelime gerekli.'
       });
     }
 
-    // =====================================================
-    // ENHANCED QUIZ GENERATION WITH QUIZ ENGINE
-    // =====================================================
-
-    const quizEngineService = require('../services/quizEngineService');
-    const srsService = require('../services/srsService');
-
-    // Calculate adaptive difficulty
-    let recommendedDifficulty = 3; // Default: Medium
-    try {
-      if (difficulty) {
-        recommendedDifficulty = parseInt(difficulty);
-      } else {
-        recommendedDifficulty = await quizEngineService.calculateRecommendedDifficulty(userId);
-      }
-    } catch (diffErr) {
-      logger.warn('[GenerateQuiz] Difficulty calculation failed, using default:', diffErr.message);
-    }
-
-    // Get SRS words that need review (to inject into quiz)
-    let srsWords = [];
-    try {
-      const dueWords = await srsService.getDueWords(userId, 2);
-      srsWords = dueWords.map(w => ({
-        word: w.word,
-        definition: w.definition,
-        priority: 'srs'
-      }));
-    } catch (srsErr) {
-      logger.warn('[GenerateQuiz] SRS words fetch failed:', srsErr.message);
-    }
-
-    // Get user's struggling words from previous quizzes
-    let strugglingWords = [];
-    try {
-      const struggling = await quizEngineService.getStrugglingWords(userId, 2);
-      strugglingWords = struggling.map(w => ({
-        word: w.word,
-        priority: 'struggling'
-      }));
-    } catch (strErr) {
-      logger.warn('[GenerateQuiz] Struggling words fetch failed:', strErr.message);
-    }
-
-    // Merge word pools with priorities
-    // Priority: SRS > Struggling > Content
-    const allWords = [
-      ...srsWords,
-      ...strugglingWords,
-      ...words.map(w => ({ ...w, priority: 'content' }))
-    ];
-
-    // Remove duplicates, keep highest priority
-    const seenWords = new Set();
-    const uniqueWords = allWords.filter(w => {
-      const key = (w.word || '').toLowerCase();
-      if (seenWords.has(key)) return false;
-      seenWords.add(key);
-      return true;
-    });
-
-    // Select words for quiz
-    const questionCount = Math.min(parseInt(count), uniqueWords.length, 7);
-    const selectedWords = uniqueWords.slice(0, questionCount);
-
-    // Determine question types
-    let questionTypes = ['multiple_choice'];
-    if (types) {
-      questionTypes = types.split(',').map(t => t.trim());
-    } else if (questionCount >= 3) {
-      questionTypes = ['multiple_choice', 'cloze'];
-    }
-    if (questionCount >= 5 && words.length >= 6) {
-      questionTypes.push('matching');
-    }
-
-    // Generate questions with smart distractors
-    const questions = [];
-    let typeIndex = 0;
-
-    for (let i = 0; i < selectedWords.length; i++) {
-      const wordData = selectedWords[i];
-      const questionType = questionTypes[typeIndex % questionTypes.length];
-      typeIndex++;
-
-      const question = await generateSmartQuestion(
-        wordData,
-        questionType,
-        words, // All content words for distractor pool
-        recommendedDifficulty,
-        i + 1
-      );
-
-      if (question) {
-        questions.push(question);
-      }
-    }
-
-    // Add matching question if enough words
-    if (questionTypes.includes('matching') && words.length >= 6) {
-      const matchingPairs = words
-        .filter(w => w.word && (w.definition || w.meaning))
-        .slice(0, 5)
-        .map((w, idx) => ({
-          id: idx,
-          left: w.word,
-          right: w.definition || w.meaning
-        }));
-
-      if (matchingPairs.length >= 4) {
-        questions.push({
-          id: questions.length + 1,
-          type: 'matching',
-          question: 'Kelimeleri anlamlarıyla eşleştirin:',
-          pairs: matchingPairs,
-          points: 15,
-          difficulty: recommendedDifficulty
-        });
-      }
-    }
-
-    return res.json({
-      success: true,
-      data: {
-        contentId: id,
-        totalQuestions: questions.length,
-        questions,
-        metadata: {
-          cefrLevel: content.level,
-          recommendedDifficulty,
-          includedTypes: [...new Set(questions.map(q => q.type))],
-          srsWordsIncluded: srsWords.length,
-          strugglingWordsIncluded: strugglingWords.length
-        }
-      }
-    });
-  } catch (error) {
-    logger.error('[GenerateQuiz] Error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Generate a smart question with pedagogically sound distractors
- * @param {Object} wordData - Word object with word, definition, etc.
- * @param {string} type - Question type
- * @param {Array} allWords - All available words for distractor pool
- * @param {number} difficulty - Difficulty level 1-5
- * @param {number} id - Question ID
- */
-async function generateSmartQuestion(wordData, type, allWords, difficulty, id) {
-  const word = wordData.word;
-  const meaning = wordData.definition || wordData.meaning;
-
-  if (!word || !meaning) return null;
-
-  switch (type) {
-    case 'cloze':
-      return generateClozeQuestion(wordData, id, difficulty);
-
-    case 'matching':
-      return null; // Handled separately
-
-    case 'multiple_choice':
-    default:
-      return generateMCQuestion(wordData, allWords, id, difficulty);
-  }
-}
-
-/**
- * Generate Multiple Choice question with smart distractors
- */
-function generateMCQuestion(wordData, allWords, id, difficulty) {
-  const word = wordData.word;
-  const meaning = wordData.definition || wordData.meaning;
-
-  // Smart distractor selection strategies
-  const distractors = selectSmartDistractors(wordData, allWords, 3);
-
-  // Combine correct answer with distractors and shuffle
-  const allOptions = [meaning, ...distractors];
-  const shuffled = shuffleArray(allOptions);
-  const correctIndex = shuffled.indexOf(meaning);
-
-  // Determine question template based on difficulty
-  let questionTemplate = `"${word}" kelimesinin anlamı nedir?`;
-  if (difficulty >= 4) {
-    questionTemplate = `Which of the following best describes "${word}"?`;
-  }
-
-  return {
-    id,
-    type: 'multiple_choice',
-    word,
-    question: questionTemplate,
-    options: shuffled,
-    correct: correctIndex,
-    points: 10,
-    difficulty,
-    explanation: {
-      tr: `${word}: ${meaning}`,
-      en: wordData.example || null
-    },
-    priority: wordData.priority || 'content'
-  };
-}
-
-/**
- * Generate Cloze (fill-in-the-blank) question
- */
-function generateClozeQuestion(wordData, id, difficulty) {
-  const word = wordData.word;
-  const meaning = wordData.definition || wordData.meaning;
-  const example = wordData.example || wordData.context;
-
-  // Generate sentence with blank
-  let sentence;
-  if (example && example.toLowerCase().includes(word.toLowerCase())) {
-    // Use actual example sentence
-    sentence = example.replace(new RegExp(`\\b${word}\\b`, 'gi'), '_____');
-  } else {
-    // Generate generic template
-    const templates = [
-      `The concept of _____ is essential in this context.`,
-      `Understanding _____ helps in professional communication.`,
-      `The term _____ refers to ${meaning.split(' ').slice(0, 5).join(' ')}...`
-    ];
-    sentence = templates[Math.floor(Math.random() * templates.length)];
-  }
-
-  return {
-    id,
-    type: 'cloze',
-    word,
-    question: `Boşluğu doldurun: "${sentence}"`,
-    sentence_template: sentence,
-    correct: word,
-    acceptAlternatives: [word.toLowerCase(), word.toUpperCase()],
-    points: 12,
-    difficulty,
-    explanation: {
-      tr: `Doğru cevap: ${word} - ${meaning}`,
-      en: example || null
-    },
-    priority: wordData.priority || 'content'
-  };
-}
-
-/**
- * Select pedagogically sound distractors
- * Strategies:
- * 1. Semantic similarity (same category)
- * 2. Phonetic similarity (similar sounding)
- * 3. Common confusion (frequently mistaken pairs)
- */
-function selectSmartDistractors(targetWord, allWords, count) {
-  const targetMeaning = targetWord.definition || targetWord.meaning || '';
-  const targetWordStr = targetWord.word || '';
-
-  // Filter out target word
-  const otherWords = allWords.filter(w =>
-    w.word && w.word.toLowerCase() !== targetWordStr.toLowerCase()
-  );
-
-  if (otherWords.length === 0) {
-    return getGenericDistractors(count);
-  }
-
-  // Score each potential distractor
-  const scored = otherWords.map(w => {
-    let score = 0;
-    const meaning = w.definition || w.meaning || '';
-    const wordStr = w.word || '';
-
-    // Semantic similarity (longer similar words = more confusing)
-    const targetWords = targetMeaning.toLowerCase().split(' ');
-    const candidateWords = meaning.toLowerCase().split(' ');
-    const commonWords = targetWords.filter(tw =>
-      candidateWords.some(cw => cw.includes(tw) || tw.includes(cw))
-    );
-    score += commonWords.length * 2;
-
-    // Phonetic similarity (first letter match, similar length)
-    if (wordStr[0]?.toLowerCase() === targetWordStr[0]?.toLowerCase()) {
-      score += 1;
-    }
-    if (Math.abs(wordStr.length - targetWordStr.length) <= 2) {
-      score += 1;
-    }
-
-    // Part of speech similarity (if available)
-    if (w.pos && targetWord.pos && w.pos === targetWord.pos) {
-      score += 2;
-    }
-
-    return { ...w, distractorScore: score };
-  });
-
-  // Sort by score (higher = better distractor)
-  scored.sort((a, b) => b.distractorScore - a.distractorScore);
-
-  // Take top N distractors
-  const selected = scored.slice(0, count);
-
-  // If not enough distractors, fill with generic ones
-  const distractorMeanings = selected.map(w => w.definition || w.meaning || 'Bilinmiyor');
-
-  while (distractorMeanings.length < count) {
-    const generic = getGenericDistractors(1)[0];
-    if (!distractorMeanings.includes(generic)) {
-      distractorMeanings.push(generic);
-    }
-  }
-
-  return distractorMeanings.slice(0, count);
-}
-
-/**
- * Generic distractors when not enough words available
- */
-function getGenericDistractors(count) {
-  const generics = [
-    'önemli bir kavram olmak',
-    'hızlı hareket etmek',
-    'dikkatli davranmak',
-    'sessiz kalmak',
-    'değişiklik yapmak',
-    'açıklama sunmak',
-    'karşı çıkmak',
-    'destek vermek',
-    'analiz etmek',
-    'yönetmek'
-  ];
-
-  return shuffleArray(generics).slice(0, count);
-}
-
-/**
- * Fisher-Yates shuffle
- */
-function shuffleArray(array) {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
 
 /**
  * POST /api/content/:id/quiz/submit
  * Submit quiz answers and award XP
- * 
+ *
  * ENHANCED VERSION:
  * - Multi-type question evaluation via Quiz Engine
  * - SRS integration for wrong answers
@@ -1442,309 +1019,20 @@ exports.submitQuiz = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Answers array required' });
     }
 
-    // Get the content with words
-    const { data: content, error } = await supabase
-      .from('contenthistory')
-      .select('words, level')
-      .eq('id', id)
-      .eq('user_id', userId)
-      .single();
-
-    if (error || !content) {
-      return res.status(404).json({ success: false, message: 'İçerik bulunamadı' });
-    }
-
-    let words = [];
-    try {
-      words = typeof content.words === 'string' ? JSON.parse(content.words) : content.words;
-    } catch (e) {
-      words = [];
-    }
-
-    // =====================================================
-    // ENHANCED EVALUATION WITH QUIZ ENGINE
-    // =====================================================
-
-    const quizEngineService = require('../services/quizEngineService');
-    const srsService = require('../services/srsService');
-
-    // Build questions from client data or reconstruct from answers
-    let questions = clientQuestions || [];
-    if (!questions.length) {
-      // Reconstruct questions from answers for backward compatibility
-      questions = answers.map(ans => ({
-        id: ans.questionId || ans.id,
-        type: ans.type || 'multiple_choice',
-        word: ans.word,
-        correct: ans.correctAnswer,
-        options: ans.options
-      }));
-    }
-
-    // Normalize answers for Quiz Engine
-    const normalizedAnswers = answers.map(ans => ({
-      question_id: ans.questionId || ans.id,
-      questionId: ans.questionId || ans.id,
-      selected: ans.selectedAnswer ?? ans.selected ?? ans.answer,
-      answer: ans.selectedAnswer ?? ans.selected ?? ans.answer,
-      responseTime: ans.responseTime || null
-    }));
-
-    // Use Quiz Engine for evaluation
-    let evaluation;
-    try {
-      evaluation = quizEngineService.evaluateMultipleAnswers(questions, normalizedAnswers);
-    } catch (evalErr) {
-      logger.warn('[QuizSubmit] Quiz Engine evaluation failed, using fallback:', evalErr.message);
-
-      // Fallback to simple evaluation
-      let correctCount = 0;
-      const results = answers.map(ans => {
-        const word = words.find(w => w.word === ans.word);
-        const isCorrect = word && (ans.selectedAnswer === word.definition || ans.selectedAnswer === word.meaning);
-        if (isCorrect) correctCount++;
-        return { ...ans, isCorrect };
-      });
-
-      evaluation = {
-        score: correctCount * 10,
-        maxScore: answers.length * 10,
-        scorePercentage: Math.round((correctCount / answers.length) * 100),
-        correctCount,
-        wrongCount: answers.length - correctCount,
-        totalQuestions: answers.length,
-        detailedAnswers: results.map(r => ({
-          questionId: r.questionId || r.id,
-          word: r.word,
-          isCorrect: r.isCorrect,
-          userAnswer: r.selectedAnswer,
-          feedback: r.isCorrect ? 'Doğru!' : 'Yanlış cevap'
-        }))
-      };
-    }
-
-    const totalQuestions = evaluation.totalQuestions;
-    const score = evaluation.scorePercentage;
-    const passed = score >= 60;
-
-    // =====================================================
-    // SRS INTEGRATION - Sync wrong answers
-    // =====================================================
-
-    const wrongWords = [];
-    const detailedResults = [];
-
-    for (const answer of (evaluation.detailedAnswers || [])) {
-      const wordData = words.find(w => w.word === answer.word);
-      const meaning = wordData?.definition || wordData?.meaning || '';
-
-      // Build rich feedback
-      const richFeedback = {
-        questionId: answer.questionId,
-        word: answer.word,
-        isCorrect: answer.isCorrect,
-        userAnswer: answer.userAnswer,
-        correctAnswer: answer.correctAnswer,
-        feedback: answer.feedback,
-        explanation: answer.explanation || {
-          tr: wordData ? `${answer.word}: ${meaning}` : null,
-          en: wordData?.example || null
-        }
-      };
-
-      detailedResults.push(richFeedback);
-
-      // Track wrong answers for SRS
-      if (!answer.isCorrect && answer.word) {
-        wrongWords.push({
-          word: answer.word,
-          meaning: meaning,
-          context: wordData?.example || null
-        });
-      }
-    }
-
-    // Sync wrong words to SRS
-    let srsSyncResult = { synced: 0, wordsToReview: [] };
-    if (wrongWords.length > 0) {
-      try {
-        for (const wrongWord of wrongWords) {
-          await srsService.reviewWord(
-            userId,
-            wrongWord.word,
-            wrongWord.meaning,
-            2, // quality=2 means "wrong" in SM-2
-            wrongWord.meaning,
-            wrongWord.context,
-            id // sourceContentId
-          );
-        }
-
-        srsSyncResult = {
-          synced: wrongWords.length,
-          wordsToReview: wrongWords.map(w => w.word)
-        };
-
-        logger.info(`[QuizSubmit] SRS sync: ${wrongWords.length} words synced for user ${userId}`);
-      } catch (srsErr) {
-        logger.warn('[QuizSubmit] SRS sync failed:', srsErr.message);
-      }
-    }
-
-    // =====================================================
-    // RECORD WORD ATTEMPTS FOR ANALYTICS
-    // =====================================================
-
-    try {
-      for (const answer of detailedResults) {
-        if (answer.word) {
-          await quizEngineService.recordWordAttempt(userId, {
-            questionId: answer.questionId,
-            questionType: 'multiple_choice',
-            word: answer.word,
-            isCorrect: answer.isCorrect,
-            userAnswer: answer.userAnswer,
-            correctAnswer: answer.correctAnswer,
-            responseTime: null
-          }, {
-            contentId: id,
-            cefrLevel: content.level
-          });
-        }
-      }
-    } catch (recordErr) {
-      logger.warn('[QuizSubmit] Word attempt recording failed:', recordErr.message);
-    }
-
-    // =====================================================
-    // XP CALCULATION WITH BONUSES
-    // =====================================================
-
-    let xpResult = null;
-    let xpAmount = 0;
-
-    try {
-      // Base XP calculation
-      if (passed) {
-        xpAmount = gamificationService.xpRewards.QUIZ_COMPLETE || 50;
-
-        // Perfect score bonus
-        if (score === 100) {
-          xpAmount = gamificationService.xpRewards.QUIZ_PERFECT_SCORE || 100;
-        }
-
-        // Score-based bonus
-        xpAmount += Math.floor(score / 10) * 2;
-      } else {
-        // Participation XP even if failed
-        xpAmount = Math.floor((gamificationService.xpRewards.QUIZ_COMPLETE || 50) / 2);
-
-        // Effort bonus (>50%)
-        if (score >= 50) {
-          xpAmount += 10;
-        }
-      }
-
-      xpResult = await gamificationService.addXP(
-        userId,
-        xpAmount,
-        'content_quiz',
-        id,
-        `Quiz tamamlandı: ${score}%`
-      );
-
-      await gamificationService.updateDailyQuestProgress(userId, 'complete_quiz', 1);
-
-      // Update review words quest if applicable
-      if (wrongWords.length > 0) {
-        await gamificationService.updateDailyQuestProgress(userId, 'review_words', wrongWords.length);
-      }
-    } catch (xpErr) {
-      logger.warn('[QuizSubmit] XP award failed:', xpErr.message);
-    }
-
-    // =====================================================
-    // RESPONSE WITH RICH DATA
-    // =====================================================
+    const result = await quizGenerationService.submitQuiz(id, userId, answers, clientQuestions);
 
     return res.json({
       success: true,
-      data: {
-        score,
-        correctCount: evaluation.correctCount,
-        wrongCount: evaluation.wrongCount,
-        totalQuestions,
-        passed,
-        xpEarned: xpResult?.xpAdded || xpAmount,
-
-        // Detailed results with feedback
-        detailedAnswers: detailedResults,
-
-        // SRS sync info
-        srsSync: srsSyncResult,
-
-        // Performance metrics
-        performance: evaluation.performance || null,
-
-        // Level progress
-        levelProgress: xpResult ? {
-          currentLevel: xpResult.currentLevel,
-          xpInLevel: xpResult.xpInLevel,
-          xpForNextLevel: xpResult.xpForNextLevel,
-          leveledUp: xpResult.leveledUp
-        } : null,
-
-        // Next actions suggestion
-        nextActions: generateNextActions(passed, wrongWords.length, evaluation.correctCount)
-      }
+      data: result
     });
   } catch (error) {
-    logger.error('[QuizSubmit] Error:', error);
+    logger.error('[SubmitQuiz Controller] Error:', error);
+
+    if (error.message === 'Content not found') {
+      return res.status(404).json({ success: false, message: 'İçerik bulunamadı' });
+    }
+
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Generate smart next action suggestions based on quiz performance
- */
-function generateNextActions(passed, wrongCount, correctCount) {
-  const actions = [];
-
-  if (wrongCount > 0) {
-    actions.push({
-      type: 'review_words',
-      title: 'Kelimeleri Çalış',
-      description: `${wrongCount} kelimeyi SRS kartlarında tekrar et`,
-      route: '/vocabulary?mode=due',
-      priority: 1
-    });
-  }
-
-  if (passed) {
-    actions.push({
-      type: 'next_content',
-      title: 'Yeni İçerik Dinle',
-      description: 'Öğrendiklerini pekiştirmek için yeni içerik dinle',
-      route: '/dashboard',
-      priority: 2
-    });
-  } else {
-    actions.push({
-      type: 'retry_quiz',
-      title: 'Quiz\'i Tekrarla',
-      description: 'Biraz daha çalışıp tekrar dene',
-      priority: 2
-    });
-  }
-
-  if (correctCount >= 3) {
-    actions.push({
-      type: 'celebrate',
-      title: 'Tebrikler!',
-      description: `${correctCount} soruyu doğru cevapladın!`,
-      priority: 3
-    });
-  }
-
-  return actions.sort((a, b) => a.priority - b.priority);
-}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { analytics } from '../lib/firebase';
+import { getFirebaseAnalytics } from '../lib/firebase';
 import { logEvent } from 'firebase/analytics';
 
 const AnalyticsDebug = () => {
@@ -8,6 +8,7 @@ const AnalyticsDebug = () => {
     const [lastLog, setLastLog] = useState<string>('None');
 
     const handleTestEvent = async () => {
+        const analytics = await getFirebaseAnalytics();
         if (analytics) {
             try {
                 logEvent(analytics, 'test_debug_event', {
@@ -16,8 +17,9 @@ const AnalyticsDebug = () => {
                 });
                 setLastLog('Sent: test_debug_event');
                 console.log('[AnalyticsDebug] Test event sent');
-            } catch (e: any) {
-                setLastLog(`Error: ${e.message}`);
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e);
+                setLastLog(`Error: ${message}`);
             }
         } else {
             setLastLog('Failed: Analytics is null');
@@ -25,8 +27,9 @@ const AnalyticsDebug = () => {
     };
 
     useEffect(() => {
-        const checkStatus = () => {
+        const checkStatus = async () => {
             if (typeof window !== 'undefined') {
+                const analytics = await getFirebaseAnalytics();
                 const isAnalyticsLoaded = !!analytics;
                 setStatus(isAnalyticsLoaded ? 'Active (Ready to log)' : 'Inactive (Analytics is null)');
 

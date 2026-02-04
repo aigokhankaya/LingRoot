@@ -1,5 +1,6 @@
 const { supabase } = require('../utils/storage/supabaseClient.js');
 const logger = require('../utils/common/logger.js');
+const { invalidateCache } = require('../middleware/redisCache');
 
 /**
  * Tüm parametreleri getir
@@ -8,7 +9,7 @@ exports.getAllParameters = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('parameters')
-      .select('*')
+      .select('key, value, description, created_at, updated_at')
       .order('key');
 
     if (error) {
@@ -43,7 +44,7 @@ exports.getParameter = async (req, res) => {
 
     const { data, error } = await supabase
       .from('parameters')
-      .select('*')
+      .select('key, value, description, created_at, updated_at')
       .eq('key', key)
       .single();
 
@@ -116,6 +117,7 @@ exports.updateParameter = async (req, res) => {
     }
 
     logger.info(`Parameter updated: ${key} = ${value}`);
+    invalidateCache('params');
     return res.json({
       success: true,
       message: 'Parametre başarıyla güncellendi.',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { addWordWithTranslation, lookupVocabularyWord, saveListeningProgress } from '../lib/api';
 
 interface Timepoint {
@@ -86,6 +86,76 @@ const parseTimeCode = (timeStr: string): number => {
   return minutes * 60 + seconds + (parseInt(milliseconds) / 1000);
 };
 
+// Binary search for finding the current word index from sorted timestamps
+const findCurrentWordIndex = (timestamps: WordTimestamp[], time: number): number => {
+  let low = 0;
+  let high = timestamps.length - 1;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const ts = timestamps[mid];
+    if (time >= ts.startTime && time < ts.endTime) return mid;
+    if (time < ts.startTime) high = mid - 1;
+    else low = mid + 1;
+  }
+  return -1;
+};
+
+// Memoized word span component to prevent unnecessary re-renders
+interface WordSpanProps {
+  word: string;
+  index: number;
+  isCurrentWord: boolean;
+  timestamp: WordTimestamp | undefined;
+  onWordClick: (index: number, startTime: number) => void;
+  onWordRightClick: (e: React.MouseEvent, word: string, index: number) => void;
+}
+
+const WordSpan = memo(function WordSpan({
+  word,
+  index,
+  isCurrentWord,
+  timestamp,
+  onWordClick,
+  onWordRightClick,
+}: WordSpanProps) {
+  return (
+    <span
+      className={`inline-block cursor-pointer transition-colors duration-[25ms] hover:text-primary font-normal ${isCurrentWord
+        ? 'bg-yellow-300 text-yellow-900 rounded shadow-lg'
+        : 'text-gray-800'
+        }`}
+      onClick={() => timestamp && onWordClick(index, timestamp.startTime)}
+      onContextMenu={(e) => onWordRightClick(e, word, index)}
+      title={timestamp &&
+        typeof timestamp.startTime === 'number' &&
+        !isNaN(timestamp.startTime)
+        ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s`
+        : 'Timing bilgisi yok'}
+      style={{
+        minHeight: '1.8rem',
+        height: '1.8rem',
+        padding: '0.15rem 0.25rem',
+        margin: '0.1rem 0.15rem',
+        display: 'inline-flex',
+        alignItems: 'center',
+        verticalAlign: 'top',
+        boxSizing: 'border-box',
+        border: isCurrentWord ? '2px solid #fbbf24' : '2px solid transparent',
+        boxShadow: isCurrentWord ? '0 0 8px rgba(251, 191, 36, 0.4)' : 'none',
+        transform: 'none',
+        backgroundColor: isCurrentWord ? '#fde68a' : 'transparent',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        maxWidth: 'fit-content',
+        justifyContent: 'center',
+        textAlign: 'center'
+      }}
+    >
+      {word}
+    </span>
+  );
+});
+
 export default function SyncedTextPlayer({
   audioUrl,
   vttUrl,
@@ -123,6 +193,7 @@ export default function SyncedTextPlayer({
   const [isLookingUp, setIsLookingUp] = useState(false);
   const lastSavedProgressRef = useRef<number>(0); // Son kaydedilen pozisyon
   const progressSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Dinleme pozisyonunu backend'e kaydet
   const saveProgress = useCallback(async (position: number, duration: number, force: boolean = false) => {
@@ -463,16 +534,8 @@ export default function SyncedTextPlayer({
 
       // Backend timepoints varsa TAM BİREBİR EŞLEŞME - HİÇ TOLERANCE YOK
       if (timingMethod === 'Backend' && timepoints && timepoints.length > 0) {
-        // TAM BİREBİR SENKRONIZASYON - Sadece exact timing'leri kullan
-        for (let i = 0; i < wordTimestamps.length; i++) {
-          const timestamp = wordTimestamps[i];
-          if (timestamp &&
-            currentTime >= timestamp.startTime &&
-            currentTime < timestamp.endTime) {
-            foundWordIndex = i;
-            break;
-          }
-        }
+        // Binary search for O(log n) word lookup
+        foundWordIndex = findCurrentWordIndex(wordTimestamps, currentTime);
 
         // DEBUG LOG - sadece kelime değişiminde
         if (foundWordIndex !== currentWordIndex && foundWordIndex !== -1) {
@@ -621,10 +684,8 @@ export default function SyncedTextPlayer({
       }
     };
 
-    // Update frequency - birebir eşleşme için optimize edildi
-    const updateInterval = timingMethod === 'Backend' ?
-      (1000 / 240) :  // 240 FPS - birebir eşleşme için maksimum hassasiyet
-      (1000 / 120);   // 120 FPS - diğer methodlar için
+    // Update frequency - 60 FPS is sufficient for smooth word highlighting
+    const updateInterval = 1000 / 60;
 
     let lastUpdateTime = 0;
 
@@ -635,16 +696,20 @@ export default function SyncedTextPlayer({
         }
         lastUpdateTime = currentAnimationTime;
       }
-      requestAnimationFrame(updateLoop);
+      animationFrameRef.current = requestAnimationFrame(updateLoop);
     };
 
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
 
-    updateLoop(0);
+    animationFrameRef.current = requestAnimationFrame(updateLoop);
 
     return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
@@ -702,10 +767,8 @@ export default function SyncedTextPlayer({
         className="text-lg leading-relaxed"
         style={{
           lineHeight: '1.8rem',
-          // CONTAINER STABILIZATION
           overflow: 'hidden',
           position: 'relative',
-          // PREVENT LAYOUT SHIFTS
           containIntrinsicSize: 'auto',
           contain: 'layout style'
         }}
@@ -715,50 +778,15 @@ export default function SyncedTextPlayer({
           const timestamp = wordTimestamps[index];
 
           return (
-            <span
+            <WordSpan
               key={index}
-              className={`inline-block cursor-pointer transition-colors duration-[25ms] hover:text-primary font-normal ${isCurrentWord
-                ? 'bg-yellow-300 text-yellow-900 rounded shadow-lg'
-                : 'text-gray-800'
-                }`}
-              onClick={() => timestamp && handleWordClick(index, timestamp.startTime)}
-              onContextMenu={(e) => handleWordRightClick(e, word, index)}
-              title={timestamp &&
-                typeof timestamp.startTime === 'number' &&
-                !isNaN(timestamp.startTime)
-                ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s`
-                : 'Timing bilgisi yok'}
-              style={{
-                // SABİT BOYUTLAR - Layout shift'i önlemek için
-                minHeight: '1.8rem',
-                height: '1.8rem',
-                // SABİT PADDING - vurgulu/vurgusuz aynı boyut (azaltıldı)
-                padding: '0.15rem 0.25rem',
-                margin: '0.1rem 0.15rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                verticalAlign: 'top',
-                // BOX-SIZING - padding'i boyuta dahil et
-                boxSizing: 'border-box',
-                // BORDER - vurgulu/vurgusuz aynı kalınlık
-                border: isCurrentWord ? '2px solid #fbbf24' : '2px solid transparent',
-                // SHADOW - layout'u etkilemesin
-                boxShadow: isCurrentWord ? '0 0 8px rgba(251, 191, 36, 0.4)' : 'none',
-                // TRANSFORM - hiçbir transform kullanma
-                transform: 'none',
-                // BACKGROUND - geçiş sırasında boyut değişimi olmasın
-                backgroundColor: isCurrentWord ? '#fde68a' : 'transparent',
-                // TEXT OVERFLOW - uzun kelimeler için
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 'fit-content',
-                // FLEX PROPERTIES - içerik merkezleme
-                justifyContent: 'center',
-                textAlign: 'center'
-              }}
-            >
-              {word}
-            </span>
+              word={word}
+              index={index}
+              isCurrentWord={isCurrentWord}
+              timestamp={timestamp}
+              onWordClick={handleWordClick}
+              onWordRightClick={handleWordRightClick}
+            />
           );
         })}
       </div>

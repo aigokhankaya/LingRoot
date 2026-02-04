@@ -55,7 +55,7 @@ export async function addWordToVocabulary(word: string, source?: string): Promis
 }
 
 /**
- * Add a word with translation (uses AI to enrich)
+ * Add a word with translation (uses backend /add-with-translation endpoint)
  */
 export async function addWordWithTranslation(
     word: string,
@@ -66,32 +66,39 @@ export async function addWordWithTranslation(
     const client = await getApiClientAsync();
 
     try {
-        // First lookup the word to get definition
-        const lookupResult = await client.vocabulary.lookup(word);
+        const response = await client.http.post('/api/vocabulary/add-with-translation', {
+            word,
+            context,
+            level,
+            originalSentence
+        });
 
-        // Add to user's vocabulary
-        const addResult = await client.vocabulary.addWord(word, 'manual');
+        const result = response.data;
+        const responseData = result.data || {};
 
-        // Build VocabularyWord from results
         const vocabWord: VocabularyWord = {
-            id: parseInt(addResult.data?.id || '0', 10),
-            word: word,
-            definition: lookupResult.data?.data?.definition || '',
-            level: (lookupResult.data?.data as any)?.level || level || 'B1',
-            is_learned: false,
-            example_sentence: lookupResult.data?.data?.example || '',
-            example_sentence_turkish: lookupResult.data?.data?.translation || '',
-            original_sentence: originalSentence,
-            created_at: new Date().toISOString(),
+            id: responseData.id || 0,
+            word: responseData.word || word,
+            definition: responseData.definition || '',
+            level: responseData.level || level || 'B1',
+            is_learned: responseData.is_learned || false,
+            example_sentence: responseData.example_sentence || '',
+            example_sentence_turkish: responseData.example_sentence_turkish || '',
+            original_sentence: responseData.original_sentence || originalSentence,
+            created_at: responseData.created_at || new Date().toISOString(),
         };
 
         return {
             data: vocabWord,
-            isExisting: lookupResult.data?.hasUserWord,
-            translationError: !lookupResult.data?.found
+            isExisting: result.isExisting || false,
+            translationError: result.translationError || false
         };
-    } catch (error: any) {
-        throw new Error(error.message || 'Failed to add word with translation');
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { error?: string; translationError?: boolean } } };
+        if (err.response?.data?.translationError) {
+            throw new Error(err.response.data.error || 'Kelime çevirisi yapılamadı');
+        }
+        throw new Error((err.response?.data?.error) || 'Failed to add word with translation');
     }
 }
 

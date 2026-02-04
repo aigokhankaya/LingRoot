@@ -3,29 +3,35 @@ import { Animated, Easing, Keyboard, StyleSheet, TouchableOpacity } from 'react-
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const ANIMATION_DURATION_MS = 180;
+const OFFSCREEN_Y = 200;
 
 const KeyboardToggleOverlay: React.FC = () => {
   const [visible, setVisible] = useState(false);
-  const bottomAnim = useRef(new Animated.Value(-100)).current;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const translateYAnim = useRef(new Animated.Value(OFFSCREEN_Y)).current;
 
-  const animateToBottom = (to: number) => {
-    Animated.timing(bottomAnim, {
-      toValue: to,
+  const animateToY = (toValue: number) => {
+    Animated.timing(translateYAnim, {
+      toValue,
       duration: ANIMATION_DURATION_MS,
       easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   };
 
   useEffect(() => {
-    const onShow = (e: any) => {
+    const onShow = (e: { endCoordinates?: { height?: number } }) => {
+      const kbHeight = e?.endCoordinates?.height || 0;
+      setKeyboardHeight(kbHeight);
       setVisible(true);
-      animateToBottom((e?.endCoordinates?.height || 0) + 12);
+      // Negative translateY moves the button up above the keyboard
+      animateToY(-(kbHeight + 12));
     };
 
     const onHide = () => {
-      setVisible(false);
-      animateToBottom(-100);
+      animateToY(OFFSCREEN_Y);
+      // Delay hiding to allow animation to complete
+      setTimeout(() => setVisible(false), ANIMATION_DURATION_MS);
     };
 
     const subShow = Keyboard.addListener('keyboardDidShow', onShow);
@@ -34,7 +40,7 @@ const KeyboardToggleOverlay: React.FC = () => {
       subShow.remove();
       subHide.remove();
     };
-  }, [bottomAnim]);
+  }, [translateYAnim]);
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -43,7 +49,7 @@ const KeyboardToggleOverlay: React.FC = () => {
   if (!visible) return null;
 
   return (
-    <Animated.View style={[styles.container, { bottom: bottomAnim }]}>
+    <Animated.View style={[styles.container, { transform: [{ translateY: translateYAnim }] }]}>
       <TouchableOpacity style={styles.button} onPress={handleDismiss} activeOpacity={0.8}>
         <Icon name="keyboard-hide" size={22} color="#fff" />
       </TouchableOpacity>
@@ -55,6 +61,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     right: 12,
+    bottom: 0,
     zIndex: 9999,
   },
   button: {

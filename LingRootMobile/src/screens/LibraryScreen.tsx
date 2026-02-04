@@ -426,9 +426,10 @@ const LibraryScreenContent: React.FC = () => {
     // Server update
     try {
       await apiService.toggleUserFavorite(id, 'content_item');
-    } catch (error) {
+    } catch (error: unknown) {
       // Revert on error
-      console.error('Failed to toggle favorite on server');
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error('[Library] Failed to toggle favorite on server:', errMsg);
       const revert = isCurrentlyFav
         ? [...favoriteIds, id] // add back
         : favoriteIds.filter(fid => fid !== id); // remove again
@@ -974,6 +975,11 @@ const LibraryScreenContent: React.FC = () => {
           initialNumToRender={PAGE_SIZE}
           windowSize={5}
           removeClippedSubviews
+          getItemLayout={(_data, index) => ({
+            length: 100,
+            offset: 100 * index,
+            index,
+          })}
           ListHeaderComponent={
             loading ? (
               <View style={{ paddingVertical: 10, alignItems: 'center' }}>
@@ -1380,4 +1386,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LibraryScreen; 
+export default React.memo(LibraryScreen); 

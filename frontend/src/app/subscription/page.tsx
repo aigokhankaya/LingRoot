@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useApiSWR } from '@/hooks/useApi';
+import { Languages, Check } from 'lucide-react';
 
 type Plan = {
   id: string;
@@ -14,38 +16,17 @@ type Plan = {
   estimates?: { video_minutes?: number | null; text_pages?: number | null };
 };
 
-export default function SubscriptionPage() {
+function SubscriptionPageContent() {
   const router = useRouter();
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        // Admin endpoint adds estimates; reuse for now
-        const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-        const res = await fetch('/api/admin/plans', {
-          headers: {
-            'Authorization': `Bearer ${token || ''}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        const json = await res.json();
-        if (!res.ok || !json?.success) throw new Error(json?.message || 'Paketler yüklenemedi');
-        const data = Array.isArray(json.data) ? json.data : [];
-        setPlans(data.filter((p: any) => p.is_active));
-      } catch (e: any) {
-        setError(e?.message || 'Paketler yüklenemedi');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPlans();
-  }, []);
+  const { data: plansResponse, error: plansError, isLoading: loading } = useApiSWR<{ success: boolean; data: Plan[] }>(
+    '/admin/plans',
+    { revalidateOnFocus: false, dedupingInterval: 300000 }
+  );
+
+  const plans = (plansResponse?.data || []).filter((p: Plan) => p.is_active);
+  const error = plansError ? (plansError.message || 'Paketler yüklenemedi') : null;
 
   const handleSelect = async (planId: string) => {
     try {
@@ -79,7 +60,7 @@ export default function SubscriptionPage() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <i className="fas fa-language text-primary text-2xl"></i>
+            <Languages className="text-primary w-6 h-6" />
             <h1 className="text-xl font-semibold text-gray-800">Paket Seçimi</h1>
           </div>
           <button className="text-sm text-primary hover:text-primary/80" onClick={() => router.push('/')}>Anasayfa</button>
@@ -113,7 +94,7 @@ export default function SubscriptionPage() {
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-gray-700">
                   {(plan.features || []).map((f, idx) => (
-                    <li key={idx} className="flex items-start gap-2"><i className="fas fa-check text-green-500 mt-0.5"></i><span>{f}</span></li>
+                    <li key={idx} className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" /><span>{f}</span></li>
                   ))}
                   {plan.estimates && (
                     <li className="text-xs text-gray-500 mt-2">
@@ -137,4 +118,14 @@ export default function SubscriptionPage() {
   );
 }
 
-
+export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    }>
+      <SubscriptionPageContent />
+    </Suspense>
+  );
+}

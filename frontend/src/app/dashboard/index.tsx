@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PackageInfo from '@/components/PackageInfo';
 import MembershipBadge from '@/components/user/MembershipBadge';
@@ -10,24 +10,41 @@ import { useRouter } from 'next/navigation';
 import { AnalyticsHelper } from '@/utils/AnalyticsHelper';
 import { NextQuestBanner, JourneyRoadmap, DailyQuestsCard } from '@/components/gamification';
 import { useGamification } from '@/hooks/useGamification';
+import { useApiSWR } from '@/hooks/useApi';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+interface QuestNode {
+  id: number;
+  title: string;
+  description: string;
+  icon_emoji: string;
+  task_type: string;
+  content_url?: string;
+  required_daily_completions: number;
+  current_daily_completions: number;
+  reward_xp: number;
+}
 
 interface RoadmapData {
-  current: any | null;
-  upcoming: any[];
-  completed: any[];
-  lockedPreview: any[];
+  current: QuestNode | null;
+  upcoming: QuestNode[];
+  completed: QuestNode[];
+  lockedPreview: QuestNode[];
   totalLocked: number;
 }
 
-export default function Dashboard() {
+function DashboardContent() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [tab, setTab] = React.useState<string>('genel');
   const { currentPlanName } = useMembership();
   const { stats } = useGamification();
-  const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
+
+  // SWR-based roadmap fetch (replaces manual useEffect + fetch)
+  const { data: roadmapResponse } = useApiSWR<{ success: boolean; data: RoadmapData }>(
+    isAuthenticated ? '/gamification/roadmap' : null,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  );
+  const roadmap = roadmapResponse?.success ? roadmapResponse.data : null;
 
   React.useEffect(() => {
     if (!isAuthenticated) {
@@ -42,30 +59,6 @@ export default function Dashboard() {
   useEffect(() => {
     AnalyticsHelper.logScreenView('Dashboard', 'DashboardScreen');
   }, []);
-
-  // Roadmap fetch
-  useEffect(() => {
-    const fetchRoadmap = async () => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-      if (!token) return;
-
-      try {
-        const response = await fetch(`${API_BASE}/api/gamification/roadmap`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await response.json();
-        if (data.success) {
-          setRoadmap(data.data);
-        }
-      } catch (error) {
-        console.error('[Dashboard] Roadmap fetch failed:', error);
-      }
-    };
-
-    if (isAuthenticated) {
-      fetchRoadmap();
-    }
-  }, [isAuthenticated]);
 
   // Initialize tab from query (?tab=...) then hash, and keep in sync
   React.useEffect(() => {
@@ -221,5 +214,17 @@ export default function Dashboard() {
         </TabsContent>
       </Tabs>
     </main>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

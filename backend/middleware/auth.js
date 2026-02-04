@@ -74,23 +74,50 @@ exports.authenticate = async (req, res, next) => {
       });
     }
 
-    // Check if user exists in Supabase with performance measurement
-    const { data: user, error } = await measureTime(
-      () => supabase
-        .from("users")
-        .select("id, email, role")
-        .eq("id", decoded.id)
-        .single(),
-      'Supabase User Lookup'
-    );
+    // Check Redis cache for user data
+    const cacheKey = `auth:user:${decoded.id}`;
+    let user = null;
 
-    if (error || !user) {
-      logger.warn(`[AUTH_FAIL] User not found in DB. ID: ${decoded.id}, Path: ${path}`, error);
-      return res.status(401).json({
-        success: false,
-        message: "Authentication failed. User not found.",
-        code: "USER_NOT_FOUND"
-      });
+    if (checkRedisAvailability()) {
+      try {
+        const cached = await getConnection().get(cacheKey);
+        if (cached) {
+          user = JSON.parse(cached);
+        }
+      } catch (err) {
+        logger.debug(`[AUTH] Redis cache read error for user ${decoded.id}: ${err.message}`);
+      }
+    }
+
+    // Cache miss: fetch from Supabase
+    if (!user) {
+      const { data, error } = await measureTime(
+        () => supabase
+          .from("users")
+          .select("id, email, role")
+          .eq("id", decoded.id)
+          .single(),
+        'Supabase User Lookup'
+      );
+
+      if (error || !data) {
+        logger.warn(`[AUTH_FAIL] User not found in DB. ID: ${decoded.id}, Path: ${path}`, error);
+        return res.status(401).json({
+          success: false,
+          message: "Authentication failed. User not found.",
+          code: "USER_NOT_FOUND"
+        });
+      }
+      user = data;
+
+      // Write to Redis cache (60s TTL)
+      if (checkRedisAvailability()) {
+        try {
+          await getConnection().setex(cacheKey, 60, JSON.stringify(user));
+        } catch (err) {
+          logger.debug(`[AUTH] Redis cache write error for user ${decoded.id}: ${err.message}`);
+        }
+      }
     }
 
     // Add user info to request
@@ -161,18 +188,46 @@ exports.optionalAuth = async (req, res, next) => {
         return next();
       }
 
-      // Check if user exists in Supabase
-      const { data: user, error } = await supabase
-        .from("users")
-        .select("id, email, role")
-        .eq("id", decoded.id)
-        .single();
+      // Check Redis cache for user data
+      const cacheKey = `auth:user:${decoded.id}`;
+      let user = null;
+
+      if (checkRedisAvailability()) {
+        try {
+          const cached = await getConnection().get(cacheKey);
+          if (cached) {
+            user = JSON.parse(cached);
+          }
+        } catch (err) {
+          logger.debug(`[AUTH] Redis cache read error for optional auth user ${decoded.id}: ${err.message}`);
+        }
+      }
+
+      if (!user) {
+        const { data, error } = await supabase
+          .from("users")
+          .select("id, email, role")
+          .eq("id", decoded.id)
+          .single();
+
+        if (error || !data) {
+          logger.warn(`Optional auth: User ID ${decoded.id} not found or DB error for path ${path}. Proceeding without user.`, error);
+          req.user = null;
+        } else {
+          user = data;
+          // Write to Redis cache (60s TTL)
+          if (checkRedisAvailability()) {
+            try {
+              await getConnection().setex(cacheKey, 60, JSON.stringify(user));
+            } catch (err) {
+              logger.debug(`[AUTH] Redis cache write error for optional auth user ${decoded.id}: ${err.message}`);
+            }
+          }
+        }
+      }
 
       // Add user info to request if found
-      if (error || !user) {
-        logger.warn(`Optional auth: User ID ${decoded.id} not found or DB error for path ${path}. Proceeding without user.`, error);
-        req.user = null;
-      } else {
+      if (user) {
         req.user = user;
         logger.info(`Optional auth: User identified successfully: ${user.email} (ID: ${user.id}), path: ${path}`);
       }

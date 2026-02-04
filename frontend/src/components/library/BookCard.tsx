@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { Play, Check, BookOpen, FileText } from 'lucide-react';
 import { LibraryItem } from '@/lib/api';
 
@@ -27,10 +28,12 @@ export const BookCard: React.FC<BookCardProps> = ({ item, onClick }) => {
       {/* Cover Image Area */}
       <div className={`relative aspect-[2/3] w-full overflow-hidden ${!item.cover_url ? getCoverColor(item.title) : ''}`}>
         {item.cover_url ? (
-          <img 
-            src={item.cover_url} 
-            alt={item.title} 
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          <Image
+            src={item.cover_url}
+            alt={item.title}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 768px) 50vw, 33vw"
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-4 text-white">

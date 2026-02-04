@@ -1569,4 +1569,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LiroScreen;
+export default React.memo(LiroScreen);

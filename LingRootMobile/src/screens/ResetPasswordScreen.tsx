@@ -97,4 +97,4 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontWeight: 'bold' },
 });
 
-export default ResetPasswordScreen;
+export default React.memo(ResetPasswordScreen);

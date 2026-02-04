@@ -504,12 +504,18 @@ const generateQuiz = async (req, res) => {
         let targetContentId = contentId;
         if (!targetContentId && sectorId) {
             const db = require('../config/db');
-            const contentResult = await db.query(`
-                SELECT id FROM sector_content 
+            // Application-level random selection to avoid ORDER BY RANDOM()
+            const countResult = await db.query(`
+                SELECT COUNT(*) as total FROM sector_content
                 WHERE sector_id = $1 AND status = 'published'
-                ORDER BY RANDOM() 
-                LIMIT 1
             `, [sectorId]);
+            const total = parseInt(countResult.rows[0]?.total || '0', 10);
+            const randomOffset = total > 0 ? Math.floor(Math.random() * total) : 0;
+            const contentResult = await db.query(`
+                SELECT id FROM sector_content
+                WHERE sector_id = $1 AND status = 'published'
+                OFFSET $2 LIMIT 1
+            `, [sectorId, randomOffset]);
 
             if (contentResult.rows.length > 0) {
                 targetContentId = contentResult.rows[0].id;

@@ -11,7 +11,7 @@ import {
   ScrollView,
   Keyboard,
   Animated,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,9 +24,8 @@ import { isAppleSignInAvailable } from '../services/socialAuth';
 import { COLORS } from '../theme/colors';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 const LoginScreen: React.FC = () => {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
   const { language } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -715,4 +714,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen;
+export default React.memo(LoginScreen);

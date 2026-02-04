@@ -1,6 +1,6 @@
 # Database Schema Overview
 
-> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-02-03 | **Versiyon:** 2.6
+> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-02-04 | **Versiyon:** 2.7
 
 **Database:** PostgreSQL (Supabase)
 **Total Tables:** 83+ (including views)
@@ -271,6 +271,30 @@ Parsed document sections.
 | section_title | TEXT | Section title |
 | section_text | TEXT | Section content |
 | word_count | INTEGER | Word count |
+
+### contenthistory
+User content creation and listening history.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | FK → users |
+| input | TEXT | Original input text/topic |
+| input_type | VARCHAR(50) | topic, text, youtube, book, podcast, etc. |
+| level | VARCHAR(10) | CEFR level (A1-C2) |
+| mp3_url | TEXT | Generated audio URL |
+| translated_text | TEXT | Turkish translation |
+| adapted_text | TEXT | CEFR-adapted English text |
+| words | TEXT | JSON string of word array |
+| timepoints | TEXT | JSON string of word timestamps |
+| duration_seconds | INTEGER | Pre-computed audio duration in seconds (DEFAULT 0) |
+| dialogue_segments | TEXT | JSON string of podcast dialogue segments |
+| chapter_id | INTEGER | FK → book_chapters (optional) |
+| status | VARCHAR(20) | completed, in_progress |
+| detected_mood | VARCHAR(50) | AI-detected content mood |
+| processing_duration_ms | INTEGER | Processing time tracking |
+| created_at | TIMESTAMPTZ | Creation date |
+| updated_at | TIMESTAMPTZ | Last update date |
 
 ---
 

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, Suspense } from 'react';
 import { NavigationContainer, NavigationContainerRef, CommonActions } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { View, TouchableOpacity, Text, StyleSheet, Animated } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
@@ -22,7 +22,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
 import { logScreenView } from '../services/analytics';
 
-// Screens
+// Critical screens (eager loading)
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
@@ -31,19 +31,21 @@ import HomeScreen from '../screens/HomeScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import VocabularyScreen from '../screens/VocabularyScreen';
-import TopicTreeScreen from '../screens/TopicTreeScreen';
-import PatternListScreen from '../screens/PatternListScreen';
-import MembershipScreen from '../screens/MembershipScreen';
-import ChatScreen from '../screens/ChatScreen';
-import AccountSettingsScreen from '../screens/AccountSettingsScreen';
-import PackagesScreen from '../screens/PackagesScreen';
-import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
-import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
-import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
-import TtsProviderSettingsScreen from '../screens/TtsProviderSettingsScreen';
-import LiroScreen from '../screens/LiroScreen';
-import AudioPlayerScreen from '../screens/AudioPlayerScreen';
+
+// Lazy-loaded screens (non-critical)
+const VocabularyScreenLazy = React.lazy(() => import('../screens/VocabularyScreen'));
+const TopicTreeScreenLazy = React.lazy(() => import('../screens/TopicTreeScreen'));
+const PatternListScreenLazy = React.lazy(() => import('../screens/PatternListScreen'));
+const MembershipScreenLazy = React.lazy(() => import('../screens/MembershipScreen'));
+const ChatScreenLazy = React.lazy(() => import('../screens/ChatScreen'));
+const AccountSettingsScreenLazy = React.lazy(() => import('../screens/AccountSettingsScreen'));
+const PackagesScreenLazy = React.lazy(() => import('../screens/PackagesScreen'));
+const PrivacyPolicyScreenLazy = React.lazy(() => import('../screens/PrivacyPolicyScreen'));
+const TermsOfServiceScreenLazy = React.lazy(() => import('../screens/TermsOfServiceScreen'));
+const ReminderSettingsScreenLazy = React.lazy(() => import('../screens/ReminderSettingsScreen'));
+const TtsProviderSettingsScreenLazy = React.lazy(() => import('../screens/TtsProviderSettingsScreen'));
+const LiroScreenLazy = React.lazy(() => import('../screens/LiroScreen'));
+const AudioPlayerScreenLazy = React.lazy(() => import('../screens/AudioPlayerScreen'));
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -51,6 +53,23 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // Track last time we navigated due to an audio_created notification
 // so that polling + notification taps do not trigger multiple navigations
 let lastAudioNotificationHandledAt: number | null = null;
+
+// Lazy screen loading wrapper with Suspense
+const LazyScreenFallback = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9' }}>
+    <ActivityIndicator size="large" color={COLORS.brandTeal} />
+  </View>
+);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const withLazy = (LazyComponent: React.LazyExoticComponent<React.ComponentType<any>>) => {
+  const Wrapped = (props: Record<string, unknown>) => (
+    <Suspense fallback={<LazyScreenFallback />}>
+      <LazyComponent {...props} />
+    </Suspense>
+  );
+  return Wrapped;
+};
 
 const LoadingScreen = () => {
   const waveAnim = useRef(new Animated.Value(0)).current;
@@ -731,7 +750,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="TopicTree"
-                component={TopicTreeScreen}
+                component={withLazy(TopicTreeScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -744,7 +763,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Vocabulary"
-                component={VocabularyScreen}
+                component={withLazy(VocabularyScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -757,7 +776,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Liro"
-                component={LiroScreen}
+                component={withLazy(LiroScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -770,7 +789,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Settings"
-                component={AccountSettingsScreen}
+                component={withLazy(AccountSettingsScreenLazy)}
                 options={({ navigation }) => ({
                   headerShown: true,
                   headerTransparent: true,
@@ -783,7 +802,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Membership"
-                component={MembershipScreen}
+                component={withLazy(MembershipScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -795,28 +814,28 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Packages"
-                component={PackagesScreen}
+                component={withLazy(PackagesScreenLazy)}
                 options={{
                   headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="Chat"
-                component={ChatScreen}
+                component={withLazy(ChatScreenLazy)}
                 options={{
                   headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="PatternList"
-                component={PatternListScreen}
+                component={withLazy(PatternListScreenLazy)}
                 options={{
                   headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="PrivacyPolicy"
-                component={PrivacyPolicyScreen}
+                component={withLazy(PrivacyPolicyScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -828,7 +847,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="TermsOfService"
-                component={TermsOfServiceScreen}
+                component={withLazy(TermsOfServiceScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -840,7 +859,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="ReminderSettings"
-                component={ReminderSettingsScreen}
+                component={withLazy(ReminderSettingsScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -853,14 +872,14 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="TtsProviderSettings"
-                component={TtsProviderSettingsScreen}
+                component={withLazy(TtsProviderSettingsScreenLazy)}
                 options={{
                   headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="AudioPlayer"
-                component={AudioPlayerScreen}
+                component={withLazy(AudioPlayerScreenLazy)}
                 options={{
                   headerShown: false,
                   presentation: 'modal',

@@ -5,10 +5,10 @@ import { useRouter } from 'next/router';
 import { saveInterfaceLanguage } from '../src/lib/api';
 import { useTranslation, useLanguage } from '../src/lib/i18n';
 import {
-  FaUser, FaLock, FaBell, FaGlobe, FaVolumeUp, FaEye,
-  FaShieldAlt, FaCreditCard, FaSave, FaArrowLeft, FaCog,
-  FaEnvelope, FaPhone, FaCamera, FaKey, FaInfoCircle, FaLanguage, FaHeadphones
-} from 'react-icons/fa';
+  User, Lock, Bell, Globe, Volume2, Eye,
+  Shield, CreditCard, Save, ArrowLeft, Settings as SettingsIcon,
+  Mail, Phone, Camera, Key, Info, Languages, Headphones
+} from 'lucide-react';
 import AppHeader from '../src/components/AppHeader';
 
 
@@ -142,15 +142,15 @@ export default function Settings() {
   };
 
   const sections = [
-    { id: 'profile', label: t('settings_section_profile'), icon: <FaUser /> },
-    { id: 'password', label: t('settings_section_password'), icon: <FaLock /> },
-    { id: 'language', label: t('settings_section_language'), icon: <FaGlobe /> },
-    { id: 'content', label: t('settings_section_content'), icon: <FaLanguage /> },
-    { id: 'audio', label: t('settings_section_audio'), icon: <FaVolumeUp /> },
-    { id: 'notifications', label: t('settings_section_notifications'), icon: <FaBell /> },
-    { id: 'appearance', label: t('settings_section_appearance'), icon: <FaEye /> },
-    { id: 'privacy', label: t('settings_section_privacy'), icon: <FaShieldAlt /> },
-    { id: 'subscription', label: t('settings_section_subscription'), icon: <FaCreditCard /> },
+    { id: 'profile', label: t('settings_section_profile'), icon: <User /> },
+    { id: 'password', label: t('settings_section_password'), icon: <Lock /> },
+    { id: 'language', label: t('settings_section_language'), icon: <Globe /> },
+    { id: 'content', label: t('settings_section_content'), icon: <Languages /> },
+    { id: 'audio', label: t('settings_section_audio'), icon: <Volume2 /> },
+    { id: 'notifications', label: t('settings_section_notifications'), icon: <Bell /> },
+    { id: 'appearance', label: t('settings_section_appearance'), icon: <Eye /> },
+    { id: 'privacy', label: t('settings_section_privacy'), icon: <Shield /> },
+    { id: 'subscription', label: t('settings_section_subscription'), icon: <CreditCard /> },
   ];
 
   if (authLoading) {
@@ -183,7 +183,7 @@ export default function Settings() {
       {message && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-            <FaInfoCircle className="inline mr-2" />
+            <Info className="inline mr-2" />
             {message.text}
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function Settings() {
                       {displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
                     <button className="px-4 py-2 bg-primary/5 text-primary rounded-lg hover:bg-primary/10">
-                      <FaCamera className="inline mr-2" />{t('settings_change_photo_button')}
+                      <Camera className="inline mr-2" />{t('settings_change_photo_button')}
                     </button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -237,11 +237,11 @@ export default function Settings() {
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder={t('lastName_placeholder')} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaEnvelope className="inline mr-2" />{t('email')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><Mail className="inline mr-2" />{t('email')}</label>
                       <input type="email" value={email} disabled className="w-full px-4 py-2 border rounded-lg bg-gray-50" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaPhone className="inline mr-2" />{t('phoneNumber')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><Phone className="inline mr-2" />{t('phoneNumber')}</label>
                       <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="+90 5xx xxx xx xx" />
                     </div>
@@ -249,7 +249,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('profile')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
+                      <Save className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -260,7 +260,7 @@ export default function Settings() {
                   <h2 className="text-2xl font-bold mb-6">{t('settings_password_title')}</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaKey className="inline mr-2" />{t('settings_current_password_label')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><Key className="inline mr-2" />{t('settings_current_password_label')}</label>
                       <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="••••••••" />
                     </div>
@@ -278,7 +278,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('password')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_update_password_button')}
+                      <Save className="inline mr-2" />{saving ? t('settings_saving') : t('settings_update_password_button')}
                     </button>
                   </div>
                 </div>
@@ -289,7 +289,7 @@ export default function Settings() {
                   <h2 className="text-2xl font-bold mb-6">{t('settings_language_title')}</h2>
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaGlobe className="inline mr-2" />{t('settings_interface_language_label')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><Globe className="inline mr-2" />{t('settings_interface_language_label')}</label>
                       <select value={interfaceLanguage} onChange={(e) => setInterfaceLanguage(e.target.value as 'tr' | 'en' | 'de' | 'ar')}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr">{t('language_tr')}</option>
@@ -299,7 +299,7 @@ export default function Settings() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaHeadphones className="inline mr-2" />{t('settings_native_language_label')}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><Headphones className="inline mr-2" />{t('settings_native_language_label')}</label>
                       <select value={nativeLanguage} onChange={(e) => setNativeLanguage(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr-TR">Türkçe (TR)</option>
@@ -311,7 +311,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('language')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
+                      <Save className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -324,7 +324,7 @@ export default function Settings() {
                   {/* Content Level */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <FaLanguage className="inline mr-2" />İçerik Seviyesi
+                      <Languages className="inline mr-2" />İçerik Seviyesi
                     </label>
                     <p className="text-xs text-gray-500 mb-3">Oluşturulan içeriklerin zorluk seviyesi</p>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
@@ -361,7 +361,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('content')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
+                      <Save className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -391,7 +391,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('audio')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
+                      <Save className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -437,7 +437,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('appearance')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
+                      <Save className="inline mr-2" />{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>

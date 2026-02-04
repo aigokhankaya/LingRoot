@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, NativeModules } from 'react-native';
 import trTranslations from '../locales/tr.json';
@@ -72,21 +72,21 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     loadLanguage();
   }, []);
 
-  const setLanguage = async (lang: Language) => {
+  const setLanguage = useCallback(async (lang: Language) => {
     try {
       await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
       setLanguageState(lang);
     } catch (error) {
     }
-  };
+  }, []);
 
   // Translation function
-  const t = (key: string, vars?: Record<string, string | number>): string => {
+  const t = useCallback((key: string, vars?: Record<string, string | number>): string => {
     const keys = key.split('.');
-    let value: any = translations[language];
-    
+    let value: unknown = translations[language];
+
     for (const k of keys) {
-      value = value?.[k];
+      value = (value as Record<string, unknown>)?.[k];
     }
     let str = (typeof value === 'string') ? value : key;
     if (vars && typeof str === 'string') {
@@ -96,14 +96,14 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
       });
     }
     return str;
-  };
+  }, [language]);
 
-  const value: LanguageContextType = {
+  const value: LanguageContextType = useMemo(() => ({
     language,
     setLanguage,
     t,
     isLoading,
-  };
+  }), [language, setLanguage, t, isLoading]);
 
   return (
     <LanguageContext.Provider value={value}>

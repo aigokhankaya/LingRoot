@@ -25,10 +25,10 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
-import '@fortawesome/fontawesome-free/css/all.min.css';
 
 import { resendVerificationEmail } from "../src/lib/api";
 import { initializeGoogleAuth, signInWithGoogle } from "../src/lib/googleAuth";
+import { Rocket, PlayCircle, TrendingUp, Star, Link as LinkIcon, CheckCircle, Menu, X } from 'lucide-react';
 
 const App: React.FC = () => {
 
@@ -419,7 +419,7 @@ const App: React.FC = () => {
                             className="p-2"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
-                            <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
+                            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </Button>
                     </div>
                 </div>
@@ -527,13 +527,13 @@ const App: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-4 hero-buttons justify-center">
                             <Link href="/register">
                                 <Button className="text-base py-4 px-6 !rounded-button whitespace-nowrap">
-                                    <i className="fas fa-rocket mr-2"></i> {t('landing_hero_button_try')}
+                                    <Rocket className="w-4 h-4 mr-2" /> {t('landing_hero_button_try')}
                                 </Button>
                             </Link>
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <Button variant="outline" className="border-2 border-primary text-primary hover:bg-primary/10 text-base py-4 px-6 !rounded-button whitespace-nowrap">
-                                        <i className="fas fa-play-circle mr-2"></i> {t('landing_hero_button_watch')}
+                                        <PlayCircle className="w-4 h-4 mr-2" /> {t('landing_hero_button_watch')}
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-4xl">
@@ -680,7 +680,7 @@ const App: React.FC = () => {
                                 </CardContent>
                                 <CardFooter>
                                     <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 !rounded-button whitespace-nowrap">
-                                        <i className="fas fa-level-up-alt mr-2"></i> {t('landing_routine_button')}
+                                        <TrendingUp className="w-4 h-4 mr-2" /> {t('landing_routine_button')}
                                     </Button>
                                 </CardFooter>
                             </Card>
@@ -758,12 +758,12 @@ const App: React.FC = () => {
                                             </div>
                                         </div>
                                         <p className="text-gray-700 italic">"{testimonial.quote}"</p>
-                                        <div className="mt-4 flex">
-                                            <i className="fas fa-star text-yellow-400"></i>
-                                            <i className="fas fa-star text-yellow-400"></i>
-                                            <i className="fas fa-star text-yellow-400"></i>
-                                            <i className="fas fa-star text-yellow-400"></i>
-                                            <i className="fas fa-star text-yellow-400"></i>
+                                        <div className="mt-4 flex gap-1">
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -785,7 +785,7 @@ const App: React.FC = () => {
                                         placeholder={t('landing_trynow_placeholder')}
                                         className="w-full h-12 pl-12 pr-36 text-base border-2 border-gray-200 focus:border-primary rounded-lg"
                                     />
-                                    <i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                    <LinkIcon className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
                                         <Link href="/register">
                                             <Button
@@ -828,16 +828,13 @@ const App: React.FC = () => {
                         </p>
                         <a href="/register">
                             <Button className="text-lg py-6 px-8 !rounded-button whitespace-nowrap">
-                                <i className="fas fa-rocket mr-2"></i> {t('landing_cta_button')}
+                                <Rocket className="w-5 h-5 mr-2" /> {t('landing_cta_button')}
                             </Button>
                         </a>
                         <div className="mt-8 flex justify-center items-center space-x-6">
                             {ctaBenefits.map((benefit, index) => (
                                 <div key={index} className="flex items-center">
-                                    <i
-                                        className="fas fa-check-circle mr-2"
-                                        style={{ color: '#22c55e' }}
-                                    ></i>
+                                    <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
                                     <span className="text-gray-600">{benefit}</span>
                                 </div>
                             ))}

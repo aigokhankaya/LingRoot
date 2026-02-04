@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { MessageSquare, Plus, MoreVertical, Edit2, Trash2, PanelLeftClose } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -114,13 +115,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <Link href="/welcome" className="flex items-center space-x-3 cursor-pointer group">
-            <img
+            <Image
               src="/lingroot-icon.svg"
               alt="LingRoot Logo"
+              width={32}
+              height={32}
               className="w-8 h-8"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/LingRoot_IconOnly.png';
-              }}
             />
             <span className="text-lg font-bold text-gray-800 tracking-tight group-hover:opacity-80 transition-opacity">
               LingRoot

@@ -23,12 +23,12 @@ import { Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 // InputMask removed - using regular Input instead
-import '@fortawesome/fontawesome-free/css/all.min.css';
 
 
 import { getApiUrl, resendVerificationEmail } from "../src/lib/api";
 import { initializeGoogleAuth, signInWithGoogle, decodeGoogleCredential } from "../src/lib/googleAuth";
 import dynamic from 'next/dynamic';
+import { Rocket, PlayCircle, TrendingUp, Star, Link as LinkIcon, CheckCircle, Menu, X, Languages, Facebook, Twitter, Instagram, Youtube, Mail, Phone, MapPin, CreditCard } from 'lucide-react';
 // import Lottie from "lottie-react"; // Kaldırılacak
 import learnAnimation from "../public/animations/language-learn.json";
 // Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
@@ -567,7 +567,7 @@ const App: React.FC = () => {
                             className="p-2"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
-                            <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
+                            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </Button>
                     </div>
                 </div>
@@ -704,13 +704,13 @@ const App: React.FC = () => {
                         <div className="flex gap-4 hero-buttons">
                             <a href="/register">
                                 <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-base py-4 px-6 !rounded-button whitespace-nowrap">
-                                    <i className="fas fa-rocket mr-2"></i> {t.hero.tryButton}
+                                    <Rocket className="w-4 h-4 mr-2" /> {t.hero.tryButton}
                                 </Button>
                             </a>
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <Button variant="outline" className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-base py-4 px-6 !rounded-button whitespace-nowrap">
-                                        <i className="fas fa-play-circle mr-2"></i> {t.hero.watchButton}
+                                        <PlayCircle className="w-4 h-4 mr-2" /> {t.hero.watchButton}
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-4xl">
@@ -862,7 +862,7 @@ const App: React.FC = () => {
                                 </CardContent>
                                 <CardFooter>
                                     <Button variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 !rounded-button whitespace-nowrap">
-                                        <i className="fas fa-level-up-alt mr-2"></i> {t.routine.adaptButton}
+                                        <TrendingUp className="w-4 h-4 mr-2" /> {t.routine.adaptButton}
                                     </Button>
                                 </CardFooter>
                             </Card>
@@ -942,12 +942,12 @@ const App: React.FC = () => {
                                             </div>
                                         </div>
                                         <p className="text-gray-700 italic">"{testimonial.quote}"</p>
-                                        <div className="mt-4 flex">
-                                            <i className="fas fa-star text-yellow-400"></i>
-                                            <i className="fas fa-star text-yellow-400"></i>
-                                            <i className="fas fa-star text-yellow-400"></i>
-                                            <i className="fas fa-star text-yellow-400"></i>
-                                            <i className="fas fa-star text-yellow-400"></i>
+                                        <div className="mt-4 flex gap-1">
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -969,7 +969,7 @@ const App: React.FC = () => {
                                         placeholder={t.tryNow.placeholder}
                                         className="w-full h-12 pl-12 pr-36 text-base border-2 border-gray-200 focus:border-blue-500 rounded-lg"
                                     />
-                                    <i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                    <LinkIcon className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
                                         <a href="/register">
                                             <Button
@@ -1012,16 +1012,13 @@ const App: React.FC = () => {
                         </p>
                         <a href="/register">
                             <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg py-6 px-8 !rounded-button whitespace-nowrap">
-                                <i className="fas fa-rocket mr-2"></i> {t.cta.button}
+                                <Rocket className="w-5 h-5 mr-2" /> {t.cta.button}
                             </Button>
                         </a>
                         <div className="mt-8 flex justify-center items-center space-x-6">
                             {t.cta.benefits.map((benefit, index) => (
                                 <div key={index} className="flex items-center">
-                                    <i
-                                        className="fas fa-check-circle mr-2"
-                                        style={{ color: '#22c55e' }}
-                                    ></i>
+                                    <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
                                     <span className="text-gray-600">{benefit}</span>
                                 </div>
                             ))}
@@ -1035,7 +1032,7 @@ const App: React.FC = () => {
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
                         <div>
                             <div className="flex items-center space-x-2 mb-6">
-                                <i className="fas fa-language text-blue-400 text-3xl"></i>
+                                <Languages className="w-8 h-8 text-blue-400" />
                                 <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                             </div>
                             <p className="text-gray-400 mb-4">
@@ -1043,16 +1040,16 @@ const App: React.FC = () => {
                             </p>
                             <div className="flex space-x-4">
                                 <a href="https://facebook.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                                    <i className="fab fa-facebook-f text-xl"></i>
+                                    <Facebook className="w-5 h-5" />
                                 </a>
                                 <a href="https://twitter.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                                    <i className="fab fa-twitter text-xl"></i>
+                                    <Twitter className="w-5 h-5" />
                                 </a>
                                 <a href="https://instagram.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                                    <i className="fab fa-instagram text-xl"></i>
+                                    <Instagram className="w-5 h-5" />
                                 </a>
                                 <a href="https://youtube.com/@lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                                    <i className="fab fa-youtube text-xl"></i>
+                                    <Youtube className="w-5 h-5" />
                                 </a>
                             </div>
                         </div>
@@ -1079,15 +1076,15 @@ const App: React.FC = () => {
                             <h3 className="text-lg font-bold mb-4">{t.footer.contact.title}</h3>
                             <ul className="space-y-2">
                                 <li className="flex items-center">
-                                    <i className="fas fa-envelope mr-2 text-gray-400"></i>
+                                    <Mail className="w-4 h-4 mr-2 text-gray-400" />
                                     <a href={`mailto:${t.footer.contact.email}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.email}</a>
                                 </li>
                                 <li className="flex items-center">
-                                    <i className="fas fa-phone-alt mr-2 text-gray-400"></i>
+                                    <Phone className="w-4 h-4 mr-2 text-gray-400" />
                                     <a href={`tel:${t.footer.contact.phone}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.phone}</a>
                                 </li>
                                 <li className="flex items-start mt-4">
-                                    <i className="fas fa-map-marker-alt mr-2 mt-1 text-gray-400"></i>
+                                    <MapPin className="w-4 h-4 mr-2 mt-1 text-gray-400" />
                                     <span className="text-gray-400">{t.footer.contact.address}</span>
                                 </li>
                             </ul>
@@ -1098,10 +1095,10 @@ const App: React.FC = () => {
                             &copy; {new Date().getFullYear()} LingRoot. {t.footer.copyright}
                         </p>
                         <div className="flex space-x-4">
-                            <i className="fab fa-cc-visa text-2xl text-gray-400"></i>
-                            <i className="fab fa-cc-mastercard text-2xl text-gray-400"></i>
-                            <i className="fab fa-cc-paypal text-2xl text-gray-400"></i>
-                            <i className="fab fa-apple-pay text-2xl text-gray-400"></i>
+                            <CreditCard className="w-8 h-8 text-gray-400" />
+                            <CreditCard className="w-8 h-8 text-gray-400" />
+                            <CreditCard className="w-8 h-8 text-gray-400" />
+                            <CreditCard className="w-8 h-8 text-gray-400" />
                         </div>
                     </div>
                 </div>

@@ -9,6 +9,8 @@ const router = express.Router();
 const sectorController = require('../controllers/sectorController');
 const { optionalAuth, authenticate } = require('../middleware/authMiddleware');
 const logger = require('../utils/common/logger');
+const { setCacheHeaders } = require('../middleware/cacheHeaders');
+const { redisCache } = require('../middleware/redisCache');
 
 // ============ ROLEPLAY & PODCAST ROUTES ============
 // ⚠️ Bu route'lar /:id'den ÖNCE gelmeli (statik path'ler dinamik path'lerden önce)
@@ -93,7 +95,7 @@ router.post('/podcast/create', authenticate, async (req, res) => {
 // ============ PUBLIC ROUTES ============
 
 // Tüm sektörleri listele (Public)
-router.get('/', optionalAuth, sectorController.getAllSectors);
+router.get('/', setCacheHeaders(600), redisCache('sectors:all', 3600), optionalAuth, sectorController.getAllSectors);
 
 // Kullanıcı istatistikleri (Auth required) - /stats must come before /:id
 router.get('/stats', authenticate, sectorController.getUserSectorStats);
