@@ -15,3 +15,6 @@ logs/
 check_tokens.js
 check_user_tokens.js
 test_fcm_real.js
+
+# Quality test results
+quality-tests/results/

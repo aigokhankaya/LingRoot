@@ -1232,5 +1232,340 @@ describe('PersonalizedForYouSection', () => {
             expect(screen.queryByText('B1')).not.toBeInTheDocument();
             expect(screen.queryByText(/dk/)).not.toBeInTheDocument();
         });
+
+        it('handles localStorage write failure gracefully', async () => {
+            setupAuth();
+            setupFetch();
+
+            // Make localStorage.setItem throw an error
+            const originalSetItem = localStorage.setItem;
+            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+            localStorage.setItem = jest.fn(() => {
+                throw new Error('QuotaExceededError');
+            });
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Topic')).toBeInTheDocument();
+            });
+
+            // Click a category filter - should handle the localStorage error gracefully
+            const seviyeButton = screen.getByRole('button', { name: /seviyene uygun/i });
+            await act(async () => {
+                fireEvent.click(seviyeButton);
+            });
+
+            // Component should still work despite localStorage failure
+            expect(screen.getByText('Test Topic')).toBeInTheDocument();
+
+            // Restore
+            localStorage.setItem = originalSetItem;
+            consoleSpy.mockRestore();
+        });
+
+        it('handles AbortError gracefully during fetch', async () => {
+            setupAuth();
+
+            // Create a fetch that will reject with AbortError
+            (global.fetch as jest.Mock).mockImplementation(() => {
+                const error = new Error('Aborted');
+                error.name = 'AbortError';
+                return Promise.reject(error);
+            });
+
+            const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => { });
+
+            render(<PersonalizedForYouSection />);
+
+            // Wait for the abort error to be handled
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Should have logged the abort
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Request aborted')
+            );
+
+            consoleSpy.mockRestore();
+        });
+
+        it('handles interaction tracking failure gracefully', async () => {
+            setupAuth();
+            setupFetch();
+
+            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+
+            // Make interaction API fail
+            (global.fetch as jest.Mock).mockImplementation((url: string) => {
+                if (url.includes('/api/recommendations/personalized')) {
+                    return Promise.resolve({
+                        ok: true,
+                        json: () => Promise.resolve(createSuccessResponse()),
+                    });
+                }
+                if (url.includes('/interaction')) {
+                    return Promise.reject(new Error('Network error'));
+                }
+                return Promise.reject(new Error('Unknown URL'));
+            });
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('AI Suggestion')).toBeInTheDocument();
+            });
+
+            // Click on non-topic card to trigger interaction tracking
+            const suggestionCard = screen.getByText('AI Suggestion').closest('article');
+            const clickableArea = suggestionCard?.querySelector('.p-4');
+
+            await act(async () => {
+                fireEvent.click(clickableArea!);
+            });
+
+            // Interaction tracking failure should be logged (fire and forget)
+            await waitFor(() => {
+                expect(consoleSpy).toHaveBeenCalledWith(
+                    expect.stringContaining('Failed to track'),
+                    expect.any(Error)
+                );
+            });
+
+            consoleSpy.mockRestore();
+        });
+
+        it('falls back to navigation when topic content fetch fails', async () => {
+            setupAuth();
+            setupFetch();
+            mockGetTopicContent.mockRejectedValue(new Error('Topic fetch failed'));
+
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Topic')).toBeInTheDocument();
+            });
+
+            // Click on topic card
+            const topicCard = screen.getByText('Test Topic').closest('article');
+            const clickableArea = topicCard?.querySelector('.p-4');
+
+            await act(async () => {
+                fireEvent.click(clickableArea!);
+            });
+
+            // Should log error and fallback to navigation
+            await waitFor(() => {
+                expect(consoleSpy).toHaveBeenCalledWith(
+                    expect.stringContaining('Error loading topic content'),
+                    expect.any(Error)
+                );
+            });
+
+            // Should navigate to target URL as fallback
+            await waitFor(() => {
+                expect(mockPush).toHaveBeenCalledWith('/content/topic-123');
+            });
+
+            consoleSpy.mockRestore();
+        });
+
+        it('falls back to navigation when topic content response is not successful', async () => {
+            setupAuth();
+            setupFetch();
+            mockGetTopicContent.mockResolvedValue({ success: false, data: null });
+
+            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Topic')).toBeInTheDocument();
+            });
+
+            // Click on topic card
+            const topicCard = screen.getByText('Test Topic').closest('article');
+            const clickableArea = topicCard?.querySelector('.p-4');
+
+            await act(async () => {
+                fireEvent.click(clickableArea!);
+            });
+
+            // Should log warning about fallback
+            await waitFor(() => {
+                expect(consoleSpy).toHaveBeenCalledWith(
+                    expect.stringContaining('Topic content not found, falling back to navigation')
+                );
+            });
+
+            // Should navigate to target URL as fallback
+            await waitFor(() => {
+                expect(mockPush).toHaveBeenCalledWith('/content/topic-123');
+            });
+
+            consoleSpy.mockRestore();
+        });
+
+        it('removes selected category when clicking same filter twice', async () => {
+            setupAuth();
+            setupFetch();
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Topic')).toBeInTheDocument();
+            });
+
+            const seviyeButton = screen.getByRole('button', { name: /seviyene uygun/i });
+
+            // First click - add filter
+            await act(async () => {
+                fireEvent.click(seviyeButton);
+            });
+
+            expect(seviyeButton).toHaveAttribute('aria-pressed', 'true');
+            expect(screen.queryByText('AI Suggestion')).not.toBeInTheDocument();
+
+            // Second click - remove filter (toggle off)
+            await act(async () => {
+                fireEvent.click(seviyeButton);
+            });
+
+            // Filter should be removed, all items visible again
+            expect(seviyeButton).toHaveAttribute('aria-pressed', 'false');
+            await waitFor(() => {
+                expect(screen.getByText('AI Suggestion')).toBeInTheDocument();
+            });
+        });
+
+        it('stops propagation when clicking expanded panel content', async () => {
+            setupAuth();
+            setupFetch();
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Topic')).toBeInTheDocument();
+            });
+
+            // Expand the card first
+            const topicCard = screen.getByText('Test Topic').closest('article');
+            const infoButton = within(topicCard!).getByRole('button', { name: /detayları göster/i });
+
+            await act(async () => {
+                fireEvent.click(infoButton);
+            });
+
+            // Find the expanded panel content
+            const expandedPanel = topicCard!.querySelector('.bg-slate-50\\/50');
+            expect(expandedPanel).toBeInTheDocument();
+
+            // Click on expanded panel - should not trigger card click (navigation)
+            await act(async () => {
+                fireEvent.click(expandedPanel!);
+            });
+
+            // Navigation should NOT have been called
+            expect(mockPush).not.toHaveBeenCalled();
+        });
+
+        it('displays score indicator in expanded panel when score > 0', async () => {
+            setupAuth();
+            setupFetch();
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Topic')).toBeInTheDocument();
+            });
+
+            // Expand the card
+            const topicCard = screen.getByText('Test Topic').closest('article');
+            const infoButton = within(topicCard!).getByRole('button', { name: /detayları göster/i });
+
+            await act(async () => {
+                fireEvent.click(infoButton);
+            });
+
+            // Score indicator should be visible (score is 85)
+            expect(screen.getByText('Uyumluluk')).toBeInTheDocument();
+            expect(screen.getByText('85%')).toBeInTheDocument();
+        });
+
+        it('hides score indicator when score is 0', async () => {
+            setupAuth();
+            setupFetch(createSuccessResponse([
+                {
+                    ...mockRecommendations[0],
+                    id: 'zero-score',
+                    score: 0,
+                },
+            ]));
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Topic')).toBeInTheDocument();
+            });
+
+            // Expand the card
+            const topicCard = screen.getByText('Test Topic').closest('article');
+            const infoButton = within(topicCard!).getByRole('button', { name: /detayları göster/i });
+
+            await act(async () => {
+                fireEvent.click(infoButton);
+            });
+
+            // Score indicator should NOT be visible
+            expect(screen.queryByText('Uyumluluk')).not.toBeInTheDocument();
+        });
+
+        it('does not show filters when only one category exists', async () => {
+            setupAuth();
+            // Only one category in recommendations
+            setupFetch(createSuccessResponse([mockRecommendations[0]]));
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Topic')).toBeInTheDocument();
+            });
+
+            // Filters should not be visible when only one category
+            expect(screen.queryByText('Tümü')).not.toBeInTheDocument();
+        });
+
+        it('does not track interaction when no token', async () => {
+            // Setup with token for initial fetch
+            setupAuth();
+            setupFetch();
+
+            render(<PersonalizedForYouSection />);
+
+            await waitFor(() => {
+                expect(screen.getByText('AI Suggestion')).toBeInTheDocument();
+            });
+
+            // Remove token
+            localStorage.removeItem('lingroot_token');
+
+            // Reset fetch calls
+            (global.fetch as jest.Mock).mockClear();
+
+            // Click on card
+            const suggestionCard = screen.getByText('AI Suggestion').closest('article');
+            const clickableArea = suggestionCard?.querySelector('.p-4');
+
+            await act(async () => {
+                fireEvent.click(clickableArea!);
+            });
+
+            // Interaction tracking should not be called (fire and forget skipped)
+            const interactionCalls = (global.fetch as jest.Mock).mock.calls.filter(
+                (call: string[]) => call[0].includes('/interaction')
+            );
+            expect(interactionCalls.length).toBe(0);
+        });
     });
 });

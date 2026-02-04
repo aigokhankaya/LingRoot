@@ -8,7 +8,10 @@
     "start": "node server.js",
     "test": "jest",
     "migrate": "node scripts/migrate.js",
-    "migrate:external-services": "node scripts/run-external-services-migration.js"
+    "migrate:external-services": "node scripts/run-external-services-migration.js",
+    "quality:smoke": "node quality-tests/run.js --profile smoke",
+    "quality:standard": "node quality-tests/run.js --profile standard",
+    "quality:full": "node quality-tests/run.js --profile full"
   },
   "engines": {
     "node": "20.x"
