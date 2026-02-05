@@ -8,8 +8,9 @@ For detailed project memory, architecture, roadmap: see `PROJECT_MEMORY.md`
 For DB schema (75+ tables): see `docs/database/schema-overview.md`
  
 ## Language Rule
- 
+
 - User communication: TURKISH (always)
+- Documentation, reports, analysis files (.md): TURKISH (always)
 - Code, commits, logs: ENGLISH
  
 ## Build & Dev Commands
