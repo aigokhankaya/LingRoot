@@ -180,13 +180,21 @@ export async function getApiClientWithWake(): Promise<LingRootApiClient> {
 
 /**
  * Standard error message extraction from API errors
+ * Supports backend validation middleware format: { error, details: [{ message }] }
  */
-export function extractErrorMessage(error: any, defaultMessage: string): string {
-    if (error?.response?.data?.message) {
-        return error.response.data.message;
+export function extractErrorMessage(error: unknown, defaultMessage: string): string {
+    const err = error as { response?: { data?: { details?: { message: string }[]; message?: string; error?: string } }; message?: string };
+    if (err?.response?.data?.details?.[0]?.message) {
+        return err.response.data.details[0].message;
     }
-    if (error?.message) {
-        return error.message;
+    if (err?.response?.data?.message) {
+        return err.response.data.message;
+    }
+    if (err?.response?.data?.error) {
+        return err.response.data.error;
+    }
+    if (err?.message) {
+        return err.message;
     }
     return defaultMessage;
 }

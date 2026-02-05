@@ -1,51 +1,72 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
 import Link from 'next/link';
 
-
+const VERIFY_TIMEOUT_MS = 15_000;
 
 export default function VerifyPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { token, email } = router.query as { token?: string; email?: string };
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'check_email'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'timeout' | 'check_email'>('idle');
   const [message, setMessage] = useState<string>('');
 
-  useEffect(() => {
-    const run = async () => {
-      if (token && typeof token === 'string') {
-        setStatus('loading');
-        setMessage(t('verify_verifying'));
-        try {
-          const url = getApiUrl(`auth/verify-email/${encodeURIComponent(token)}`);
-          const res = await fetch(url, { method: 'GET', credentials: 'include' });
-          const json = await res.json().catch(() => ({}));
-          if (res.ok && json?.success) {
-            setStatus('success');
-            setMessage(json.message || t('verify_success'));
-          } else {
-            console.error('Verify failed:', res.status, json);
-            setStatus('error');
-            setMessage(json?.message || `Doğrulama başarısız (HTTP ${res.status}).`);
-          }
-        } catch (e: any) {
-          console.error('Verify error:', e);
-          setStatus('error');
-          setMessage(e?.message || t('content_selection_error_generic'));
-        }
-      } else if (email) {
-        setStatus('check_email');
+  const verifyToken = useCallback(async (tokenValue: string) => {
+    setStatus('loading');
+    setMessage(t('verify_verifying'));
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
+
+    try {
+      const url = getApiUrl(`auth/verify-email/${encodeURIComponent(tokenValue)}`);
+      const res = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.success) {
+        setStatus('success');
+        setMessage(json.message || t('verify_success'));
       } else {
-        // idle
+        console.error('Verify failed:', res.status, json);
+        setStatus('error');
+        setMessage(json?.message || `${t('verify_failed_generic')} (HTTP ${res.status})`);
       }
-    };
-    if (router.isReady) {
-      run();
+    } catch (e: unknown) {
+      clearTimeout(timeoutId);
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        console.error('Verify timeout');
+        setStatus('timeout');
+        setMessage(t('verify_timeout'));
+      } else {
+        console.error('Verify error:', e);
+        setStatus('error');
+        setMessage(e instanceof Error ? e.message : t('content_selection_error_generic'));
+      }
     }
-  }, [token, email, router.isReady, t]);
+  }, [t]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    if (token && typeof token === 'string') {
+      verifyToken(token);
+    } else if (email) {
+      setStatus('check_email');
+    }
+  }, [token, email, router.isReady, verifyToken]);
+
+  const handleRetry = () => {
+    if (token && typeof token === 'string') {
+      verifyToken(token);
+    }
+  };
 
   return (
     <>
@@ -87,12 +108,29 @@ export default function VerifyPage() {
                 <div className="text-red-500 text-5xl mb-4">✕</div>
                 <h1 className="text-2xl font-bold mb-2">{t('error')}</h1>
                 <p className="text-red-600 mb-6">{message}</p>
-                {status === 'error' && (
-                  <p className="text-sm text-gray-500 mb-4">{t('verify_error_expired')}</p>
-                )}
+                <p className="text-sm text-gray-500 mb-4">{t('verify_error_expired')}</p>
                 <Link href="/login" className="text-primary hover:underline">
                   {t('login')}
                 </Link>
+              </div>
+            )}
+
+            {status === 'timeout' && (
+              <div>
+                <div className="text-amber-500 text-5xl mb-4">⏱</div>
+                <h1 className="text-2xl font-bold mb-2">{t('verify_timeout_title')}</h1>
+                <p className="text-gray-600 mb-6">{t('verify_timeout')}</p>
+                <button
+                  onClick={handleRetry}
+                  className="inline-block px-6 py-3 bg-primary text-white font-medium rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  {t('verify_retry')}
+                </button>
+                <div className="mt-4">
+                  <Link href="/login" className="text-primary hover:underline text-sm">
+                    {t('login')}
+                  </Link>
+                </div>
               </div>
             )}
 

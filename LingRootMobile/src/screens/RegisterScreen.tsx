@@ -7,11 +7,10 @@ import {
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Linking,
   Animated,
-  useWindowDimensions,
+  Keyboard,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,8 +44,23 @@ const formatTRPhone = (value: string) => {
   return spaced ? `+90 ${spaced}` : '';
 };
 
+const AuthBackground = React.memo(({ blob1Anim, blob2Anim }: {
+  blob1Anim: Animated.Value;
+  blob2Anim: Animated.Value;
+}) => (
+  <>
+    <LinearGradient
+      colors={[COLORS.slate100, COLORS.slate200]}
+      style={StyleSheet.absoluteFillObject}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    />
+    <Animated.View style={[styles.blob, styles.blob1, { transform: [{ translateY: blob1Anim }] }]} />
+    <Animated.View style={[styles.blob, styles.blob2, { transform: [{ translateY: blob2Anim }] }]} />
+  </>
+));
+
 const RegisterScreen: React.FC = () => {
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -71,6 +85,9 @@ const RegisterScreen: React.FC = () => {
     isAppleSignInAvailable().then(setShowAppleSignIn);
   }, []);
 
+  const floatBlob1Ref = useRef<Animated.CompositeAnimation | null>(null);
+  const floatBlob2Ref = useRef<Animated.CompositeAnimation | null>(null);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -85,40 +102,54 @@ const RegisterScreen: React.FC = () => {
       }),
     ]).start();
 
-    const floatBlob1 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(blob1Anim, {
-          toValue: -20,
-          duration: 5000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(blob1Anim, {
-          toValue: 0,
-          duration: 5000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    const floatBlob2 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(blob2Anim, {
-          toValue: -15,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(blob2Anim, {
-          toValue: 0,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    floatBlob1.start();
-    floatBlob2.start();
+    const startBlobAnimations = () => {
+      floatBlob1Ref.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blob1Anim, {
+            toValue: -20,
+            duration: 5000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blob1Anim, {
+            toValue: 0,
+            duration: 5000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      floatBlob2Ref.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blob2Anim, {
+            toValue: -15,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blob2Anim, {
+            toValue: 0,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      floatBlob1Ref.current.start();
+      floatBlob2Ref.current.start();
+    };
+
+    startBlobAnimations();
+
+    const kbShowSub = Keyboard.addListener('keyboardDidShow', () => {
+      floatBlob1Ref.current?.stop();
+      floatBlob2Ref.current?.stop();
+    });
+    const kbHideSub = Keyboard.addListener('keyboardDidHide', () => {
+      startBlobAnimations();
+    });
 
     return () => {
-      floatBlob1.stop();
-      floatBlob2.stop();
+      floatBlob1Ref.current?.stop();
+      floatBlob2Ref.current?.stop();
+      kbShowSub.remove();
+      kbHideSub.remove();
     };
   }, []);
 
@@ -251,32 +282,10 @@ const RegisterScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Background Gradient */}
-      <LinearGradient
-        colors={[COLORS.slate100, COLORS.slate200]}
-        style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-
-      {/* Floating Blobs */}
-      <Animated.View
-        style={[
-          styles.blob,
-          styles.blob1,
-          { transform: [{ translateY: blob1Anim }] }
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.blob,
-          styles.blob2,
-          { transform: [{ translateY: blob2Anim }] }
-        ]}
-      />
+      <AuthBackground blob1Anim={blob1Anim} blob2Anim={blob2Anim} />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         style={styles.keyboardView}
       >
         <ScrollView

@@ -42,7 +42,7 @@ export async function updateProfile(data: {
  */
 export async function getAccountDeletionInfo(): Promise<{ success: boolean; data: any }> {
     const client = await getApiClientAsync();
-    const response = await client.http.get('/api/users/deletion-info');
+    const response = await client.http.get('/api/account/deletion-info');
     return response.data;
 }
 
@@ -51,7 +51,7 @@ export async function getAccountDeletionInfo(): Promise<{ success: boolean; data
  */
 export async function deleteAccount(): Promise<void> {
     const client = await getApiClientAsync();
-    await client.http.delete('/api/users/account');
+    await client.http.delete('/api/account/delete');
 }
 
 /**

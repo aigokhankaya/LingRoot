@@ -389,7 +389,7 @@ exports.login = async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select("id, email, password, role, isverified, firstname, lastname, phonenumber, stripecustomerid, membership_status, default_level, cefr_level, verificationtoken, resetpasswordtoken")
+      .select("id, email, password, role, isverified, firstname, lastname, phonenumber, stripecustomerid, default_level, cefr_level, verificationtoken, resetpasswordtoken")
       .eq("email", email)
       .single();
     if (error) logger.error('[LOGIN] Error fetching user:', error);
@@ -435,6 +435,9 @@ exports.login = async (req, res) => {
     user.full_name = safeFull;
     user.name = safeFull;
 
+    // Derive membershipStatus from role (column doesn't exist in DB)
+    user.membershipStatus = user.role === 'premium' ? 'premium' : 'free';
+
     // Best-effort: record successful login
     try { await recordLoginAttempt(user.id, req, { success: true, message: 'login_success' }); } catch { }
 
@@ -459,7 +462,7 @@ exports.getCurrentUser = async (req, res) => {
     const { id } = req.user;
     const { data: user, error } = await supabase
       .from('users')
-      .select("id, email, role, isverified, firstname, lastname, phonenumber, stripecustomerid, membership_status, membershipStatus, default_level, cefr_level, created_at, updated_at")
+      .select("id, email, role, isverified, firstname, lastname, phonenumber, stripecustomerid, default_level, cefr_level, created_at, updated_at")
       .eq("id", id)
       .single();
 
@@ -474,7 +477,7 @@ exports.getCurrentUser = async (req, res) => {
 
     // Normalize user fields for frontend
     user.role = user.role || 'user';
-    user.membershipStatus = user.membershipStatus || user.membership_status || 'free';
+    user.membershipStatus = user.role === 'premium' ? 'premium' : 'free';
 
     return res.status(200).json({ success: true, user });
   } catch (error) {
@@ -799,11 +802,12 @@ function parseExpiryMs(expires) {
   try {
     if (!expires) return 0;
     if (expires instanceof Date) return expires.getTime();
-    let s = String(expires);
-    // Normalize: replace space with T
-    s = s.replace(' ', 'T');
-    // If no timezone info, assume UTC
-    if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) s += 'Z';
+    // Try native Date constructor first (handles ISO 8601 with various timezone offsets)
+    const native = new Date(expires).getTime();
+    if (!Number.isNaN(native)) return native;
+    // Fallback: normalize string for edge cases
+    let s = String(expires).replace(' ', 'T');
+    if (!/[zZ]|[+-]\d{2}(:?\d{2})?$/.test(s)) s += 'Z';
     const ms = Date.parse(s);
     return Number.isNaN(ms) ? 0 : ms;
   } catch {
@@ -915,6 +919,10 @@ exports.resetPassword = async (req, res) => {
 };
 
 exports.verifyEmail = async (req, res) => {
+  // Prevent caching of verification responses (GET endpoint)
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+
   try {
     const { token } = req.params;
     if (!token) {
@@ -937,9 +945,21 @@ exports.verifyEmail = async (req, res) => {
     }
 
     // Check expiry
+    logger.info(`[VERIFY_EMAIL] User ${user.id} verification_expires raw: ${user.verification_expires}`);
     const expiresMs = parseExpiryMs(user.verification_expires);
-    if (!expiresMs || expiresMs < Date.now() - 2 * 60 * 1000) {
-      return res.status(400).json({ success: false, message: 'Doğrulama bağlantısının süresi dolmuş' });
+    logger.info(`[VERIFY_EMAIL] User ${user.id} expiresMs: ${expiresMs}, now: ${Date.now()}`);
+    if (!expiresMs) {
+      logger.error(`[VERIFY_EMAIL] Cannot parse verification_expires for user ${user.id}: ${user.verification_expires}`);
+      return res.status(400).json({ success: false, message: 'Doğrulama bilgisi okunamadı. Lütfen tekrar doğrulama e-postası isteyin.' });
+    }
+    const now = Date.now();
+    if (expiresMs < now - 2 * 60 * 1000) {
+      logger.warn(`[VERIFY_EMAIL] Token expired for user ${user.id}: expiresMs=${expiresMs}, now=${now}, diff=${now - expiresMs}ms, raw=${user.verification_expires}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Doğrulama bağlantısının süresi dolmuş',
+        _debug: { rawExpires: user.verification_expires, expiresMs, now, diffMs: now - expiresMs },
+      });
     }
 
     // Update user as verified and clear token
@@ -1041,7 +1061,7 @@ exports.resendVerificationEmail = async (req, res) => {
       return res.json({ success: true, message: 'Hesabınız zaten doğrulanmış. Giriş yapabilirsiniz.' });
     }
 
-    // Generate new token and expiry (e.g., 24 hours)
+    // Generate new token and expiry (24 hours)
     const code = generateNumericCode();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -1088,12 +1108,12 @@ exports.resendVerificationEmail = async (req, res) => {
   }
 };
 
-function parseExpiryMs(expires) {
+function parseDurationMs(duration) {
   try {
-    if (typeof expires === 'number') return expires;
-    if (!expires) return 3650 * 24 * 60 * 60 * 1000; // default ~10 years
+    if (typeof duration === 'number') return duration;
+    if (!duration) return 3650 * 24 * 60 * 60 * 1000; // default ~10 years
 
-    const match = String(expires).match(/^(\d+)([dhms])$/);
+    const match = String(duration).match(/^(\d+)([dhms])$/);
     if (!match) return 3650 * 24 * 60 * 60 * 1000;
 
     const val = parseInt(match[1], 10);
