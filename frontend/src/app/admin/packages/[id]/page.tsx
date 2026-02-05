@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import PromotionSection from './PromotionSection';
 
 interface PlanFeatures {
   homepage_features?: {
@@ -56,6 +57,14 @@ interface Plan {
   monthly_cost_limit_usd?: number;
   openai_token_limit?: number;
   tts_char_limit?: number;
+  promotion_active?: boolean;
+  promotion_discount_percentage?: number;
+  promotion_original_price?: number;
+  promotion_price?: number;
+  promotion_start_date?: string;
+  promotion_end_date?: string;
+  promotion_badge_text?: string;
+  promotion_description?: string;
   created_at: string;
   updated_at: string;
 }
@@ -86,6 +95,14 @@ export default function PackageDetailPage() {
     openai_token_limit: '',
     tts_char_limit: '',
     features: [] as string[],
+    promotion_active: false,
+    promotion_discount_percentage: '',
+    promotion_original_price: '',
+    promotion_price: '',
+    promotion_start_date: '',
+    promotion_end_date: '',
+    promotion_badge_text: '',
+    promotion_description: '',
   });
 
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures>({
@@ -155,6 +172,14 @@ export default function PackageDetailPage() {
           openai_token_limit: planData.openai_token_limit?.toString() || '',
           tts_char_limit: planData.tts_char_limit?.toString() || '',
           features: planData.features || [],
+          promotion_active: planData.promotion_active ?? false,
+          promotion_discount_percentage: planData.promotion_discount_percentage?.toString() || '',
+          promotion_original_price: planData.promotion_original_price?.toString() || '',
+          promotion_price: planData.promotion_price?.toString() || '',
+          promotion_start_date: planData.promotion_start_date ? planData.promotion_start_date.split('T')[0] : '',
+          promotion_end_date: planData.promotion_end_date ? planData.promotion_end_date.split('T')[0] : '',
+          promotion_badge_text: planData.promotion_badge_text || '',
+          promotion_description: planData.promotion_description || '',
         });
 
         // Populate plan features
@@ -189,6 +214,14 @@ export default function PackageDetailPage() {
         openai_token_limit: formData.openai_token_limit ? Number(formData.openai_token_limit) : null,
         tts_char_limit: formData.tts_char_limit ? Number(formData.tts_char_limit) : null,
         plan_features: planFeatures,
+        promotion_active: formData.promotion_active,
+        promotion_discount_percentage: formData.promotion_discount_percentage ? Number(formData.promotion_discount_percentage) : null,
+        promotion_original_price: formData.promotion_original_price ? Number(formData.promotion_original_price) : null,
+        promotion_price: formData.promotion_price ? Number(formData.promotion_price) : null,
+        promotion_start_date: formData.promotion_start_date || null,
+        promotion_end_date: formData.promotion_end_date || null,
+        promotion_badge_text: formData.promotion_badge_text || null,
+        promotion_description: formData.promotion_description || null,
       };
 
       const response = await fetch(url, {
@@ -709,6 +742,21 @@ export default function PackageDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Promosyon Ayarları */}
+          <PromotionSection
+            data={{
+              promotion_active: formData.promotion_active,
+              promotion_discount_percentage: formData.promotion_discount_percentage,
+              promotion_original_price: formData.promotion_original_price,
+              promotion_price: formData.promotion_price,
+              promotion_start_date: formData.promotion_start_date,
+              promotion_end_date: formData.promotion_end_date,
+              promotion_badge_text: formData.promotion_badge_text,
+              promotion_description: formData.promotion_description,
+            }}
+            onChange={(promoData) => setFormData(prev => ({ ...prev, ...promoData }))}
+          />
 
           {/* Uygulama Mağazası Entegrasyonları */}
           <Card>
