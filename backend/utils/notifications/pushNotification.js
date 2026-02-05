@@ -12,6 +12,12 @@ const { getMessaging } = require('./firebaseAdmin.js');
  * @param {object} notification.data - Additional data
  */
 async function sendPushNotification(userId, notification) {
+  // Load test mock: skip real notification sending
+  const { isLoadTestMode } = require('../../tests/load/mocks/mockConfig');
+  if (isLoadTestMode()) {
+    return { success: true, data: { id: 'mock-notification' } };
+  }
+
   try {
     logger.info(`[PushNotification] Sending notification to user ${userId}:`, notification);
 

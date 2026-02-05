@@ -1220,6 +1220,14 @@ async function createGoogleTTSPodcast(options) {
     userId = null,
   } = options;
 
+  // Load test mock: skip real podcast creation pipeline
+  const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+  if (isLoadTestMode()) {
+    const { getMockPodcastResult } = require('../../tests/load/mocks/ttsMock');
+    await new Promise(r => setTimeout(r, getLoadTestDelay('ttsMulti')));
+    return getMockPodcastResult(options);
+  }
+
   logger.info(`[GOOGLE-PODCAST] Creating podcast - Topic: "${topic}", Level: ${level}, Duration: ${duration}min`);
 
   try {

@@ -28,6 +28,13 @@ class DirectorAgentService {
      * @returns {Promise<string>} - The detected mood
      */
     async analyzeMood(text, userId = null) {
+        // Load test mock: skip real OpenAI call
+        const { isLoadTestMode, getLoadTestDelay } = require('../tests/load/mocks/mockConfig');
+        if (isLoadTestMode()) {
+            await new Promise(r => setTimeout(r, getLoadTestDelay('director')));
+            return 'Neutral';
+        }
+
         // Short circuit for very short text
         if (!text || text.length < 10) return 'Neutral';
 
@@ -125,6 +132,13 @@ class DirectorAgentService {
      * @returns {Promise<Object>} - The analysis result { mood, narrator_tone, key_characters, summary }
      */
     async analyzeChapter(text) {
+        // Load test mock: skip real OpenAI call
+        const { isLoadTestMode: isLTM3, getLoadTestDelay: gLTD3 } = require('../tests/load/mocks/mockConfig');
+        if (isLTM3()) {
+            await new Promise(r => setTimeout(r, gLTD3('director')));
+            return { mood: 'Neutral', narrator_tone: 'Clear and steady', key_characters: [], summary: 'Mock chapter analysis.' };
+        }
+
         if (!text || text.length < 50) {
             return {
                 mood: 'Neutral',

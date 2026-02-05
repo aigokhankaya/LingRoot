@@ -40,6 +40,15 @@ try {
  * @returns {Promise<{text: string, usage: object, model: string}>}
  */
 async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogger, promptVariant = 'standard', mood = null) {
+    // Load test mock: skip real OpenAI call
+    const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+    if (isLoadTestMode()) {
+        const { MOCK_TRANSLATED_TEXT, MOCK_USAGE } = require('../../tests/load/mocks/openaiMock');
+        await new Promise(r => setTimeout(r, getLoadTestDelay('openai')));
+        const model = process.env.OPENAI_TRANSLATE_ADAPT_MODEL || 'gpt-4o-mini';
+        return { text: MOCK_TRANSLATED_TEXT, usage: MOCK_USAGE, model };
+    }
+
     if (!openai) {
         logger.error("[TranslateAndAdapt] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");
@@ -225,6 +234,15 @@ function calculateWordCountFromDuration(durationMinutes) {
  * @returns {Promise<{englishText: string, translatedText: string, usage: object, model: string}>}
  */
 async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null, mood = null, forbiddenOpenings = []) {
+    // Load test mock: skip real OpenAI call
+    const { isLoadTestMode: isLTM2, getLoadTestDelay: gLTD2 } = require('../../tests/load/mocks/mockConfig');
+    if (isLTM2()) {
+        const { MOCK_BILINGUAL_RESPONSE, MOCK_USAGE } = require('../../tests/load/mocks/openaiMock');
+        await new Promise(r => setTimeout(r, gLTD2('openai')));
+        const model = 'gpt-4o-mini';
+        return { englishText: MOCK_BILINGUAL_RESPONSE.english_text, translatedText: MOCK_BILINGUAL_RESPONSE.translated_text, usage: MOCK_USAGE, model };
+    }
+
     if (!openai) {
         logger.error("[GenerateBilingual] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");

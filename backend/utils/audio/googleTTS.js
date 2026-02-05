@@ -314,6 +314,14 @@ async function getVoiceGender(voiceName) {
  * @returns {Object} Audio buffer ve timing bilgileri
  */
 async function synthesizeWithGoogle(options) {
+  // Load test mock: skip real Google TTS call
+  const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+  if (isLoadTestMode()) {
+    const { getMockSynthesizeResult } = require('../../tests/load/mocks/ttsMock');
+    await new Promise(r => setTimeout(r, getLoadTestDelay('tts')));
+    return getMockSynthesizeResult(options);
+  }
+
   if (!ttsClient) {
     throw new Error('Google TTS client not initialized');
   }

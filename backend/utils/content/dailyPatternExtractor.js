@@ -11,6 +11,13 @@ const logger = require('../common/logger.js');
  * @returns {Promise<{parsed: {level: string, daily_patterns: Array}, skipped: boolean, reason: string}>}
  */
 async function extractDailyUsagePatterns(adaptedText, level, requestId) {
+  // Load test mock: skip DB lookup
+  const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+  if (isLoadTestMode()) {
+    await new Promise(r => setTimeout(r, getLoadTestDelay('pattern')));
+    return { parsed: { level, daily_patterns: [] }, skipped: false, reason: 'load_test_mock' };
+  }
+
   if (!adaptedText) {
     return { parsed: { level, daily_patterns: [] }, skipped: true, reason: 'empty_text' };
   }

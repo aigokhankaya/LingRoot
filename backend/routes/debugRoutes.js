@@ -108,4 +108,11 @@ router.get('/insights', authenticate, async (req, res) => {
   }
 });
 
+// Load test stats endpoint (only active when LOAD_TEST_MODE=true)
+if (process.env.LOAD_TEST_MODE === 'true') {
+  const loadTestStatsRouter = require('../tests/load/monitoring/stats-endpoint.js');
+  router.use('/', loadTestStatsRouter);
+  logger.info('[LOAD_TEST] Stats endpoint mounted at /api/debug/load-test-stats');
+}
+
 module.exports = router;

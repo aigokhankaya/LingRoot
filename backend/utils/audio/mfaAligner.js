@@ -107,6 +107,14 @@ class MFAAligner {
    * Main entry point - Calls Remote Service
    */
   async generateWordTimestamps(audioPath, transcript, locale = 'en_US', options = {}) {
+    // Load test mock: skip real MFA alignment
+    const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+    if (isLoadTestMode()) {
+      const { generateMockTimestamps } = require('../../tests/load/mocks/mfaMock');
+      await new Promise(r => setTimeout(r, getLoadTestDelay('mfa')));
+      return generateMockTimestamps(transcript);
+    }
+
     const { debug = null } = options;
     const transcriptText = transcript == null ? '' : String(transcript);
 
