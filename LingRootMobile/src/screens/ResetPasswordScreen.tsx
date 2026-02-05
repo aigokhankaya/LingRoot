@@ -20,17 +20,29 @@ const ResetPasswordScreen: React.FC = () => {
     if (!email || !code || !newPassword) {
       return Alert.alert('Hata', 'Lütfen e-posta, kod ve yeni şifreyi girin');
     }
+    if (!/^\d{6}$/.test(code.trim())) {
+      return Alert.alert('Hata', 'Kod 6 haneli bir sayı olmalıdır');
+    }
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      return Alert.alert('Hata', 'Şifre en az 8 karakter, 1 büyük harf ve 1 rakam içermelidir');
+    }
     if (newPassword !== confirmPassword) {
       return Alert.alert('Hata', 'Yeni şifreler eşleşmiyor');
     }
     setLoading(true);
     try {
-      await resetPassword(code.trim(), newPassword);
+      await resetPassword(email.trim(), code.trim(), newPassword);
       Alert.alert('Başarılı', 'Şifreniz güncellendi. Giriş ekranına dönün.', [
         { text: 'Tamam', onPress: () => navigation.navigate('Login') },
       ]);
-    } catch (e: any) {
-      Alert.alert('Hata', e.message || 'İşlem başarısız');
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { details?: { message: string }[]; message?: string; error?: string } }; message?: string };
+      const msg = err?.response?.data?.details?.[0]?.message
+        || err?.response?.data?.message
+        || err?.response?.data?.error
+        || err?.message
+        || 'İşlem başarısız';
+      Alert.alert('Hata', msg);
     } finally {
       setLoading(false);
     }

@@ -128,17 +128,21 @@ exports.refreshLimiter = rateLimit({
  * TTS endpoint için maliyet koruması
  * OpenAI/Google TTS API maliyetlerini kontrol altında tutar
  */
-exports.ttsLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 saat
-  max: 30, // IP başına 30 TTS isteği (authenticated users will have plan-based limits too)
-  message: {
-    success: false,
-    code: 'RATE_LIMIT_EXCEEDED',
-    message: 'Saatlik TTS limitinizi aştınız. 1 saat sonra tekrar deneyin veya paket yükseltin.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const isLoadTest = process.env.LOAD_TEST_MODE === 'true';
+
+exports.ttsLimiter = isLoadTest
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 saat
+    max: 30, // IP başına 30 TTS isteği (authenticated users will have plan-based limits too)
+    message: {
+      success: false,
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Saatlik TTS limitinizi aştınız. 1 saat sonra tekrar deneyin veya paket yükseltin.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
 /**
  * Chat/AI endpoint için limit
@@ -226,17 +230,19 @@ exports.contentLimiter = rateLimit({
  * Podcast oluşturma için limit
  * Uzun işlem + yüksek maliyet
  */
-exports.podcastLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 saat
-  max: 10, // Saatte 10 podcast
-  message: {
-    success: false,
-    code: 'RATE_LIMIT_EXCEEDED',
-    message: 'Saatlik podcast limitinizi aştınız. 1 saat sonra tekrar deneyin.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+exports.podcastLimiter = isLoadTest
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 saat
+    max: 10, // Saatte 10 podcast
+    message: {
+      success: false,
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Saatlik podcast limitinizi aştınız. 1 saat sonra tekrar deneyin.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
 // ============================================
 // GAMIFICATION RATE LIMITERS

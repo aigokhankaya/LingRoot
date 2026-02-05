@@ -36,6 +36,15 @@ try {
  * @returns {Promise<string|null>} The adapted text or null if an error occurs or adaptation is skipped.
  */
 async function adaptToCEFR(text, level, requestLogger, userId) {
+    // Load test mock: skip real OpenAI call
+    const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+    if (isLoadTestMode()) {
+        const { MOCK_ADAPTED_TEXT, MOCK_USAGE } = require('../../tests/load/mocks/openaiMock');
+        await new Promise(r => setTimeout(r, getLoadTestDelay('openai')));
+        const model = process.env.OPENAI_CEFR_MODEL || 'gpt-4-turbo';
+        return { text: MOCK_ADAPTED_TEXT, usage: MOCK_USAGE, model };
+    }
+
     if (!openai) {
         logger.error("OpenAI client is not initialized. Skipping CEFR adaptation and returning original text.");
         return text;

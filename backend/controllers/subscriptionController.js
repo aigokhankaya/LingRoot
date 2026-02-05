@@ -32,10 +32,24 @@ exports.getSubscriptionPlans = async (req, res) => {
       });
     }
 
-    logger.info(`Successfully fetched ${data.length} subscription plans`);
+    // Filter promotion visibility based on current date
+    const now = new Date();
+    const processedData = (data || []).map(plan => {
+      if (plan.promotion_active) {
+        if (plan.promotion_end_date && new Date(plan.promotion_end_date) < now) {
+          return { ...plan, promotion_active: false };
+        }
+        if (plan.promotion_start_date && new Date(plan.promotion_start_date) > now) {
+          return { ...plan, promotion_active: false };
+        }
+      }
+      return plan;
+    });
+
+    logger.info(`Successfully fetched ${processedData.length} subscription plans`);
     return res.status(200).json({
       success: true,
-      data,
+      data: processedData,
     });
   } catch (error) {
     logger.error("Server error while fetching subscription plans:", error);

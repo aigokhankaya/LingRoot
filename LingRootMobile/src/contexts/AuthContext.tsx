@@ -359,14 +359,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName?: string, phoneNumber?: string) => {
-    setIsLoading(true);
     try {
       await authService.signUp(email, password, fullName, phoneNumber);
-      // Signup does NOT log the user in; stop global loading here so UI can navigate to Login
-      setIsLoading(false);
-      // User state would be updated via onAuthStateChange only after an actual login
+      // Signup does NOT log the user in — RegisterScreen manages its own loading state.
+      // Global isLoading is intentionally NOT touched here to avoid unmounting NavigationContainer.
     } catch (error) {
-      setIsLoading(false);
       throw error;
     }
   }, []);

@@ -116,29 +116,38 @@ const processTtsRequest = async (req, res) => {
 
   // Get user ID for rate limiting
   const userId = req.user?.id || null;
+  const skipConcurrency = !!req._skipConcurrencyCheck;
 
-  // 1. Global TTS limiti kontrolü
-  const globalSlot = await limiters.tts.acquire(30000); // 30 saniye timeout
-  if (!globalSlot.acquired) {
-    logger.warn(`[${requestId}] 🚫 Global TTS limit - reason: ${globalSlot.reason}, userId: ${userId}`);
-    return res.status(503).json({
-      success: false,
-      code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
-      message: 'Sunucu şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.',
-      retryAfter: 60
-    });
+  // 1. Global TTS limiti kontrolü (skip for async background workers)
+  let globalSlotAcquired = false;
+  if (!skipConcurrency) {
+    const globalSlot = await limiters.tts.acquire(30000); // 30 saniye timeout
+    if (!globalSlot.acquired) {
+      logger.warn(`[${requestId}] 🚫 Global TTS limit - reason: ${globalSlot.reason}, userId: ${userId}`);
+      return res.status(503).json({
+        success: false,
+        code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
+        message: 'Sunucu şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.',
+        retryAfter: 60
+      });
+    }
+    globalSlotAcquired = true;
+  } else {
+    logger.info(`[${requestId}] Skipping concurrency checks (async background worker)`);
   }
 
-  // 2. Per-user TTS limiti (mevcut kod)
-  const slotCheck = acquireTtsSlot(userId);
-  if (!slotCheck.allowed) {
-    limiters.tts.release(); // Global slot'u serbest bırak
-    logger.warn(`[${requestId}] ⚠️ User ${userId} exceeded concurrent TTS limit (${slotCheck.current}/${slotCheck.max})`);
-    return res.status(429).json({
-      success: false,
-      message: `Çok fazla eşzamanlı ses oluşturma isteği. Lütfen mevcut işlemlerin tamamlanmasını bekleyin. (${slotCheck.current}/${slotCheck.max} aktif)`,
-      retryAfter: 30 // Suggest retry after 30 seconds
-    });
+  // 2. Per-user TTS limiti (skip for async background workers)
+  if (!skipConcurrency) {
+    const slotCheck = acquireTtsSlot(userId);
+    if (!slotCheck.allowed) {
+      limiters.tts.release(); // Global slot'u serbest bırak
+      logger.warn(`[${requestId}] ⚠️ User ${userId} exceeded concurrent TTS limit (${slotCheck.current}/${slotCheck.max})`);
+      return res.status(429).json({
+        success: false,
+        message: `Çok fazla eşzamanlı ses oluşturma isteği. Lütfen mevcut işlemlerin tamamlanmasını bekleyin. (${slotCheck.current}/${slotCheck.max} aktif)`,
+        retryAfter: 30 // Suggest retry after 30 seconds
+      });
+    }
   }
 
   // CRITICAL DEBUG: Log raw request essentials (sanitized)
@@ -1852,11 +1861,15 @@ const processTtsRequest = async (req, res) => {
     // --- Final Step: Ensure Temporary File Cleanup ---
     logger.debug(`[${requestId}] Performing final cleanup.`);
 
-    // Release TTS slot for this user
-    releaseTtsSlot(userId);
+    // Release TTS slot for this user (only if acquired)
+    if (!skipConcurrency) {
+      releaseTtsSlot(userId);
+    }
 
-    // Release global TTS slot
-    limiters.tts.release();
+    // Release global TTS slot (only if acquired)
+    if (globalSlotAcquired) {
+      limiters.tts.release();
+    }
 
     // Do NOT clean up temp file that we need for API access
     // cleanupTempFile(tempFilePath);

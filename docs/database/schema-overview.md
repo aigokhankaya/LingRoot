@@ -142,6 +142,14 @@ Subscription plan definitions.
 | google_product_id | VARCHAR(100) | Google Play product ID |
 | apple_product_id | VARCHAR(100) | App Store product ID |
 | is_active | BOOLEAN | Active status |
+| promotion_active | BOOLEAN | Promotion display enabled (default false) |
+| promotion_discount_percentage | INTEGER | Discount percentage for display (e.g. 50) |
+| promotion_original_price | NUMERIC | Original price in TRY for display |
+| promotion_price | NUMERIC | Promotional price in TRY for display |
+| promotion_start_date | TIMESTAMPTZ | Campaign start date |
+| promotion_end_date | TIMESTAMPTZ | Campaign end date |
+| promotion_badge_text | TEXT | Badge text shown on mobile |
+| promotion_description | TEXT | Optional promotional description |
 
 ### subscriptions (86 rows, 27 columns)
 User subscription records.

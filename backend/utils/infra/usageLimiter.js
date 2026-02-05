@@ -177,6 +177,12 @@ async function getUsageTotals(userId, periodStartIso, periodEndIso) {
 }
 
 async function checkLimits(userId) {
+  // Load test mock: skip real subscription check
+  const { isLoadTestMode } = require('../../tests/load/mocks/mockConfig');
+  if (isLoadTestMode()) {
+    return { hasPlan: true, isExceeded: false, plan: { name: 'Load Test Unlimited' } };
+  }
+
   try {
     const subscription = await getActiveSubscriptionWithPlan(userId);
     if (!subscription) {
