@@ -74,6 +74,11 @@ exports.authLimiter = rateLimit({
   legacyHeaders: false,
   // Skip successful requests (only count failed attempts would need custom logic)
   skipSuccessfulRequests: false,
+  // Skip rate limit for load test users
+  skip: (req) => {
+    const email = req.body?.email || '';
+    return email.includes('@loadtest.lingroot.com');
+  },
 });
 
 /**
