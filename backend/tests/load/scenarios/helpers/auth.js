@@ -16,12 +16,13 @@ export function getTestUser() {
 
 /**
  * Scenario-based user pool ranges to prevent VU collision across scenarios.
- * TTS VUs get users 0-949, Podcast VUs get 950-999, others get full range.
+ * TTS VUs get users 0-4749, Podcast VUs get 4750-4999, others get full range.
+ * Sized for 5000-user pool (stress-5000vu). Works with smaller pools via modulo in getTestUserForScenario.
  */
 const scenarioRanges = {
-  tts: { start: 0, end: 949 },
-  podcast: { start: 950, end: 999 },
-  default: { start: 0, end: 999 },
+  tts: { start: 0, end: 4749 },
+  podcast: { start: 4750, end: 4999 },
+  default: { start: 0, end: 4999 },
 };
 
 /**

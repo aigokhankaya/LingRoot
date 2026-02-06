@@ -24,6 +24,7 @@ SyslogIdentifier=lingroot-mfa
 # Environment
 Environment=NODE_ENV=production
 Environment=PORT=5002
+Environment=MFA_ASYNC_MAX_CONCURRENT=5
 
 # Resource limits
 LimitNOFILE=65536

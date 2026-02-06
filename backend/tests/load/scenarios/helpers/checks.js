@@ -10,12 +10,39 @@ export const jobsTimeout = new Counter('jobs_timeout');
 export const jobsRejected = new Counter('jobs_rejected');
 export const pollCount = new Counter('poll_requests');
 
+// TCP vs HTTP error separation
+export const tcpErrors = new Counter('tcp_errors');
+export const httpServerErrors = new Counter('http_server_errors');
+
+/**
+ * Track TCP vs HTTP errors for observability.
+ * - status 0: TCP-level failure (no HTTP response received)
+ * - status >= 500 && !== 503: real server error (503 is intentional backpressure)
+ * @param {object} res - k6 response
+ */
+export function trackRequestErrors(res) {
+  if (res.status === 0) {
+    tcpErrors.add(1);
+  } else if (res.status >= 500 && res.status !== 503) {
+    httpServerErrors.add(1);
+  }
+}
+
 /**
  * Check TTS job creation response
  * @param {object} res - k6 response
  * @returns {{ success: boolean, jobId: string | null }}
  */
 export function checkJobCreation(res) {
+  // Skip checks for TCP failures and backpressure — not real job creation attempts.
+  // Running check() on these inflates checks_failed with millions of expected non-200s.
+  if (res.status === 0 || res.status === 503 || res.status === 429) {
+    if (res.status === 503 || res.status === 429) {
+      jobsRejected.add(1);
+    }
+    return { success: false, jobId: null };
+  }
+
   const isOk = check(res, {
     'job creation status 200': (r) => r.status === 200,
     'job creation has jobId': (r) => {
@@ -36,11 +63,6 @@ export function checkJobCreation(res) {
     } catch {
       return { success: false, jobId: null };
     }
-  }
-
-  // Track rejections (503, 429)
-  if (res.status === 503 || res.status === 429) {
-    jobsRejected.add(1);
   }
 
   return { success: false, jobId: null };

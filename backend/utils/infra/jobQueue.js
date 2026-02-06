@@ -7,24 +7,41 @@ class JobQueue {
     this.activeJobsByUser = new Map(); // userId -> jobId (O(1) active job lookup)
   }
 
+  /**
+   * Get count of pending/queued jobs (for queue position calculation)
+   */
+  getPendingCount() {
+    let count = 0;
+    for (const job of this.jobs.values()) {
+      if (job.status === 'pending' || job.status === 'queued') {
+        count++;
+      }
+    }
+    return count;
+  }
+
   createJob(userId, jobData) {
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Calculate queue position before adding this job
+    const queuePosition = this.getPendingCount() + 1;
 
     const job = {
       id: jobId,
       userId,
-      status: 'pending', // pending, processing, completed, failed
+      status: 'pending', // pending, queued, processing, completed, failed
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       data: jobData,
       result: null,
       error: null,
-      progress: 0
+      progress: 0,
+      queuePosition // User-facing queue position info
     };
 
     this.jobs.set(jobId, job);
     this.activeJobsByUser.set(userId, jobId);
-    logger.info(`[JobQueue] Created job ${jobId} for user ${userId}`);
+    logger.info(`[JobQueue] Created job ${jobId} for user ${userId}, queuePosition: ${queuePosition}`);
 
     return job;
   }
@@ -56,7 +73,8 @@ class JobQueue {
     if (!jobId) return null;
 
     const job = this.jobs.get(jobId);
-    if (job && (job.status === 'pending' || job.status === 'processing')) {
+    // Include 'queued' status as active (waiting for slot in background)
+    if (job && (job.status === 'pending' || job.status === 'queued' || job.status === 'processing')) {
       return job;
     }
 

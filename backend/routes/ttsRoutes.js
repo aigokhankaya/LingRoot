@@ -92,13 +92,13 @@ router.post(
 );
 
 // POST /api/tts/process-async – Async TTS processing with notification (in-memory jobQueue)
+// NEVER rejects user requests — job is created immediately, slot waiting happens in background
 router.post(
   "/process-async",
   ttsLimiter,
   authenticate,
   upload.single("file"),
   async (req, res, next) => {
-    let slotAcquired = false;
     try {
       if (req.fileValidationError) {
         logger.error(`File validation error: ${req.fileValidationError.message}`);
@@ -110,25 +110,10 @@ router.post(
         return res.status(401).json({ success: false, message: 'User not authenticated' });
       }
 
-      // Route-level concurrency slot — bounds parallel background processing
-      const globalSlot = await limiters.tts.acquire(30000);
-      if (!globalSlot.acquired) {
-        logger.warn(`[AsyncTTS] Global TTS limit reached - reason: ${globalSlot.reason}`);
-        return res.status(503).json({
-          success: false,
-          code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
-          message: 'Sunucu yoğun. Lütfen tekrar deneyin.',
-          retryAfter: 60
-        });
-      }
-      slotAcquired = true;
-
-      // Prevent multiple concurrent async jobs per user
+      // Prevent multiple concurrent async jobs per user (this check remains)
       const existingJob = jobQueue.getActiveJobForUser(userId);
       if (existingJob) {
         logger.info(`[AsyncTTS] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
-        limiters.tts.release();
-        slotAcquired = false;
         return res.status(409).json({
           success: false,
           code: 'TTS_JOB_IN_PROGRESS',
@@ -143,27 +128,62 @@ router.post(
       const file = req.file;
       const token = req.headers.authorization ? req.headers.authorization.split(' ')[1] : null;
 
-      // Create job in in-memory queue
+      // Create job IMMEDIATELY — user request is NEVER rejected
+      // Queue position info helps user understand wait time
       const job = jobQueue.createJob(userId, {
         type: 'tts',
         requestBody,
         file: file ? { originalname: file.originalname, mimetype: file.mimetype } : null,
       });
 
-      logger.info(`[AsyncTTS] Job ${job.id} created for user ${userId}`);
+      logger.info(`[AsyncTTS] Job ${job.id} created for user ${userId}, queuePosition: ${job.queuePosition}`);
 
-      // Return job ID immediately
+      // Return job ID immediately — user ALWAYS gets a response
       res.json({
         success: true,
         jobId: job.id,
-        message: 'Audio creation started. You will receive a notification when it\'s ready.',
+        queuePosition: job.queuePosition,
+        message: job.queuePosition > 1
+          ? `Sıraya alındı. Sıra: ${job.queuePosition}`
+          : 'Ses oluşturma başlatıldı. Hazır olduğunda bildirim alacaksınız.',
         estimatedTime: '2-5 minutes'
       });
 
-      // Process in background — slot released in finally block
+      // Process in background — slot waiting happens HERE, not before job creation
       setImmediate(async () => {
+        let slotAcquired = false;
         try {
+          // Update job status to show it's waiting for a slot
+          jobQueue.updateJob(job.id, { status: 'queued', progress: 5 });
+
+          // Wait for slot — 1 hour timeout (slot waiting is in background, not blocking user)
+          const globalSlot = await limiters.tts.acquire(3600000); // 1 hour
+
+          if (!globalSlot.acquired) {
+            // 1 hour timeout — couldn't get a slot
+            logger.warn(`[AsyncTTS] Job ${job.id} queue timeout after 1 hour - reason: ${globalSlot.reason}`);
+            jobQueue.updateJob(job.id, {
+              status: 'failed',
+              error: 'Kuyruk zaman aşımı. Sunucu yoğunluğu nedeniyle işleminiz başlatılamadı.'
+            });
+
+            // Send timeout notification
+            try {
+              await sendPushNotification(userId, {
+                title: '⏰ İşlem Zaman Aşımına Uğradı',
+                body: 'Sunucu yoğunluğu nedeniyle işleminiz başlatılamadı. Lütfen tekrar deneyin.',
+                type: 'tts_queue_timeout',
+                data: { jobId: job.id }
+              });
+            } catch (notifError) {
+              logger.error(`[AsyncTTS] Timeout notification error:`, notifError.message);
+            }
+            return; // No slot acquired, no release needed
+          }
+          slotAcquired = true;
+
           jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
+          logger.info(`[AsyncTTS] Job ${job.id} got slot, processing (waited: ${globalSlot.waited}ms)`);
 
           // Create mock request/response for handleTTSRequest
           const mockReq = {
@@ -262,14 +282,13 @@ router.post(
             logger.error(`[AsyncTTS] Failure notification error:`, notifError.message);
           }
         } finally {
-          limiters.tts.release(); // Release route-level slot
+          if (slotAcquired) {
+            limiters.tts.release(); // Release route-level slot only if acquired
+          }
         }
       });
 
     } catch (error) {
-      if (slotAcquired) {
-        try { limiters.tts.release(); } catch (e) { /* already released */ }
-      }
       logger.error(`[AsyncTTS] Error creating job:`, error);
       res.status(500).json({ success: false, message: 'Failed to start audio processing' });
     }
@@ -306,6 +325,7 @@ router.get("/job/active", authenticate, (req, res) => {
       id: job.id,
       status: job.status,
       progress: job.progress,
+      queuePosition: job.queuePosition,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
       result: job.result,
@@ -334,6 +354,7 @@ router.get("/job/:jobId", authenticate, (req, res) => {
       id: job.id,
       status: job.status,
       progress: job.progress,
+      queuePosition: job.queuePosition,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
       result: job.result,
@@ -439,33 +460,18 @@ router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) =>
 });
 
 // Async Podcast Creation with Notification
+// NEVER rejects user requests — job is created immediately, slot waiting happens in background
 router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, res) => {
-  let slotAcquired = false;
   try {
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    // Route-level concurrency slot — bounds parallel background processing
-    const globalSlot = await limiters.podcast.acquire(60000);
-    if (!globalSlot.acquired) {
-      logger.warn(`[AsyncPodcast] Global podcast limit reached - reason: ${globalSlot.reason}`);
-      return res.status(503).json({
-        success: false,
-        code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
-        message: 'Podcast sunucusu şu anda yoğun. Lütfen tekrar deneyin.',
-        retryAfter: 60
-      });
-    }
-    slotAcquired = true;
-
-    // Prevent multiple concurrent async podcast jobs per user
+    // Prevent multiple concurrent async podcast jobs per user (this check remains)
     const existingJob = jobQueue.getActiveJobForUser(userId);
     if (existingJob) {
       logger.info(`[AsyncPodcast] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
-      limiters.podcast.release();
-      slotAcquired = false;
       return res.status(409).json({
         success: false,
         code: 'PODCAST_JOB_IN_PROGRESS',
@@ -480,8 +486,6 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
     const topic = typeof rawTopic === 'string' ? rawTopic.trim() : '';
 
     if (!topic) {
-      limiters.podcast.release();
-      slotAcquired = false;
       return res.status(400).json({
         success: false,
         message: 'Topic is required'
@@ -491,7 +495,7 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
     const level = (body.level || 'B1').toString().toUpperCase();
     const duration = body.duration != null ? Number(body.duration) : 10;
 
-    // Create job
+    // Create job IMMEDIATELY — user request is NEVER rejected
     const job = jobQueue.createJob(userId, {
       type: 'podcast',
       topic,
@@ -507,20 +511,54 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
       includeFiller: body.includeFiller,
     });
 
-    logger.info(`[AsyncPodcast] Job ${job.id} created for user ${userId}`, { topic, level, duration });
+    logger.info(`[AsyncPodcast] Job ${job.id} created for user ${userId}, queuePosition: ${job.queuePosition}`, { topic, level, duration });
 
-    // Return job ID immediately
+    // Return job ID immediately — user ALWAYS gets a response
     res.json({
       success: true,
       jobId: job.id,
-      message: 'Podcast oluşturma başlatıldı. Hazır olduğunda bildirim alacaksınız.',
+      queuePosition: job.queuePosition,
+      message: job.queuePosition > 1
+        ? `Sıraya alındı. Sıra: ${job.queuePosition}`
+        : 'Podcast oluşturma başlatıldı. Hazır olduğunda bildirim alacaksınız.',
       estimatedTime: '3-7 minutes'
     });
 
-    // Process in background — slot released in finally block
+    // Process in background — slot waiting happens HERE, not before job creation
     setImmediate(async () => {
+      let slotAcquired = false;
       try {
+        // Update job status to show it's waiting for a slot
+        jobQueue.updateJob(job.id, { status: 'queued', progress: 5 });
+
+        // Wait for slot — 1 hour timeout (slot waiting is in background, not blocking user)
+        const globalSlot = await limiters.podcast.acquire(3600000); // 1 hour
+
+        if (!globalSlot.acquired) {
+          // 1 hour timeout — couldn't get a slot
+          logger.warn(`[AsyncPodcast] Job ${job.id} queue timeout after 1 hour - reason: ${globalSlot.reason}`);
+          jobQueue.updateJob(job.id, {
+            status: 'failed',
+            error: 'Kuyruk zaman aşımı. Sunucu yoğunluğu nedeniyle işleminiz başlatılamadı.'
+          });
+
+          // Send timeout notification
+          try {
+            await sendPushNotification(userId, {
+              title: '⏰ İşlem Zaman Aşımına Uğradı',
+              body: 'Sunucu yoğunluğu nedeniyle podcast oluşturulamadı. Lütfen tekrar deneyin.',
+              type: 'podcast_queue_timeout',
+              data: { jobId: job.id }
+            });
+          } catch (notifError) {
+            logger.error(`[AsyncPodcast] Timeout notification error:`, notifError.message);
+          }
+          return; // No slot acquired, no release needed
+        }
+        slotAcquired = true;
+
         jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
+        logger.info(`[AsyncPodcast] Job ${job.id} got slot, processing (waited: ${globalSlot.waited}ms)`);
 
         // Call Direct Google TTS implementation
         const result = await createGoogleTTSPodcast({
@@ -616,13 +654,12 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
           }
         });
       } finally {
-        limiters.podcast.release(); // Release route-level slot
+        if (slotAcquired) {
+          limiters.podcast.release(); // Release route-level slot only if acquired
+        }
       }
     });
   } catch (error) {
-    if (slotAcquired) {
-      try { limiters.podcast.release(); } catch (e) { /* already released */ }
-    }
     logger.error(`[AsyncPodcast] Error creating job:`, error);
     return res.status(500).json({ success: false, message: error.message });
   }
