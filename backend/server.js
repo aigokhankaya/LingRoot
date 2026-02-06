@@ -116,6 +116,8 @@ const allowedOrigins = [
     'https://www.lingloops.com',
     'https://lingloops-frontend.onrender.com',
     'https://lingloops-backend.onrender.com',
+    // Railway domains
+    'https://lingroot-production.up.railway.app',
     process.env.FRONTEND_URL
 ].filter(Boolean);
 
