@@ -150,16 +150,18 @@ exports.register = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
   try {
-    logger.info(`[REGISTER] req.body:`, req.body);
+    // Filter password from logs for security
+    const { password: _pwd, ...safeBody } = req.body;
+    logger.info(`[REGISTER] req.body:`, safeBody);
     logStep({
       requestId,
       stepName: 'auth:register:start',
       stepSequence: stepSequence++,
       serviceName: 'Express',
       endpoint: '/auth/register',
-      inputData: req.body
+      inputData: safeBody
     });
-    logger.info("Register request received", { body: req.body });
+    logger.info("Register request received", { body: safeBody });
     const { firstName, lastName, email, phoneNumber, password, locale } = req.body;
 
     // Validate required fields
@@ -171,9 +173,26 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate email format
+    // Sanitize and normalize inputs
+    const sanitizeName = (name) => name.trim().replace(/[<>"&]/g, '');
+    const sanitizedFirstName = sanitizeName(firstName);
+    const sanitizedLastName = sanitizeName(lastName);
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Validate name length
+    if (sanitizedFirstName.length < 2 || sanitizedLastName.length < 2) {
+      return res.status(400).json({ success: false, code: 'NAME_TOO_SHORT', message: "İsim en az 2 karakter olmalıdır" });
+    }
+    if (sanitizedFirstName.length > 50 || sanitizedLastName.length > 50) {
+      return res.status(400).json({ success: false, code: 'NAME_TOO_LONG', message: "İsim 50 karakterden uzun olamaz" });
+    }
+
+    // Validate email format and length
+    if (normalizedEmail.length > 255) {
+      return res.status(400).json({ success: false, code: 'EMAIL_TOO_LONG', message: "E-posta 255 karakterden uzun olamaz" });
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({ success: false, code: 'INVALID_EMAIL', message: "Geçersiz e-posta formatı" });
     }
 
@@ -187,15 +206,18 @@ exports.register = async (req, res) => {
     if (password.length < 8) {
       return res.status(400).json({ success: false, code: 'PASSWORD_TOO_SHORT', message: "Şifre en az 8 karakter olmalıdır" });
     }
-    if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_WEAK', message: "Şifre en az 1 büyük harf ve 1 rakam içermelidir" });
+    if (password.length > 128) {
+      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_LONG', message: "Şifre 128 karakterden uzun olamaz" });
+    }
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_WEAK', message: "Şifre en az 1 küçük harf, 1 büyük harf ve 1 rakam içermelidir" });
     }
 
-    // Check if email already exists
+    // Check if email already exists (case-insensitive)
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select("email")
-      .eq("email", email)
+      .ilike("email", normalizedEmail)
       .maybeSingle();
     if (fetchError) logger.error('[REGISTER] Error fetching user for register:', fetchError);
 
@@ -221,9 +243,9 @@ exports.register = async (req, res) => {
       .from('users')
       .insert([
         {
-          firstname: firstName,
-          lastname: lastName,
-          email,
+          firstname: sanitizedFirstName,
+          lastname: sanitizedLastName,
+          email: normalizedEmail,
           phonenumber: phoneNumber,
           password: hashedPassword,
           role: "user",
@@ -239,6 +261,16 @@ exports.register = async (req, res) => {
       ])
       .select();
     if (insertError) logger.error('[REGISTER] Error inserting new user:', insertError);
+
+    // Handle race condition: unique constraint violation
+    if (insertError?.code === '23505') {
+      if (insertError.message?.includes('email')) {
+        return res.status(400).json({ success: false, code: 'EMAIL_IN_USE', message: "Bu e-posta adresi zaten kullanılıyor" });
+      }
+      if (insertError.message?.includes('phone')) {
+        return res.status(400).json({ success: false, code: 'PHONE_IN_USE', message: "Bu telefon numarası zaten kullanılıyor" });
+      }
+    }
 
     if (insertError || !newUser?.length) {
       logger.error("User registration error:", insertError);

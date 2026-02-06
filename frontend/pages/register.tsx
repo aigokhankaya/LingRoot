@@ -16,8 +16,12 @@ const ERROR_CODE_MAP: Record<string, string> = {
   PHONE_IN_USE: 'register_phone_in_use',
   PASSWORD_TOO_WEAK: 'register_password_too_weak',
   PASSWORD_TOO_SHORT: 'register_password_too_weak',
+  PASSWORD_TOO_LONG: 'register_password_too_long',
   INVALID_EMAIL: 'register_invalid_email',
   INVALID_PHONE: 'register_invalid_phone',
+  EMAIL_TOO_LONG: 'register_email_too_long',
+  NAME_TOO_SHORT: 'register_name_too_short',
+  NAME_TOO_LONG: 'register_name_too_long',
   NAME_INVALID: 'register_name_invalid',
   RATE_LIMIT_EXCEEDED: 'register_rate_limit',
   DUPLICATE_ENTRY: 'register_duplicate_entry',
@@ -25,6 +29,12 @@ const ERROR_CODE_MAP: Record<string, string> = {
   SERVER_ERROR: 'register_failed_error',
   NETWORK_ERROR: 'register_network_error'
 };
+
+// Validation constants
+const MAX_EMAIL_LENGTH = 255;
+const MAX_PASSWORD_LENGTH = 128;
+const MIN_NAME_LENGTH = 2;
+const MAX_NAME_LENGTH = 50;
 
 // Phone number formatting helpers (International E.164 format)
 // Supports: +90 555 123 4567 (TR), +1 555 123 4567 (US), +44 20 1234 5678 (UK), etc.
@@ -160,6 +170,31 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    // Name validation
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    if (trimmedFirstName.length < MIN_NAME_LENGTH || trimmedLastName.length < MIN_NAME_LENGTH) {
+      setError(t('register_name_too_short') || 'İsim en az 2 karakter olmalıdır.');
+      setLoading(false);
+      setIsSubmitting(false);
+      return;
+    }
+    if (trimmedFirstName.length > MAX_NAME_LENGTH || trimmedLastName.length > MAX_NAME_LENGTH) {
+      setError(t('register_name_too_long') || 'İsim 50 karakterden uzun olamaz.');
+      setLoading(false);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Email validation
+    const trimmedEmail = email.trim();
+    if (trimmedEmail.length > MAX_EMAIL_LENGTH) {
+      setError(t('register_email_too_long') || 'E-posta 255 karakterden uzun olamaz.');
+      setLoading(false);
+      setIsSubmitting(false);
+      return;
+    }
+
     // Password confirmation validation
     if (password !== confirmPassword) {
       setError(t('register_password_mismatch') || 'Sifreler eslesmiyor.');
@@ -170,6 +205,14 @@ const RegisterPage: React.FC = () => {
 
     if (!acceptTerms) {
       setError(t('register_accept_terms_error') || 'Lutfen Kullanim Kosullari ve Gizlilik Politikasini kabul edin.');
+      setLoading(false);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Password length validation
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      setError(t('register_password_too_long') || 'Şifre 128 karakterden uzun olamaz.');
       setLoading(false);
       setIsSubmitting(false);
       return;
@@ -294,6 +337,7 @@ const RegisterPage: React.FC = () => {
                     type="text"
                     autoComplete="given-name"
                     required
+                    maxLength={MAX_NAME_LENGTH}
                     className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                     placeholder={t('firstName_placeholder')}
                     value={firstName}
@@ -308,6 +352,7 @@ const RegisterPage: React.FC = () => {
                     type="text"
                     autoComplete="family-name"
                     required
+                    maxLength={MAX_NAME_LENGTH}
                     className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                     placeholder={t('lastName_placeholder')}
                     value={lastName}
@@ -324,6 +369,7 @@ const RegisterPage: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   required
+                  maxLength={MAX_EMAIL_LENGTH}
                   className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                   placeholder={t('email_placeholder')}
                   value={email}
@@ -355,6 +401,7 @@ const RegisterPage: React.FC = () => {
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     required
+                    maxLength={MAX_PASSWORD_LENGTH}
                     className="w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                     placeholder={t('password_placeholder')}
                     value={password}
@@ -415,6 +462,7 @@ const RegisterPage: React.FC = () => {
                     type={showConfirmPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     required
+                    maxLength={MAX_PASSWORD_LENGTH}
                     className="w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                     placeholder={t('confirmPassword_placeholder') || 'Şifrenizi tekrar girin'}
                     value={confirmPassword}

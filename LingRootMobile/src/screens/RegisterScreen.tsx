@@ -13,6 +13,7 @@ import {
   Keyboard,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -20,28 +21,90 @@ import { useNavigation, CommonActions } from '@react-navigation/native';
 import { isAppleSignInAvailable } from '../services/socialAuth';
 import { COLORS } from '../theme/colors';
 
-// Phone helpers: Turkish format +90 555 123 45 67
+// Phone helpers: International E.164 format support
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
-const extractTRLocalDigits = (value: string) => {
-  const digits = extractDigits(value);
-  let d = digits.startsWith('90') ? digits.slice(2) : digits;
-  if (d.startsWith('0')) d = d.slice(1);
-  d = d.slice(0, 10);
-  return d;
+
+// Normalize phone to E.164 format (supports international numbers)
+const normalizePhoneNumber = (value: string): string => {
+  let cleaned = value.replace(/[^\d+]/g, '');
+  // Keep only the first + if present
+  if (cleaned.includes('+')) {
+    cleaned = '+' + cleaned.replace(/\+/g, '');
+  }
+  // If no country code, assume Turkish (+90)
+  if (!cleaned.startsWith('+')) {
+    if (cleaned.startsWith('0')) {
+      cleaned = '+90' + cleaned.slice(1);
+    } else if (cleaned.length >= 10) {
+      cleaned = '+90' + cleaned;
+    } else {
+      cleaned = '+' + cleaned;
+    }
+  }
+  return cleaned;
 };
-const normalizeTRPhone = (value: string) => {
-  const local = extractTRLocalDigits(value);
-  return `+90${local}`;
+
+// Validate E.164 format: +[country code][number] (7-15 digits after +)
+const isValidPhoneNumber = (value: string): boolean => {
+  const normalized = normalizePhoneNumber(value);
+  return /^\+[1-9]\d{6,14}$/.test(normalized);
 };
-const formatTRPhone = (value: string) => {
-  const local = extractTRLocalDigits(value);
-  let parts: string[] = [];
-  if (local.length <= 3) parts = [local];
-  else if (local.length <= 6) parts = [local.slice(0, 3), local.slice(3)];
-  else if (local.length <= 8) parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6)];
-  else parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6, 8), local.slice(8, 10)];
-  const spaced = parts.filter(Boolean).join(' ').trim();
-  return spaced ? `+90 ${spaced}` : '';
+
+// Format phone for display (Turkish format for +90, generic for others)
+const formatPhoneForDisplay = (value: string): string => {
+  const normalized = normalizePhoneNumber(value);
+  if (normalized.startsWith('+90')) {
+    // Turkish format: +90 555 123 45 67
+    const local = normalized.slice(3).slice(0, 10);
+    let parts: string[] = [];
+    if (local.length <= 3) parts = [local];
+    else if (local.length <= 6) parts = [local.slice(0, 3), local.slice(3)];
+    else if (local.length <= 8) parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6)];
+    else parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6, 8), local.slice(8, 10)];
+    const spaced = parts.filter(Boolean).join(' ').trim();
+    return spaced ? `+90 ${spaced}` : '';
+  }
+  // Generic international format
+  return normalized;
+};
+
+// Password complexity: minimum 8 chars, at least 1 lowercase, 1 uppercase, 1 digit
+const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+
+const isPasswordComplex = (password: string): boolean => {
+  return PASSWORD_COMPLEXITY_REGEX.test(password);
+};
+
+// Password strength calculator
+const calculatePasswordStrength = (password: string): { level: number; label: string; color: string } => {
+  if (!password) return { level: 0, label: '', color: '' };
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/\d/.test(password)) score++;
+  if (/[^a-zA-Z0-9]/.test(password)) score++;
+
+  if (score <= 2) return { level: 1, label: 'Zayıf', color: '#EF4444' };
+  if (score === 3) return { level: 2, label: 'Orta', color: '#F59E0B' };
+  if (score === 4) return { level: 3, label: 'İyi', color: '#10B981' };
+  return { level: 4, label: 'Güçlü', color: '#059669' };
+};
+
+// Error code mapping for better UX
+const ERROR_CODE_MAP: Record<string, string> = {
+  EMAIL_IN_USE: 'Bu e-posta adresi zaten kullanılıyor',
+  PHONE_IN_USE: 'Bu telefon numarası zaten kullanılıyor',
+  PASSWORD_TOO_WEAK: 'Şifre en az 8 karakter, büyük/küçük harf ve rakam içermelidir',
+  PASSWORD_TOO_SHORT: 'Şifre en az 8 karakter olmalıdır',
+  PASSWORD_TOO_LONG: 'Şifre 128 karakterden uzun olamaz',
+  INVALID_EMAIL: 'Geçersiz e-posta formatı',
+  INVALID_PHONE: 'Geçersiz telefon numarası',
+  EMAIL_TOO_LONG: 'E-posta 255 karakterden uzun olamaz',
+  NAME_TOO_SHORT: 'İsim en az 2 karakter olmalıdır',
+  NAME_TOO_LONG: 'İsim 50 karakterden uzun olamaz',
+  RATE_LIMIT_EXCEEDED: 'Çok fazla deneme. Lütfen bekleyin.',
+  REGISTRATION_FAILED: 'Kayıt işlemi başarısız oldu. Lütfen tekrar deneyin.',
 };
 
 const AuthBackground = React.memo(({ blob1Anim, blob2Anim }: {
@@ -154,14 +217,13 @@ const RegisterScreen: React.FC = () => {
   }, []);
 
   const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
+  const passwordStrength = useMemo(() => calculatePasswordStrength(password), [password]);
   const isFormValid = useMemo(() => {
-    const phoneDigits = extractTRLocalDigits(phoneNumber);
     return (
       fullName.trim().length >= 2 &&
       emailRegex.test(email.trim()) &&
-      phoneDigits.length === 10 &&
-      password.length >= 6 &&
-      confirmPassword.length >= 6 &&
+      isValidPhoneNumber(phoneNumber) &&
+      isPasswordComplex(password) &&
       password === confirmPassword &&
       acceptTerms
     );
@@ -204,18 +266,41 @@ const RegisterScreen: React.FC = () => {
   };
 
   const handleRegister = async () => {
-    if (!fullName.trim()) return Alert.alert(t('common.error'), t('register.errors.fullNameRequired'));
-    if (!emailRegex.test(email.trim())) return Alert.alert(t('common.error'), t('register.errors.emailInvalid'));
-    const phoneDigits = extractTRLocalDigits(phoneNumber);
-    if (phoneDigits.length !== 10) return Alert.alert(t('common.error'), 'Lütfen geçerli bir telefon numarası girin');
-    if (password.length < 6) return Alert.alert(t('common.error'), t('register.errors.passwordShort'));
-    if (password !== confirmPassword) return Alert.alert(t('common.error'), t('register.errors.passwordMismatch'));
-    if (!acceptTerms) return Alert.alert(t('common.error'), t('register.errors.acceptTerms'));
+    // Check network connectivity first
+    const netState = await NetInfo.fetch();
+    if (!netState.isConnected) {
+      return Alert.alert(
+        t('common.error'),
+        language === 'tr' ? 'İnternet bağlantınız yok. Lütfen bağlantınızı kontrol edin.' : 'No internet connection. Please check your connection.'
+      );
+    }
+
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      return Alert.alert(t('common.error'), t('register.errors.fullNameRequired'));
+    }
+    if (!emailRegex.test(email.trim())) {
+      return Alert.alert(t('common.error'), t('register.errors.emailInvalid'));
+    }
+    if (!isValidPhoneNumber(phoneNumber)) {
+      return Alert.alert(t('common.error'), 'Lütfen geçerli bir telefon numarası girin');
+    }
+    if (!isPasswordComplex(password)) {
+      return Alert.alert(
+        t('common.error'),
+        'Şifre en az 8 karakter, 1 büyük harf, 1 küçük harf ve 1 rakam içermelidir'
+      );
+    }
+    if (password !== confirmPassword) {
+      return Alert.alert(t('common.error'), t('register.errors.passwordMismatch'));
+    }
+    if (!acceptTerms) {
+      return Alert.alert(t('common.error'), t('register.errors.acceptTerms'));
+    }
 
     setIsLoading(true);
     try {
-      const normalizedPhone = normalizeTRPhone(phoneNumber);
-      await signUp(email.trim(), password, fullName.trim(), normalizedPhone);
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      await signUp(email.trim().toLowerCase(), password, fullName.trim(), normalizedPhone);
       setIsLoading(false);
       const goToLogin = () => {
         try { (navigation as any)?.replace?.('Login'); } catch { }
@@ -234,7 +319,10 @@ const RegisterScreen: React.FC = () => {
         ]
       );
     } catch (error: any) {
-      Alert.alert(t('register.title'), error.message || t('register.errors.generic'));
+      // Map error codes to user-friendly messages
+      const errorCode = error.code || error.response?.data?.code;
+      const userMessage = ERROR_CODE_MAP[errorCode] || error.message || t('register.errors.generic');
+      Alert.alert(t('common.error'), userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -320,8 +408,28 @@ const RegisterScreen: React.FC = () => {
             <View style={styles.form}>
               {renderInput('person', language === 'tr' ? 'Ad Soyad' : 'Full Name', fullName, setFullName, { autoCapitalize: 'words' })}
               {renderInput('alternate-email', language === 'tr' ? 'E-posta Adresi' : 'Email Address', email, setEmail, { keyboardType: 'email-address', autoCapitalize: 'none', autoComplete: 'email' })}
-              {renderInput('phone', '+90 555 123 45 67', phoneNumber, (v) => setPhoneNumber(formatTRPhone(v)), { keyboardType: 'phone-pad', autoComplete: 'tel' })}
+              {renderInput('phone', '+90 555 123 45 67', phoneNumber, (v) => setPhoneNumber(formatPhoneForDisplay(v)), { keyboardType: 'phone-pad', autoComplete: 'tel' })}
               {renderInput('lock', language === 'tr' ? 'Şifre Oluştur' : 'Create Password', password, setPassword, { secureTextEntry: !showPassword, showToggle: true, toggleValue: showPassword, onToggle: () => setShowPassword(v => !v) })}
+
+              {/* Password Strength Indicator */}
+              {password.length > 0 && (
+                <View style={styles.passwordStrengthContainer}>
+                  <View style={styles.passwordStrengthBars}>
+                    {[1, 2, 3, 4].map((level) => (
+                      <View
+                        key={level}
+                        style={[
+                          styles.passwordStrengthBar,
+                          { backgroundColor: level <= passwordStrength.level ? passwordStrength.color : COLORS.slate200 }
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <Text style={[styles.passwordStrengthLabel, { color: passwordStrength.color }]}>
+                    {passwordStrength.label}
+                  </Text>
+                </View>
+              )}
               {renderInput('verified-user', language === 'tr' ? 'Şifreyi Onayla' : 'Confirm Password', confirmPassword, setConfirmPassword, { secureTextEntry: !showConfirmPassword, showToggle: true, toggleValue: showConfirmPassword, onToggle: () => setShowConfirmPassword(v => !v) })}
 
               {/* Terms Checkbox */}
@@ -545,6 +653,28 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     padding: 8,
+  },
+  passwordStrengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  passwordStrengthBars: {
+    flexDirection: 'row',
+    flex: 1,
+    gap: 4,
+  },
+  passwordStrengthBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  passwordStrengthLabel: {
+    marginLeft: 8,
+    fontSize: 12,
+    fontWeight: '600',
   },
   termsRow: {
     flexDirection: 'row',
