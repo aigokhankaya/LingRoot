@@ -190,7 +190,7 @@ app.use('/api/mfa', mfaRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/external-services', externalServicesRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
-app.use('/api/api-costs', apiCostsRoutes);
+app.use('/api/admin/api-costs', apiCostsRoutes);
 app.use('/api/apple-notifications', appleNotificationsRoutes);
 app.use('/api/google-play-notifications', googlePlayNotificationsRoutes);
 app.use('/api/user-sectors', userSectorRoutes);

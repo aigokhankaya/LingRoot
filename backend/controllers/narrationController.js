@@ -59,7 +59,7 @@ exports.rewriteToNarration = async (req, res) => {
   try {
     // Seviyeye göre doğru prompt dosyasını seç
     const promptFile = getPromptFileByLevel(level);
-    const promptPath = path.join(__dirname, '../prompts/content', promptFile);
+    const promptPath = path.join(__dirname, '../prompts/legacy', promptFile);
 
     console.log(`🎯 [NARRATION CONTROLLER] Using prompt file: ${promptFile} for level: ${level || 'A1'}`);
     logger.info(`🎯 Narration Controller - Selected prompt file: ${promptFile} for level: ${level || 'A1'}`);

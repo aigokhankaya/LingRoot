@@ -275,24 +275,35 @@
     "all": "Tümü"
   },
   "register": {
-    "title": "Kayıt Ol",
-    "subtitle": "LingRoot'a katıl",
+    "title": "Kayit Ol",
+    "subtitle": "LingRoot'a katil",
     "fullName": "Ad Soyad",
     "email": "E-posta",
-    "password": "Şifre",
-    "confirmPassword": "Şifre Tekrar",
-    "termsText": "Hizmet Şartları ve Gizlilik Politikasını kabul ediyorum",
-    "cta": "Kayıt Ol",
-    "registering": "Kayıt yapılıyor...",
-    "haveAccount": "Zaten hesabın var mı? Giriş yap",
-    "success": "Kayıt tamamlandı. Lütfen e-postanızı kontrol edin.",
+    "password": "Sifre",
+    "confirmPassword": "Sifre Tekrar",
+    "termsText": "Hizmet Sartlari ve Gizlilik Politikasini kabul ediyorum",
+    "cta": "Kayit Ol",
+    "registering": "Kayit yapiliyor...",
+    "haveAccount": "Zaten hesabin var mi? Giris yap",
+    "success": "Kayit tamamlandi. Lutfen e-postanizi kontrol edin.",
     "errors": {
-      "fullNameRequired": "Lütfen ad soyad girin",
-      "emailInvalid": "Lütfen geçerli bir e-posta girin",
-      "passwordShort": "Şifre en az 6 karakter olmalıdır",
-      "passwordMismatch": "Şifreler eşleşmiyor",
-      "acceptTerms": "Lütfen şartları kabul edin",
-      "generic": "Kayıt başarısız"
+      "fullNameRequired": "Lutfen ad soyad girin",
+      "emailInvalid": "Lutfen gecerli bir e-posta girin",
+      "passwordShort": "Sifre en az 8 karakter olmalidir",
+      "passwordWeak": "Sifre en az 8 karakter, buyuk/kucuk harf ve rakam icermelidir",
+      "passwordMismatch": "Sifreler eslesmiyor",
+      "acceptTerms": "Lutfen sartlari kabul edin",
+      "generic": "Kayit basarisiz",
+      "emailInUse": "Bu e-posta adresi zaten kullaniliyor",
+      "phoneInUse": "Bu telefon numarasi zaten kullaniliyor",
+      "nameInvalid": "Isim veya soyisim gecersiz karakterler iceriyor",
+      "rateLimit": "Cok fazla deneme. 1 saat sonra tekrar deneyin",
+      "networkError": "Internet baglantiniz yok"
+    },
+    "passwordStrength": {
+      "weak": "Zayif",
+      "medium": "Orta",
+      "strong": "Guclu"
     }
   }
 }

@@ -175,7 +175,7 @@ async function runSetup(setupType) {
       throw new Error(`Failed to create conversation: ${result.error}`);
     }
 
-    setupData.conversationId = extractField(result.body, 'data.id');
+    setupData.conversationId = extractField(result.body, 'conversation.id');
     if (!setupData.conversationId) {
       throw new Error('Created conversation but no ID returned');
     }

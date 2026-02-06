@@ -191,16 +191,18 @@ exports.register = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
   try {
-    logger.info(`[REGISTER] req.body:`, req.body);
+    // Log request without sensitive data (password)
+    const { password: _pwd, ...safeBody } = req.body;
+    logger.info(`[REGISTER] req.body:`, safeBody);
     logStep({
       requestId,
       stepName: 'auth:register:start',
       stepSequence: stepSequence++,
       serviceName: 'Express',
       endpoint: '/auth/register',
-      inputData: req.body
+      inputData: safeBody
     });
-    logger.info("Register request received", { body: req.body });
+    logger.info("Register request received", { body: safeBody });
     const { firstName, lastName, email, phoneNumber, password, locale } = req.body;
 
     // Validate required fields
@@ -212,28 +214,72 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // Normalize email (lowercase + trim) to prevent duplicate accounts with different casing
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Sanitize name fields (remove potentially dangerous characters for XSS prevention)
+    // Note: Apostrophe (') is allowed for names like O'Brien, D'Angelo
+    const sanitizeName = (name) => name.trim().replace(/[<>"&]/g, '');
+    const sanitizedFirstName = sanitizeName(firstName);
+    const sanitizedLastName = sanitizeName(lastName);
+
+    // Validate sanitized names are not empty after cleaning
+    if (!sanitizedFirstName || !sanitizedLastName) {
+      return res.status(400).json({ success: false, code: 'NAME_INVALID', message: "İsim veya soyisim geçersiz karakterler içeriyor" });
+    }
+
+    // Validate max lengths to prevent DoS
+    if (sanitizedFirstName.length > 50 || sanitizedLastName.length > 50) {
+      return res.status(400).json({ success: false, code: 'NAME_TOO_LONG', message: "İsim veya soyisim 50 karakterden uzun olamaz" });
+    }
+
+    // Validate email format and length
+    if (normalizedEmail.length > 255) {
+      return res.status(400).json({ success: false, code: 'EMAIL_TOO_LONG', message: "E-posta adresi 255 karakterden uzun olamaz" });
+    }
+    // More robust email regex (RFC 5322 simplified)
+    // Validates: local part (letters, numbers, dots, hyphens, underscores, plus)
+    //            @ symbol
+    //            domain (letters, numbers, hyphens, dots)
+    //            TLD (at least 2 characters)
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({ success: false, code: 'INVALID_EMAIL', message: "Geçersiz e-posta formatı" });
     }
 
-    // Validate phone number format (simple validation, can be enhanced)
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      return res.status(400).json({ success: false, code: 'INVALID_PHONE', message: "Geçersiz telefon numarası formatı" });
+    // Validate phone number format (E.164 international format)
+    // Supports: +90XXXXXXXXXX (Turkey), +1XXXXXXXXXX (US), +44XXXXXXXXXX (UK), etc.
+    // Must start with + followed by country code (1-3 digits) and number (6-14 digits)
+    const phoneDigitsOnly = phoneNumber.replace(/[\s\-\(\)]/g, ''); // Remove spaces, dashes, parentheses
+    const phoneRegex = /^\+[1-9]\d{6,14}$/;
+    if (!phoneRegex.test(phoneDigitsOnly)) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_PHONE',
+        message: "Geçersiz telefon numarası formatı. Uluslararası format kullanın (örn: +905551234567)"
+      });
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_SHORT', message: "Şifre en az 6 karakter olmalıdır" });
+    // Validate password length limits
+    if (password.length > 128) {
+      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_LONG', message: "Şifre 128 karakterden uzun olamaz" });
     }
 
-    // Check if email already exists
+    // Validate password complexity (min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit)
+    const passwordComplexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordComplexityRegex.test(password)) {
+      return res.status(400).json({
+        success: false,
+        code: 'PASSWORD_TOO_WEAK',
+        message: "Şifre en az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam içermelidir"
+      });
+    }
+
+    // Check if email already exists (using normalized email)
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select("email")
-      .eq("email", email)
+      .ilike("email", normalizedEmail)
       .maybeSingle();
     if (fetchError) logger.error('[REGISTER] Error fetching user for register:', fetchError);
 
@@ -241,11 +287,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, code: 'EMAIL_IN_USE', message: "Bu e-posta adresi zaten kullanılıyor" });
     }
 
-    // Check if phone number already exists
+    // Check if phone number already exists (using cleaned format for consistent matching)
     const { data: existingPhone, error: phoneFetchError } = await supabase
       .from('users')
       .select("id")
-      .eq("phonenumber", phoneNumber)
+      .eq("phonenumber", phoneDigitsOnly)
       .maybeSingle();
     if (phoneFetchError) logger.error('[REGISTER] Error fetching phone for register:', phoneFetchError);
 
@@ -255,28 +301,51 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
 
-    const { data: newUser, error: insertError } = await supabase
-      .from('users')
-      .insert([
-        {
-          firstname: firstName,
-          lastname: lastName,
-          email,
-          phonenumber: phoneNumber,
-          password: hashedPassword,
-          role: "user",
-          isverified: false,
-          verificationtoken: null, // Use explicit null instead of relying on default
-          dailycontentused: 0,
-          lastcontentdate: null,
-          stripecustomerid: null,
-          locale: locale || 'tr', // Default to 'tr' if not provided
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+    // Insert new user with race condition handling (unique constraint violations)
+    let newUser;
+    let insertError;
+    try {
+      const result = await supabase
+        .from('users')
+        .insert([
+          {
+            firstname: sanitizedFirstName,
+            lastname: sanitizedLastName,
+            email: normalizedEmail,
+            phonenumber: phoneDigitsOnly, // Store in E.164 format (+XXXXXXXXXXX)
+            password: hashedPassword,
+            role: "user",
+            isverified: false,
+            verificationtoken: null, // Use explicit null instead of relying on default
+            dailycontentused: 0,
+            lastcontentdate: null,
+            stripecustomerid: null,
+            locale: locale || 'tr', // Default to 'tr' if not provided
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ])
+        .select();
+      newUser = result.data;
+      insertError = result.error;
+    } catch (err) {
+      insertError = err;
+    }
+
+    if (insertError) {
+      logger.error('[REGISTER] Error inserting new user:', insertError);
+      // Handle unique constraint violations (PostgreSQL error code 23505)
+      if (insertError.code === '23505' || insertError.message?.includes('duplicate key') || insertError.message?.includes('unique constraint')) {
+        if (insertError.message?.includes('email') || insertError.constraint?.includes('email')) {
+          return res.status(400).json({ success: false, code: 'EMAIL_IN_USE', message: "Bu e-posta adresi zaten kullanılıyor" });
         }
-      ])
-      .select();
-    if (insertError) logger.error('[REGISTER] Error inserting new user:', insertError);
+        if (insertError.message?.includes('phone') || insertError.constraint?.includes('phone')) {
+          return res.status(400).json({ success: false, code: 'PHONE_IN_USE', message: "Bu telefon numarası zaten kullanılıyor" });
+        }
+        // Generic unique constraint violation
+        return res.status(400).json({ success: false, code: 'DUPLICATE_ENTRY', message: "Bu bilgilerle kayıt zaten mevcut" });
+      }
+    }
 
     if (insertError || !newUser?.length) {
       logger.error("User registration error:", insertError);
@@ -382,7 +451,7 @@ exports.register = async (req, res) => {
       stepSequence: stepSequence++,
       serviceName: 'Supabase',
       endpoint: 'users',
-      inputData: { email, phoneNumber },
+      inputData: { email: normalizedEmail, phoneNumber },
       outputData: { userId: newUser?.[0]?.id }
     });
     logStep({
@@ -1126,8 +1195,14 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ success: false, message: "Tüm alanlar zorunlu" });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: "Yeni şifre en az 6 karakter olmalıdır" });
+    // Validate password complexity (min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit)
+    const passwordComplexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordComplexityRegex.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        code: 'PASSWORD_TOO_WEAK',
+        message: "Şifre en az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam içermelidir"
+      });
     }
 
     const { data: user } = await supabase
@@ -1137,7 +1212,7 @@ exports.changePassword = async (req, res) => {
       .single();
 
     if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
-      return res.status(401).json({ success: false, message: "Mevcut şifre yanlış" });
+      return res.status(401).json({ success: false, code: 'INVALID_PASSWORD', message: "Mevcut şifre yanlış" });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
@@ -1301,8 +1376,14 @@ exports.resetPassword = async (req, res) => {
     if (!email || !code || !newPassword) {
       return res.status(400).json({ success: false, message: 'Email, code and newPassword are required' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: 'Yeni şifre en az 6 karakter olmalıdır' });
+    // Validate password complexity (min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit)
+    const passwordComplexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordComplexityRegex.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        code: 'PASSWORD_TOO_WEAK',
+        message: 'Şifre en az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam içermelidir'
+      });
     }
 
     const { data: user, error } = await supabase

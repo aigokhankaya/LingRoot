@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -10,38 +10,99 @@ import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
 import { useTranslation } from '../src/lib/i18n';
 
-// Phone number formatting helpers (Turkish format: +90 555 123 45 67)
-function extractTRLocalDigits(value: string): string {
-  const digits = (value || '').replace(/\D+/g, '');
-  // Remove country code if present
-  let d = digits.startsWith('90') ? digits.slice(2) : digits;
-  // Drop a single leading 0 (common when typing local TR numbers like 0 5xx ...)
-  if (d.startsWith('0')) d = d.slice(1);
-  // Limit to max 10 local digits
-  d = d.slice(0, 10);
-  return d;
-}
+// Error code mapping for user-friendly messages
+const ERROR_CODE_MAP: Record<string, string> = {
+  EMAIL_IN_USE: 'register_email_in_use',
+  PHONE_IN_USE: 'register_phone_in_use',
+  PASSWORD_TOO_WEAK: 'register_password_too_weak',
+  PASSWORD_TOO_SHORT: 'register_password_too_weak',
+  INVALID_EMAIL: 'register_invalid_email',
+  INVALID_PHONE: 'register_invalid_phone',
+  NAME_INVALID: 'register_name_invalid',
+  RATE_LIMIT_EXCEEDED: 'register_rate_limit',
+  DUPLICATE_ENTRY: 'register_duplicate_entry',
+  REGISTRATION_FAILED: 'register_failed_generic',
+  SERVER_ERROR: 'register_failed_error',
+  NETWORK_ERROR: 'register_network_error'
+};
 
-function formatTRPhone(value: string): string {
-  const local = extractTRLocalDigits(value);
-  let parts: string[] = [];
-  if (local.length <= 3) {
-    parts = [local];
-  } else if (local.length <= 6) {
-    parts = [local.slice(0, 3), local.slice(3)];
-  } else if (local.length <= 8) {
-    parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6)];
-  } else {
-    parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6, 8), local.slice(8, 10)];
+// Phone number formatting helpers (International E.164 format)
+// Supports: +90 555 123 4567 (TR), +1 555 123 4567 (US), +44 20 1234 5678 (UK), etc.
+
+function formatPhoneNumber(value: string): string {
+  // Keep only + at start and digits
+  let cleaned = value.replace(/[^\d+]/g, '');
+
+  // Ensure + is only at the start
+  if (cleaned.includes('+')) {
+    cleaned = '+' + cleaned.replace(/\+/g, '');
   }
-  const spaced = parts.filter(Boolean).join(' ').trim();
-  // Always show +90 prefix while typing (unless empty)
-  return spaced ? `+90 ${spaced}` : '';
+
+  // If no + and starts with digits, add + prefix
+  if (cleaned && !cleaned.startsWith('+')) {
+    // If starts with 0, assume Turkish local number
+    if (cleaned.startsWith('0')) {
+      cleaned = '+90' + cleaned.slice(1);
+    } else {
+      cleaned = '+' + cleaned;
+    }
+  }
+
+  // Limit total length (E.164 max is 15 digits + 1 for +)
+  if (cleaned.length > 16) {
+    cleaned = cleaned.slice(0, 16);
+  }
+
+  // Format with spaces for readability
+  if (cleaned.length <= 1) return cleaned;
+
+  // Extract country code and rest
+  const withoutPlus = cleaned.slice(1);
+
+  // Simple formatting: +XX XXX XXX XXXX (generic international)
+  let formatted = '+';
+  for (let i = 0; i < withoutPlus.length; i++) {
+    if (i === 2 || i === 5 || i === 8 || i === 12) {
+      formatted += ' ';
+    }
+    formatted += withoutPlus[i];
+  }
+
+  return formatted.trim();
 }
 
-function normalizeTRPhone(value: string): string {
-  const local = extractTRLocalDigits(value);
-  return `+90${local}`;
+function normalizePhoneNumber(value: string): string {
+  // Remove all non-digit characters except +
+  let cleaned = value.replace(/[^\d+]/g, '');
+
+  // Ensure + is only at the start
+  if (cleaned.includes('+')) {
+    cleaned = '+' + cleaned.replace(/\+/g, '');
+  }
+
+  // If no + prefix and starts with 0, assume Turkish
+  if (!cleaned.startsWith('+')) {
+    if (cleaned.startsWith('0')) {
+      cleaned = '+90' + cleaned.slice(1);
+    } else {
+      cleaned = '+' + cleaned;
+    }
+  }
+
+  return cleaned;
+}
+
+function isValidPhoneNumber(value: string): boolean {
+  const normalized = normalizePhoneNumber(value);
+  // E.164: + followed by 7-15 digits (country code + number)
+  return /^\+[1-9]\d{6,14}$/.test(normalized);
+}
+
+// Legacy function for backward compatibility
+function extractTRLocalDigits(value: string): string {
+  const normalized = normalizePhoneNumber(value);
+  // For validation purposes, return the digits after country code
+  return normalized.replace(/^\+\d{1,3}/, '');
 }
 
 const RegisterPage: React.FC = () => {
@@ -62,48 +123,78 @@ const RegisterPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Password strength calculation
+  const passwordStrength = useMemo(() => {
+    if (!password) return { level: 0, label: '', color: '' };
+
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[^a-zA-Z0-9]/.test(password)) score++; // Special characters bonus
+
+    if (score <= 2) {
+      return { level: 1, label: t('register_password_strength_weak') || 'Zayif', color: 'bg-red-500' };
+    } else if (score <= 3) {
+      return { level: 2, label: t('register_password_strength_medium') || 'Orta', color: 'bg-yellow-500' };
+    } else {
+      return { level: 3, label: t('register_password_strength_strong') || 'Guclu', color: 'bg-green-500' };
+    }
+  }, [password, t]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatTRPhone(e.target.value);
+    const formatted = formatPhoneNumber(e.target.value);
     setPhoneNumber(formatted);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent double submission
+    if (isSubmitting || loading) return;
+
+    setIsSubmitting(true);
     setLoading(true);
     setError(null);
 
     // Password confirmation validation
     if (password !== confirmPassword) {
-      setError(t('register_password_mismatch') || 'Şifreler eşleşmiyor.');
+      setError(t('register_password_mismatch') || 'Sifreler eslesmiyor.');
       setLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
     if (!acceptTerms) {
-      setError(t('register_accept_terms_error') || 'Lütfen Kullanım Koşulları ve Gizlilik Politikasını kabul edin.');
+      setError(t('register_accept_terms_error') || 'Lutfen Kullanim Kosullari ve Gizlilik Politikasini kabul edin.');
       setLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
-    // Password minimum length validation
-    if (password.length < 6) {
-      setError(t('register_password_too_short') || 'Şifre en az 6 karakter olmalıdır.');
+    // Password complexity validation (min 8 chars, uppercase, lowercase, digit)
+    const passwordComplexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordComplexityRegex.test(password)) {
+      setError(t('register_password_too_weak') || 'Sifre en az 8 karakter, bir buyuk harf, bir kucuk harf ve bir rakam icermelidir.');
       setLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
-    // Phone validation: require 10 local digits for TR numbers
-    const localDigits = extractTRLocalDigits(phoneNumber);
-    if (localDigits.length !== 10) {
-      setError(t('register_invalid_phone') || 'Lütfen geçerli bir telefon numarası girin.');
+    // Phone validation: E.164 international format (+XXXXXXXXXXX)
+    if (!isValidPhoneNumber(phoneNumber)) {
+      setError(t('register_invalid_phone') || 'Lutfen gecerli bir telefon numarasi girin (orn: +90 555 123 4567).');
       setLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
     try {
-      // Normalize phone number to +90XXXXXXXXXX format
-      const normalizedPhone = normalizeTRPhone(phoneNumber);
+      // Normalize phone number to E.164 format (+XXXXXXXXXXX)
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
       // Pass currentLocale as the user's preferred language
       const result = await register(firstName, lastName, email, normalizedPhone, password, currentLocale);
       if (result.success) {
@@ -113,16 +204,29 @@ const RegisterPage: React.FC = () => {
           query: { email: email }
         });
       } else {
-        setError(result.message || t('register_failed_generic'));
+        // Map error code to user-friendly message
+        const errorCode = result.code;
+        const translationKey = errorCode ? ERROR_CODE_MAP[errorCode] : null;
+        const userMessage = translationKey ? t(translationKey) : (result.message || t('register_failed_generic'));
+        setError(userMessage);
       }
-    } catch (err: any) {
-      setError(err.message || t('register_failed_error'));
+    } catch (err: unknown) {
+      // Map error code from exception
+      const error = err as { code?: string; message?: string };
+      const errorCode = error.code;
+      const translationKey = errorCode ? ERROR_CODE_MAP[errorCode] : null;
+      const userMessage = translationKey ? t(translationKey) : (error.message || t('register_failed_error'));
+      setError(userMessage);
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    // Prevent double submission
+    if (googleLoading || isSubmitting) return;
+
     setError(null);
     setGoogleLoading(true);
     try {
@@ -133,17 +237,25 @@ const RegisterPage: React.FC = () => {
 
       await initializeGoogleAuth();
       const { credential } = await signInWithGoogle();
-      // Note: loginWithGoogle in auth provider handles both login and registration on backend usually, 
+      // Note: loginWithGoogle in auth provider handles both login and registration on backend usually,
       // or at least authenticates the user.
       const result = await loginWithGoogle(credential, false);
 
       if (result.success) {
         router.push('/welcome');
       } else {
-        setError(result.message || t('login_failed_generic'));
+        // Map error code to user-friendly message
+        const errorCode = (result as { code?: string }).code;
+        const translationKey = errorCode ? ERROR_CODE_MAP[errorCode] : null;
+        const userMessage = translationKey ? t(translationKey) : (result.message || t('login_failed_generic'));
+        setError(userMessage);
       }
-    } catch (err: any) {
-      setError(err.message || t('login_failed_error'));
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      const errorCode = error.code;
+      const translationKey = errorCode ? ERROR_CODE_MAP[errorCode] : null;
+      const userMessage = translationKey ? t(translationKey) : (error.message || t('login_failed_error'));
+      setError(userMessage);
     } finally {
       setGoogleLoading(false);
     }
@@ -228,7 +340,7 @@ const RegisterPage: React.FC = () => {
                   autoComplete="tel"
                   required
                   className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                  placeholder="+90 555 123 45 67"
+                  placeholder="+90 555 123 4567"
                   value={phoneNumber}
                   onChange={handlePhoneChange}
                 />
@@ -270,10 +382,32 @@ const RegisterPage: React.FC = () => {
                     </svg>
                   </button>
                 </div>
+                {/* Password Strength Indicator */}
+                {password && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                          style={{ width: `${(passwordStrength.level / 3) * 100}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-medium ${
+                        passwordStrength.level === 1 ? 'text-red-600' :
+                        passwordStrength.level === 2 ? 'text-yellow-600' : 'text-green-600'
+                      }`}>
+                        {passwordStrength.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t('register_password_requirements') || 'En az 8 karakter, buyuk/kucuk harf ve rakam icermeli'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
-                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">{t('confirmPassword') || 'Şifre Tekrarı'}</label>
+                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">{t('confirmPassword') || 'Sifre Tekrari'}</label>
                 <div className="relative">
                   <input
                     id="confirm-password"
@@ -335,7 +469,7 @@ const RegisterPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <button type="submit" disabled={loading} className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50">
+              <button type="submit" disabled={loading || isSubmitting} className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50">
                 {loading ? t('register_button_loading') : t('register_button')}
               </button>
 
