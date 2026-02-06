@@ -263,11 +263,15 @@ httpServer.keepAliveTimeout = 60 * 1000;      // 60s
 
 // Start server
 const PORT = process.env.PORT || 5001;
+const listenBacklog = process.env.LOAD_TEST_MODE === 'true' ? 4096 : undefined;
 
-httpServer.listen(PORT, async () => {
+httpServer.listen({ port: PORT, backlog: listenBacklog }, async () => {
     logger.info(`🚀 LingRoot Backend server running on port ${PORT}`);
     logger.info(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info('📋 [TTS] Async TTS processing uses in-memory jobQueue (BullMQ worker disabled)');
+    if (listenBacklog) {
+        logger.info(`🔧 [LOAD TEST] TCP backlog set to ${listenBacklog}`);
+    }
 });
 
 // Graceful shutdown
