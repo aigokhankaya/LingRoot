@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "LingRoot - AI-Powered Language Learning Platform",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm ci && npm run build",
+    "start": "cd frontend && npm run start",
+    "lint": "cd frontend && npm run lint",
     "generate-pdf": "node scripts/generate_pdf.js",
     "sync-books": "npx ts-node scripts/syncBooksFromGutendex.ts"
   },
