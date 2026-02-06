@@ -49,9 +49,8 @@ const nextConfig = {
   async rewrites() {
     // Determine backend URL based on environment
     const isDev = process.env.NODE_ENV === 'development';
-    const backendUrl = isDev 
-      ? 'http://localhost:5001' 
-      : 'https://lingloops-backend.onrender.com';
+    const backendUrl = process.env.BACKEND_URL
+      || (isDev ? 'http://localhost:5001' : 'https://lingloops-backend.onrender.com');
     
     console.log('[NEXT.JS REWRITES] Environment:', process.env.NODE_ENV);
     console.log('[NEXT.JS REWRITES] Backend URL:', backendUrl);
