@@ -6,12 +6,14 @@ const {
   updateParameter,
   deleteParameter
 } = require('../controllers/parameterController');
+const { setCacheHeaders } = require('../middleware/cacheHeaders');
+const { redisCache } = require('../middleware/redisCache');
 
 // Get all parameters
-router.get('/', getAllParameters);
+router.get('/', setCacheHeaders(1800), redisCache('params:all', 3600), getAllParameters);
 
 // Get specific parameter
-router.get('/:key', getParameter);
+router.get('/:key', setCacheHeaders(1800), getParameter);
 
 // Update or create parameter
 router.put('/:key', updateParameter);

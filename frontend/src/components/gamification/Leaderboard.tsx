@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useGamification } from '@/hooks/useGamification';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
@@ -173,7 +174,7 @@ export const Leaderboard: React.FC = () => {
                                 {/* Avatar */}
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white font-bold overflow-hidden">
                                     {entry.avatar_url ? (
-                                        <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
+                                        <Image src={entry.avatar_url} alt="" width={40} height={40} className="rounded-full object-cover" />
                                     ) : (
                                         entry.display_name?.charAt(0).toUpperCase() || '?'
                                     )}

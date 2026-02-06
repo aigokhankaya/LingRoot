@@ -38,6 +38,14 @@ if (FILE_STORAGE_PROVIDER === 'supabase') {
  * @returns {Promise<string|null>} The public URL of the uploaded file, or null on error.
  */
 async function uploadToSupabase(localFilePathOrBuffer, destinationFilename, contentType = null) {
+    // Load test mock: skip real storage upload
+    const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+    if (isLoadTestMode()) {
+        const { getMockStorageUrl } = require('../../tests/load/mocks/storageMock');
+        await new Promise(r => setTimeout(r, getLoadTestDelay('storage')));
+        return getMockStorageUrl(destinationFilename);
+    }
+
     const cleanFilename = destinationFilename.replace(/\s+/g, "_");
     const storagePath = `audio/${cleanFilename}`;
 

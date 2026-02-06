@@ -12,6 +12,7 @@ const { uploadToSupabase } = require('../utils/storage/storageUploader');
 const logger = require('../utils/common/logger');
 const { v4: uuidv4 } = require('uuid');
 const sectorService = require('./sectorService');
+const { logApiCost, calculateOpenAiCost, calculateOpenAiTtsCost } = require('../utils/infra/costTracker.js');
 
 // Senaryo uzunlukları (replik sayısı)
 const SCENARIO_LENGTHS = {
@@ -98,7 +99,8 @@ class SectorRoleplayService {
                 roles,
                 turnCount,
                 key_vocabulary,
-                userPosition // Kişiselleştirme için pozisyon bilgisi
+                userPosition, // Kişiselleştirme için pozisyon bilgisi
+                userId: user_id
             });
 
             // 4. Veritabanına kaydet
@@ -158,7 +160,7 @@ class SectorRoleplayService {
      * AI ile diyalog üret
      */
     async _generateDialogueWithAI(params) {
-        const { sector, category, cefr_level, context, roles, turnCount, key_vocabulary, userPosition } = params;
+        const { sector, category, cefr_level, context, roles, turnCount, key_vocabulary, userPosition, userId } = params;
 
         const categoryInfo = SCENARIO_CATEGORIES[category] || SCENARIO_CATEGORIES.general;
 
@@ -221,6 +223,20 @@ Generate a natural, professional dialogue with ${turnCount} turns.`;
                 model: 'gpt-4o-mini',
                 responseFormat: { type: 'json_object' }
             });
+
+            // Log API cost
+            if (userId && response.usage) {
+                const cost = calculateOpenAiCost(response.usage, 'gpt-4o-mini');
+                logApiCost({
+                    userId,
+                    feature: 'sector_roleplay_dialogue',
+                    provider: 'openai',
+                    model: 'gpt-4o-mini',
+                    inputQuantity: cost.promptTokens,
+                    outputQuantity: cost.completionTokens,
+                    costUsd: cost.totalCostUsd,
+                }).catch(err => logger.warn('[COST] sector_roleplay_dialogue log failed:', err.message));
+            }
 
             const parsed = JSON.parse(response.content);
             return {
@@ -334,6 +350,22 @@ Generate a natural, professional dialogue with ${turnCount} turns.`;
                     role: turn.role_id,
                     speaker: turn.speaker
                 });
+            }
+
+            // Log TTS cost
+            const totalTtsChars = turns.reduce((sum, t) => sum + (t.english ? t.english.length : 0), 0);
+            if (content.created_by && totalTtsChars > 0) {
+                const ttsCost = calculateOpenAiTtsCost(totalTtsChars, 'tts-1');
+                logApiCost({
+                    userId: content.created_by,
+                    feature: 'sector_roleplay_tts',
+                    provider: 'openai',
+                    model: 'tts-1',
+                    inputQuantity: totalTtsChars,
+                    outputQuantity: 0,
+                    costUsd: ttsCost,
+                    metadata: { contentId, turnCount: turns.length },
+                }).catch(err => logger.warn('[COST] sector_roleplay_tts log failed:', err.message));
             }
 
             // 4. Audio'ları birleştir (basit concat - gelecekte ffmpeg ile iyileştirilebilir)
@@ -482,7 +514,7 @@ Generate a natural, professional dialogue with ${turnCount} turns.`;
             // 5. Audio oluştur
             let audioResult = null;
             try {
-                audioResult = await this._generatePodcastAudio(savedContent.id, script.transcript, host_voice);
+                audioResult = await this._generatePodcastAudio(savedContent.id, script.transcript, host_voice, user_id);
             } catch (audioError) {
                 logger.warn('Podcast audio generation failed, continuing without audio:', audioError.message);
             }
@@ -558,7 +590,7 @@ Target level: ${cefr_level}`;
     /**
      * Podcast için TTS ses oluştur
      */
-    async _generatePodcastAudio(contentId, transcript, voice) {
+    async _generatePodcastAudio(contentId, transcript, voice, userId) {
         if (!isOpenAITTSAvailable()) {
             throw new Error('OpenAI TTS is not available');
         }
@@ -569,6 +601,21 @@ Target level: ${cefr_level}`;
             speed: 0.95,
             model: 'tts-1'
         });
+
+        // Log TTS cost
+        if (userId && transcript.length > 0) {
+            const ttsCost = calculateOpenAiTtsCost(transcript.length, 'tts-1');
+            logApiCost({
+                userId,
+                feature: 'sector_podcast_tts',
+                provider: 'openai',
+                model: 'tts-1',
+                inputQuantity: transcript.length,
+                outputQuantity: 0,
+                costUsd: ttsCost,
+                metadata: { contentId },
+            }).catch(err => logger.warn('[COST] sector_podcast_tts log failed:', err.message));
+        }
 
         const audioFileName = `sector-content/${contentId}/podcast-${uuidv4()}.mp3`;
         const audioUrl = await uploadToSupabase(

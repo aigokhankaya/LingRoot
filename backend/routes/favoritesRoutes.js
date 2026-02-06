@@ -12,4 +12,7 @@ router.post('/toggle', favoritesController.toggleFavorite);
 // Get favorites
 router.get('/', favoritesController.getFavorites);
 
+// Get favorite content items with full details
+router.get('/details', favoritesController.getFavoriteDetails);
+
 module.exports = router;

@@ -25,8 +25,7 @@ const logger = require('../utils/common/logger.js');
 const { authenticate } = require('../middleware/auth');
 const { ttsLimiter, podcastLimiter } = require('../middleware/security');
 const { limiters } = require('../utils/infra/concurrencyLimiter.js');
-const { addJob, getPriorityByPlan } = require('../utils/infra/bullQueue.js'); // ✅ BullMQ
-const jobQueue = require('../utils/infra/jobQueue.js'); // Legacy support
+const jobQueue = require('../utils/infra/jobQueue.js');
 const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/notifications/pushNotification.js');
 
 // Helper function to write podcast-specific logs
@@ -92,13 +91,14 @@ router.post(
   }
 );
 
-// POST /api/tts/process-async – Async TTS processing with notification
+// POST /api/tts/process-async – Async TTS processing with notification (in-memory jobQueue)
 router.post(
   "/process-async",
   ttsLimiter,
   authenticate,
   upload.single("file"),
   async (req, res, next) => {
+    let slotAcquired = false;
     try {
       if (req.fileValidationError) {
         logger.error(`File validation error: ${req.fileValidationError.message}`);
@@ -110,37 +110,47 @@ router.post(
         return res.status(401).json({ success: false, message: 'User not authenticated' });
       }
 
-      // Check for existing active jobs using BullMQ?
-      // Note: BullMQ doesn't easily support "one active job per user" check without scanning.
-      // For now, we rely on the worker to handle concurrency or rate limits.
-      // Or we can keep using a lightweight Redis key for this check if strictly needed.
+      // Route-level concurrency slot — bounds parallel background processing
+      const globalSlot = await limiters.tts.acquire(30000);
+      if (!globalSlot.acquired) {
+        logger.warn(`[AsyncTTS] Global TTS limit reached - reason: ${globalSlot.reason}`);
+        return res.status(503).json({
+          success: false,
+          code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
+          message: 'Sunucu yoğun. Lütfen tekrar deneyin.',
+          retryAfter: 60
+        });
+      }
+      slotAcquired = true;
 
-      // Prepare job data
-      const jobData = {
-        userId,
-        // Capture auth token for use in worker (required for Supabase RLS or backend checks)
-        token: req.headers.authorization ? req.headers.authorization.split(' ')[1] : null,
-        requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        requestBody: req.body,
-        file: req.file ? {
-          originalname: req.file.originalname,
-          mimetype: req.file.mimetype,
-          buffer: req.file.buffer.toString('base64'), // Buffer to string for JSON safety
-          encoding: req.file.encoding
-        } : null
-      };
+      // Prevent multiple concurrent async jobs per user
+      const existingJob = jobQueue.getActiveJobForUser(userId);
+      if (existingJob) {
+        logger.info(`[AsyncTTS] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
+        limiters.tts.release();
+        slotAcquired = false;
+        return res.status(409).json({
+          success: false,
+          code: 'TTS_JOB_IN_PROGRESS',
+          message: 'Zaten devam eden bir ses oluşturma işleminiz var. Lütfen bitmesini bekleyin.',
+          jobId: existingJob.id,
+          status: existingJob.status,
+        });
+      }
 
-      // Get priority based on user plan
-      const userPlan = req.user.current_plan || 'free';
-      const priority = getPriorityByPlan(userPlan);
+      // Capture request data before response is sent
+      const requestBody = req.body;
+      const file = req.file;
+      const token = req.headers.authorization ? req.headers.authorization.split(' ')[1] : null;
 
-      // Add to BullMQ
-      const job = await addJob('tts-processing', 'process-tts', jobData, {
-        priority,
-        removeOnComplete: true
+      // Create job in in-memory queue
+      const job = jobQueue.createJob(userId, {
+        type: 'tts',
+        requestBody,
+        file: file ? { originalname: file.originalname, mimetype: file.mimetype } : null,
       });
 
-      logger.info(`[AsyncTTS] Job ${job.id} created for user ${userId} with priority ${priority}`);
+      logger.info(`[AsyncTTS] Job ${job.id} created for user ${userId}`);
 
       // Return job ID immediately
       res.json({
@@ -150,7 +160,116 @@ router.post(
         estimatedTime: '2-5 minutes'
       });
 
+      // Process in background — slot released in finally block
+      setImmediate(async () => {
+        try {
+          jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
+
+          // Create mock request/response for handleTTSRequest
+          const mockReq = {
+            body: requestBody,
+            file: file || null,
+            user: { id: userId },
+            _skipConcurrencyCheck: true, // Slot already acquired at route level
+            headers: {
+              'content-type': file ? 'multipart/form-data' : 'application/json',
+              'authorization': token ? `Bearer ${token}` : 'Bearer worker-internal-token'
+            },
+            is: (type) => {
+              if (file) return type === 'multipart/form-data';
+              return type === 'application/json';
+            },
+            get: (header) => {
+              if (header === 'Content-Type') {
+                return file ? 'multipart/form-data' : 'application/json';
+              }
+              return null;
+            }
+          };
+
+          const result = await new Promise((resolve, reject) => {
+            const mockRes = {
+              statusCode: 200,
+              json: (data) => {
+                if (data.success) {
+                  resolve(data);
+                } else {
+                  reject(new Error(data.message || 'TTS processing failed'));
+                }
+              },
+              status: function (code) {
+                this.statusCode = code;
+                return this;
+              }
+            };
+
+            handleTTSRequest(mockReq, mockRes, (error) => {
+              if (error) {
+                reject(error);
+              }
+            });
+          });
+
+          // Update job as completed
+          jobQueue.updateJob(job.id, {
+            status: 'completed',
+            progress: 100,
+            result
+          });
+
+          // Send push notification
+          try {
+            await sendPushNotification(userId, {
+              title: '🎵 Ses Dosyanız Hazır!',
+              body: 'Dinlemek için tıklayın.',
+              type: 'audio_created',
+              data: {
+                jobId: job.id,
+                audioId: result.contenthistory_id || result.audio_id || result.id,
+                contenthistory_id: result.contenthistory_id,
+                mp3_url: result.mp3_url,
+                title: result.adapted_text?.substring(0, 50) || 'Audio',
+                level: requestBody.level,
+                input_type: 'text'
+              }
+            });
+          } catch (notifError) {
+            logger.error(`[AsyncTTS] Notification error:`, notifError.message);
+          }
+
+          logger.info(`[AsyncTTS] Job ${job.id} completed successfully`);
+
+        } catch (error) {
+          logger.error(`[AsyncTTS] Job ${job.id} error:`, error);
+
+          jobQueue.updateJob(job.id, {
+            status: 'failed',
+            error: error.message
+          });
+
+          // Send failure notification
+          try {
+            await sendPushNotification(userId, {
+              title: '❌ Ses Oluşturulamadı',
+              body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
+              type: 'tts_failed',
+              data: {
+                jobId: job.id,
+                error: error.message
+              }
+            });
+          } catch (notifError) {
+            logger.error(`[AsyncTTS] Failure notification error:`, notifError.message);
+          }
+        } finally {
+          limiters.tts.release(); // Release route-level slot
+        }
+      });
+
     } catch (error) {
+      if (slotAcquired) {
+        try { limiters.tts.release(); } catch (e) { /* already released */ }
+      }
       logger.error(`[AsyncTTS] Error creating job:`, error);
       res.status(500).json({ success: false, message: 'Failed to start audio processing' });
     }
@@ -253,7 +372,7 @@ router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) =>
   // Global podcast limiti kontrolü
   const globalSlot = await limiters.podcast.acquire(60000); // 60 saniye timeout
   if (!globalSlot.acquired) {
-    logger.warn(`🚫 [PODCAST] Global limit - reason: ${globalSlot.reason}`);
+    logger.warn(`[PODCAST] Global limit reached - reason: ${globalSlot.reason}`);
     return res.status(503).json({
       success: false,
       code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
@@ -277,7 +396,7 @@ router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) =>
     const level = (body.level || 'B1').toString().toUpperCase();
     const duration = body.duration != null ? Number(body.duration) : 10;
 
-    logger.info(`📻 [PODCAST APP] Received create-podcast request:`, {
+    logger.info(`[PODCAST] Received create-podcast request`, {
       topic,
       level,
       duration,
@@ -321,16 +440,32 @@ router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) =>
 
 // Async Podcast Creation with Notification
 router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, res) => {
+  let slotAcquired = false;
   try {
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
+    // Route-level concurrency slot — bounds parallel background processing
+    const globalSlot = await limiters.podcast.acquire(60000);
+    if (!globalSlot.acquired) {
+      logger.warn(`[AsyncPodcast] Global podcast limit reached - reason: ${globalSlot.reason}`);
+      return res.status(503).json({
+        success: false,
+        code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
+        message: 'Podcast sunucusu şu anda yoğun. Lütfen tekrar deneyin.',
+        retryAfter: 60
+      });
+    }
+    slotAcquired = true;
+
     // Prevent multiple concurrent async podcast jobs per user
     const existingJob = jobQueue.getActiveJobForUser(userId);
     if (existingJob) {
       logger.info(`[AsyncPodcast] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
+      limiters.podcast.release();
+      slotAcquired = false;
       return res.status(409).json({
         success: false,
         code: 'PODCAST_JOB_IN_PROGRESS',
@@ -345,6 +480,8 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
     const topic = typeof rawTopic === 'string' ? rawTopic.trim() : '';
 
     if (!topic) {
+      limiters.podcast.release();
+      slotAcquired = false;
       return res.status(400).json({
         success: false,
         message: 'Topic is required'
@@ -370,7 +507,7 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
       includeFiller: body.includeFiller,
     });
 
-    logger.info(`📻 [AsyncPodcast] Job ${job.id} created for user ${userId}`, { topic, level, duration });
+    logger.info(`[AsyncPodcast] Job ${job.id} created for user ${userId}`, { topic, level, duration });
 
     // Return job ID immediately
     res.json({
@@ -380,25 +517,8 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
       estimatedTime: '3-7 minutes'
     });
 
-    // Process in background
+    // Process in background — slot released in finally block
     setImmediate(async () => {
-      // Global podcast limiti - arka plan işlemi için
-      const globalSlot = await limiters.podcast.acquire(120000); // 2 dakika timeout
-      if (!globalSlot.acquired) {
-        logger.warn(`🚫 [AsyncPodcast] Global limit - reason: ${globalSlot.reason}, jobId: ${job.id}`);
-        jobQueue.updateJob(job.id, {
-          status: 'failed',
-          error: 'Sunucu yoğun, lütfen daha sonra tekrar deneyin'
-        });
-        await sendPushNotification(userId, {
-          title: '❌ Podcast Oluşturulamadı',
-          body: 'Sunucu yoğun. Lütfen daha sonra tekrar deneyin.',
-          type: 'podcast_failed',
-          data: { jobId: job.id, error: 'SERVER_BUSY' }
-        });
-        return;
-      }
-
       try {
         jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
 
@@ -496,10 +616,13 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
           }
         });
       } finally {
-        limiters.podcast.release();
+        limiters.podcast.release(); // Release route-level slot
       }
     });
   } catch (error) {
+    if (slotAcquired) {
+      try { limiters.podcast.release(); } catch (e) { /* already released */ }
+    }
     logger.error(`[AsyncPodcast] Error creating job:`, error);
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -567,11 +690,11 @@ router.get("/test-voices", testVoices);
 // SSML destekli sesler test endpoint'i
 router.get('/test-ssml-voices', async (req, res) => {
   try {
-    console.log('🎯 SSML VOICES TEST - Request received');
+    logger.info('[TTS-ROUTES] SSML voices test - Request received');
 
     const { languageCode = 'en-US' } = req.query;
 
-    console.log(`🎯 Testing SSML-compatible voices for language: ${languageCode}`);
+    logger.info(`[TTS-ROUTES] Testing SSML-compatible voices for language: ${languageCode}`);
 
     // Tüm sesler ve SSML destekli olanları al
     const { listGoogleVoices } = require('../utils/audio/googleTTS.js');
@@ -581,10 +704,7 @@ router.get('/test-ssml-voices', async (req, res) => {
     const ssmlSupportedVoices = allVoices.filter(voice => voice.ssmlSupport === true);
     const ssmlUnsupportedVoices = allVoices.filter(voice => voice.ssmlSupport === false);
 
-    console.log(`🎯 SSML VOICES TEST Results:
-      - Total voices: ${allVoices.length}
-      - SSML supported: ${ssmlSupportedVoices.length}
-      - SSML unsupported: ${ssmlUnsupportedVoices.length}`);
+    logger.info(`[TTS-ROUTES] SSML voices test results - Total: ${allVoices.length}, Supported: ${ssmlSupportedVoices.length}, Unsupported: ${ssmlUnsupportedVoices.length}`);
 
     // İlk 5 destekli ses örneği
     const sampleSupportedVoices = ssmlSupportedVoices.slice(0, 5);
@@ -606,7 +726,7 @@ router.get('/test-ssml-voices', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('🎯 SSML VOICES TEST failed:', error);
+    logger.error('[TTS-ROUTES] SSML voices test failed:', error);
     res.status(500).json({
       success: false,
       error: 'SSML voices test failed',
@@ -618,7 +738,7 @@ router.get('/test-ssml-voices', async (req, res) => {
 // Ultra hassas Google TTS test endpoint'i
 router.post('/test-ultra-precision', async (req, res) => {
   try {
-    console.log('🎯 ULTRA HASSAS TTS TEST - Request received');
+    logger.info('[TTS-ROUTES] Ultra precision TTS test - Request received');
 
     const { text, voice, speakingRate, languageCode } = req.body;
 
@@ -635,11 +755,7 @@ router.post('/test-ultra-precision', async (req, res) => {
       });
     }
 
-    console.log(`🎯 Testing ultra precise TTS with:
-      - Text: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"
-      - Voice: ${voice || 'en-US-Standard-C'}
-      - Speaking Rate: ${speakingRate || 1.0}x
-      - Language: ${languageCode || 'en-US'}`);
+    logger.info(`[TTS-ROUTES] Ultra precision TTS test - Text: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}", Voice: ${voice || 'en-US-Standard-C'}, Rate: ${speakingRate || 1.0}x, Lang: ${languageCode || 'en-US'}`);
 
     // Google TTS ile ultra hassas timing test
     const { synthesizeWithGoogle } = require('../utils/audio/googleTTS.js');
@@ -654,7 +770,7 @@ router.post('/test-ultra-precision', async (req, res) => {
 
     const processingTime = Date.now() - startTime;
 
-    console.log(`🎯 ULTRA HASSAS TTS TEST completed in ${processingTime}ms`);
+    logger.info(`[TTS-ROUTES] Ultra precision TTS test completed in ${processingTime}ms`);
 
     // Timing analizi
     const timingAnalysis = {
@@ -688,7 +804,7 @@ router.post('/test-ultra-precision', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('🎯 ULTRA HASSAS TTS TEST failed:', error);
+    logger.error('[TTS-ROUTES] Ultra precision TTS test failed:', error);
     res.status(500).json({
       success: false,
       error: 'Ultra hassas TTS test failed',

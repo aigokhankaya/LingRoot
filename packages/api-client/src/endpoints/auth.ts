@@ -22,7 +22,7 @@ export interface AuthApi {
     getCurrentUser(): Promise<ApiResponse<User>>;
     resendVerification(email: string): Promise<ApiResponse>;
     forgotPassword(email: string): Promise<ApiResponse>;
-    resetPassword(token: string, password: string): Promise<ApiResponse>;
+    resetPassword(email: string, code: string, newPassword: string): Promise<ApiResponse>;
     verifyEmail(token: string): Promise<ApiResponse>;
     googleAuth(idToken: string): Promise<LoginResponse>;
     appleAuth(identityToken: string, user?: { firstName?: string; lastName?: string }): Promise<LoginResponse>;
@@ -60,8 +60,8 @@ export function createAuthApi(api: AxiosInstance): AuthApi {
             return response.data;
         },
 
-        async resetPassword(token: string, password: string): Promise<ApiResponse> {
-            const response = await api.post<ApiResponse>('/api/auth/reset-password', { token, password });
+        async resetPassword(email: string, code: string, newPassword: string): Promise<ApiResponse> {
+            const response = await api.post<ApiResponse>('/api/auth/reset-password', { email, code, newPassword });
             return response.data;
         },
 

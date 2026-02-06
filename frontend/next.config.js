@@ -1,11 +1,30 @@
 const path = require('path');
+const withBundleAnalyzer = process.env.ANALYZE === 'true'
+  ? require('@next/bundle-analyzer')({ enabled: true })
+  : (config) => config;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  compiler: {
+    removeConsole: {
+      exclude: ['error', 'warn'],
+    },
+  },
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'framer-motion',
+      'echarts',
+      'recharts',
+      'firebase',
+      'lodash',
+      '@radix-ui/react-icons',
+    ],
   },
   images: {
     domains: ['localhost', 'lingroot.com', 'ui-avatars.com', 'placehold.co', 'readdy.ai'],
@@ -13,6 +32,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '**.lingroot.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
       },
     ],
   },
@@ -53,4 +80,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withBundleAnalyzer(nextConfig);

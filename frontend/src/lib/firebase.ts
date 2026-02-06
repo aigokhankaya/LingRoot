@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
+import type { Analytics } from "firebase/analytics";
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,11 +11,15 @@ const firebaseConfig = {
     measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-let app: FirebaseApp | undefined;
-let analytics: Analytics | null = null;
+let firebaseApp: FirebaseApp | null = null;
+let analyticsInstance: Analytics | null = null;
+let analyticsPromise: Promise<Analytics | null> | null = null;
 
-if (typeof window !== "undefined") {
-    // Check for critical config values
+export const getFirebaseApp = (): FirebaseApp | null => {
+    if (typeof window === "undefined") return null;
+
+    if (firebaseApp) return firebaseApp;
+
     const missingKeys = Object.entries({
         apiKey: firebaseConfig.apiKey,
         authDomain: firebaseConfig.authDomain,
@@ -25,26 +29,44 @@ if (typeof window !== "undefined") {
 
     if (missingKeys.length > 0) {
         console.warn(`[Firebase] Missing configuration keys: ${missingKeys.join(', ')}. Analytics will be disabled.`);
-    } else {
-        // Client-side only
-        try {
-            if (!getApps().length) {
-                app = initializeApp(firebaseConfig);
-            } else {
-                app = getApp();
-            }
-
-            isSupported().then((supported) => {
-                if (supported && app) {
-                    analytics = getAnalytics(app);
-                }
-            }).catch(err => {
-                console.warn('[Firebase] Analytics support check failed:', err);
-            });
-        } catch (error) {
-            console.warn('[Firebase] Initialization failed:', error);
-        }
+        return null;
     }
-}
 
-export { app, analytics };
+    try {
+        firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    } catch (error) {
+        console.warn('[Firebase] Initialization failed:', error);
+    }
+
+    return firebaseApp;
+};
+
+export const getFirebaseAnalytics = async (): Promise<Analytics | null> => {
+    if (analyticsInstance) return analyticsInstance;
+    if (typeof window === "undefined") return null;
+
+    // Deduplicate concurrent calls
+    if (analyticsPromise) return analyticsPromise;
+
+    analyticsPromise = (async () => {
+        try {
+            const app = getFirebaseApp();
+            if (!app) return null;
+
+            const { getAnalytics, isSupported } = await import("firebase/analytics");
+            const supported = await isSupported();
+            if (supported) {
+                analyticsInstance = getAnalytics(app);
+            }
+        } catch (err) {
+            console.warn('[Firebase] Analytics support check failed:', err);
+        }
+        return analyticsInstance;
+    })();
+
+    return analyticsPromise;
+};
+
+// Backward-compatible synchronous exports for existing consumers
+// These will be null initially and populated after first getFirebaseAnalytics() call
+export { firebaseApp as app, analyticsInstance as analytics };

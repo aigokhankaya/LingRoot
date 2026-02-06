@@ -14,6 +14,7 @@ const gamificationService = require('./gamificationService');
 const questContentService = require('./questContentService');
 const fs = require('fs');
 const path = require('path');
+const { logApiCost, calculateOpenAiCost } = require('../utils/infra/costTracker.js');
 
 class OnboardingService {
     constructor() {
@@ -50,7 +51,7 @@ class OnboardingService {
      * @param {Array} messages - [{role: 'user' | 'assistant', content: string}]
      * @returns {Promise<Object>} - { cefr, confidence, analysis }
      */
-    async assessLevel(messages) {
+    async assessLevel(messages, userId) {
         if (!messages || messages.length < 2) {
             return { cefr: 'A2', confidence: 30, analysis: 'Yeterli veri yok' };
         }
@@ -93,6 +94,20 @@ Assessment criteria:
                 model: 'gpt-4o-mini',
                 systemPrompt
             });
+
+            // Log API cost
+            if (userId && response.usage) {
+                const cost = calculateOpenAiCost(response.usage, 'gpt-4o-mini');
+                logApiCost({
+                    userId,
+                    feature: 'onboarding_assessment',
+                    provider: 'openai',
+                    model: 'gpt-4o-mini',
+                    inputQuantity: cost.promptTokens,
+                    outputQuantity: cost.completionTokens,
+                    costUsd: cost.totalCostUsd,
+                }).catch(err => logger.warn('[COST] onboarding_assessment log failed:', err.message));
+            }
 
             const content = response.content.replace(/```json/g, '').replace(/```/g, '').trim();
             const result = JSON.parse(content);

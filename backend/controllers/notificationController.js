@@ -1,4 +1,5 @@
 const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Get all notifications for a user
@@ -23,7 +24,7 @@ const getNotifications = async (req, res) => {
         const { data: notifications, error, count } = await query;
 
         if (error) {
-            console.error('Supabase error fetching notifications:', error);
+            logger.error('[NOTIFICATION] Supabase error fetching notifications:', error);
             throw error;
         }
 
@@ -35,7 +36,7 @@ const getNotifications = async (req, res) => {
             .eq('is_read', false);
 
         if (countError) {
-            console.error('Supabase error fetching unread count:', countError);
+            logger.error('[NOTIFICATION] Supabase error fetching unread count:', countError);
         }
 
         // Map snake_case database fields to camelCase for frontend compatibility (if needed)
@@ -62,7 +63,7 @@ const getNotifications = async (req, res) => {
             offset: parseInt(offset)
         });
     } catch (error) {
-        console.error('Error fetching notifications:', error);
+        logger.error('[NOTIFICATION] Error fetching notifications:', error);
         res.status(500).json({
             success: false,
             message: 'Bildirimler alınırken hata oluştu',
@@ -85,7 +86,7 @@ const getUnreadCount = async (req, res) => {
             .eq('is_read', false);
 
         if (error) {
-            console.error('Supabase error fetching unread count:', error);
+            logger.error('[NOTIFICATION] Supabase error fetching unread count:', error);
             throw error;
         }
 
@@ -94,7 +95,7 @@ const getUnreadCount = async (req, res) => {
             unreadCount: unreadCount || 0
         });
     } catch (error) {
-        console.error('Error fetching unread count:', error);
+        logger.error('[NOTIFICATION] Error fetching unread count:', error);
         res.status(500).json({
             success: false,
             message: 'Okunmamış bildirim sayısı alınırken hata oluştu',
@@ -132,7 +133,7 @@ const markAsRead = async (req, res) => {
             .eq('id', id);
 
         if (updateError) {
-            console.error('Supabase error marking read:', updateError);
+            logger.error('[NOTIFICATION] Supabase error marking read:', updateError);
             throw updateError;
         }
 
@@ -141,7 +142,7 @@ const markAsRead = async (req, res) => {
             message: 'Bildirim okundu olarak işaretlendi'
         });
     } catch (error) {
-        console.error('Error marking notification as read:', error);
+        logger.error('[NOTIFICATION] Error marking notification as read:', error);
         res.status(500).json({
             success: false,
             message: 'Bildirim güncellenirken hata oluştu',
@@ -164,7 +165,7 @@ const markAllAsRead = async (req, res) => {
             .eq('is_read', false);
 
         if (error) {
-            console.error('Supabase error marking all read:', error);
+            logger.error('[NOTIFICATION] Supabase error marking all read:', error);
             throw error;
         }
 
@@ -173,7 +174,7 @@ const markAllAsRead = async (req, res) => {
             message: 'Tüm bildirimler okundu olarak işaretlendi'
         });
     } catch (error) {
-        console.error('Error marking all notifications as read:', error);
+        logger.error('[NOTIFICATION] Error marking all notifications as read:', error);
         res.status(500).json({
             success: false,
             message: 'Bildirimler güncellenirken hata oluştu',
@@ -197,7 +198,7 @@ const deleteNotification = async (req, res) => {
             .eq('user_id', userId);
 
         if (error) {
-            console.error('Supabase error deleting notification:', error);
+            logger.error('[NOTIFICATION] Supabase error deleting notification:', error);
             throw error;
         }
 
@@ -206,7 +207,7 @@ const deleteNotification = async (req, res) => {
             message: 'Bildirim silindi'
         });
     } catch (error) {
-        console.error('Error deleting notification:', error);
+        logger.error('[NOTIFICATION] Error deleting notification:', error);
         res.status(500).json({
             success: false,
             message: 'Bildirim silinirken hata oluştu',
@@ -302,7 +303,7 @@ const sendNotification = async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('Error sending notification:', error);
+        logger.error('[NOTIFICATION] Error sending notification:', error);
         res.status(500).json({
             success: false,
             message: 'Bildirim gönderilirken hata oluştu',
@@ -327,7 +328,7 @@ const getNotificationHistory = async (req, res) => {
             .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
         if (error) {
-            console.error('Supabase error fetching history:', error);
+            logger.error('[NOTIFICATION] Supabase error fetching history:', error);
             throw error;
         }
 
@@ -352,7 +353,7 @@ const getNotificationHistory = async (req, res) => {
             offset: parseInt(offset)
         });
     } catch (error) {
-        console.error('Error fetching notification history:', error);
+        logger.error('[NOTIFICATION] Error fetching notification history:', error);
         res.status(500).json({
             success: false,
             message: 'Bildirim geçmişi alınırken hata oluştu',
@@ -374,7 +375,7 @@ const deleteNotificationAdmin = async (req, res) => {
             .eq('id', id);
 
         if (error) {
-            console.error('Supabase error deleting notification:', error);
+            logger.error('[NOTIFICATION] Supabase error deleting notification (admin):', error);
             throw error;
         }
 
@@ -383,7 +384,7 @@ const deleteNotificationAdmin = async (req, res) => {
             message: 'Bildirim silindi'
         });
     } catch (error) {
-        console.error('Error deleting notification:', error);
+        logger.error('[NOTIFICATION] Error deleting notification (admin):', error);
         res.status(500).json({
             success: false,
             message: 'Bildirim silinirken hata oluştu',

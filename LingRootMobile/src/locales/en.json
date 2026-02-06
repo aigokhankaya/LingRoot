@@ -309,5 +309,24 @@
       "medium": "Medium",
       "strong": "Strong"
     }
+  },
+  "usage": {
+    "loading": "Loading usage estimates...",
+    "title": "Usage Estimate",
+    "plan": "Plan",
+    "validUntil": "Valid until",
+    "categoryTitle": "Remaining usage by category",
+    "unlimited": "Unlimited",
+    "characters": "{{count}} characters",
+    "minutesAudio": "{{count}} min audio",
+    "podcastItems": "~{{count}} items",
+    "bottleneckNote": "Character limit is the bottleneck, so all categories look the same.",
+    "exceeded": "Your plan usage limit has been exceeded.",
+    "freeTrial": {
+      "title": "Free Trial",
+      "createdAudios": "Created Audios",
+      "remainingCredits": "Remaining Credits",
+      "exhausted": "Your free trial credits are exhausted. Upgrade to premium."
+    }
   }
 }

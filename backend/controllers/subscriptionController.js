@@ -5,6 +5,8 @@ const { supabase } = require('../utils/storage/supabaseClient.js');
 // const { logStep } = require('../utils/common/stepLogger.js');
 const { v4: uuidv4 } = require('uuid');
 const { checkLimits } = require('../utils/infra/usageLimiter.js');
+const { getTtsProvider } = require('../services/voiceModelService.js');
+const { getTtsTiers } = require('../utils/infra/costTracker.js');
 
 // Supabase client is provided by utils/supabaseClient (guarded init)
 
@@ -30,10 +32,24 @@ exports.getSubscriptionPlans = async (req, res) => {
       });
     }
 
-    logger.info(`Successfully fetched ${data.length} subscription plans`);
+    // Filter promotion visibility based on current date
+    const now = new Date();
+    const processedData = (data || []).map(plan => {
+      if (plan.promotion_active) {
+        if (plan.promotion_end_date && new Date(plan.promotion_end_date) < now) {
+          return { ...plan, promotion_active: false };
+        }
+        if (plan.promotion_start_date && new Date(plan.promotion_start_date) > now) {
+          return { ...plan, promotion_active: false };
+        }
+      }
+      return plan;
+    });
+
+    logger.info(`Successfully fetched ${processedData.length} subscription plans`);
     return res.status(200).json({
       success: true,
-      data,
+      data: processedData,
     });
   } catch (error) {
     logger.error("Server error while fetching subscription plans:", error);
@@ -65,14 +81,14 @@ exports.createCheckoutSession = async (req, res) => {
       });
     }
 
-    // Get plan details
-    logger.debug(`Fetching plan details for Plan ID: ${planId}`);
-    const { data: plan, error: planError } = await supabase
-      .from("subscription_plans")
-      .select("*")
-      .eq("id", planId)
-      .single();
+    // Fetch plan and user details in parallel (independent queries)
+    logger.debug(`Fetching plan (${planId}) and user (${userId}) details in parallel`);
+    const [planResult, userResult] = await Promise.all([
+      supabase.from("subscription_plans").select("*").eq("id", planId).single(),
+      supabase.from("users").select("email").eq("id", userId).single(),
+    ]);
 
+    const { data: plan, error: planError } = planResult;
     if (planError || !plan) {
       logger.warn(`Create checkout session failed: Plan ID ${planId} not found or Supabase error:`, planError);
       return res.status(404).json({
@@ -81,14 +97,7 @@ exports.createCheckoutSession = async (req, res) => {
       });
     }
 
-    // Get user details
-    logger.debug(`Fetching user details for User ID: ${userId}`);
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("email")
-      .eq("id", userId)
-      .single();
-
+    const { data: user, error: userError } = userResult;
     if (userError || !user) {
       logger.warn(`Create checkout session failed: User ID ${userId} not found or Supabase error:`, userError);
       return res.status(404).json({
@@ -376,7 +385,7 @@ exports.getUserSubscription = async (req, res) => {
       if (sub.plan_id) {
         const { data: p } = await supabase
           .from('subscription_plans')
-          .select('*')
+          .select('id, name, price, plantype, is_active, audio_limit, features, monthly_price, yearly_price, description, interval, created_at')
           .eq('id', sub.plan_id)
           .single();
         plan = p || null;
@@ -681,7 +690,7 @@ exports.mockIyzicoPayment = async (req, res) => {
     // Verify plan exists and active
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('*')
+      .select('id, name, price, plantype, is_active, audio_limit, features, interval, created_at')
       .eq('id', planId)
       .eq('is_active', true)
       .single();
@@ -818,15 +827,23 @@ exports.getUsageSummary = async (req, res) => {
   try {
     const userId = req.user.id;
     const state = await checkLimits(userId);
+
+    // Resolve TTS provider & tier pricing (non-blocking for hasPlan=false)
+    let ttsProvider = 'google';
+    try { ttsProvider = await getTtsProvider(); } catch {}
+    const ttsTiers = getTtsTiers(ttsProvider);
+
     if (!state.hasPlan) {
-      return res.json({ 
-        success: true, 
-        data: { 
+      return res.json({
+        success: true,
+        data: {
           hasPlan: false,
           isExpired: state.isExpired || false,
           expiredAt: state.expiredAt,
-          message: state.message
-        } 
+          message: state.message,
+          ttsProvider,
+          ttsTiers,
+        }
       });
     }
     return res.json({
@@ -841,6 +858,8 @@ exports.getUsageSummary = async (req, res) => {
         limits: state.limits,
         exceeded: state.exceeded,
         isExceeded: state.isExceeded,
+        ttsProvider,
+        ttsTiers,
         // Free Trial özel alanları
         isFreeTrialExhausted: state.isFreeTrialExhausted || false,
         audioCreationCount: state.audioCreationCount,

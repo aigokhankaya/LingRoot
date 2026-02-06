@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Crown,
@@ -247,10 +248,12 @@ function LeaderboardRow({ entry, targetCount, index, isCurrentUser, onClick }: L
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                     {entry.avatar_url ? (
-                        <img
+                        <Image
                             src={entry.avatar_url}
                             alt={entry.username}
-                            className="w-6 h-6 rounded-full"
+                            width={24}
+                            height={24}
+                            className="rounded-full object-cover"
                         />
                     ) : (
                         <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">

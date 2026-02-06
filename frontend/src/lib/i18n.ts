@@ -1836,6 +1836,10 @@ export const translations: Translations = {
     verify_waiting: "Token bekleniyor...",
     verify_login_link: "giriş",
     verify_login_button: "Giriş",
+    verify_timeout_title: "Sunucu Yanıt Vermiyor",
+    verify_timeout: "Sunucu yanıt vermiyor. Lütfen tekrar deneyin.",
+    verify_retry: "Tekrar Dene",
+    verify_failed_generic: "Doğrulama başarısız",
     // Profile
     profile_welcome: "Hoş geldin,",
     profile_subtitle: "Bugün ne öğrenmek istersin?",
@@ -3596,6 +3600,10 @@ export const translations: Translations = {
     verify_waiting: "Waiting for token...",
     verify_login_link: "login",
     verify_login_button: "Login",
+    verify_timeout_title: "Server Not Responding",
+    verify_timeout: "The server is not responding. Please try again.",
+    verify_retry: "Try Again",
+    verify_failed_generic: "Verification failed",
     // Profile
     profile_welcome: "Welcome,",
     profile_subtitle: "What would you like to learn today?",

@@ -14,6 +14,7 @@ const pool = require('../config/db');
 const logger = require('../utils/common/logger.js');
 const openaiClient = require('../utils/ai/openaiClient.js');
 const { withRetry, withGracefulDegradation } = require('../utils/common/retryUtils.js');
+const { logApiCost, calculateEmbeddingCost } = require('../utils/infra/costTracker.js');
 
 class UserEmbeddingService {
 
@@ -96,13 +97,13 @@ class UserEmbeddingService {
     /**
      * OpenAI ile text embedding oluştur
      */
-    async createEmbedding(text) {
+    async createEmbedding(text, userId) {
         if (!text || text.trim().length === 0) {
             return null;
         }
 
         try {
-            return await withRetry(async () => {
+            const embedding = await withRetry(async () => {
                 const response = await openaiClient.embeddings.create({
                     model: 'text-embedding-3-small',
                     input: text.slice(0, 8000), // Max token limit
@@ -115,6 +116,22 @@ class UserEmbeddingService {
                 baseDelayMs: 1000,
                 context: 'OpenAI Embedding'
             });
+
+            if (userId && embedding) {
+                const estimatedTokens = Math.ceil(text.length / 4);
+                const cost = calculateEmbeddingCost(estimatedTokens, 'text-embedding-3-small');
+                logApiCost({
+                    userId,
+                    feature: 'user_embedding',
+                    provider: 'openai',
+                    model: 'text-embedding-3-small',
+                    inputQuantity: estimatedTokens,
+                    outputQuantity: 0,
+                    costUsd: cost,
+                }).catch(err => logger.warn('[COST] user_embedding log failed:', err.message));
+            }
+
+            return embedding;
 
         } catch (error) {
             logger.error('[UserEmbedding] createEmbedding error:', error);
@@ -136,7 +153,7 @@ class UserEmbeddingService {
             }
 
             // 2. Embedding oluştur
-            const embedding = await this.createEmbedding(summary);
+            const embedding = await this.createEmbedding(summary, userId);
 
             if (!embedding) {
                 logger.warn(`[UserEmbedding] Failed to create embedding for user ${userId}`);

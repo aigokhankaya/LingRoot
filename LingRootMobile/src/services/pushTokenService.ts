@@ -1,6 +1,12 @@
 import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
-import Constants from 'expo-constants';
+// Lazy-load expo-constants to avoid crash when native module is not linked
+let Constants: Record<string, unknown> | null = null;
+try {
+  Constants = require('expo-constants').default;
+} catch {
+  // Native module not available
+}
 import { registerDeviceToken } from './userService';
 
 console.log('[PushToken] pushTokenService module loaded');

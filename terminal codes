@@ -194,3 +194,21 @@ F:\Main\.github\pull_request_template.md
 
 
 podcast_ling
+
+#MFA canlı loglar:
+sudo journalctl -u mfa -f 
+
+mfa servisi yeniden başlatmak:
+systemctl restart lingroot-mfa 
+sudo systemctl restart mfa
+
+
+⏺ htop                                                                                                                                                           
+                                                                                                                                                                 
+  Eğer htop yoksa:                                                                                                                                               
+                                                                                                                                                                 
+  top -o %MEM                                                                                                                                                    
+                                                                                                                                                                 
+  Servis bazlı görmek için:                                                                                                                                      
+                                                                                                                                                                 
+  systemctl status mfa --no-pager  

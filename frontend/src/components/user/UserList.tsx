@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { User } from '@/types/user';
 import { fetchUsers, deleteUser, updateUser } from '@/services/userService';
 import Button from '@/components/common/Button';
@@ -87,10 +88,12 @@ const UserList: React.FC = () => {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   <div className="flex-shrink-0 h-10 w-10">
-                    <img
-                      className="h-10 w-10 rounded-full"
+                    <Image
+                      className="rounded-full object-cover"
                       src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}`}
                       alt={user.name}
+                      width={40}
+                      height={40}
                     />
                   </div>
                   <div className="ml-4">

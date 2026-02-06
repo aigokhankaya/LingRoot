@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n';
 
@@ -13,7 +14,7 @@ export default function Footer() {
           {/* Logo ve Slogan */}
           <div>
             <div className="flex items-center space-x-2 mb-6">
-              <img src="/lingroot-icon16.svg" alt="LingRoot" className="w-10 h-10" />
+              <Image src="/lingroot-icon16.svg" alt="LingRoot" width={40} height={40} className="w-10 h-10" />
               <span className="text-2xl font-extrabold tracking-tight">LingRoot</span>
             </div>
             <p className="text-gray-400 mb-4">{t('footer_tagline')}</p>

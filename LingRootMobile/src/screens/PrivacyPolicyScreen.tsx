@@ -150,4 +150,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PrivacyPolicyScreen;
+export default React.memo(PrivacyPolicyScreen);

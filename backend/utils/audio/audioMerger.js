@@ -153,6 +153,13 @@ async function mergeAudioSegmentsToBuffer(audioSegments) {
         return null;
     }
 
+    // Load test mode: optionally skip FFmpeg merge and concatenate buffers
+    const { isLoadTestMode, shouldSkipFFmpeg } = require('../../tests/load/mocks/mockConfig');
+    if (isLoadTestMode() && shouldSkipFFmpeg()) {
+        logger.info('[LOAD_TEST] Skipping FFmpeg merge, returning concatenated buffer');
+        return Buffer.concat(audioSegments.filter(Boolean));
+    }
+
     // Eğer tek segment varsa, direkt döndür
     if (audioSegments.length === 1) {
         logger.info("Single audio segment, returning as-is");

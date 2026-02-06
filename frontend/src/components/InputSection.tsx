@@ -6,7 +6,7 @@ import { useTranslation } from '@/lib/i18n';
 import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, getGeneratedSuggestions, fetchYoutubeTranscript, getMyPlanFeatures, PlanFeatures, getHashtagNews, HashtagNewsItem } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 import InterestManager from './InterestManager';
-import { FaCog, FaBook, FaPodcast, FaYoutube, FaFileAlt, FaBriefcase, FaLightbulb, FaKeyboard, FaTree, FaGamepad } from 'react-icons/fa';
+import { Settings, BookOpen, Radio, Youtube, FileText, Briefcase, Lightbulb, Keyboard, TreePine, Gamepad2 } from 'lucide-react';
 
 type InputType = ProcessInputData['type'] | 'suggestion' | 'hashtag';
 type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -633,52 +633,52 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         <div className="w-full grid grid-cols-2 md:grid-cols-5 gap-4 px-4 font-sans">
 
           <button onClick={() => handleModeSelect('topic_tree')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'topic' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
-            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><FaTree size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><TreePine size={20} /></div>
             <span className="font-medium text-sm">Konu Ağacı</span>
           </button>
 
           <button onClick={() => handleModeSelect('book')} className="p-4 rounded-xl flex flex-col items-center justify-center gap-3 bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all">
-            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><FaBook size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><BookOpen size={20} /></div>
             <span className="font-medium text-sm">Kitap</span>
           </button>
 
           <button onClick={() => handleModeSelect('podcast')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'podcast' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
-            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><FaPodcast size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><Radio size={20} /></div>
             <span className="font-medium text-sm">Podcast</span>
           </button>
 
           <button onClick={() => handleModeSelect('hobby')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'suggestion' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
-            <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center"><FaGamepad size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center"><Gamepad2 size={20} /></div>
             <span className="font-medium text-sm">Hobi</span>
           </button>
 
           <button onClick={() => handleModeSelect('youtube')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'youtube' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
-            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center"><FaYoutube size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center"><Youtube size={20} /></div>
             <span className="font-medium text-sm">YouTube</span>
           </button>
 
           <button onClick={() => handleModeSelect('file')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'file' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
-            <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center"><FaFileAlt size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center"><FileText size={20} /></div>
             <span className="font-medium text-sm">Belge</span>
           </button>
 
           <button onClick={() => handleModeSelect('text')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'text' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
-            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"><FaKeyboard size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"><Keyboard size={20} /></div>
             <span className="font-medium text-sm">Metin</span>
           </button>
 
           <Link href="/sectors" className="p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md">
-            <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center"><FaBriefcase size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center"><Briefcase size={20} /></div>
             <span className="font-medium text-sm">Sektör İngilizcesi</span>
           </Link>
 
           <button onClick={() => handleModeSelect('topic')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'topic' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
-            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><FaLightbulb size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><Lightbulb size={20} /></div>
             <span className="font-medium text-sm">Konu</span>
           </button>
 
           <button onClick={() => handleModeSelect('suggestion')} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${inputType === 'suggestion' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md'}`}>
-            <div className="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center"><FaLightbulb size={20} /></div>
+            <div className="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center"><Lightbulb size={20} /></div>
             <span className="font-medium text-sm">Öneriler</span>
           </button>
 
@@ -750,7 +750,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               <div className="w-full p-8 border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50 text-center hover:bg-slate-100 transition-colors cursor-pointer relative">
                 <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" accept=".pdf,.doc,.docx,.txt" />
                 <div className="flex flex-col items-center">
-                  <FaFileAlt size={48} className="text-slate-400 mb-4" />
+                  <FileText size={48} className="text-slate-400 mb-4" />
                   <p className="text-lg font-medium text-slate-700">Dosya yüklemek için tıklayın veya sürükleyin</p>
                   <p className="text-sm text-slate-500 mt-2">PDF, DOCX, TXT</p>
                   {file && <p className="mt-4 text-green-600 font-bold">{file.name}</p>}
@@ -806,7 +806,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               onClick={() => setShowSettings(!showSettings)}
               className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-amber-600 ${showSettings ? 'text-amber-600' : ''}`}
             >
-              <FaCog className={showSettings ? "animate-spin-slow" : ""} />
+              <Settings className={showSettings ? "animate-spin-slow" : ""} size={16} />
               <span>{level} • {voice}</span>
             </button>
           </div>

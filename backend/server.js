@@ -3,12 +3,17 @@
  * Main entry point for the Express API server
  */
 
+// dotenv must be loaded before instrumentation reads env vars
 require('dotenv').config();
+
+// OTel instrumentation must be loaded before everything else
+require('./instrumentation');
 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const hpp = require('hpp');
+const compression = require('compression');
 const path = require('path');
 const { createServer } = require('http');
 
@@ -70,6 +75,7 @@ const appleNotificationsRoutes = require('./routes/appleNotificationsRoutes.js')
 const googlePlayNotificationsRoutes = require('./routes/googlePlayNotificationsRoutes.js');
 const userSectorRoutes = require('./routes/userSectorRoutes.js');
 const perfLogsRoutes = require('./routes/perfLogsRoutes.js');
+const clientErrorRoutes = require('./routes/clientErrorRoutes.js');
 
 // Create Express app
 const app = express();
@@ -81,9 +87,23 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "https://www.googleapis.com", "https://graph.facebook.com", "https://appleid.apple.com"],
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+        }
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }
 }));
 app.use(hpp());
+app.use(compression());
 
 // CORS configuration
 const allowedOrigins = [
@@ -108,7 +128,7 @@ app.use(cors({
             callback(null, true);
         } else {
             logger.warn(`CORS blocked origin: ${origin}`);
-            callback(null, true); // Allow anyway for now, log for debugging
+            callback(new Error(`Origin ${origin} not allowed by CORS`));
         }
     },
     credentials: true,
@@ -119,13 +139,28 @@ app.use(cors({
 // Request ID middleware
 app.use(requestIdMiddleware);
 
-// Body parsing middleware
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Production response sanitizer — strip error details from JSON responses
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+      if (body && typeof body === 'object' && body.error && !body.success) {
+        const { error, ...rest } = body;
+        return originalJson(rest);
+      }
+      return originalJson(body);
+    };
+    next();
+  });
+}
 
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/public', express.static(path.join(__dirname, 'public')));
+// Body parsing middleware — general 1MB limit (upload routes override separately)
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Static files (no directory listing, no dotfiles)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { index: false, dotfiles: 'deny' }));
+app.use('/public', express.static(path.join(__dirname, 'public'), { index: false, dotfiles: 'deny' }));
 
 // Request logging
 app.use((req, res, next) => {
@@ -184,17 +219,22 @@ app.use('/api/config', configRoutes);
 app.use('/api/parameters', parameterRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/metrics', metricsRoutes);
-app.use('/api/debug', debugRoutes);
+if (process.env.NODE_ENV === 'development') {
+  app.use('/api/debug', debugRoutes);
+} else {
+  logger.info('[SECURITY] Debug routes disabled in production');
+}
 app.use('/api/srs', srsRoutes);
 app.use('/api/mfa', mfaRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/external-services', externalServicesRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
-app.use('/api/admin/api-costs', apiCostsRoutes);
+app.use('/api/admin', apiCostsRoutes);
 app.use('/api/apple-notifications', appleNotificationsRoutes);
 app.use('/api/google-play-notifications', googlePlayNotificationsRoutes);
 app.use('/api/user-sectors', userSectorRoutes);
 app.use('/api/perf-logs', perfLogsRoutes);
+app.use('/api/client-errors', clientErrorRoutes);
 app.use('/api/admin/jobs', require('./routes/jobRoutes.js'));
 
 // Try to load optional routes (may not exist)
@@ -216,116 +256,18 @@ try {
 app.use(notFound);
 app.use(errorHandler);
 
+// Server timeouts (TTS + MFA pipeline can take several minutes)
+httpServer.requestTimeout = 10 * 60 * 1000;  // 10 min
+httpServer.headersTimeout = 65 * 1000;        // 65s (must be > keepAliveTimeout)
+httpServer.keepAliveTimeout = 60 * 1000;      // 60s
+
 // Start server
 const PORT = process.env.PORT || 5001;
 
 httpServer.listen(PORT, async () => {
     logger.info(`🚀 LingRoot Backend server running on port ${PORT}`);
     logger.info(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
-
-    // Initialize TTS Worker for BullMQ job processing
-    // Wait a bit for Redis connection to be established (async)
-    setTimeout(async () => {
-        try {
-            const { checkRedisAvailability, getConnection } = require('./utils/storage/redisClient.js');
-            const redisAvailable = checkRedisAvailability();
-            const connection = getConnection();
-
-            if (redisAvailable && connection) {
-                const { initTtsWorker } = require('./workers/ttsWorker.js');
-                const { handleTTSRequest } = require('./controllers/ttsController.js');
-                const { sendPushNotification } = require('./utils/notifications/pushNotification.js');
-
-                // Process function for TTS jobs
-                const processTtsJob = async (data, context) => {
-                    const { requestBody, file, userId } = data;
-
-                    logger.info(`[TtsJobProcessor] Processing job ${context.jobId} for user ${context.userId}`);
-
-                    // Create mock request/response for handleTTSRequest
-                    // Include Express-like methods for compatibility
-                    const mockReq = {
-                        body: requestBody,
-                        file: file ? {
-                            ...file,
-                            buffer: Buffer.from(file.buffer, 'base64')
-                        } : null,
-                        user: { id: context.userId },
-                        // Mock headers for compatibility
-                        headers: {
-                            'content-type': file ? 'multipart/form-data' : 'application/json',
-                            'authorization': data.token ? `Bearer ${data.token}` : 'Bearer worker-internal-token'
-                        },
-                        // Mock Express methods
-                        is: (type) => {
-                            if (file) return type === 'multipart/form-data';
-                            return type === 'application/json';
-                        },
-                        get: (header) => {
-                            if (header === 'Content-Type') {
-                                return file ? 'multipart/form-data' : 'application/json';
-                            }
-                            return null;
-                        }
-                    };
-
-                    return new Promise((resolve, reject) => {
-                        const mockRes = {
-                            statusCode: 200,
-                            json: async (result) => {
-                                if (result.success) {
-                                    logger.info(`[TtsJobProcessor] Job ${context.jobId} completed successfully`);
-
-                                    // Send push notification
-                                    try {
-                                        logger.info(`[TtsJobProcessor] 🔔 Attempting to send notification to user ${context.userId}`);
-                                        const notifResult = await sendPushNotification(context.userId, {
-                                            title: '🎵 Ses Dosyanız Hazır!',
-                                            body: 'Dinlemek için tıklayın.',
-                                            type: 'audio_created',
-                                            data: {
-                                                jobId: context.jobId,
-                                                audioId: result.contenthistory_id || result.audio_id || result.id,
-                                                mp3_url: result.mp3_url,
-                                                title: result.adapted_text?.substring(0, 50) || 'Audio',
-                                                level: requestBody.level,
-                                                input_type: 'text'
-                                            }
-                                        });
-                                        logger.info(`[TtsJobProcessor] 🔔 Notification result: ${JSON.stringify(notifResult)}`);
-                                    } catch (notifError) {
-                                        logger.error(`[TtsJobProcessor] ❌ Notification error:`, notifError.message);
-                                    }
-
-                                    resolve(result);
-                                } else {
-                                    reject(new Error(result.message || 'TTS processing failed'));
-                                }
-                            },
-                            status: function (code) {
-                                this.statusCode = code;
-                                return this;
-                            }
-                        };
-
-                        handleTTSRequest(mockReq, mockRes, (error) => {
-                            if (error) {
-                                logger.error(`[TtsJobProcessor] Job ${context.jobId} error:`, error.message);
-                                reject(error);
-                            }
-                        });
-                    });
-                };
-
-                initTtsWorker(processTtsJob);
-                logger.info('✅ [TtsWorker] Worker initialized and listening for jobs');
-            } else {
-                logger.warn('⚠️ [TtsWorker] Redis not available, TTS worker not started');
-            }
-        } catch (error) {
-            logger.error('❌ [TtsWorker] Failed to initialize:', error.message);
-        }
-    }, 2000); // Wait 2 seconds for Redis connection
+    logger.info('📋 [TTS] Async TTS processing uses in-memory jobQueue (BullMQ worker disabled)');
 });
 
 // Graceful shutdown

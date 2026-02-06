@@ -118,7 +118,7 @@ let healthCheckInterval = null;
 const startHealthCheck = () => {
     if (healthCheckInterval) return;
 
-    healthCheckInterval = setInterval(checkQueueHealth, 5 * 60 * 1000);
+    healthCheckInterval = setInterval(checkQueueHealth, 30 * 60 * 1000);
 
     // Initial check after 30 seconds
     setTimeout(checkQueueHealth, 30 * 1000);

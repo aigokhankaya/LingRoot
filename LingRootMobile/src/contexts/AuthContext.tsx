@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../services/secureStorage';
 import NotificationService from '../services/notificationService';
 import { registerPushTokenWithBackend, setupPushTokenRefreshListener } from '../services/pushTokenService';
 import {
@@ -113,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuthState = async () => {
     try {
       // Check if we have a stored token first
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = await secureStorage.getItem('auth_token');
       const storedUser = await AsyncStorage.getItem('user_data');
 
       console.log('🔍 [AUTH CHECK] Token exists:', !!token);
@@ -202,9 +203,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           } else {
             const errorText = await response.text();
             if (response.status === 401) {
-              await AsyncStorage.removeItem('auth_token');
+              await secureStorage.removeItem('auth_token');
               await AsyncStorage.removeItem('user_data');
-              try { await AsyncStorage.removeItem('refresh_token'); } catch { }
+              try { await secureStorage.removeItem('refresh_token'); } catch { }
               setUser(null);
             } else {
               try {
@@ -250,7 +251,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
     try {
 
@@ -309,14 +310,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Store token and user data in AsyncStorage
         if (data.data.token) {
-          console.log('🔐 [AUTH] Saving token to AsyncStorage:', data.data.token.substring(0, 20) + '...');
-          await AsyncStorage.setItem('auth_token', data.data.token);
+          console.log('🔐 [AUTH] Saving token to SecureStore:', data.data.token.substring(0, 20) + '...');
+          await secureStorage.setItem('auth_token', data.data.token);
           await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
           console.log('✅ [AUTH] Token saved successfully');
           // Store refresh token if provided by backend
           try {
             if (data.data.refreshToken) {
-              await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
+              await secureStorage.setItem('refresh_token', data.data.refreshToken);
               console.log('✅ [AUTH] Refresh token saved');
             }
           } catch { }
@@ -355,28 +356,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // silent in production
       throw error;
     }
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, fullName?: string, phoneNumber?: string) => {
-    setIsLoading(true);
+  const signUp = useCallback(async (email: string, password: string, fullName?: string, phoneNumber?: string) => {
     try {
       await authService.signUp(email, password, fullName, phoneNumber);
-      // Signup does NOT log the user in; stop global loading here so UI can navigate to Login
-      setIsLoading(false);
-      // User state would be updated via onAuthStateChange only after an actual login
+      // Signup does NOT log the user in — RegisterScreen manages its own loading state.
+      // Global isLoading is intentionally NOT touched here to avoid unmounting NavigationContainer.
     } catch (error) {
-      setIsLoading(false);
       throw error;
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Clear AsyncStorage
-      await AsyncStorage.removeItem('auth_token');
+      // Clear tokens (SecureStore) and user data (AsyncStorage)
+      await secureStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_data');
-      try { await AsyncStorage.removeItem('refresh_token'); } catch { }
+      try { await secureStorage.removeItem('refresh_token'); } catch { }
 
       // Sign out from social providers
       await signOutFromSocialProviders();
@@ -390,10 +388,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, []);
 
   // Social authentication handler
-  const handleSocialAuth = async (socialResult: SocialAuthResult) => {
+  const handleSocialAuth = useCallback(async (socialResult: SocialAuthResult) => {
     const API_BASE_URL = await getApiBaseUrl();
 
     // Determine endpoint based on provider
@@ -462,11 +460,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
 
       if (data.data.token) {
-        await AsyncStorage.setItem('auth_token', data.data.token);
+        await secureStorage.setItem('auth_token', data.data.token);
         await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
         try {
           if (data.data.refreshToken) {
-            await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
+            await secureStorage.setItem('refresh_token', data.data.refreshToken);
           }
         } catch { }
       }
@@ -493,9 +491,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       throw new Error(data.message || 'Sosyal giriş başarısız');
     }
-  };
+  }, []);
 
-  const signInWithGoogleProvider = async () => {
+  const signInWithGoogleProvider = useCallback(async () => {
     setIsLoading(true);
     try {
       const isConnected = await apiService.checkConnectivity();
@@ -510,9 +508,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, [handleSocialAuth]);
 
-  const signInWithFacebookProvider = async () => {
+  const signInWithFacebookProvider = useCallback(async () => {
     setIsLoading(true);
     try {
       const isConnected = await apiService.checkConnectivity();
@@ -527,9 +525,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, [handleSocialAuth]);
 
-  const signInWithAppleProvider = async () => {
+  const signInWithAppleProvider = useCallback(async () => {
     setIsLoading(true);
     try {
       const isConnected = await apiService.checkConnectivity();
@@ -552,9 +550,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, [handleSocialAuth]);
 
-  const updateUserProfile = async (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => {
+  const updateUserProfile = useCallback(async (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => {
     if (!user) throw new Error('Oturum bulunamadı');
     try {
       await apiService.updateProfile(user.id, data as any);
@@ -568,9 +566,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       throw new Error(error?.message || 'Profil güncelleme başarısız');
     }
-  };
+  }, [user]);
 
-  const value: AuthContextType = {
+  const value: AuthContextType = useMemo(() => ({
     user,
     isLoading,
     signIn,
@@ -580,7 +578,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithGoogle: signInWithGoogleProvider,
     signInWithFacebook: signInWithFacebookProvider,
     signInWithApple: signInWithAppleProvider,
-  };
+  }), [user, isLoading, signIn, signUp, signOut, updateUserProfile, signInWithGoogleProvider, signInWithFacebookProvider, signInWithAppleProvider]);
 
   return (
     <AuthContext.Provider value={value}>

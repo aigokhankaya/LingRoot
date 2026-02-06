@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { Suspense, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
     Headphones,
@@ -957,7 +957,7 @@ function CtaSlide() {
 // ============================================
 // MAIN PAGE
 // ============================================
-export default function BizdenDinleyinPage() {
+function BizdenDinleyinPageContent() {
     return (
         <main className="scroll-smooth snap-y snap-mandatory h-screen overflow-y-scroll">
             <HeroSlide />
@@ -969,5 +969,17 @@ export default function BizdenDinleyinPage() {
             <FaqSlide />
             <CtaSlide />
         </main>
+    );
+}
+
+export default function BizdenDinleyinPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+            </div>
+        }>
+            <BizdenDinleyinPageContent />
+        </Suspense>
     );
 }

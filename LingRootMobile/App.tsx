@@ -6,6 +6,7 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import { AudioProvider } from './src/contexts/AudioContext';
 import { AlertProvider } from './src/contexts/AlertContext';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuth } from './src/contexts/AuthContext';
 import TrackPlayer from 'react-native-track-player';
@@ -13,6 +14,10 @@ import NotificationService from './src/services/notificationService';
 import { clearEnvironmentCache } from './src/services/environmentConfig';
 import { apiService } from './src/services/api';
 import { initializeApiClient } from './src/services/apiClient';
+import { initErrorLogger } from './src/utils/errorLogger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from './src/services/secureStorage';
+import { getApiBaseUrl } from './src/services/environmentConfig';
 
 export default function App() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
@@ -29,6 +34,13 @@ export default function App() {
         // Initialize API client early
         await initializeApiClient();
         console.log('🔗 [APP] API Client initialized');
+
+        // Migrate tokens from AsyncStorage to SecureStore (one-time, idempotent)
+        await secureStorage.migrateToSecureStorage();
+
+        // Initialize error logger for SigNoz reporting
+        const baseUrl = await getApiBaseUrl();
+        initErrorLogger(baseUrl, () => secureStorage.getItem('auth_token'));
 
         // iOS: perform full init on launch
         if (Platform.OS === 'ios') {
@@ -74,14 +86,16 @@ export default function App() {
   }, []);
 
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <AudioProvider>
-          <AlertProvider>
-            <AppNavigator />
-          </AlertProvider>
-        </AudioProvider>
-      </AuthProvider>
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <AuthProvider>
+          <AudioProvider>
+            <AlertProvider>
+              <AppNavigator />
+            </AlertProvider>
+          </AudioProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }

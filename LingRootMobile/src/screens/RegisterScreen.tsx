@@ -7,11 +7,10 @@ import {
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Linking,
   Animated,
-  Dimensions,
+  Keyboard,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,105 +20,45 @@ import { useNavigation, CommonActions } from '@react-navigation/native';
 import { isAppleSignInAvailable } from '../services/socialAuth';
 import { COLORS } from '../theme/colors';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Error code mapping for user-friendly messages
-const ERROR_CODE_MAP_TR: Record<string, string> = {
-  EMAIL_IN_USE: 'Bu e-posta adresi zaten kullaniliyor',
-  PHONE_IN_USE: 'Bu telefon numarasi zaten kullaniliyor',
-  PASSWORD_TOO_WEAK: 'Sifre en az 8 karakter, buyuk/kucuk harf ve rakam icermelidir',
-  PASSWORD_TOO_SHORT: 'Sifre en az 8 karakter, buyuk/kucuk harf ve rakam icermelidir',
-  INVALID_EMAIL: 'Gecersiz e-posta formati',
-  INVALID_PHONE: 'Gecersiz telefon numarasi',
-  NAME_INVALID: 'Isim veya soyisim gecersiz karakterler iceriyor',
-  RATE_LIMIT_EXCEEDED: 'Cok fazla deneme. 1 saat sonra tekrar deneyin',
-  DUPLICATE_ENTRY: 'Bu bilgilerle kayit zaten mevcut',
-  REGISTRATION_FAILED: 'Kayit islemi basarisiz oldu',
-  SERVER_ERROR: 'Sunucu hatasi. Lutfen daha sonra tekrar deneyin',
-  NETWORK_ERROR: 'Internet baglantiniz yok. Lutfen baglantinizi kontrol edin'
-};
-
-const ERROR_CODE_MAP_EN: Record<string, string> = {
-  EMAIL_IN_USE: 'This email is already in use',
-  PHONE_IN_USE: 'This phone number is already in use',
-  PASSWORD_TOO_WEAK: 'Password must be at least 8 characters with uppercase, lowercase and number',
-  PASSWORD_TOO_SHORT: 'Password must be at least 8 characters with uppercase, lowercase and number',
-  INVALID_EMAIL: 'Invalid email format',
-  INVALID_PHONE: 'Invalid phone number',
-  NAME_INVALID: 'Name contains invalid characters',
-  RATE_LIMIT_EXCEEDED: 'Too many attempts. Try again in 1 hour',
-  DUPLICATE_ENTRY: 'Account with these details already exists',
-  REGISTRATION_FAILED: 'Registration failed',
-  SERVER_ERROR: 'Server error. Please try again later',
-  NETWORK_ERROR: 'No internet connection. Please check your connection'
-};
-
-// Phone helpers: International E.164 format (+XX XXX XXX XXXX)
-const formatPhoneNumber = (value: string): string => {
-  // Keep only + at start and digits
-  let cleaned = value.replace(/[^\d+]/g, '');
-
-  // Ensure + is only at the start
-  if (cleaned.includes('+')) {
-    cleaned = '+' + cleaned.replace(/\+/g, '');
-  }
-
-  // If no + and starts with digits, add + prefix
-  if (cleaned && !cleaned.startsWith('+')) {
-    // If starts with 0, assume Turkish local number
-    if (cleaned.startsWith('0')) {
-      cleaned = '+90' + cleaned.slice(1);
-    } else {
-      cleaned = '+' + cleaned;
-    }
-  }
-
-  // Limit total length (E.164 max is 15 digits + 1 for +)
-  if (cleaned.length > 16) {
-    cleaned = cleaned.slice(0, 16);
-  }
-
-  // Format with spaces for readability
-  if (cleaned.length <= 1) return cleaned;
-
-  const withoutPlus = cleaned.slice(1);
-  let formatted = '+';
-  for (let i = 0; i < withoutPlus.length; i++) {
-    if (i === 2 || i === 5 || i === 8 || i === 12) {
-      formatted += ' ';
-    }
-    formatted += withoutPlus[i];
-  }
-
-  return formatted.trim();
-};
-
-const normalizePhoneNumber = (value: string): string => {
-  let cleaned = value.replace(/[^\d+]/g, '');
-  if (cleaned.includes('+')) {
-    cleaned = '+' + cleaned.replace(/\+/g, '');
-  }
-  if (!cleaned.startsWith('+')) {
-    if (cleaned.startsWith('0')) {
-      cleaned = '+90' + cleaned.slice(1);
-    } else {
-      cleaned = '+' + cleaned;
-    }
-  }
-  return cleaned;
-};
-
-const isValidPhoneNumber = (value: string): boolean => {
-  const normalized = normalizePhoneNumber(value);
-  // E.164: + followed by 7-15 digits
-  return /^\+[1-9]\d{6,14}$/.test(normalized);
-};
-
-// Legacy functions for backward compatibility
+// Phone helpers: Turkish format +90 555 123 45 67
+const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
 const extractTRLocalDigits = (value: string) => {
-  const normalized = normalizePhoneNumber(value);
-  return normalized.replace(/^\+\d{1,3}/, '');
+  const digits = extractDigits(value);
+  let d = digits.startsWith('90') ? digits.slice(2) : digits;
+  if (d.startsWith('0')) d = d.slice(1);
+  d = d.slice(0, 10);
+  return d;
 };
+const normalizeTRPhone = (value: string) => {
+  const local = extractTRLocalDigits(value);
+  return `+90${local}`;
+};
+const formatTRPhone = (value: string) => {
+  const local = extractTRLocalDigits(value);
+  let parts: string[] = [];
+  if (local.length <= 3) parts = [local];
+  else if (local.length <= 6) parts = [local.slice(0, 3), local.slice(3)];
+  else if (local.length <= 8) parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6)];
+  else parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6, 8), local.slice(8, 10)];
+  const spaced = parts.filter(Boolean).join(' ').trim();
+  return spaced ? `+90 ${spaced}` : '';
+};
+
+const AuthBackground = React.memo(({ blob1Anim, blob2Anim }: {
+  blob1Anim: Animated.Value;
+  blob2Anim: Animated.Value;
+}) => (
+  <>
+    <LinearGradient
+      colors={[COLORS.slate100, COLORS.slate200]}
+      style={StyleSheet.absoluteFillObject}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    />
+    <Animated.View style={[styles.blob, styles.blob1, { transform: [{ translateY: blob1Anim }] }]} />
+    <Animated.View style={[styles.blob, styles.blob2, { transform: [{ translateY: blob2Anim }] }]} />
+  </>
+));
 
 const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -146,6 +85,9 @@ const RegisterScreen: React.FC = () => {
     isAppleSignInAvailable().then(setShowAppleSignIn);
   }, []);
 
+  const floatBlob1Ref = useRef<Animated.CompositeAnimation | null>(null);
+  const floatBlob2Ref = useRef<Animated.CompositeAnimation | null>(null);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -160,110 +102,77 @@ const RegisterScreen: React.FC = () => {
       }),
     ]).start();
 
-    const floatBlob1 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(blob1Anim, {
-          toValue: -20,
-          duration: 5000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(blob1Anim, {
-          toValue: 0,
-          duration: 5000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    const floatBlob2 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(blob2Anim, {
-          toValue: -15,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(blob2Anim, {
-          toValue: 0,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    floatBlob1.start();
-    floatBlob2.start();
+    const startBlobAnimations = () => {
+      floatBlob1Ref.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blob1Anim, {
+            toValue: -20,
+            duration: 5000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blob1Anim, {
+            toValue: 0,
+            duration: 5000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      floatBlob2Ref.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blob2Anim, {
+            toValue: -15,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blob2Anim, {
+            toValue: 0,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      floatBlob1Ref.current.start();
+      floatBlob2Ref.current.start();
+    };
+
+    startBlobAnimations();
+
+    const kbShowSub = Keyboard.addListener('keyboardDidShow', () => {
+      floatBlob1Ref.current?.stop();
+      floatBlob2Ref.current?.stop();
+    });
+    const kbHideSub = Keyboard.addListener('keyboardDidHide', () => {
+      startBlobAnimations();
+    });
 
     return () => {
-      floatBlob1.stop();
-      floatBlob2.stop();
+      floatBlob1Ref.current?.stop();
+      floatBlob2Ref.current?.stop();
+      kbShowSub.remove();
+      kbHideSub.remove();
     };
   }, []);
 
   const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
-  // Password complexity regex (min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit)
-  const passwordComplexityRegex = useMemo(() => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, []);
-
-  // Password strength calculation
-  const passwordStrength = useMemo(() => {
-    if (!password) return { level: 0, label: '', color: COLORS.slate300 };
-
-    let score = 0;
-    if (password.length >= 8) score++;
-    if (/[a-z]/.test(password)) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/\d/.test(password)) score++;
-    if (/[^a-zA-Z0-9]/.test(password)) score++; // Special characters bonus
-
-    if (score <= 2) {
-      return {
-        level: 1,
-        label: language === 'tr' ? 'Zayif' : 'Weak',
-        color: '#EF4444' // red
-      };
-    } else if (score <= 3) {
-      return {
-        level: 2,
-        label: language === 'tr' ? 'Orta' : 'Medium',
-        color: '#F59E0B' // yellow/amber
-      };
-    } else {
-      return {
-        level: 3,
-        label: language === 'tr' ? 'Guclu' : 'Strong',
-        color: '#10B981' // green
-      };
-    }
-  }, [password, language]);
-
   const isFormValid = useMemo(() => {
+    const phoneDigits = extractTRLocalDigits(phoneNumber);
     return (
       fullName.trim().length >= 2 &&
       emailRegex.test(email.trim()) &&
-      isValidPhoneNumber(phoneNumber) &&
-      passwordComplexityRegex.test(password) &&
-      confirmPassword.length >= 8 &&
+      phoneDigits.length === 10 &&
+      password.length >= 6 &&
+      confirmPassword.length >= 6 &&
       password === confirmPassword &&
       acceptTerms
     );
-  }, [fullName, email, phoneNumber, password, confirmPassword, acceptTerms, emailRegex, passwordComplexityRegex]);
-
-  // Get error message from error code
-  const getErrorMessage = (error: { code?: string; message?: string }, defaultMessage: string): string => {
-    const errorCodeMap = language === 'tr' ? ERROR_CODE_MAP_TR : ERROR_CODE_MAP_EN;
-    if (error.code && errorCodeMap[error.code]) {
-      return errorCodeMap[error.code];
-    }
-    // Check if it's a network error
-    if (error.message?.includes('network') || error.message?.includes('Network') || error.message?.includes('fetch')) {
-      return errorCodeMap['NETWORK_ERROR'];
-    }
-    return error.message || defaultMessage;
-  };
+  }, [fullName, email, phoneNumber, password, confirmPassword, acceptTerms, emailRegex]);
 
   const handleGoogleSignIn = async () => {
     if (!acceptTerms) {
       Alert.alert(
         t('common.error'),
         language === 'tr'
-          ? 'Devam etmek icin Kullanim Kosullari ve Gizlilik Politikasini kabul etmelisiniz.'
+          ? 'Devam etmek için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.'
           : 'You must accept the Terms of Use and Privacy Policy to continue.'
       );
       return;
@@ -271,10 +180,8 @@ const RegisterScreen: React.FC = () => {
     if (!signInWithGoogle) return;
     try {
       await signInWithGoogle();
-    } catch (error: unknown) {
-      const err = error as { code?: string; message?: string };
-      const errorMessage = getErrorMessage(err, language === 'tr' ? 'Google ile kayit basarisiz' : 'Google sign up failed');
-      Alert.alert(t('common.error'), errorMessage);
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Google ile kayıt başarısız');
     }
   };
 
@@ -283,7 +190,7 @@ const RegisterScreen: React.FC = () => {
       Alert.alert(
         t('common.error'),
         language === 'tr'
-          ? 'Devam etmek icin Kullanim Kosullari ve Gizlilik Politikasini kabul etmelisiniz.'
+          ? 'Devam etmek için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.'
           : 'You must accept the Terms of Use and Privacy Policy to continue.'
       );
       return;
@@ -291,40 +198,23 @@ const RegisterScreen: React.FC = () => {
     if (!signInWithApple) return;
     try {
       await signInWithApple();
-    } catch (error: unknown) {
-      const err = error as { code?: string; message?: string };
-      const errorMessage = getErrorMessage(err, language === 'tr' ? 'Apple ile kayit basarisiz' : 'Apple sign up failed');
-      Alert.alert(t('common.error'), errorMessage);
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Apple ile kayıt başarısız');
     }
   };
 
   const handleRegister = async () => {
-    // Prevent double submission
-    if (isLoading) return;
-
-    const errorCodeMap = language === 'tr' ? ERROR_CODE_MAP_TR : ERROR_CODE_MAP_EN;
-
     if (!fullName.trim()) return Alert.alert(t('common.error'), t('register.errors.fullNameRequired'));
     if (!emailRegex.test(email.trim())) return Alert.alert(t('common.error'), t('register.errors.emailInvalid'));
-    // Phone validation: E.164 international format
-    if (!isValidPhoneNumber(phoneNumber)) {
-      return Alert.alert(
-        t('common.error'),
-        language === 'tr'
-          ? 'Lutfen gecerli bir telefon numarasi girin (orn: +90 555 123 4567)'
-          : 'Please enter a valid phone number (e.g., +90 555 123 4567)'
-      );
-    }
-    // Password complexity validation
-    if (!passwordComplexityRegex.test(password)) {
-      return Alert.alert(t('common.error'), errorCodeMap['PASSWORD_TOO_WEAK']);
-    }
+    const phoneDigits = extractTRLocalDigits(phoneNumber);
+    if (phoneDigits.length !== 10) return Alert.alert(t('common.error'), 'Lütfen geçerli bir telefon numarası girin');
+    if (password.length < 6) return Alert.alert(t('common.error'), t('register.errors.passwordShort'));
     if (password !== confirmPassword) return Alert.alert(t('common.error'), t('register.errors.passwordMismatch'));
     if (!acceptTerms) return Alert.alert(t('common.error'), t('register.errors.acceptTerms'));
 
     setIsLoading(true);
     try {
-      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      const normalizedPhone = normalizeTRPhone(phoneNumber);
       await signUp(email.trim(), password, fullName.trim(), normalizedPhone);
       setIsLoading(false);
       const goToLogin = () => {
@@ -343,10 +233,8 @@ const RegisterScreen: React.FC = () => {
           { text: t('common.ok'), onPress: goToLogin }
         ]
       );
-    } catch (error: unknown) {
-      const err = error as { code?: string; message?: string };
-      const errorMessage = getErrorMessage(err, t('register.errors.generic'));
-      Alert.alert(t('register.title'), errorMessage);
+    } catch (error: any) {
+      Alert.alert(t('register.title'), error.message || t('register.errors.generic'));
     } finally {
       setIsLoading(false);
     }
@@ -394,32 +282,10 @@ const RegisterScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Background Gradient */}
-      <LinearGradient
-        colors={[COLORS.slate100, COLORS.slate200]}
-        style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-
-      {/* Floating Blobs */}
-      <Animated.View
-        style={[
-          styles.blob,
-          styles.blob1,
-          { transform: [{ translateY: blob1Anim }] }
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.blob,
-          styles.blob2,
-          { transform: [{ translateY: blob2Anim }] }
-        ]}
-      />
+      <AuthBackground blob1Anim={blob1Anim} blob2Anim={blob2Anim} />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         style={styles.keyboardView}
       >
         <ScrollView
@@ -454,30 +320,9 @@ const RegisterScreen: React.FC = () => {
             <View style={styles.form}>
               {renderInput('person', language === 'tr' ? 'Ad Soyad' : 'Full Name', fullName, setFullName, { autoCapitalize: 'words' })}
               {renderInput('alternate-email', language === 'tr' ? 'E-posta Adresi' : 'Email Address', email, setEmail, { keyboardType: 'email-address', autoCapitalize: 'none', autoComplete: 'email' })}
-              {renderInput('phone', '+90 555 123 4567', phoneNumber, (v) => setPhoneNumber(formatPhoneNumber(v)), { keyboardType: 'phone-pad', autoComplete: 'tel' })}
-              {renderInput('lock', language === 'tr' ? 'Sifre Olustur' : 'Create Password', password, setPassword, { secureTextEntry: !showPassword, showToggle: true, toggleValue: showPassword, onToggle: () => setShowPassword(v => !v) })}
-
-              {/* Password Strength Indicator */}
-              {password.length > 0 && (
-                <View style={styles.passwordStrengthContainer}>
-                  <View style={styles.passwordStrengthBar}>
-                    <View
-                      style={[
-                        styles.passwordStrengthFill,
-                        {
-                          width: `${(passwordStrength.level / 3) * 100}%`,
-                          backgroundColor: passwordStrength.color
-                        }
-                      ]}
-                    />
-                  </View>
-                  <Text style={[styles.passwordStrengthText, { color: passwordStrength.color }]}>
-                    {passwordStrength.label}
-                  </Text>
-                </View>
-              )}
-
-              {renderInput('verified-user', language === 'tr' ? 'Sifreyi Onayla' : 'Confirm Password', confirmPassword, setConfirmPassword, { secureTextEntry: !showConfirmPassword, showToggle: true, toggleValue: showConfirmPassword, onToggle: () => setShowConfirmPassword(v => !v) })}
+              {renderInput('phone', '+90 555 123 45 67', phoneNumber, (v) => setPhoneNumber(formatTRPhone(v)), { keyboardType: 'phone-pad', autoComplete: 'tel' })}
+              {renderInput('lock', language === 'tr' ? 'Şifre Oluştur' : 'Create Password', password, setPassword, { secureTextEntry: !showPassword, showToggle: true, toggleValue: showPassword, onToggle: () => setShowPassword(v => !v) })}
+              {renderInput('verified-user', language === 'tr' ? 'Şifreyi Onayla' : 'Confirm Password', confirmPassword, setConfirmPassword, { secureTextEntry: !showConfirmPassword, showToggle: true, toggleValue: showConfirmPassword, onToggle: () => setShowConfirmPassword(v => !v) })}
 
               {/* Terms Checkbox */}
               <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(v => !v)}>
@@ -701,31 +546,6 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 8,
   },
-  passwordStrengthContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: -4,
-    marginBottom: 4,
-    paddingHorizontal: 4,
-  },
-  passwordStrengthBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: COLORS.slate200,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginRight: 8,
-  },
-  passwordStrengthFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  passwordStrengthText: {
-    fontSize: 12,
-    fontWeight: '600',
-    minWidth: 50,
-    textAlign: 'right',
-  },
   termsRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -840,4 +660,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RegisterScreen;
+export default React.memo(RegisterScreen);

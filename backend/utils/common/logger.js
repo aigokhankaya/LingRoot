@@ -1,6 +1,5 @@
 // backend/utils/logger.js
 const winston = require("winston");
-const path = require("path");
 require("dotenv").config();
 
 // Define log levels and colors
@@ -31,12 +30,18 @@ const sanitizeLogContent = (content) => {
     return content;
   }
 
-  // Base64 benzeri karmaşık içerik olabilecek kısımları tespit et
-  // Genellikle / ile başlayan ve çok uzun alfanumerik karakterlerden oluşan
-  const complexContentRegex = /\/[A-Za-z0-9+/=]{100,}/g;
+  // Mask sensitive patterns: tokens, codes, credentials, secrets
+  let sanitized = content
+    .replace(/code=\d{4,}/g, 'code=******')
+    .replace(/token=[A-Za-z0-9._-]{10,}/g, 'token=******')
+    .replace(/access_token=[A-Za-z0-9._-]{10,}/g, 'access_token=******')
+    .replace(/credential=[A-Za-z0-9._-]{10,}/g, 'credential=******')
+    .replace(/Bearer [A-Za-z0-9._-]{10,}/g, 'Bearer ******')
+    .replace(/password["']?\s*[:=]\s*["']?[^"'\s,}{]+/gi, 'password=******');
 
-  // Bu tür içerikleri kısalt
-  let sanitized = content.replace(complexContentRegex, '[BINARY_DATA]');
+  // Base64 benzeri karmaşık içerik olabilecek kısımları tespit et
+  const complexContentRegex = /\/[A-Za-z0-9+/=]{100,}/g;
+  sanitized = sanitized.replace(complexContentRegex, '[BINARY_DATA]');
 
   // Çok uzun satırları kısalt (300 karakterden uzun)
   if (sanitized.length > 300) {
@@ -79,7 +84,9 @@ const logFormat = winston.format.combine(
   })
 );
 
-// Define transports (console and file)
+// Define transports
+// File transports removed — logs are forwarded to SigNoz via OTel WinstonInstrumentation.
+// Console transport is kept for Render dashboard and local dev.
 const transports = [
   // Console transport with colorization
   new winston.transports.Console({
@@ -88,22 +95,6 @@ const transports = [
       logFormat
     ),
     level: level, // Use environment-based level for console
-  }),
-  // File transport for errors
-  new winston.transports.File({
-    filename: path.join(__dirname, "../../logs/error.log"),
-    level: "error", // Only log errors to this file
-    format: logFormat, // Use standard format without color
-    maxsize: 5242880, // 5MB
-    maxFiles: 5,
-  }),
-  // File transport for all logs (optional, can be noisy)
-  new winston.transports.File({
-    filename: path.join(__dirname, "../../logs/combined.log"),
-    level: level, // Use environment-based level for combined file
-    format: logFormat, // Use standard format without color
-    maxsize: 5242880, // 5MB
-    maxFiles: 5,
   }),
 ];
 

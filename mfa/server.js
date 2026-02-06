@@ -33,7 +33,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health Check
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', service: 'LingRoot MFA Service', timestamp: new Date().toISOString() });
+    res.json({
+        status: 'ok',
+        service: 'LingRoot MFA Alignment Service',
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Import Routes
@@ -48,7 +52,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5002;
 app.listen(PORT, () => {
-    logger.info(`✅ MFA Service running on port ${PORT}`);
+    logger.info(`✅ MFA Alignment Service running on port ${PORT}`);
     logger.info(`   DICT_PATH: ${process.env.MFA_DICT_PATH}`);
     logger.info(`   ACOUSTIC_DIR: ${process.env.MFA_ACOUSTIC_DIR}`);
 });

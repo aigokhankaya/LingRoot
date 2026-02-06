@@ -1,6 +1,6 @@
 # Environment Variables Reference
 
-**Last Updated:** December 2025
+> **Created:** 2024-12-01 | **Updated:** 2026-01-29 | **Version:** 1.1
 
 ## Overview
 
@@ -124,6 +124,12 @@ This document lists all environment variables used across the LingRoot platform.
 | `FIREBASE_PRIVATE_KEY` | Conditional | - | Firebase private key |
 | `FIREBASE_CLIENT_EMAIL` | Conditional | - | Firebase client email |
 
+### Redis / Job Queue
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `REDIS_URL` | No | `redis://localhost:6379` | Redis/Valkey connection URL. Used by BullMQ job queues. Falls back to in-memory mode if unavailable. |
+
 ### CORS & Frontend
 
 | Variable | Required | Default | Description |
@@ -179,6 +185,8 @@ OPENAI_API_KEY=sk-xxx
 
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 
+REDIS_URL=redis://localhost:6379
+
 FRONTEND_URL=http://localhost:3000
 ```
 
@@ -205,6 +213,8 @@ JWT_SECRET=super-secure-production-secret-minimum-32-characters
 OPENAI_API_KEY=sk-xxx
 AZURE_SPEECH_KEY=xxx
 AZURE_SPEECH_REGION=westeurope
+
+REDIS_URL=redis://localhost:6379
 
 FRONTEND_URL=https://lingroot.com
 ```

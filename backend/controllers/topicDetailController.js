@@ -25,8 +25,7 @@ exports.getTopicDetailSuggestions = async (req, res) => {
     // Prompt dosyasını oku
     const promptFile = 'topic_detail_suggestions.txt';
     const promptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
-    console.log(`🎯 [TOPIC DETAIL CONTROLLER] Using prompt file: ${promptFile} for topic: "${topic}" level: ${level || 'A1'}`);
-    logger.info(`🎯 Topic Detail Controller - Selected prompt file: ${promptFile} for topic: "${topic}" level: ${level || 'A1'}`);
+    logger.info(`[TOPIC-DETAIL] Selected prompt file: ${promptFile} for topic: "${topic}" level: ${level || 'A1'}`);
     let promptTemplate = fs.readFileSync(promptPath, 'utf8');
 
     // Placeholder'ları değiştir
@@ -159,7 +158,7 @@ exports.getTopicDetailSuggestions = async (req, res) => {
 
 exports.getGeneratedSuggestions = async (req, res) => {
   try {
-    console.log('🎯 Generated suggestions istendi');
+    logger.info('[TOPIC-DETAIL] Generated suggestions requested');
 
     // Supabase'den generated_suggestions tablosunu sorgula
     const { data, error } = await supabase
@@ -168,11 +167,11 @@ exports.getGeneratedSuggestions = async (req, res) => {
       .order('title', { ascending: true });
 
     if (error) {
-      console.error('Supabase hatası:', error);
+      logger.error('[TOPIC-DETAIL] Supabase error:', error);
       throw error;
     }
 
-    console.log(`✅ ${data.length} adet konu başlığı bulundu`);
+    logger.info(`[TOPIC-DETAIL] Found ${data.length} topic titles`);
 
     res.json({
       success: true,
@@ -182,7 +181,7 @@ exports.getGeneratedSuggestions = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Generated suggestions alınırken hata:', err);
+    logger.error('[TOPIC-DETAIL] Error fetching generated suggestions:', err);
     res.status(500).json({
       success: false,
       message: 'Konu başlıkları alınamadı',

@@ -58,7 +58,7 @@ const acquireTtsSlot = (userId) => {
   }
 
   activeTtsRequests.set(userId, current + 1);
-  logger.info(`🔒 [TTS Limiter] User ${userId} acquired slot ${current + 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
+  logger.debug(`🔒 [TTS Limiter] User ${userId} acquired slot ${current + 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
   return { allowed: true, current: current + 1, max: MAX_CONCURRENT_TTS_PER_USER };
 };
 
@@ -72,7 +72,7 @@ const releaseTtsSlot = (userId) => {
   const current = activeTtsRequests.get(userId) || 0;
   if (current > 0) {
     activeTtsRequests.set(userId, current - 1);
-    logger.info(`🔓 [TTS Limiter] User ${userId} released slot, now ${current - 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
+    logger.debug(`🔓 [TTS Limiter] User ${userId} released slot, now ${current - 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
   }
 
   // Cleanup if no active requests
@@ -88,7 +88,7 @@ const cleanupTempFile = (filePath) => {
   if (filePath && fs.existsSync(filePath)) {
     try {
       fs.unlinkSync(filePath);
-      logger.info(`Cleaned up temporary file: ${filePath}`);
+      logger.debug(`Cleaned up temporary file: ${filePath}`);
     } catch (e) {
       logger.error(`Error removing temporary file ${filePath}: ${e.message}`);
       // Log error but don't fail the request just for cleanup failure
@@ -110,34 +110,44 @@ const { getTtsProvider, getDefaultVoiceForProvider } = voiceModelService;
  */
 const processTtsRequest = async (req, res) => {
   const requestId = uuidv4();
+  const processingStartTime = Date.now();
   let stepSequence = 1;
   logger.info(`[${requestId}] Received TTS request.`);
 
   // Get user ID for rate limiting
   const userId = req.user?.id || null;
+  const skipConcurrency = !!req._skipConcurrencyCheck;
 
-  // 1. Global TTS limiti kontrolü
-  const globalSlot = await limiters.tts.acquire(30000); // 30 saniye timeout
-  if (!globalSlot.acquired) {
-    logger.warn(`[${requestId}] 🚫 Global TTS limit - reason: ${globalSlot.reason}, userId: ${userId}`);
-    return res.status(503).json({
-      success: false,
-      code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
-      message: 'Sunucu şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.',
-      retryAfter: 60
-    });
+  // 1. Global TTS limiti kontrolü (skip for async background workers)
+  let globalSlotAcquired = false;
+  if (!skipConcurrency) {
+    const globalSlot = await limiters.tts.acquire(30000); // 30 saniye timeout
+    if (!globalSlot.acquired) {
+      logger.warn(`[${requestId}] 🚫 Global TTS limit - reason: ${globalSlot.reason}, userId: ${userId}`);
+      return res.status(503).json({
+        success: false,
+        code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
+        message: 'Sunucu şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.',
+        retryAfter: 60
+      });
+    }
+    globalSlotAcquired = true;
+  } else {
+    logger.info(`[${requestId}] Skipping concurrency checks (async background worker)`);
   }
 
-  // 2. Per-user TTS limiti (mevcut kod)
-  const slotCheck = acquireTtsSlot(userId);
-  if (!slotCheck.allowed) {
-    limiters.tts.release(); // Global slot'u serbest bırak
-    logger.warn(`[${requestId}] ⚠️ User ${userId} exceeded concurrent TTS limit (${slotCheck.current}/${slotCheck.max})`);
-    return res.status(429).json({
-      success: false,
-      message: `Çok fazla eşzamanlı ses oluşturma isteği. Lütfen mevcut işlemlerin tamamlanmasını bekleyin. (${slotCheck.current}/${slotCheck.max} aktif)`,
-      retryAfter: 30 // Suggest retry after 30 seconds
-    });
+  // 2. Per-user TTS limiti (skip for async background workers)
+  if (!skipConcurrency) {
+    const slotCheck = acquireTtsSlot(userId);
+    if (!slotCheck.allowed) {
+      limiters.tts.release(); // Global slot'u serbest bırak
+      logger.warn(`[${requestId}] ⚠️ User ${userId} exceeded concurrent TTS limit (${slotCheck.current}/${slotCheck.max})`);
+      return res.status(429).json({
+        success: false,
+        message: `Çok fazla eşzamanlı ses oluşturma isteği. Lütfen mevcut işlemlerin tamamlanmasını bekleyin. (${slotCheck.current}/${slotCheck.max} aktif)`,
+        retryAfter: 30 // Suggest retry after 30 seconds
+      });
+    }
   }
 
   // CRITICAL DEBUG: Log raw request essentials (sanitized)
@@ -152,7 +162,7 @@ const processTtsRequest = async (req, res) => {
       hasFile: !!req.file,
       inputPreview: (req.body?.input || '').toString().slice(0, 80)
     };
-    logger.info(`[${requestId}] [INCOMING TTS PARAMS]`, logBody);
+    logger.debug(`[${requestId}] [INCOMING TTS PARAMS]`, logBody);
   } catch (e) {
     logger.warn(`[${requestId}] Could not log incoming params: ${e.message}`);
   }
@@ -176,24 +186,24 @@ const processTtsRequest = async (req, res) => {
     let inputData, inputType, level, speakingRate, file;
 
     // Debug: Log full request body
-    logger.info(`[${requestId}] 🔍 FULL REQUEST BODY:`, JSON.stringify(req.body, null, 2));
+    logger.debug(`[${requestId}] 🔍 FULL REQUEST BODY:`, JSON.stringify(req.body, null, 2));
 
     if (req.is("multipart/form-data")) {
-      logger.info(`[${requestId}] Processing multipart/form-data request.`);
+      logger.debug(`[${requestId}] Processing multipart/form-data request.`);
       inputData = req.body.input;
       inputType = req.body.type || req.body.input_type;
       level = req.body.level || "A1";
       speakingRate = parseFloat(req.body.speakingRate || (level === "A1" ? "0.8" : "1.0"));
       file = req.file;
-      logger.info(`[${requestId}] FormData details: type=${inputType}, level=${level}, rate=${speakingRate}, file=${file?.originalname}`);
+      logger.debug(`[${requestId}] FormData details: type=${inputType}, level=${level}, rate=${speakingRate}, file=${file?.originalname}`);
     } else if (req.is("application/json")) {
-      logger.info(`[${requestId}] Processing application/json request.`);
+      logger.debug(`[${requestId}] Processing application/json request.`);
       inputData = req.body.input;
       inputType = req.body.type || req.body.input_type || "text";
       level = req.body.level || "A1";
       speakingRate = parseFloat(req.body.speakingRate || (level === "A1" ? "0.8" : "1.0"));
       file = undefined;
-      logger.info(`[${requestId}] JSON details: type=${inputType}, level=${level}, rate=${speakingRate}`);
+      logger.debug(`[${requestId}] JSON details: type=${inputType}, level=${level}, rate=${speakingRate}`);
     } else {
       const contentType = req.get("Content-Type");
       logger.error(`[${requestId}] Unsupported Content-Type: ${contentType}`);
@@ -201,17 +211,17 @@ const processTtsRequest = async (req, res) => {
     }
 
     // Normalize input type: 'subject' -> 'topic'
-    logger.info(`[${requestId}] 🔍 RAW INPUT TYPE BEFORE NORMALIZATION: "${inputType}"`);
+    logger.debug(`[${requestId}] 🔍 RAW INPUT TYPE BEFORE NORMALIZATION: "${inputType}"`);
     if (inputType === 'subject') {
       inputType = 'topic';
-      logger.info(`[${requestId}] ✅ Normalized input type from 'subject' to 'topic'`);
+      logger.debug(`[${requestId}] ✅ Normalized input type from 'subject' to 'topic'`);
     }
-    logger.info(`[${requestId}] 🔍 FINAL INPUT TYPE AFTER NORMALIZATION: "${inputType}"`);
+    logger.debug(`[${requestId}] 🔍 FINAL INPUT TYPE AFTER NORMALIZATION: "${inputType}"`);
 
     // --- DIRECTOR MODE: CHAPTER FLOW ---
     if (inputType === 'chapter') {
       const chapterId = req.body.chapter_id || req.body.chapterId;
-      logger.info(`[${requestId}] 🎬 DIRECTOR MODE: Processing book chapter ${chapterId}`);
+      logger.debug(`[${requestId}] 🎬 DIRECTOR MODE: Processing book chapter ${chapterId}`);
 
       if (!chapterId) {
         logger.error(`[${requestId}] Missing chapter_id for chapter input type`);
@@ -240,7 +250,7 @@ const processTtsRequest = async (req, res) => {
           message: 'Audio retrieved from cache'
         });
       }
-      logger.info(`[${requestId}] 💨 CACHE MISS: Proceeding to generation`);
+      logger.debug(`[${requestId}] 💨 CACHE MISS: Proceeding to generation`);
 
       // 2. Director Analysis: Check or Perform
       const { data: chapterData } = await supabase
@@ -257,7 +267,7 @@ const processTtsRequest = async (req, res) => {
       let analysis = chapterData.director_analysis;
 
       if (!analysis) {
-        logger.info(`[${requestId}] 🕵️ DIRECTOR AGENT: Analyzing chapter content...`);
+        logger.debug(`[${requestId}] 🕵️ DIRECTOR AGENT: Analyzing chapter content...`);
         try {
           analysis = await directorAgentService.analyzeChapter(inputData);
 
@@ -267,13 +277,13 @@ const processTtsRequest = async (req, res) => {
             .update({ director_analysis: analysis })
             .eq('id', chapterId);
 
-          logger.info(`[${requestId}] 💾 Analysis saved to database.`);
+          logger.debug(`[${requestId}] 💾 Analysis saved to database.`);
         } catch (err) {
           logger.warn(`[${requestId}] Director analysis failed, using defaults: ${err.message}`);
           analysis = { mood: 'Neutral', narrator_tone: 'Clear' };
         }
       } else {
-        logger.info(`[${requestId}] 🧠 Using existing Director Analysis from DB`);
+        logger.debug(`[${requestId}] 🧠 Using existing Director Analysis from DB`);
       }
 
       // Set context for later steps
@@ -297,7 +307,7 @@ const processTtsRequest = async (req, res) => {
       const parsedDuration = parseFloat(rawDuration);
       if ([1.5, 5, 10, 15].includes(parsedDuration)) {
         targetDurationMinutes = parsedDuration;
-        logger.info(`[${requestId}] ⏱️ Target duration set: ${targetDurationMinutes} minutes`);
+        logger.debug(`[${requestId}] ⏱️ Target duration set: ${targetDurationMinutes} minutes`);
       } else {
         logger.warn(`[${requestId}] Invalid duration ${rawDuration}, ignoring. Valid options: 1.5, 5, 10, 15`);
       }
@@ -307,7 +317,7 @@ const processTtsRequest = async (req, res) => {
     if (inputType === "topic" && inputData) {
       const hasTurkishChars = /[ğüşıöçĞÜŞİÖÇ]/g.test(inputData);
       detectedLang = hasTurkishChars ? 'tr' : 'en';
-      logger.info(`[${requestId}] Detected language for topic: ${detectedLang}`);
+      logger.debug(`[${requestId}] Detected language for topic: ${detectedLang}`);
     }
 
     // --- Step 1: Extract Text ---
@@ -327,20 +337,20 @@ const processTtsRequest = async (req, res) => {
     let topicGenerationUsage = null;
     let topicGenerationModel = null;
 
-    logger.info(`[${requestId}] 🔍 CHECKING IF TOPIC: inputType="${inputType}" (comparing with "topic")`);
+    logger.debug(`[${requestId}] 🔍 CHECKING IF TOPIC: inputType="${inputType}" (comparing with "topic")`);
     if (inputType === "topic") {
-      logger.info(`[${requestId}] ✅ TOPIC FLOW ACTIVATED!`);
+      logger.debug(`[${requestId}] ✅ TOPIC FLOW ACTIVATED!`);
 
       // Pre-check for explicitly requested mood (e.g. from Topic Hierarchy)
       if (req.body.mood) {
         detectedMood = req.body.mood;
-        logger.info(`[${requestId}] 🎭 Using requested mood from input: ${detectedMood}`);
+        logger.debug(`[${requestId}] 🎭 Using requested mood from input: ${detectedMood}`);
       } else {
         // MOOD ANALYSIS (DIRECTOR AGENT)
         // detectedMood variable is declared at the top of processTtsRequest
         try {
           detectedMood = await directorAgentService.analyzeMood(`Topic: ${inputData}\nLevel: ${level}`);
-          logger.info(`[${requestId}] 🎭 Director Agent Detected Mood (Topic): ${detectedMood}`);
+          logger.debug(`[${requestId}] 🎭 Director Agent Detected Mood (Topic): ${detectedMood}`);
         } catch (err) {
           logger.warn(`[${requestId}] Mood analysis failed, defaulting to Neutral. Error: ${err.message}`);
         }
@@ -361,11 +371,11 @@ const processTtsRequest = async (req, res) => {
       if (topicResult.usage) {
         topicGenerationUsage = topicResult.usage;
         topicGenerationModel = topicResult.model || 'gpt-4o';
-        logger.info(`[${requestId}] 📊 Topic generation LLM usage: ${topicGenerationUsage.total_tokens} tokens (model: ${topicGenerationModel})`);
+        logger.debug(`[${requestId}] 📊 Topic generation LLM usage: ${topicGenerationUsage.total_tokens} tokens (model: ${topicGenerationModel})`);
       }
-      logger.info(`[${requestId}] Topic processing: English text for TTS (${rawText.length} chars), Translated text for storage (${translatedText.length} chars)`);
+      logger.debug(`[${requestId}] Topic processing: English text for TTS (${rawText.length} chars), Translated text for storage (${translatedText.length} chars)`);
     } else {
-      logger.info(`[${requestId}] ❌ NON-TOPIC FLOW: Using old translate+adapt flow for inputType="${inputType}"`);
+      logger.debug(`[${requestId}] ❌ NON-TOPIC FLOW: Using old translate+adapt flow for inputType="${inputType}"`);
       rawText = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang);
     }
     if (rawText === null) {
@@ -382,7 +392,7 @@ const processTtsRequest = async (req, res) => {
       logRequestStep(requestId, 'extractText:empty', { error: 'Extracted text is empty.' });
       return res.status(400).json({ success: false, message: "Extracted text is empty." });
     }
-    logger.info(`[${requestId}] Text extracted successfully.`);
+    logger.debug(`[${requestId}] Text extracted successfully.`);
     logStep({
       requestId,
       stepName: 'tts:extractText:end',
@@ -405,13 +415,13 @@ const processTtsRequest = async (req, res) => {
       inputData: { rawText },
       outputData: { cleanedText }
     });
-    logger.info(`[${requestId}] Text cleaned successfully.`);
+    logger.debug(`[${requestId}] Text cleaned successfully.`);
 
     // For topic input, text is already in target language at correct CEFR level
     // Skip translate and adapt steps
     let skipTranslateAndAdapt = (inputType === "topic");
     if (skipTranslateAndAdapt) {
-      logger.info(`[${requestId}] Topic input detected - skipping translate/adapt (already processed in extractTextFromInput).`);
+      logger.debug(`[${requestId}] Topic input detected - skipping translate/adapt (already processed in extractTextFromInput).`);
     }
 
     // Enforce subscription usage limits before heavy operations
@@ -514,7 +524,7 @@ const processTtsRequest = async (req, res) => {
         total_tokens: topicGenerationUsage.total_tokens || 0,
         prompt_name: 'content_generation_bilingual'
       });
-      logger.info(`[${requestId}] 📊 Added topic generation usage to tracking: ${openaiUsage.total_tokens} tokens, ${openaiCallCount} calls`);
+      logger.debug(`[${requestId}] 📊 Added topic generation usage to tracking: ${openaiUsage.total_tokens} tokens, ${openaiCallCount} calls`);
     }
 
     if (!skipTranslateAndAdapt) {
@@ -540,14 +550,13 @@ const processTtsRequest = async (req, res) => {
       const isBookOrDocument = inputType === 'book' || inputType === 'document';
       const promptVariant = isBookOrDocument ? 'narrator' : 'standard';
 
-      console.log(`🎯 [OPTIMIZED TTS] Using single-call translate+adapt for ${sourceLanguage} → EN (${level}) [Variant: ${promptVariant}]`);
-      logger.info(`[${requestId}] [OPTIMIZED] Starting unified translate+adapt: ${sourceLanguage} → EN at ${level} (variant: ${promptVariant})`);
+      logger.debug(`[${requestId}] [TTS] Starting unified translate+adapt: ${sourceLanguage} -> EN at ${level} (variant: ${promptVariant})`);
 
       // MOOD ANALYSIS FOR NON-TOPIC INPUTS (Director Agent)
       if (!skipTranslateAndAdapt && isBookOrDocument) {
         try {
           detectedMood = await directorAgentService.analyzeMood(`Text: ${cleanedText.substring(0, 500)}...`);
-          logger.info(`[${requestId}] 🎭 Director Agent Detected Mood (Text): ${detectedMood}`);
+          logger.debug(`[${requestId}] 🎭 Director Agent Detected Mood (Text): ${detectedMood}`);
         } catch (err) {
           logger.warn(`[${requestId}] Mood analysis failed, defaulting to Neutral. Error: ${err.message}`);
         }
@@ -578,9 +587,7 @@ const processTtsRequest = async (req, res) => {
             }
           }
 
-          logger.info(`[${requestId}] [OPTIMIZED] Translate+Adapt complete in single call`);
-          console.log(`✅ [OPTIMIZED] Single call complete: ${textToAdapt.length} chars, ${openaiUsage.total_tokens} tokens`);
-          console.log(`💰 [TOKEN SAVINGS] Estimated ~43% savings vs old 2-step method`);
+          logger.debug(`[${requestId}] [TTS] Translate+Adapt complete in single call: ${textToAdapt.length} chars, ${openaiUsage.total_tokens} tokens`);
         } else {
           throw new Error('Optimized translate+adapt returned empty result');
         }
@@ -614,17 +621,16 @@ const processTtsRequest = async (req, res) => {
     } else {
       // Topic input: text is already in target language at correct CEFR level
       translationResult = cleanedText;
-      logger.info(`[${requestId}] Skipped translate/adapt for topic input.`);
+      logger.debug(`[${requestId}] Skipped translate/adapt for topic input.`);
       logRequestStep(requestId, 'topic:skip_translate_adapt', { reason: 'Topic input already processed' });
     }
 
     // --- Step 2.7: Extract Daily Usage Patterns ---
-    console.log(`[${requestId}] 🎯 STEP 2.7: Starting daily pattern extraction...`);
+    logger.debug(`[${requestId}] [TTS] STEP 2.7: Starting daily pattern extraction`);
     let dailyUsagePatterns = [];
     let patternUsage = null;
     try {
-      console.log(`[${requestId}] 🎯 About to call extractDailyUsagePatterns with text length: ${textToAdapt.length}`);
-      logger.info(`[${requestId}] Extracting daily usage patterns from adapted text...`);
+      logger.debug(`[${requestId}] [TTS] Extracting daily usage patterns from adapted text (length: ${textToAdapt.length})`);
       logRequestStep(requestId, 'dailyPatterns:start', { textLength: textToAdapt.length });
 
       const patternExtraction = await extractDailyUsagePatterns(textToAdapt, level, requestId);
@@ -633,15 +639,13 @@ const processTtsRequest = async (req, res) => {
 
       // Check if extraction was skipped
       if (patternExtraction.skipped) {
-        console.log(`[${requestId}] ⏭️  Daily pattern extraction skipped: ${patternExtraction.reason} (existing: ${patternExtraction.existingCount || 0})`);
-        logger.info(`[${requestId}] Daily pattern extraction skipped: ${patternExtraction.reason}`);
+        logger.debug(`[${requestId}] [TTS] Daily pattern extraction skipped: ${patternExtraction.reason} (existing: ${patternExtraction.existingCount || 0})`);
       } else if (patternUsage) {
         // Detailed token log for Daily Pattern Extraction
-        console.log(`[${requestId}] 📊 DAILY PATTERNS OpenAI Call - Model: ${patternUsage.model || 'gpt-4o-mini'}, Input: ${patternUsage.prompt_tokens || 0} tokens, Output: ${patternUsage.completion_tokens || 0} tokens, Total: ${patternUsage.total_tokens || 0} tokens`);
-        logger.info(`[${requestId}] Daily patterns token usage: input=${patternUsage.prompt_tokens}, output=${patternUsage.completion_tokens}, total=${patternUsage.total_tokens}`);
+        logger.debug(`[${requestId}] [TTS] Daily patterns OpenAI call - Model: ${patternUsage.model || 'gpt-4o-mini'}, Input: ${patternUsage.prompt_tokens || 0}, Output: ${patternUsage.completion_tokens || 0}, Total: ${patternUsage.total_tokens || 0} tokens`);
       }
 
-      logger.info(`[${requestId}] Daily usage patterns extracted: ${dailyUsagePatterns.length} patterns`);
+      logger.debug(`[${requestId}] Daily usage patterns extracted: ${dailyUsagePatterns.length} patterns`);
       logRequestStep(requestId, 'dailyPatterns:end', { count: dailyUsagePatterns.length, skipped: patternExtraction.skipped || false });
 
       // Persist to database if supabase is available
@@ -666,7 +670,7 @@ const processTtsRequest = async (req, res) => {
             error: insertError.message
           });
         } else {
-          logger.info(`[${requestId}] Daily usage patterns persisted successfully`);
+          logger.debug(`[${requestId}] Daily usage patterns persisted successfully`);
         }
       }
 
@@ -686,22 +690,20 @@ const processTtsRequest = async (req, res) => {
       }
 
       // Summary log for all OpenAI calls
-      console.log(`[${requestId}] 📊 TOTAL OpenAI Usage - Calls: ${openaiCallCount}, Total Input: ${openaiUsage.prompt_tokens} tokens, Total Output: ${openaiUsage.completion_tokens} tokens, Grand Total: ${openaiUsage.total_tokens} tokens`);
-      logger.info(`[${requestId}] Total OpenAI usage summary: calls=${openaiCallCount}, input=${openaiUsage.prompt_tokens}, output=${openaiUsage.completion_tokens}, total=${openaiUsage.total_tokens}`);
+      logger.debug(`[${requestId}] [TTS] Total OpenAI usage - Calls: ${openaiCallCount}, Input: ${openaiUsage.prompt_tokens}, Output: ${openaiUsage.completion_tokens}, Total: ${openaiUsage.total_tokens} tokens`);
     } catch (patternError) {
-      console.error(`[${requestId}] ❌ PATTERN EXTRACTION ERROR:`, patternError);
-      logger.error(`[${requestId}] Daily usage pattern extraction failed: ${patternError.message}`, {
+      logger.error(`[${requestId}] [TTS] Daily usage pattern extraction failed: ${patternError.message}`, {
         stack: patternError.stack,
         name: patternError.name
       });
       logRequestStep(requestId, 'dailyPatterns:error', { error: patternError.message });
       // Continue with TTS even if pattern extraction fails
     }
-    console.log(`[${requestId}] 🎯 Pattern extraction complete. Patterns found: ${dailyUsagePatterns.length}`);
+    logger.debug(`[${requestId}] [TTS] Pattern extraction complete. Patterns found: ${dailyUsagePatterns.length}`);
 
     // --- Check if no_tts flag is set (text generation only) ---
     if (req.body.no_tts === true) {
-      logger.info(`[${requestId}] no_tts flag detected. Skipping TTS synthesis, returning text only.`);
+      logger.debug(`[${requestId}] no_tts flag detected. Skipping TTS synthesis, returning text only.`);
       logRequestStep(requestId, 'tts:skipped', { reason: 'no_tts flag set' });
 
       // Log OpenAI cost for content generation (preview mode)
@@ -722,7 +724,7 @@ const processTtsRequest = async (req, res) => {
             costUsd: costInfo.totalCostUsd,
             metadata: { level, input_type: inputType },
           });
-          logger.info(`[${requestId}] 💰 Preview content cost logged: $${costInfo.totalCostUsd.toFixed(6)}`);
+          logger.debug(`[${requestId}] 💰 Preview content cost logged: $${costInfo.totalCostUsd.toFixed(6)}`);
         }
       } catch (costErr) {
         logger.warn(`[${requestId}] Failed to log preview cost:`, costErr?.message);
@@ -750,7 +752,7 @@ const processTtsRequest = async (req, res) => {
       logRequestStep(requestId, 'chunkText:preTTS:error', { error: 'textToAdapt is empty.' });
       return res.status(400).json({ success: false, message: "No text to chunk after translation." });
     }
-    console.log("[DEBUG] chunkText input (preTTS):", textToAdapt);
+    logger.debug(`[TTS] chunkText input (preTTS): ${textToAdapt}`);
     const preChunks = preChunkTextByByteLimit(textToAdapt, 4500);
     const initialChunks = preChunks.flatMap(part => chunkText(part, 4500));
     logRequestStep(requestId, 'chunkText:preTTS:start', { textToAdapt, chunkCount: initialChunks.length });
@@ -799,7 +801,7 @@ const processTtsRequest = async (req, res) => {
 
       const logEntry = `VOICE_NAME=${logVoiceName}\nAPI_NAME=${logApiName}\nFIRST_25=${logFirst25}\n\n`;
       fs.appendFileSync(path.join(__dirname, '../logs/create_content.log'), logEntry);
-      logger.info(`[${requestId}] 📝 Logged creation request to logs/create_content.log`);
+      logger.debug(`[${requestId}] 📝 Logged creation request to logs/create_content.log`);
     } catch (logErr) {
       logger.warn(`[${requestId}] ⚠️ Failed to log to logs/create_content.log: ${logErr.message}`);
     }
@@ -828,10 +830,10 @@ const processTtsRequest = async (req, res) => {
 
       if (bookVoiceSetting && bookVoiceSetting.voice_id) {
         selectedVoice = bookVoiceSetting.voice_id;
-        logger.info(`[${requestId}] 📖 Using persisted book voice for ${level}: ${selectedVoice} (${bookVoiceSetting.style})`);
+        logger.debug(`[${requestId}] 📖 Using persisted book voice for ${level}: ${selectedVoice} (${bookVoiceSetting.style})`);
       } else if (bookData && req.directorAnalysis) {
         // 2. No setting exists -> Ask Director to Cast and Save
-        logger.info(`[${requestId}] 🎬 Director Mode: Casting new voice for book "${bookData.title}" (${level})...`);
+        logger.debug(`[${requestId}] 🎬 Director Mode: Casting new voice for book "${bookData.title}" (${level})...`);
         const newSetting = await DirectorAgentService.suggestAndSaveBookVoice(bookData, level, bookData.voice_settings);
         selectedVoice = newSetting.voice_id;
       } else {
@@ -839,7 +841,7 @@ const processTtsRequest = async (req, res) => {
         if (req.directorAnalysis) {
           if (ttsProvider === 'openai') selectedVoice = 'onyx'; // Old hardcoded fallback
           else selectedVoice = 'Joanna';
-          logger.info(`[${requestId}] 🎬 Director Mode: Dynamic fallback voice (${selectedVoice})`);
+          logger.debug(`[${requestId}] 🎬 Director Mode: Dynamic fallback voice (${selectedVoice})`);
         } else {
           // ... existing Lingroot mapping logic ...
           lingrootVoiceId = getDefaultLingrootVoiceId(languageCode);
@@ -848,10 +850,10 @@ const processTtsRequest = async (req, res) => {
             selectedVoice = mapped.name;
             languageCode = mapped.languageCode || languageCode;
             if (mapped.engine) pollyEngine = mapped.engine;
-            logger.info(`[${requestId}] 🎯 No voice requested, using default Lingroot voice: ${selectedVoice}`);
+            logger.debug(`[${requestId}] 🎯 No voice requested, using default Lingroot voice: ${selectedVoice}`);
           } else {
             selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
-            logger.info(`[${requestId}] 🎯 No voice requested, using provider default: ${selectedVoice}`);
+            logger.debug(`[${requestId}] 🎯 No voice requested, using provider default: ${selectedVoice}`);
           }
         }
       }
@@ -866,7 +868,7 @@ const processTtsRequest = async (req, res) => {
           if (mapped.engine) {
             pollyEngine = mapped.engine;
           }
-          logger.info(`[${requestId}] 🎯 Requested Lingroot voice: ${lingrootVoiceId} | Provider: ${ttsProvider} | Selected: ${selectedVoice}`);
+          logger.debug(`[${requestId}] 🎯 Requested Lingroot voice: ${lingrootVoiceId} | Provider: ${ttsProvider} | Selected: ${selectedVoice}`);
         } else {
           selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
           logger.warn(`[${requestId}] ⚠️ Lingroot mapping not found for ${lingrootVoiceId}, falling back to provider default: ${selectedVoice}`);
@@ -874,15 +876,15 @@ const processTtsRequest = async (req, res) => {
       } else {
         // Backwards compatibility: treat as provider-specific voice name
         selectedVoice = requestedVoice;
-        logger.info(`[${requestId}] 🎯 Requested provider voice: ${requestedVoice} | Selected: ${selectedVoice}`);
+        logger.debug(`[${requestId}] 🎯 Requested provider voice: ${requestedVoice} | Selected: ${selectedVoice}`);
       }
     }
 
     // Trust client-selected voice (Lingroot-mapped or raw) and defer detailed validation to synthesis stage
-    logger.info(`[${requestId}] 🎙️ Using selected voice for synthesis: ${selectedVoice}`);
+    logger.debug(`[${requestId}] 🎙️ Using selected voice for synthesis: ${selectedVoice}`);
 
     // Log gender/accent from request for mismatch diagnostics
-    logger.info(`[${requestId}] 🎯 Client filters -> gender: ${req.body?.gender || 'n/a'}, accent: ${req.body?.accent || 'n/a'}`);
+    logger.debug(`[${requestId}] 🎯 Client filters -> gender: ${req.body?.gender || 'n/a'}, accent: ${req.body?.accent || 'n/a'}`);
 
     // --- Step 5: Her chunk için tekrar chunkText (TTS öncesi) ---
     let finalChunks = [];
@@ -891,7 +893,7 @@ const processTtsRequest = async (req, res) => {
     const isChirpSelected = isChirpVoice(selectedVoice);
 
     if (isChirpSelected) {
-      logger.info(`[${requestId}] 🎙️ CHIRP VOICE DETECTED: ${selectedVoice} - Using special 900-byte chunking`);
+      logger.debug(`[${requestId}] 🎙️ CHIRP VOICE DETECTED: ${selectedVoice} - Using special 900-byte chunking`);
     }
 
     for (let i = 0; i < initialChunks.length; i++) {
@@ -900,7 +902,7 @@ const processTtsRequest = async (req, res) => {
       if (isChirpSelected) {
         // Chirp voices: Use special chunking with 600-byte limit for safety
         chunks = chunkTextForChirpVoices(initialChunks[i], 600);
-        logger.info(`[${requestId}] 🎙️ [CHIRP CHUNK ${i + 1}] Generated ${chunks.length} chirp-safe chunks`);
+        logger.debug(`[${requestId}] 🎙️ [CHIRP CHUNK ${i + 1}] Generated ${chunks.length} chirp-safe chunks`);
       } else {
         // Regular voices: Use normal chunking with 1000 character limit
         // Daha küçük parçalara böl (bazı videolarda uzun paragraflar sorun çıkarıyor)
@@ -912,12 +914,12 @@ const processTtsRequest = async (req, res) => {
           }
           return chunk;
         });
-        logger.info(`[${requestId}] [Regular chunk ${i + 1}] Generated ${chunks.length} standard chunks`);
+        logger.debug(`[${requestId}] [Regular chunk ${i + 1}] Generated ${chunks.length} standard chunks`);
       }
 
       chunks.forEach((chunk, j) => {
         const chunkBytes = Buffer.byteLength(chunk, "utf-8");
-        logger.info(`[${isChirpSelected ? 'CHIRP' : 'Regular'} chunk] [${i}.${j}] length: ${chunk.length} chars, ${chunkBytes} bytes`);
+        logger.debug(`[${isChirpSelected ? 'CHIRP' : 'Regular'} chunk] [${i}.${j}] length: ${chunk.length} chars, ${chunkBytes} bytes`);
 
         // Final safety check for Chirp voices
         if (isChirpSelected && chunkBytes > 900) {
@@ -946,12 +948,12 @@ const processTtsRequest = async (req, res) => {
     const adaptedText = finalChunks.join('\n\n');
 
     // --- DUAL CACHE CHECK: contenthistory + chapter_audio ---
-    logger.info(`[${requestId}] 🎯 CHECKING CACHE: text(${adaptedText.length}chars) + level(${level}) + voice(${selectedVoice})`);
+    logger.debug(`[${requestId}] 🎯 CHECKING CACHE: text(${adaptedText.length}chars) + level(${level}) + voice(${selectedVoice})`);
 
     try {
       // 1. Önce chapter_audio tablosunda kontrol et (eğer chapter_id varsa)
       if (req.body.chapter_id) {
-        logger.info(`[${requestId}] 🔍 Checking chapter_audio for chapter_id: ${req.body.chapter_id}`);
+        logger.debug(`[${requestId}] 🔍 Checking chapter_audio for chapter_id: ${req.body.chapter_id}`);
         const { data: chapterAudio, error: chapterError } = await supabase
           .from('chapter_audio')
           .select('mp3_url, vtt_url, created_at, id')
@@ -989,11 +991,11 @@ const processTtsRequest = async (req, res) => {
 
           // If cached VTT URL exists, try to get real timings
           if (cached.vtt_url) {
-            logger.info(`[${requestId}] Cached VTT available, using for timing: ${cached.vtt_url}`);
+            logger.debug(`[${requestId}] Cached VTT available, using for timing: ${cached.vtt_url}`);
           }
 
           // RETURN CHAPTER CACHED RESULT IMMEDIATELY!
-          console.log('🎯 [CHAPTER CACHE RETURN] Using chapter cache return');
+          logger.debug(`[${requestId}] [TTS] Using chapter cache return`);
           return res.status(200).json({
             success: true,
             message: adaptedText,
@@ -1020,7 +1022,7 @@ const processTtsRequest = async (req, res) => {
       }
 
       // 2. Sonra contenthistory tablosunda kontrol et
-      logger.info(`[${requestId}] 🔍 Checking contenthistory table...`);
+      logger.debug(`[${requestId}] 🔍 Checking contenthistory table...`);
       const { data: cachedContent, error: cacheError } = await supabase
         .from('contenthistory')
         .select('mp3_url, created_at, id')
@@ -1048,7 +1050,7 @@ const processTtsRequest = async (req, res) => {
         });
 
         // RETURN CONTENT CACHED RESULT IMMEDIATELY!
-        console.log('🎯 [CONTENT CACHE RETURN] Using content cache return');
+        logger.debug(`[${requestId}] [TTS] Using content cache return`);
         return res.status(200).json({
           success: true,
           message: adaptedText,
@@ -1076,13 +1078,13 @@ const processTtsRequest = async (req, res) => {
         });
       }
 
-      logger.info(`[${requestId}] 🎯 CACHE MISS - No cached version found. Will create new TTS`);
+      logger.debug(`[${requestId}] 🎯 CACHE MISS - No cached version found. Will create new TTS`);
     } catch (cacheError) {
       logger.warn(`[${requestId}] Cache check failed: ${cacheError.message}`);
     }
 
     // Skip old TTS implementation - using real timing approach below
-    logger.info(`[${requestId}] 🔧 TTS Provider: ${ttsProvider} (Real Timing Mode)`);
+    logger.debug(`[${requestId}] 🔧 TTS Provider: ${ttsProvider} (Real Timing Mode)`);
 
     // --- Step 6: Synthesize Audio with TTS Provider (Google / Amazon / Azure) ---
     // Track TTS characters and category for cost
@@ -1102,7 +1104,7 @@ const processTtsRequest = async (req, res) => {
         else if (q === 'platinum') ttsCategory = 'Platinum';
       }
     }
-    logger.info(`[${requestId}] Starting ${ttsProvider} TTS synthesis...`);
+    logger.debug(`[${requestId}] Starting ${ttsProvider} TTS synthesis...`);
     logStep({
       requestId,
       stepName: 'tts:synthesis:start',
@@ -1125,14 +1127,14 @@ const processTtsRequest = async (req, res) => {
 
     for (let i = 0; i < finalChunks.length; i++) {
       const chunk = finalChunks[i];
-      logger.info(`[${requestId}] Synthesizing chunk ${i + 1}/${finalChunks.length} (${chunk.length} chars)...`);
+      logger.debug(`[${requestId}] Synthesizing chunk ${i + 1}/${finalChunks.length} (${chunk.length} chars)...`);
 
       try {
         let ttsResult;
 
         // Use Amazon Polly, Azure or Google based on provider setting
         if ((ttsProvider === 'polly' || ttsProvider === 'amazon') && isPollyAvailable()) {
-          logger.info(`[${requestId}] Using Amazon Polly for chunk ${i + 1}`);
+          logger.debug(`[${requestId}] Using Amazon Polly for chunk ${i + 1}`);
           const pollyOptions = {
             text: chunk,
             voiceName: selectedVoice,
@@ -1145,7 +1147,7 @@ const processTtsRequest = async (req, res) => {
           }
           ttsResult = await synthesizeWithPolly(pollyOptions);
         } else if (ttsProvider === 'azure' && isAzureTTSAvailable()) {
-          logger.info(`[${requestId}] Using Azure TTS for chunk ${i + 1}`);
+          logger.debug(`[${requestId}] Using Azure TTS for chunk ${i + 1}`);
           ttsResult = await synthesizeWithAzure({
             text: chunk,
             voiceName: selectedVoice,
@@ -1153,7 +1155,7 @@ const processTtsRequest = async (req, res) => {
             speakingRate: speakingRate
           });
         } else if (ttsProvider === 'openai' && isOpenAITTSAvailable()) {
-          logger.info(`[${requestId}] Using OpenAI TTS for chunk ${i + 1}`);
+          logger.debug(`[${requestId}] Using OpenAI TTS for chunk ${i + 1}`);
           // Get OpenAI voice config from Lingroot mapping
           const openaiVoiceConfig = lingrootVoiceId
             ? mapLingrootToProviderVoice(lingrootVoiceId, 'openai')
@@ -1176,7 +1178,7 @@ const processTtsRequest = async (req, res) => {
           } else if (ttsProvider === 'openai') {
             logger.warn(`[${requestId}] OpenAI TTS not available, falling back to Google TTS`);
           }
-          logger.info(`[${requestId}] Using Google TTS for chunk ${i + 1}`);
+          logger.debug(`[${requestId}] Using Google TTS for chunk ${i + 1}`);
           ttsResult = await synthesizeWithGoogle({
             text: chunk,
             voiceName: selectedVoice,
@@ -1190,9 +1192,9 @@ const processTtsRequest = async (req, res) => {
         }
 
         // 🎯 Voice ve gender bilgilerini log'la
-        logger.info(`[${requestId}] 🎙️ TTS Chunk ${i + 1} Success - Voice: ${ttsResult.voiceName || selectedVoice}, Gender: ${ttsResult.actualGender || 'unknown'}, Method: ${ttsResult.timingMethod || 'unknown'}`);
+        logger.debug(`[${requestId}] 🎙️ TTS Chunk ${i + 1} Success - Voice: ${ttsResult.voiceName || selectedVoice}, Gender: ${ttsResult.actualGender || 'unknown'}, Method: ${ttsResult.timingMethod || 'unknown'}`);
         if (ttsResult.actualGender) {
-          console.log(`🎙️ [VOICE DEBUG] Chunk ${i + 1} - Expected Voice: ${selectedVoice} -> Actual Gender: ${ttsResult.actualGender}`);
+          logger.debug(`[TTS] Chunk ${i + 1} - Expected Voice: ${selectedVoice} -> Actual Gender: ${ttsResult.actualGender}`);
         }
 
         // Audio segment'ini sakla
@@ -1243,7 +1245,7 @@ const processTtsRequest = async (req, res) => {
         // Bir sonraki chunk için offset'i güncelle
         cumulativeTimeOffset += ttsResult.totalDuration;
 
-        logger.info(`[${requestId}] Chunk ${i + 1} completed - Duration: ${ttsResult.totalDuration.toFixed(1)}s, Clean words: ${ttsResult.cleanWords?.length || 0}, Fallback: ${ttsResult.fallbackUsed ? 'Yes' : 'No'}`);
+        logger.debug(`[${requestId}] Chunk ${i + 1} completed - Duration: ${ttsResult.totalDuration.toFixed(1)}s, Clean words: ${ttsResult.cleanWords?.length || 0}, Fallback: ${ttsResult.fallbackUsed ? 'Yes' : 'No'}`);
 
       } catch (chunkError) {
         logger.error(`[${requestId}] Chunk ${i + 1} synthesis failed:`, chunkError.message);
@@ -1256,10 +1258,10 @@ const processTtsRequest = async (req, res) => {
     const totalWords = allWordTimings.length;
 
     logger.info(`[${requestId}] All chunks synthesized - Total duration: ${totalRealDuration.toFixed(1)}s, Total words: ${totalWords}, Segments: ${audioSegments.length}`);
-    logger.info(`[${requestId}] 📊 API Call Counts -> OpenAI: ${openaiCallCount}, Google TTS: ${googleTtsCallCount}`);
+    logger.debug(`[${requestId}] 📊 API Call Counts -> OpenAI: ${openaiCallCount}, Google TTS: ${googleTtsCallCount}`);
 
     // --- Step 7: Merge Audio Segments ---
-    logger.info(`[${requestId}] Merging ${audioSegments.length} audio segments...`);
+    logger.debug(`[${requestId}] Merging ${audioSegments.length} audio segments...`);
 
     const audioBuffers = audioSegments.map(segment => segment.audioContent);
     const mergedAudioBuffer = await mergeAudioSegmentsToBuffer(audioBuffers);
@@ -1271,10 +1273,10 @@ const processTtsRequest = async (req, res) => {
     const mergedAudioBase64 = mergedAudioBuffer.toString('base64');
     const uniqueId = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    logger.info(`[${requestId}] Audio merged successfully - Final size: ${mergedAudioBuffer.length} bytes, ID: ${uniqueId}`);
+    logger.debug(`[${requestId}] Audio merged successfully - Final size: ${mergedAudioBuffer.length} bytes, ID: ${uniqueId}`);
 
     // --- Step 7.5: Analyze Audio and Adjust Timings (Hybrid Approach) ---
-    logger.info(`[${requestId}] 🎯 Analyzing audio for drift correction...`);
+    logger.debug(`[${requestId}] 🎯 Analyzing audio for drift correction...`);
 
     const analysisResult = await analyzeAndAdjustTimings(
       mergedAudioBuffer,
@@ -1283,7 +1285,7 @@ const processTtsRequest = async (req, res) => {
     );
 
     // DEBUG: Log analysisResult
-    logger.info(`🔍 [ANALYSIS RESULT]:`, {
+    logger.debug(`🔍 [ANALYSIS RESULT]:`, {
       driftDetected: analysisResult.driftDetected,
       driftAmount: analysisResult.driftAmount,
       driftPercentage: analysisResult.driftPercentage,
@@ -1299,10 +1301,10 @@ const processTtsRequest = async (req, res) => {
 
     // Update total duration with actual audio duration
     const actualTotalDuration = analysisResult.actualDuration || totalRealDuration;
-    logger.info(`[${requestId}] 🎯 Final duration: ${actualTotalDuration.toFixed(2)}s (estimated: ${totalRealDuration.toFixed(2)}s)`);
+    logger.debug(`[${requestId}] 🎯 Final duration: ${actualTotalDuration.toFixed(2)}s (estimated: ${totalRealDuration.toFixed(2)}s)`);
 
     // --- Step 8: Create VTT with Optimized Timings ---
-    logger.info(`[${requestId}] Creating VTT with optimized word timings...`);
+    logger.debug(`[${requestId}] Creating VTT with optimized word timings...`);
 
     // Kullanıcıya gösterilecek temiz text oluştur (noktalama olmadan)
     const cleanTextForDisplay = allCleanWords.join(' ');
@@ -1330,22 +1332,21 @@ const processTtsRequest = async (req, res) => {
 
     const vttUrl = `/api/tts/vtt/${vttUniqueId}`;
 
-    logger.info(`[${requestId}] Optimized VTT created - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Clean words: ${allCleanWords.length}, Original words: ${allOriginalWords.length}`);
+    logger.debug(`[${requestId}] Optimized VTT created - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Clean words: ${allCleanWords.length}, Original words: ${allOriginalWords.length}`);
 
-    // --- Step 9: MFA Alignment (High-Accuracy Word Timestamps) ---
+    // --- Step 9: Forced Alignment (High-Accuracy Word Timestamps) ---
     let mfaWordTimings = null;
-    // const useMFA = false; // Temporarily disabled for debugging
-    //const useMFA = true; // Force enable for debugging
     const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
     const mfaDebugEnabled = process.env.MFA_DEBUG_DUMP === 'true';
 
     if (mfaDebugEnabled) {
-      logger.info(`[${requestId}] MFA debug dump enabled (file id will be: text_${requestId}_${uniqueId})`);
+      logger.debug(`[${requestId}] Alignment debug dump enabled (file id will be: text_${requestId}_${uniqueId})`);
     }
 
     if (useMFA) {
+      const alignStartTime = Date.now();
       try {
-        logger.info(`[${requestId}] 🎯 Starting MFA alignment for high-accuracy timestamps...`);
+        logger.debug(`[${requestId}] 🎯 Starting MFA alignment for high-accuracy timestamps...`);
 
         // Save merged audio to temp file for MFA processing
         const tempAudioPath = path.join(os.tmpdir(), `mfa_audio_${uniqueId}.mp3`);
@@ -1374,11 +1375,14 @@ const processTtsRequest = async (req, res) => {
         // Cleanup temp audio file
         await fs.promises.unlink(tempAudioPath).catch(() => { });
 
+        const alignElapsed = Math.round((Date.now() - alignStartTime) / 1000);
         logger.info(`[${requestId}] ✅ MFA alignment complete - ${mfaWordTimings.length} words aligned`);
-        logger.info(`[${requestId}] 🔍 MFA sample timing:`, mfaWordTimings.slice(0, 3));
+        logger.debug(`[${requestId}] ⏱️ MFA running time: ${alignElapsed} seconds`);
+        logger.debug(`[${requestId}] 🔍 MFA sample timing:`, mfaWordTimings.slice(0, 3));
 
       } catch (mfaError) {
-        logger.warn(`[${requestId}] ⚠️ MFA alignment failed, falling back to TTS timepoints: ${mfaError.message}`);
+        const alignElapsed = Math.round((Date.now() - alignStartTime) / 1000);
+        logger.warn(`[${requestId}] ⚠️ MFA alignment failed after ${alignElapsed} seconds, falling back to TTS timepoints: ${mfaError.message}`);
         // Continue with TTS timepoints if MFA fails
       }
     }
@@ -1387,12 +1391,18 @@ const processTtsRequest = async (req, res) => {
     let mp3Url = null;
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
       try {
-        logger.info(`[${requestId}] Uploading to Supabase...`);
+        logger.debug(`[${requestId}] Uploading to Supabase...`);
         mp3Url = await uploadToSupabase(mergedAudioBuffer, `tts_${uniqueId}.mp3`);
         logger.info(`[${requestId}] Supabase upload successful: ${mp3Url}`);
       } catch (uploadError) {
         logger.warn(`[${requestId}] Supabase upload failed, will serve locally: ${uploadError.message}`);
       }
+    }
+
+    // Evict oldest entry if map exceeds size limit (prevent memory leak)
+    if (tempAudioFiles.size >= 500) {
+      const oldestKey = tempAudioFiles.keys().next().value;
+      tempAudioFiles.delete(oldestKey);
     }
 
     // Store in memory for API serving
@@ -1406,10 +1416,10 @@ const processTtsRequest = async (req, res) => {
       driftCorrected: analysisResult.driftDetected || false
     });
 
-    logger.info(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
+    logger.debug(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
 
     // --- Step 11: Return Success Response ---
-    logger.info(`[${requestId}] Processing complete with ${mfaWordTimings ? 'MFA' : 'optimized'} timings.`);
+    logger.debug(`[${requestId}] Processing complete with ${mfaWordTimings ? 'MFA' : 'optimized'} timings.`);
 
     const finalMp3Url = mp3Url;
 
@@ -1419,27 +1429,27 @@ const processTtsRequest = async (req, res) => {
     let timepoints;
 
     if (mfaWordTimings && mfaWordTimings.length > 0) {
-      // Convert MFA timings to our timepoint format
+      // Convert MFA alignment timings to our timepoint format
       timepoints = mfaWordTimings.map((timing, index) => ({
         word: timing.word,
         timeSeconds: timing.startTime,
         endTimeSeconds: timing.endTime,
         index: index,
         hasRealTiming: true,
-        source: 'mfa' // Mark as MFA-generated
+        source: 'mfa'
       }));
 
-      logger.info(`✅ Using MFA timepoints - ${timepoints.length} words with acoustic alignment`);
+      logger.debug(`✅ Using MFA timepoints - ${timepoints.length} words with acoustic alignment`);
     } else {
       // Fall back to TTS timepoints
       timepoints = matchWordsWithTimings(allOriginalWords, allWordTimings, totalRealDuration);
-      logger.info(`⚠️ Using TTS timepoints - ${timepoints.length} words with estimated timing`);
+      logger.debug(`⚠️ Using TTS timepoints - ${timepoints.length} words with estimated timing`);
     }
 
     // DEBUG: Timepoints kontrolü
-    logger.info(`🔍 FINAL TIMEPOINTS DEBUG - Total words: ${words.length}, Timepoints: ${timepoints.length}`);
-    logger.info(`🔍 First 5 timepoints:`, timepoints.slice(0, 5));
-    logger.info(`🔍 Timing source: ${mfaWordTimings ? 'MFA (acoustic)' : 'TTS (estimated)'}`);
+    logger.debug(`🔍 FINAL TIMEPOINTS DEBUG - Total words: ${words.length}, Timepoints: ${timepoints.length}`);
+    logger.debug(`🔍 First 5 timepoints:`, timepoints.slice(0, 5));
+    logger.debug(`🔍 Timing source: ${mfaWordTimings ? 'MFA (acoustic)' : 'TTS (estimated)'}`);
 
     // Post-process: check limits and deactivate subscription if exceeded
     try {
@@ -1464,7 +1474,7 @@ const processTtsRequest = async (req, res) => {
     } catch (postLimitErr) {
       logger.error(`[${requestId}] Post-limit check failed: ${postLimitErr?.message}`);
     }
-    logger.info(`🔍 Sample word timing:`, allWordTimings[0]);
+    logger.debug(`🔍 Sample word timing:`, allWordTimings[0]);
 
     logStep({
       requestId,
@@ -1505,7 +1515,7 @@ const processTtsRequest = async (req, res) => {
           throw error;
         }
 
-        logger.info(`[${requestId}] Chapter audio saved to database via Supabase: ${data[0]?.id}`);
+        logger.debug(`[${requestId}] Chapter audio saved to database via Supabase: ${data[0]?.id}`);
       } catch (dbError) {
         logger.error(`[${requestId}] Error saving chapter audio to database: ${dbError.message}`);
         // Don't fail the request if database save fails
@@ -1517,7 +1527,7 @@ const processTtsRequest = async (req, res) => {
       try {
         const topicId = req.body.topic_id;
 
-        logger.info(`[${requestId}] Saving topic audio for topic_id=${topicId} to topic_contents`);
+        logger.debug(`[${requestId}] Saving topic audio for topic_id=${topicId} to topic_contents`);
 
         const insertPayload = {
           topic_id: topicId,
@@ -1543,7 +1553,7 @@ const processTtsRequest = async (req, res) => {
           throw error;
         }
 
-        logger.info(`[${requestId}] Topic audio saved to topic_contents: ${data[0]?.id}`);
+        logger.debug(`[${requestId}] Topic audio saved to topic_contents: ${data[0]?.id}`);
       } catch (dbError) {
         logger.error(`[${requestId}] Error saving topic audio to topic_contents: ${dbError.message}`);
         // İstek başarısız sayılmamalı; sadece logla
@@ -1553,21 +1563,21 @@ const processTtsRequest = async (req, res) => {
     // Genel TTS istekleri için contenthistory tablosuna kaydet
     let contentHistoryId = null;
     try {
-      logger.info(`[${requestId}] 💾 Saving to contenthistory table...`);
+      logger.debug(`[${requestId}] 💾 Saving to contenthistory table...`);
 
       // Get user ID from JWT token
       const authHeader = req.headers.authorization;
-      logger.info(`[${requestId}] 🔑 Auth header present: ${!!authHeader}`);
+      logger.debug(`[${requestId}] 🔑 Auth header present: ${!!authHeader}`);
       let userId = null;
 
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        logger.info(`[${requestId}] 🎫 Token extracted: ${token.substring(0, 20)}...`);
+        logger.debug(`[${requestId}] 🎫 Token extracted: ${token.substring(0, 20)}...`);
         const jwt = require('jsonwebtoken');
         try {
           const decoded = jwt.verify(token, process.env.JWT_SECRET);
           userId = decoded.id;
-          logger.info(`[${requestId}] 👤 User ID from token: ${userId}`);
+          logger.debug(`[${requestId}] 👤 User ID from token: ${userId}`);
         } catch (jwtError) {
           logger.warn(`[${requestId}] ❌ Could not decode JWT token: ${jwtError.message}`);
         }
@@ -1600,7 +1610,7 @@ const processTtsRequest = async (req, res) => {
           user_id: userId,
           level: level || 'B1',
           mp3_url: finalMp3Url,
-          input: req.body.input || '',
+          input: inputType === 'file' ? (rawText || req.body.input || '') : (req.body.input || ''),
           translated_text: translatedText || translationResult || '',
           adapted_text: textToAdapt || '',
           input_type: req.body.type || 'text',
@@ -1624,9 +1634,10 @@ const processTtsRequest = async (req, res) => {
           // LLM usage breakdown for detailed cost analytics (prompt-level detail)
           llm_usage_details: usageBreakdown.length > 0 ? JSON.stringify(usageBreakdown) : null,
           detected_mood: detectedMood || null,
+          processing_duration_ms: Date.now() - processingStartTime,
         };
 
-        logger.info(`[${requestId}] 📋 Insert data:`, JSON.stringify(insertData, null, 2));
+        logger.debug(`[${requestId}] 📋 Insert data:`, JSON.stringify(insertData, null, 2));
 
         // If a record with same mp3_url already exists for this user, update it instead of inserting a new one
         let data, error;
@@ -1646,7 +1657,7 @@ const processTtsRequest = async (req, res) => {
               .update(insertData)
               .eq('id', existingId)
               .select());
-            logger.info(`[${requestId}] ♻️ Updated existing contenthistory ID: ${existingId} for same mp3_url`);
+            logger.debug(`[${requestId}] ♻️ Updated existing contenthistory ID: ${existingId} for same mp3_url`);
           } else {
             ({ data, error } = await supabase
               .from('contenthistory')
@@ -1662,8 +1673,8 @@ const processTtsRequest = async (req, res) => {
           throw error;
         }
 
-        logger.info(`[${requestId}] ✅ Audio saved to contenthistory table: ${data[0]?.id}`);
-        logger.info(`[${requestId}] 📊 Saved data:`, JSON.stringify(data[0], null, 2));
+        logger.debug(`[${requestId}] ✅ Audio saved to contenthistory table: ${data[0]?.id}`);
+        logger.debug(`[${requestId}] 📊 Saved data:`, JSON.stringify(data[0], null, 2));
         contentHistoryId = data?.[0]?.id || null;
 
         // Free Trial için ses oluşturma sayacını artır
@@ -1692,7 +1703,7 @@ const processTtsRequest = async (req, res) => {
             if (updateError) {
               logger.warn(`[${requestId}] Failed to update Free Trial counter:`, updateError.message);
             } else {
-              logger.info(`[${requestId}] 🎯 Free Trial counter updated: ${currentCount} -> ${currentCount + 1}`);
+              logger.debug(`[${requestId}] 🎯 Free Trial counter updated: ${currentCount} -> ${currentCount + 1}`);
             }
           }
         } catch (counterErr) {
@@ -1742,7 +1753,7 @@ const processTtsRequest = async (req, res) => {
     }
 
     // Debug: Çeviri ve adaptasyon sonuçlarını logla
-    console.log('🔍 [TTS RESPONSE DEBUG]', {
+    logger.debug(`[TTS] Response debug`, {
       translationResult: translationResult ? translationResult.substring(0, 100) + '...' : 'EMPTY',
       adaptedText: adaptedText ? adaptedText.substring(0, 100) + '...' : 'EMPTY',
       isCacheHit: req.body.is_cached || false,
@@ -1750,7 +1761,7 @@ const processTtsRequest = async (req, res) => {
       hasAdaptedText: !!adaptedText
     });
 
-    console.log('🎯 [MAIN RETURN] Using main return statement with translated fields');
+    logger.info(`[${requestId}] [TTS] Using main return statement with translated fields`);
 
     const responseData = {
       success: true,
@@ -1797,15 +1808,15 @@ const processTtsRequest = async (req, res) => {
     };
 
     // DEBUG: Final response'u kontrol et
-    logger.info(`🔍 RESPONSE DEBUG - Timepoints in response: ${responseData.timepoints?.length || 0}`);
-    logger.info(`🔍 Response timepoints sample:`, responseData.timepoints?.slice(0, 3));
-    logger.info(`🔍 Words in response: ${responseData.words?.length || 0}, Type: ${typeof responseData.words}, Is Array: ${Array.isArray(responseData.words)}`);
-    logger.info(`🔍 Response fields:`, Object.keys(responseData));
-    logger.info(`🔍 [TIMING SOURCE IN RESPONSE]:`, {
+    logger.debug(`🔍 RESPONSE DEBUG - Timepoints in response: ${responseData.timepoints?.length || 0}`);
+    logger.debug(`🔍 Response timepoints sample:`, responseData.timepoints?.slice(0, 3));
+    logger.debug(`🔍 Words in response: ${responseData.words?.length || 0}, Type: ${typeof responseData.words}, Is Array: ${Array.isArray(responseData.words)}`);
+    logger.debug(`🔍 Response fields:`, Object.keys(responseData));
+    logger.debug(`🔍 [TIMING SOURCE IN RESPONSE]:`, {
       timing_source: responseData.timing_source,
       timing_accuracy: responseData.timing_accuracy
     });
-    logger.info(`🔍 [DRIFT FIELDS IN RESPONSE]:`, {
+    logger.debug(`🔍 [DRIFT FIELDS IN RESPONSE]:`, {
       drift_corrected: responseData.drift_corrected,
       drift_amount: responseData.drift_amount,
       drift_percentage: responseData.drift_percentage,
@@ -1848,13 +1859,17 @@ const processTtsRequest = async (req, res) => {
     });
   } finally {
     // --- Final Step: Ensure Temporary File Cleanup ---
-    logger.info(`[${requestId}] Performing final cleanup.`);
+    logger.debug(`[${requestId}] Performing final cleanup.`);
 
-    // Release TTS slot for this user
-    releaseTtsSlot(userId);
+    // Release TTS slot for this user (only if acquired)
+    if (!skipConcurrency) {
+      releaseTtsSlot(userId);
+    }
 
-    // Release global TTS slot
-    limiters.tts.release();
+    // Release global TTS slot (only if acquired)
+    if (globalSlotAcquired) {
+      limiters.tts.release();
+    }
 
     // Do NOT clean up temp file that we need for API access
     // cleanupTempFile(tempFilePath);
@@ -1869,9 +1884,9 @@ const processTtsRequest = async (req, res) => {
 // Endpoint to serve audio files
 const getAudioFile = async (req, res) => {
   const audioId = req.params.id;
-  logger.info(`🎵 getAudioFile called with audioId: ${audioId}`);
-  logger.info(`📦 tempAudioFiles size: ${tempAudioFiles.size}`);
-  logger.info(`🔑 tempAudioFiles keys: ${Array.from(tempAudioFiles.keys()).join(', ')}`);
+  logger.debug(`🎵 getAudioFile called with audioId: ${audioId}`);
+  logger.debug(`📦 tempAudioFiles size: ${tempAudioFiles.size}`);
+  logger.debug(`🔑 tempAudioFiles keys: ${Array.from(tempAudioFiles.keys()).join(', ')}`);
 
   const audioData = tempAudioFiles.get(audioId);
 
@@ -1896,11 +1911,11 @@ const getAudioFile = async (req, res) => {
 
       // If mp3_url is a Supabase Storage URL, redirect to it
       if (contentData.mp3_url.includes('supabase')) {
-        logger.info(`🔄 Redirecting to Supabase Storage URL: ${contentData.mp3_url}`);
+        logger.debug(`🔄 Redirecting to Supabase Storage URL: ${contentData.mp3_url}`);
         return res.redirect(contentData.mp3_url);
       } else {
         // If it's an external URL (like mock), redirect to it
-        logger.info(`🔄 Redirecting to external URL: ${contentData.mp3_url}`);
+        logger.debug(`🔄 Redirecting to external URL: ${contentData.mp3_url}`);
         return res.redirect(contentData.mp3_url);
       }
     } catch (error) {
@@ -1912,17 +1927,17 @@ const getAudioFile = async (req, res) => {
     }
   }
 
-  logger.info(`✅ Audio file found in temp storage: ${audioId}, buffer size: ${audioData.buffer.length}`);
+  logger.debug(`✅ Audio file found in temp storage: ${audioId}, buffer size: ${audioData.buffer.length}`);
 
   // Debug: Log first few bytes to check if it's a valid MP3
   const firstBytes = audioData.buffer.slice(0, 16);
-  logger.info(`🔍 First 16 bytes of audio buffer: ${Array.from(firstBytes).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
-  logger.info(`🔍 First 4 bytes as string: ${firstBytes.slice(0, 4).toString()}`);
+  logger.debug(`🔍 First 16 bytes of audio buffer: ${Array.from(firstBytes).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+  logger.debug(`🔍 First 4 bytes as string: ${firstBytes.slice(0, 4).toString()}`);
 
   // Check if it starts with MP3 header (0xFF 0xFB or ID3)
   const isMP3Header = (firstBytes[0] === 0xFF && (firstBytes[1] & 0xE0) === 0xE0) ||
     firstBytes.slice(0, 3).toString() === 'ID3';
-  logger.info(`🔍 Is valid MP3 header: ${isMP3Header}`);
+  logger.debug(`🔍 Is valid MP3 header: ${isMP3Header}`);
 
   // Set proper CORS and cache headers
   const headers = {
@@ -1937,13 +1952,13 @@ const getAudioFile = async (req, res) => {
     'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges'
   };
 
-  logger.info(`📋 Setting headers:`, headers);
+  logger.debug(`📋 Setting headers:`, headers);
   res.set(headers);
 
   // Handle range requests for better audio streaming
   const range = req.headers.range;
   if (range) {
-    logger.info(`📏 Range request detected: ${range}`);
+    logger.debug(`📏 Range request detected: ${range}`);
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : audioData.buffer.length - 1;
@@ -1957,14 +1972,14 @@ const getAudioFile = async (req, res) => {
       'Access-Control-Allow-Origin': '*'
     };
 
-    logger.info(`📏 Range headers:`, rangeHeaders);
+    logger.debug(`📏 Range headers:`, rangeHeaders);
     res.writeHead(206, rangeHeaders);
     const bufferSlice = audioData.buffer.slice(start, end + 1);
-    logger.info(`📏 Sending range response: ${start}-${end}/${audioData.buffer.length}, chunk size: ${chunksize}`);
+    logger.debug(`📏 Sending range response: ${start}-${end}/${audioData.buffer.length}, chunk size: ${chunksize}`);
     return res.end(bufferSlice);
   }
 
-  logger.info(`📤 Sending full audio buffer: ${audioData.buffer.length} bytes`);
+  logger.debug(`📤 Sending full audio buffer: ${audioData.buffer.length} bytes`);
   return res.send(audioData.buffer);
 };
 
@@ -1975,18 +1990,18 @@ const getAudioFile = async (req, res) => {
  */
 const getVttFile = async (req, res) => {
   const vttId = req.params.vttId;
-  logger.info(`📝 VTT file requested: ${vttId}`);
+  logger.debug(`📝 VTT file requested: ${vttId}`);
 
   try {
     const vttData = tempVttFiles.get(vttId);
 
     if (!vttData) {
       logger.warn(`📝 VTT file not found: ${vttId}`);
-      logger.info(`📝 Available VTT files: ${Array.from(tempVttFiles.keys()).join(', ')}`);
+      logger.debug(`📝 Available VTT files: ${Array.from(tempVttFiles.keys()).join(', ')}`);
       return res.status(404).json({ success: false, message: 'VTT file not found' });
     }
 
-    logger.info(`📝 Serving VTT file: ${vttId}`);
+    logger.debug(`📝 Serving VTT file: ${vttId}`);
     res.setHeader('Content-Type', 'text/vtt');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -2023,12 +2038,12 @@ setInterval(() => {
     // Delete VTT files older than 1 hour
     if (now - data.createdAt > 60 * 60 * 1000) {
       tempVttFiles.delete(id);
-      logger.info(`Cleaned up VTT file: ${id}`);
+      logger.debug(`Cleaned up VTT file: ${id}`);
     }
   });
 
-  logger.info(`Cleanup completed - Audio files: ${tempAudioFiles.size}, VTT files: ${tempVttFiles.size}`);
-}, 60 * 60 * 1000); // Run every hour
+  logger.debug(`Cleanup completed - Audio files: ${tempAudioFiles.size}, VTT files: ${tempVttFiles.size}`);
+}, 15 * 60 * 1000); // Run every 15 minutes
 
 // --- TTS Step Endpoints ---
 const translateToEnglish = async (req, res) => {
@@ -2039,8 +2054,7 @@ const translateToEnglish = async (req, res) => {
     // Select the appropriate CEFR prompt based on the level
     const promptFile = `cefr_${level}.txt`;
     const promptPath = path.join(__dirname, '../prompts', promptFile);
-    console.log(`🎯 [TTS CONTROLLER] Using prompt file: ${promptFile} for level: ${level}`);
-    logger.info(`🎯 TTS Controller - Selected prompt file: ${promptFile} for level: ${level}`);
+    logger.debug(`[TTS] Selected prompt file: ${promptFile} for level: ${level}`);
     const promptText = fs.readFileSync(promptPath, 'utf-8');
     // Use the prompt in the translation process
     const result = await translateToEnglishWithOpenAI(text, promptText);
@@ -2099,7 +2113,7 @@ const synthesizeChunkAPI = async (req, res) => {
         if (mapped && mapped.name) {
           selectedVoice = mapped.name;
           languageCode = mapped.languageCode || languageCode;
-          logger.info(`[${requestId}] 🎯 ChunkAPI Lingroot voice: ${voice} -> ${ttsProvider}:${selectedVoice}`);
+          logger.debug(`[${requestId}] 🎯 ChunkAPI Lingroot voice: ${voice} -> ${ttsProvider}:${selectedVoice}`);
         } else {
           logger.warn(`[${requestId}] ⚠️ ChunkAPI Lingroot mapping not found for ${voice}, using raw provider voice if possible`);
         }

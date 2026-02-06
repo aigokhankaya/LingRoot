@@ -5,13 +5,13 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   TextInput,
   Alert,
   ActivityIndicator,
   ScrollView,
   InteractionManager,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import perfLog from '../utils/performanceLogger';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
@@ -21,12 +21,22 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAudioContext } from '../contexts/AudioContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import AudioPlayer from '../components/AudioPlayer';
+import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
+import {
+  TourProvider,
+  LibraryTooltip,
+  LIBRARY_TOUR_STEPS,
+  LIBRARY_TOUR_KEY,
+  useTourAutoStart,
+} from '../components/GuideTour';
+
+const WalkthroughableView = walkthroughable(View);
 
 type ContentType = 'all' | 'podcast' | 'text' | 'topic' | 'file' | 'book';
 
-const LibraryScreen: React.FC = () => {
+const LibraryScreenContent: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { isTrackPlaying, currentTrack, isPlaying } = useAudioContext();
@@ -37,10 +47,10 @@ const LibraryScreen: React.FC = () => {
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<AudioTrack | null>(null);
-  const [playerVisible, setPlayerVisible] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favoriteTracks, setFavoriteTracks] = useState<AudioTrack[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
   const { user } = useAuth();
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
@@ -51,6 +61,10 @@ const LibraryScreen: React.FC = () => {
   const audioTracksRef = useRef<AudioTrack[]>([]);
   const pageRef = useRef<number>(1);
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word');
+  const lang = language === 'tr' ? 'tr' : 'en';
+
+  // Guide tour auto-start
+  useTourAutoStart(LIBRARY_TOUR_KEY, 800);
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -202,8 +216,11 @@ const LibraryScreen: React.FC = () => {
           setAudioTracks(merged);
         }
 
-        setSelectedTrack(track);
-        setPlayerVisible(true);
+        // Navigate to AudioPlayer screen instead of showing modal
+        navigation.navigate('AudioPlayer', {
+          track: track,
+          highlightMode: highlightMode
+        });
       } catch (e) {
         // Silent error - player will not open if something goes wrong
       } finally {
@@ -218,6 +235,36 @@ const LibraryScreen: React.FC = () => {
 
     resolveNotificationAudio();
   }, [route, navigation]);
+
+  // Handle track passed from HomeScreen's "Kaldığın Yerden Devam Et" section
+  useEffect(() => {
+    const params: any = (route as any).params || {};
+    const playTrack = params.playTrack;
+
+    if (!playTrack) {
+      return;
+    }
+
+    console.log('[Library] Received playTrack from HomeScreen:', playTrack.id);
+
+    // Use InteractionManager to wait for navigation animation to complete
+    const task = InteractionManager.runAfterInteractions(() => {
+      // Navigate to AudioPlayer screen instead of showing modal
+      navigation.navigate('AudioPlayer', {
+        track: playTrack,
+        highlightMode: highlightMode
+      });
+
+      // Clear param so it doesn't trigger again
+      try {
+        navigation.setParams({ playTrack: undefined });
+      } catch {
+        // ignore
+      }
+    });
+
+    return () => task.cancel();
+  }, [route, navigation, highlightMode]);
 
   // Fetch audio history from API with search and filter parameters
   const fetchAudioHistory = async (showLoading = true, nextPage?: number, resetList = false) => {
@@ -379,9 +426,10 @@ const LibraryScreen: React.FC = () => {
     // Server update
     try {
       await apiService.toggleUserFavorite(id, 'content_item');
-    } catch (error) {
+    } catch (error: unknown) {
       // Revert on error
-      console.error('Failed to toggle favorite on server');
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error('[Library] Failed to toggle favorite on server:', errMsg);
       const revert = isCurrentlyFav
         ? [...favoriteIds, id] // add back
         : favoriteIds.filter(fid => fid !== id); // remove again
@@ -390,17 +438,23 @@ const LibraryScreen: React.FC = () => {
     }
   };
 
-  // Favoriler toggle'ı: Favoriler yüklenmemişse önce yükleyip sonra filtreyi aç
+  // Favoriler toggle'ı: Backend'ten tüm favorileri çekip ayrı state'te tut
   const handleToggleFavorites = async () => {
     const enabling = !showFavoritesOnly;
     if (enabling) {
+      setLoadingFavorites(true);
+      setShowFavoritesOnly(true);
+
       // 1) Favori ID'lerini yükle
       if (!favoriteIds || favoriteIds.length === 0) {
         await loadFavorites();
       }
-      // 2) Backend'ten favori detaylarını tek çağrıda çek ve listeye ekle
+
+      // 2) Backend'ten TÜM favori detaylarını çek ve ayrı state'e kaydet
       try {
+        console.log('[Library] Fetching favorite details...');
         const favDetails = await apiService.getUserFavoriteDetails();
+        console.log('[Library] Favorite details received:', favDetails?.length || 0, 'items');
         if (Array.isArray(favDetails) && favDetails.length > 0) {
           const mapped = favDetails.map((item: any) => ({
             id: String(item.id),
@@ -417,18 +471,19 @@ const LibraryScreen: React.FC = () => {
             timepoints: Array.isArray(item.timepoints) ? item.timepoints : undefined,
             words: Array.isArray(item.words) ? item.words : undefined,
           } as AudioTrack));
-          const existingIds = new Set(audioTracksRef.current.map(t => t.id));
-          const merged = [...audioTracksRef.current, ...mapped.filter(t => !existingIds.has(t.id))];
-          setAudioTracks(merged);
-          audioTracksRef.current = merged;
+          // Favori ID'lerini de güncelle
+          setFavoriteIds(mapped.map(t => t.id));
+          // Ayrı favoriteTracks state'ine kaydet
+          setFavoriteTracks(mapped);
+        } else {
+          setFavoriteTracks([]);
         }
       } catch (e) {
-
+        console.error('Error fetching favorite details:', e);
+        setFavoriteTracks([]);
+      } finally {
+        setLoadingFavorites(false);
       }
-      // 3) Sonra filtreyi aç ve arka plan hidrasyonu devreye girsin
-      setShowFavoritesOnly(true);
-      setHasUserScrolled(true);
-      ensureFavoritesCoverage();
     } else {
       setShowFavoritesOnly(false);
     }
@@ -535,15 +590,27 @@ const LibraryScreen: React.FC = () => {
     return colors[level];
   };
 
-  // Client-side filtering: Only filter for favorites since search/level/type are handled by backend
-  const filteredTracks = audioTracks.filter((track) => {
-    // Only apply favorites filter client-side
-    const matchesFav = !showFavoritesOnly || isFavorite(track.id);
-    return matchesFav;
+  // Favoriler modunda favoriteTracks kullan, normal modda audioTracks
+  const baseTracks = showFavoritesOnly ? favoriteTracks : audioTracks;
+
+  // Client-side filtering for favorites view (level, type, search)
+  const filteredTracks = baseTracks.filter((track) => {
+    // Level filter
+    if (selectedLevel !== 'all' && track.level !== selectedLevel) return false;
+    // Type filter
+    if (selectedType !== 'all' && track.input_type !== selectedType) return false;
+    // Search filter
+    if (searchText) {
+      const searchLower = searchText.toLowerCase();
+      const titleMatch = (track.title || '').toLowerCase().includes(searchLower);
+      const adaptedMatch = (track.adapted_text || '').toLowerCase().includes(searchLower);
+      const translatedMatch = (track.translated_text || '').toLowerCase().includes(searchLower);
+      if (!titleMatch && !adaptedMatch && !translatedMatch) return false;
+    }
+    return true;
   });
 
-  // For favorites view, show all matching tracks
-  // For normal view, backend already handles pagination
+  // displayedTracks is the final filtered list
   const displayedTracks = filteredTracks;
 
   // When search text or filters change, fetch from backend with new parameters
@@ -629,25 +696,14 @@ const LibraryScreen: React.FC = () => {
   const handlePlayTrack = (track: AudioTrack) => {
     // Parse words/timepoints lazily only when user selects a track
     const parsed = parseTrackData(track);
-    setSelectedTrack(parsed);
-    setPlayerVisible(true);
+    // Navigate to AudioPlayer screen instead of showing modal
+    navigation.navigate('AudioPlayer', {
+      track: parsed,
+      highlightMode: highlightMode
+    });
   };
 
-  const handleClosePlayer = () => {
-    perfLog.mark('library:handleClosePlayer:start');
-    setPlayerVisible(false);
-    perfLog.mark('library:handleClosePlayer:afterSetPlayerVisible');
-    // Delay clearing selectedTrack so the Modal slide-out animation
-    // completes before the AudioPlayer component is unmounted.
-    // Unmounting mid-animation causes an iOS native Modal freeze.
-    setTimeout(() => {
-      setSelectedTrack(null);
-      perfLog.mark('library:handleClosePlayer:trackCleared');
-    }, 400);
-    perfLog.mark('library:handleClosePlayer:end');
-  };
-
-  const renderAudioTrack = ({ item }: { item: AudioTrack }) => {
+  const renderAudioTrack = ({ item, index }: { item: AudioTrack; index: number }) => {
     const isCurrentlyPlaying = isTrackPlaying(item.id);
 
     // Debug log sadece durumu değişen track'ler için
@@ -667,7 +723,7 @@ const LibraryScreen: React.FC = () => {
       }
     };
 
-    return (
+    const card = (
       <TouchableOpacity
         style={[
           styles.trackCard,
@@ -727,6 +783,18 @@ const LibraryScreen: React.FC = () => {
         </TouchableOpacity>
       </TouchableOpacity>
     );
+
+    if (index === 0) {
+      return (
+        <CopilotStep order={5} name="libraryTrackItem" text={LIBRARY_TOUR_STEPS.libraryTrackItem[lang]}>
+          <WalkthroughableView>
+            {card}
+          </WalkthroughableView>
+        </CopilotStep>
+      );
+    }
+
+    return card;
   };
 
   // Loading state handled inline now
@@ -735,7 +803,7 @@ const LibraryScreen: React.FC = () => {
   // Not authenticated state
   if (!user?.id) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyState}>
           <Icon name="account-circle" size={64} color="#ccc" />
           <Text style={styles.emptyTitle}>{language === 'tr' ? 'Giriş Yapılmadı' : 'Not Logged In'}</Text>
@@ -753,74 +821,88 @@ const LibraryScreen: React.FC = () => {
             <Text style={styles.retryButtonText}>{language === 'tr' ? 'Giriş Yap' : 'Log In'}</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{language === 'tr' ? 'Kütüphane' : 'Library'}</Text>
-        <TouchableOpacity
-          style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
-          onPress={handleToggleFavorites}
-        >
-          <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#FFFFFF' : '#FFFFFF'} />
-          <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
-            {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Icon name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={language === 'tr' ? 'Ses dosyalarında ara...' : 'Search in audio files...'}
-            placeholderTextColor="#999"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-        </View>
-      </View>
-
-      {/* Type Filters */}
-      <View style={styles.typeFilterContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.typeFilterContent}
-        >
-          {typeOptions.map((opt) => (
+        <CopilotStep order={2} name="libraryFavorites" text={LIBRARY_TOUR_STEPS.libraryFavorites[lang]}>
+          <WalkthroughableView>
             <TouchableOpacity
-              key={opt.id}
-              style={[
-                styles.typeChip,
-                selectedType === opt.id && styles.typeChipActive,
-              ]}
-              onPress={() => setSelectedType(opt.id)}
+              style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
+              onPress={handleToggleFavorites}
             >
-              <Icon
-                name={opt.icon}
-                size={16}
-                color={selectedType === opt.id ? '#FFFFFF' : COLORS.slate500}
-                style={{ marginRight: 6 }}
-              />
-              <Text
-                style={[
-                  styles.typeChipText,
-                  selectedType === opt.id && styles.typeChipTextActive,
-                ]}
-              >
-                {language === 'tr' ? opt.labelTr : opt.labelEn}
+              <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#FFFFFF' : '#FFFFFF'} />
+              <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
+                {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </WalkthroughableView>
+        </CopilotStep>
       </View>
 
-      <View style={styles.levelFilter}>
+      <CopilotStep order={1} name="librarySearch" text={LIBRARY_TOUR_STEPS.librarySearch[lang]}>
+        <WalkthroughableView>
+          <View style={styles.searchContainer}>
+            <View style={styles.searchBox}>
+              <Icon name="search" size={20} color="#666" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={language === 'tr' ? 'Ses dosyalarında ara...' : 'Search in audio files...'}
+                placeholderTextColor="#999"
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+            </View>
+          </View>
+        </WalkthroughableView>
+      </CopilotStep>
+
+      {/* Type Filters */}
+      <CopilotStep order={3} name="libraryTypeFilter" text={LIBRARY_TOUR_STEPS.libraryTypeFilter[lang]}>
+        <WalkthroughableView>
+          <View style={styles.typeFilterContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.typeFilterContent}
+            >
+              {typeOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[
+                    styles.typeChip,
+                    selectedType === opt.id && styles.typeChipActive,
+                  ]}
+                  onPress={() => setSelectedType(opt.id)}
+                >
+                  <Icon
+                    name={opt.icon}
+                    size={16}
+                    color={selectedType === opt.id ? '#FFFFFF' : COLORS.slate500}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.typeChipText,
+                      selectedType === opt.id && styles.typeChipTextActive,
+                    ]}
+                  >
+                    {language === 'tr' ? opt.labelTr : opt.labelEn}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </WalkthroughableView>
+      </CopilotStep>
+
+      <CopilotStep order={4} name="libraryLevelFilter" text={LIBRARY_TOUR_STEPS.libraryLevelFilter[lang]}>
+        <WalkthroughableView>
+          <View style={styles.levelFilter}>
         {/* Row 1: A1, A2, B1 */}
         <View style={styles.levelFilterRow}>
           {(['A1', 'A2', 'B1'] as CEFRLevel[]).map((level) => (
@@ -866,7 +948,9 @@ const LibraryScreen: React.FC = () => {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+          </View>
+        </WalkthroughableView>
+      </CopilotStep>
 
       {loading && filteredTracks.length === 0 ? (
         <View style={styles.loadingContainer}>
@@ -891,6 +975,11 @@ const LibraryScreen: React.FC = () => {
           initialNumToRender={PAGE_SIZE}
           windowSize={5}
           removeClippedSubviews
+          getItemLayout={(_data, index) => ({
+            length: 100,
+            offset: 100 * index,
+            index,
+          })}
           ListHeaderComponent={
             loading ? (
               <View style={{ paddingVertical: 10, alignItems: 'center' }}>
@@ -906,7 +995,7 @@ const LibraryScreen: React.FC = () => {
             ) : null
           }
         />
-      ) : showFavoritesOnly && (isHydratingFavorites || favoriteIds.length > 0) ? (
+      ) : showFavoritesOnly && loadingFavorites ? (
         <View style={styles.emptyState}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{language === 'tr' ? 'Favoriler yükleniyor...' : 'Loading favorites...'}</Text>
@@ -930,20 +1019,15 @@ const LibraryScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Audio Player Modal */}
-      {selectedTrack && (
-        <AudioPlayer
-          track={selectedTrack}
-          visible={playerVisible}
-          onClose={handleClosePlayer}
-          timepoints={selectedTrack.timepoints || []}
-          words={selectedTrack.words || []}
-          initialHighlightMode={highlightMode}
-        />
-      )}
-    </SafeAreaView>
+    </View>
   );
 };
+
+const LibraryScreen: React.FC = () => (
+  <TourProvider tooltip={LibraryTooltip}>
+    <LibraryScreenContent />
+  </TourProvider>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -1302,4 +1386,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LibraryScreen; 
+export default React.memo(LibraryScreen); 

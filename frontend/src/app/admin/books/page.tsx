@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 import {
     Loader2, ArrowLeft, Plus, Search, BookOpen, Library,
     TrendingUp, FileText, Calendar, LayoutGrid, List as ListIcon,
@@ -32,7 +33,7 @@ interface Book {
 
 const ALL_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-export default function BooksPage() {
+function BooksPageContent() {
     const router = useRouter();
     const [books, setBooks] = useState<Book[]>([]);
     const [loading, setLoading] = useState(true);
@@ -263,10 +264,12 @@ export default function BooksPage() {
                             >
                                 <div className="relative h-48 bg-slate-100 overflow-hidden">
                                     {book.cover_url ? (
-                                        <img
+                                        <Image
                                             src={book.cover_url}
                                             alt={book.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            fill
+                                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-slate-50">
@@ -349,9 +352,9 @@ export default function BooksPage() {
                                 {filteredBooks.map((book) => (
                                     <tr key={book.id} className="hover:bg-slate-50/80 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="w-12 h-16 bg-slate-100 rounded overflow-hidden border border-slate-200">
+                                            <div className="relative w-12 h-16 bg-slate-100 rounded overflow-hidden border border-slate-200">
                                                 {book.cover_url ? (
-                                                    <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                                                    <Image src={book.cover_url} alt={book.title} fill className="object-cover" sizes="48px" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-slate-300">
                                                         <BookOpen className="w-6 h-6" />
@@ -411,5 +414,17 @@ export default function BooksPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function BooksPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+            </div>
+        }>
+            <BooksPageContent />
+        </Suspense>
     );
 }

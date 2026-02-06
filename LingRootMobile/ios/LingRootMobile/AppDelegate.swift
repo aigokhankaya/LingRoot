@@ -3,11 +3,26 @@ import React
 import UserNotifications
 import FBSDKCoreKit
 import FirebaseCore
+import GoogleSignIn
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
   var window: UIWindow?
   var bridge: RCTBridge?
+  private var sceneObserver: NSObjectProtocol?
+
+  override init() {
+    super.init()
+    // Observe scene activation to associate window with scene as early as possible.
+    // RCTKeyWindow() uses windowScene.keyWindow which requires this association.
+    sceneObserver = NotificationCenter.default.addObserver(
+      forName: UIScene.didActivateNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] notification in
+      self?.ensureWindowSceneAssociation()
+    }
+  }
 
   func application(
     _ application: UIApplication,
@@ -18,10 +33,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
       application,
       didFinishLaunchingWithOptions: launchOptions
     )
-    
+
     // Initialize Firebase for React Native Firebase modules (App, Messaging, etc.)
     FirebaseApp.configure()
-    
+
     // Set notification center delegate to receive notifications in foreground and tap responses
     UNUserNotificationCenter.current().delegate = self
     #if DEBUG
@@ -40,7 +55,31 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     window?.rootViewController = rootViewController
     window?.makeKeyAndVisible()
 
+    // Try immediate association (may not work if scene isn't connected yet)
+    ensureWindowSceneAssociation()
+
     return true
+  }
+
+  func applicationDidBecomeActive(_ application: UIApplication) {
+    // Final safety net: scene is guaranteed to be active here
+    ensureWindowSceneAssociation()
+  }
+
+  /// Associates the window with the UIWindowScene and re-establishes it as key window.
+  /// Without this, RCTKeyWindow() returns nil on RN 0.79 because windowScene.keyWindow
+  /// can't find a window that isn't explicitly associated with the scene.
+  private func ensureWindowSceneAssociation() {
+    guard let window = window else { return }
+    if window.windowScene == nil,
+       let windowScene = UIApplication.shared.connectedScenes
+        .compactMap({ $0 as? UIWindowScene }).first {
+      window.windowScene = windowScene
+    }
+    // Re-establish as key window for the scene after association
+    if window.windowScene != nil && !window.isKeyWindow {
+      window.makeKeyAndVisible()
+    }
   }
 
   // MARK: - UNUserNotificationCenterDelegate
@@ -79,11 +118,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
+    // Handle Google Sign-In URL
+    if GIDSignIn.sharedInstance.handle(url) {
+      return true
+    }
+
     // Handle Facebook URL
     if ApplicationDelegate.shared.application(app, open: url, options: options) {
       return true
     }
-    
+
     return RCTLinkingManager.application(app, open: url, options: options)
   }
 

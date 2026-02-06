@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 import { getUserStats } from '@/lib/api';
 
@@ -69,31 +69,35 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
     }
   }, [user]);
 
-  const dailyLimit = [1, 3, 10, Infinity][level];
-  const canUse = {
+  const dailyLimit = useMemo(() => [1, 3, 10, Infinity][level], [level]);
+  const canUse = useMemo(() => ({
     text: true,
     youtube: level >= 1,
     web: level >= 2,
     file: level >= 2,
     spotify: level >= 2,
-  };
-  const badge = [
+  }), [level]);
+  const badge = useMemo(() => [
     { color: 'gray', label: 'Free', icon: '⚪️' },
     { color: 'blue', label: 'Basic', icon: '🔵' },
     { color: 'green', label: 'Pro', icon: '🟢' },
     { color: 'purple', label: 'Enterprise', icon: '🟣' },
-  ][level];
+  ][level], [level]);
 
-  const upgrade = () => {
+  const upgrade = useCallback(() => {
     // Modal aç veya Stripe linkine yönlendir
-  };
+  }, []);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     // Kullanıcı ve günlük hakları tekrar çek
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    level, dailyLimit, remaining, canUse, badge, currentPlanName, upgrade, refresh
+  }), [level, dailyLimit, remaining, canUse, badge, currentPlanName, upgrade, refresh]);
 
   return (
-    <MembershipContext.Provider value={{ level, dailyLimit, remaining, canUse, badge, currentPlanName, upgrade, refresh }}>
+    <MembershipContext.Provider value={value}>
       {children}
     </MembershipContext.Provider>
   );

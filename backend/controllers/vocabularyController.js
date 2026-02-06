@@ -182,25 +182,21 @@ exports.addWord = async (req, res) => {
             JSON.stringify({ ipa, collocations: enrichedData.collocations, sourceContext })
         ]);
 
-        // 4. 🔄 Also insert into word_reviews for SRS flashcard system
-        try {
-            await db.query(`
-                INSERT INTO word_reviews (
-                    user_id, word, definition, example_sentence,
-                    next_review_date, interval_days, ease_factor, repetition_count, streak_correct
-                ) VALUES ($1, $2, $3, $4, CURRENT_DATE, 1, 2.5, 0, 0)
-                ON CONFLICT (user_id, word) DO NOTHING
-            `, [
-                userId,
-                word.toLowerCase(),
-                finalDefinition || '',
-                finalExample || ''
-            ]);
-            logger.info(`[Vocabulary API] Word "${word}" synced to word_reviews for SRS`);
-        } catch (srsError) {
-            // Non-critical - log but don't fail the request
-            logger.warn('[Vocabulary API] word_reviews sync failed:', srsError.message);
-        }
+        // 4. 🔄 Sync to word_reviews for SRS (fire-and-forget, non-blocking)
+        db.query(`
+            INSERT INTO word_reviews (
+                user_id, word, definition, example_sentence,
+                next_review_date, interval_days, ease_factor, repetition_count, streak_correct
+            ) VALUES ($1, $2, $3, $4, CURRENT_DATE, 1, 2.5, 0, 0)
+            ON CONFLICT (user_id, word) DO NOTHING
+        `, [
+            userId,
+            word.toLowerCase(),
+            finalDefinition || '',
+            finalExample || ''
+        ])
+            .then(() => logger.info(`[Vocabulary API] Word "${word}" synced to word_reviews for SRS`))
+            .catch(err => logger.warn('[Vocabulary API] word_reviews sync failed:', err.message));
 
         // Fetch full data for response
         const fullData = await db.query(`
@@ -359,8 +355,19 @@ exports.getRandomWords = async (req, res) => {
             whereClause += ` AND (uv.last_reviewed_at IS NULL OR uv.last_reviewed_at < NOW() - INTERVAL '24 hours')`;
         }
 
+        // Application-level random selection to avoid ORDER BY RANDOM() full-table sort
+        const countResult = await db.query(`
+            SELECT COUNT(*) as total
+            FROM user_vocabulary uv
+            JOIN vocabulary v ON uv.word_id = v.id
+            WHERE ${whereClause}
+        `, [userId]);
+
+        const total = parseInt(countResult.rows[0]?.total || '0', 10);
+        const randomOffset = Math.floor(Math.random() * Math.max(total - limit, 1));
+
         const result = await db.query(`
-            SELECT 
+            SELECT
                 uv.id,
                 uv.word_id,
                 uv.is_learned,
@@ -375,9 +382,8 @@ exports.getRandomWords = async (req, res) => {
             FROM user_vocabulary uv
             JOIN vocabulary v ON uv.word_id = v.id
             WHERE ${whereClause}
-            ORDER BY RANDOM()
-            LIMIT $2
-        `, [userId, limit]);
+            OFFSET $2 LIMIT $3
+        `, [userId, randomOffset, limit]);
 
         // Map is_learned to status for frontend compatibility
         const mappedRows = result.rows.map(row => ({

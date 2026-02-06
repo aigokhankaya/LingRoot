@@ -1,9 +1,9 @@
 // Security middleware
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const xss = require('xss-clean');
 const hpp = require('hpp');
 const cors = require('cors');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Configure security middleware
@@ -37,7 +37,7 @@ exports.configureSecurity = (app) => {
         callback(null, true);
       }
       else {
-        console.log(`🚫 CORS blocked origin: ${origin}`);
+        logger.warn(`[CORS] Blocked origin: ${origin}`);
         callback(new Error('CORS policy violation'));
       }
     },
@@ -48,9 +48,6 @@ exports.configureSecurity = (app) => {
   };
 
   app.use(cors(corsOptions));
-
-  // Data sanitization against XSS
-  app.use(xss());
 
   // Prevent parameter pollution
   app.use(hpp());
@@ -112,20 +109,40 @@ exports.passwordResetLimiter = rateLimit({
 });
 
 /**
- * TTS endpoint için maliyet koruması
- * OpenAI/Google TTS API maliyetlerini kontrol altında tutar
+ * Refresh token endpoint için yumusak rate limit
+ * Token flood saldirisini onler, session continuity'i bozmaz
  */
-exports.ttsLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 saat
-  max: 30, // IP başına 30 TTS isteği (authenticated users will have plan-based limits too)
+exports.refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 dakika
+  max: 30, // 15 dk'da max 30 refresh istegi
   message: {
     success: false,
     code: 'RATE_LIMIT_EXCEEDED',
-    message: 'Saatlik TTS limitinizi aştınız. 1 saat sonra tekrar deneyin veya paket yükseltin.'
+    message: 'Too many refresh requests. Please try again later.'
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * TTS endpoint için maliyet koruması
+ * OpenAI/Google TTS API maliyetlerini kontrol altında tutar
+ */
+const isLoadTest = process.env.LOAD_TEST_MODE === 'true';
+
+exports.ttsLimiter = isLoadTest
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 saat
+    max: 30, // IP başına 30 TTS isteği (authenticated users will have plan-based limits too)
+    message: {
+      success: false,
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Saatlik TTS limitinizi aştınız. 1 saat sonra tekrar deneyin veya paket yükseltin.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
 /**
  * Chat/AI endpoint için limit
@@ -213,17 +230,19 @@ exports.contentLimiter = rateLimit({
  * Podcast oluşturma için limit
  * Uzun işlem + yüksek maliyet
  */
-exports.podcastLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 saat
-  max: 10, // Saatte 10 podcast
-  message: {
-    success: false,
-    code: 'RATE_LIMIT_EXCEEDED',
-    message: 'Saatlik podcast limitinizi aştınız. 1 saat sonra tekrar deneyin.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+exports.podcastLimiter = isLoadTest
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 saat
+    max: 10, // Saatte 10 podcast
+    message: {
+      success: false,
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Saatlik podcast limitinizi aştınız. 1 saat sonra tekrar deneyin.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
 // ============================================
 // GAMIFICATION RATE LIMITERS

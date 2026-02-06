@@ -8,9 +8,10 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Animated,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { CopilotStep, walkthroughable, useCopilot } from 'react-native-copilot';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -19,10 +20,18 @@ import { getUserAudioCount, getUserAudioHistory } from '../services/contentServi
 import { getMyPlanFeatures, PlanFeatures } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 import { AudioTrack } from '../types';
-import AudioPlayer from '../components/AudioPlayer';
 import perfLog from '../utils/performanceLogger';
+import {
+  TourProvider,
+  CustomTooltip,
+  TOUR_STEPS,
+  TOUR_STEP_MAP,
+  HOME_TOUR_KEY,
+  useGuideTour,
+  homeMaskPath,
+} from '../components/GuideTour';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const WalkthroughableView = walkthroughable(View);
 
 // Feature card colors
 const FEATURE_COLORS = {
@@ -36,7 +45,8 @@ const FEATURE_COLORS = {
   red: { bg: '#fef2f2', text: '#ef4444', border: '#fecaca', accent: '#ef4444' },
 };
 
-const HomeScreen: React.FC = () => {
+const HomeScreenContent: React.FC = () => {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const navigation = useNavigation();
@@ -48,8 +58,30 @@ const HomeScreen: React.FC = () => {
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState(true);
   const [recentTracks, setRecentTracks] = useState<AudioTrack[]>([]);
-  const [selectedTrack, setSelectedTrack] = useState<AudioTrack | null>(null);
-  const [showPlayer, setShowPlayer] = useState(false);
+
+  // Guide tour — wait for data to load so layout is stable before measuring
+  const lang = language === 'tr' ? 'tr' : 'en';
+  const { start: startTour, copilotEvents } = useCopilot();
+  const { shouldShow: shouldShowTour, markCompleted: markTourCompleted } = useGuideTour(HOME_TOUR_KEY);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const dataReady = !stats.loading && !featuresLoading;
+
+  useEffect(() => {
+    const handler = () => { if (shouldShowTour) markTourCompleted(); };
+    copilotEvents.on('stop', handler);
+    return () => { copilotEvents.off('stop', handler); };
+  }, [copilotEvents, shouldShowTour, markTourCompleted]);
+
+  useEffect(() => {
+    if (shouldShowTour && dataReady) {
+      const timer = setTimeout(
+        () => startTour(undefined, scrollViewRef.current ?? null),
+        500,
+      );
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldShowTour, dataReady]);
 
   // Animations
   const slideUpAnim = useRef(new Animated.Value(20)).current;
@@ -139,8 +171,11 @@ const HomeScreen: React.FC = () => {
     },
   ];
 
-  // Filter features based on plan
+  const isAdmin = user?.role === 'admin';
+
+  // Filter features based on plan (admin sees all)
   const features = allFeatures.filter(feature => {
+    if (isAdmin) return true;
     if (!feature.featureKey) return true;
     if (!planFeatures?.homepage_features) {
       return (
@@ -179,8 +214,25 @@ const HomeScreen: React.FC = () => {
           loading: false
         });
 
+        // Map raw API data to AudioTrack format (ensures original_turkish is populated)
+        const mappedTracks: AudioTrack[] = audioTracks.map((item: any) => ({
+          id: String(item.id),
+          title: item.adapted_text || item.translated_text || item.input || 'Untitled',
+          url: item.mp3_url || item.url || '',
+          level: item.level || 'B1',
+          duration: typeof item?.duration === 'number' ? item.duration : 180,
+          created_at: item.created_at,
+          input_type: item.input_type,
+          translated_text: item.translated_text,
+          adapted_text: item.adapted_text,
+          original_turkish: item.input || '',
+          mp3_url: item.mp3_url,
+          timepoints: item.timepoints ?? [],
+          words: item.words ?? [],
+        }));
+
         // Set recent tracks for Jump Back In (last 5)
-        setRecentTracks(audioTracks.slice(0, 5));
+        setRecentTracks(mappedTracks.slice(0, 5));
       } else {
         setStats({ audioCount: 0, totalDuration: 0, loading: false });
         setRecentTracks([]);
@@ -193,12 +245,12 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  // Fetch plan features
+  // Fetch plan features (with caching - userId enables user-aware cache)
   const fetchPlanFeatures = async () => {
     perfLog.start('fetchPlanFeatures', 'HomeScreen');
     try {
-      setFeaturesLoading(true);
-      const result = await getMyPlanFeatures();
+      // Pass userId to enable user-aware caching
+      const result = await getMyPlanFeatures(user?.id);
       setPlanFeatures(result.features);
     } catch (error) {
       console.error('Error loading plan features:', error);
@@ -321,6 +373,7 @@ const HomeScreen: React.FC = () => {
       />
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -364,71 +417,79 @@ const HomeScreen: React.FC = () => {
           </View>
 
           {/* Liro Banner */}
-          {planFeatures?.homepage_features?.liro === true && (
-            <TouchableOpacity
-              style={styles.liroBanner}
-              activeOpacity={0.9}
-              onPress={() => (navigation as any).navigate('Liro')}
+          {(isAdmin || planFeatures?.homepage_features?.liro === true) && (
+            <CopilotStep
+              order={1}
+              name="liro"
+              text={TOUR_STEPS.liro[lang]}
             >
-              <View style={styles.liroBannerGlow} />
-              <View style={styles.liroContent}>
-                <View style={styles.liroIconWrapper}>
-                  {/* Sound wave rings */}
-                  <Animated.View style={[styles.liroWaveRing, styles.liroWaveRing1, {
-                    opacity: liroWaveAnim.interpolate({
-                      inputRange: [0, 0.5, 1],
-                      outputRange: [0.6, 0.3, 0],
-                    }),
-                    transform: [{
-                      scale: liroWaveAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 1.8],
-                      }),
-                    }],
-                  }]} />
-                  <Animated.View style={[styles.liroWaveRing, styles.liroWaveRing2, {
-                    opacity: liroWaveAnim.interpolate({
-                      inputRange: [0, 0.5, 1],
-                      outputRange: [0.4, 0.2, 0],
-                    }),
-                    transform: [{
-                      scale: liroWaveAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1.2, 2.2],
-                      }),
-                    }],
-                  }]} />
-                  <View style={styles.liroIconContainer}>
-                    {/* Headphone Band - curved arc on top */}
-                    <View style={styles.liroHeadphoneBand} />
-                    {/* Robot Head Icon */}
-                    <Icon name="smart-toy" size={26} color="#FFFFFF" />
-                    {/* Headphone Cups - left and right */}
-                    <View style={styles.liroHeadphoneCupLeft} />
-                    <View style={styles.liroHeadphoneCupRight} />
-                  </View>
-                  <Animated.View style={[styles.liroStatusDot, { opacity: liroDotAnim }]} />
-                </View>
-                <View style={styles.liroTextContainer}>
-                  <View style={styles.liroTitleRow}>
-                    <Text style={styles.liroTitle}>Liro AI</Text>
-                    <View style={styles.liroReadyBadge}>
-                      <Text style={styles.liroReadyText}>
-                        {language === 'tr' ? 'Hazır' : 'Ready'}
+              <WalkthroughableView style={{ marginBottom: 24 }}>
+                <TouchableOpacity
+                  style={[styles.liroBanner, { marginBottom: 0 }]}
+                  activeOpacity={0.9}
+                  onPress={() => (navigation as any).navigate('Liro')}
+                >
+                  <View style={styles.liroBannerGlow} />
+                  <View style={styles.liroContent}>
+                    <View style={styles.liroIconWrapper}>
+                      {/* Sound wave rings */}
+                      <Animated.View style={[styles.liroWaveRing, styles.liroWaveRing1, {
+                        opacity: liroWaveAnim.interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: [0.6, 0.3, 0],
+                        }),
+                        transform: [{
+                          scale: liroWaveAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 1.8],
+                          }),
+                        }],
+                      }]} />
+                      <Animated.View style={[styles.liroWaveRing, styles.liroWaveRing2, {
+                        opacity: liroWaveAnim.interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: [0.4, 0.2, 0],
+                        }),
+                        transform: [{
+                          scale: liroWaveAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1.2, 2.2],
+                          }),
+                        }],
+                      }]} />
+                      <View style={styles.liroIconContainer}>
+                        {/* Headphone Band - curved arc on top */}
+                        <View style={styles.liroHeadphoneBand} />
+                        {/* Robot Head Icon */}
+                        <Icon name="smart-toy" size={26} color="#FFFFFF" />
+                        {/* Headphone Cups - left and right */}
+                        <View style={styles.liroHeadphoneCupLeft} />
+                        <View style={styles.liroHeadphoneCupRight} />
+                      </View>
+                      <Animated.View style={[styles.liroStatusDot, { opacity: liroDotAnim }]} />
+                    </View>
+                    <View style={styles.liroTextContainer}>
+                      <View style={styles.liroTitleRow}>
+                        <Text style={styles.liroTitle}>Liro AI</Text>
+                        <View style={styles.liroReadyBadge}>
+                          <Text style={styles.liroReadyText}>
+                            {language === 'tr' ? 'Hazır' : 'Ready'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.liroSubtitle}>
+                        {language === 'tr'
+                          ? 'Sevdiğin içerikleri seviyene göre dinle'
+                          : 'Listen to content at your level'}
                       </Text>
                     </View>
+                    <View style={styles.liroPlayButton}>
+                      <Icon name="play-arrow" size={24} color={COLORS.brandTeal} />
+                    </View>
                   </View>
-                  <Text style={styles.liroSubtitle}>
-                    {language === 'tr'
-                      ? 'Sevdiğin içerikleri seviyene göre dinle'
-                      : 'Listen to content at your level'}
-                  </Text>
-                </View>
-                <View style={styles.liroPlayButton}>
-                  <Icon name="play-arrow" size={24} color={COLORS.brandTeal} />
-                </View>
-              </View>
-            </TouchableOpacity>
+                </TouchableOpacity>
+              </WalkthroughableView>
+            </CopilotStep>
           )}
 
           {/* Create Section Title */}
@@ -442,12 +503,15 @@ const HomeScreen: React.FC = () => {
           <View style={styles.featureGrid}>
             {features.map((feature) => {
               const colorSet = FEATURE_COLORS[feature.color as keyof typeof FEATURE_COLORS] || FEATURE_COLORS.blue;
-              return (
+              const card = (
                 <TouchableOpacity
                   key={feature.id}
                   style={[
                     styles.featureCard,
-                    { borderLeftColor: colorSet.accent }
+                    {
+                      width: (SCREEN_WIDTH - 48 - 12) / 2,
+                      borderLeftColor: colorSet.accent
+                    }
                   ]}
                   activeOpacity={0.9}
                   onPress={() => handleFeaturePress(feature)}
@@ -469,10 +533,30 @@ const HomeScreen: React.FC = () => {
                   </View>
                 </TouchableOpacity>
               );
+
+              const tourStep = TOUR_STEP_MAP[feature.id];
+              if (tourStep) {
+                const stepText = TOUR_STEPS[tourStep.name]?.[language === 'tr' ? 'tr' : 'en'] || '';
+                return (
+                  <CopilotStep
+                    key={feature.id}
+                    order={tourStep.order}
+                    name={tourStep.name}
+                    text={stepText}
+                  >
+                    <WalkthroughableView style={{ width: (SCREEN_WIDTH - 48 - 12) / 2 }}>
+                      {card}
+                    </WalkthroughableView>
+                  </CopilotStep>
+                );
+              }
+              return card;
             })}
           </View>
 
           {/* Library Card */}
+          <CopilotStep order={8} name="homeLibrary" text={TOUR_STEPS.homeLibrary[lang]}>
+          <WalkthroughableView>
           <TouchableOpacity
             style={styles.libraryCard}
             activeOpacity={0.9}
@@ -486,7 +570,7 @@ const HomeScreen: React.FC = () => {
                     <Icon name="local-library" size={22} color={FEATURE_COLORS.indigo.text} />
                   </View>
                   <Text style={styles.libraryTitle}>
-                    {language === 'tr' ? 'Kitap Kütüphanesi' : 'Book Library'}
+                    {language === 'tr' ? 'Kütüphane' : 'Library'}
                   </Text>
                   <Text style={styles.librarySubtitle}>
                     {language === 'tr' ? 'Sürükleyici okuma & dinleme' : 'Immersive reading & listening'}
@@ -507,18 +591,17 @@ const HomeScreen: React.FC = () => {
               </View>
             </View>
           </TouchableOpacity>
+          </WalkthroughableView>
+          </CopilotStep>
 
           {/* Jump Back In Section */}
           {recentTracks.length > 0 && (
-            <View style={styles.jumpBackInSection}>
+            <CopilotStep order={9} name="homeRecentTracks" text={TOUR_STEPS.homeRecentTracks[lang]}>
+            <WalkthroughableView style={styles.jumpBackInSection}>
               <Text style={styles.jumpBackInTitle}>
-                {language === 'tr' ? 'Kaldığın Yerden Devam Et' : 'Jump Back In'}
+                {language === 'tr' ? 'Son 5 Kayıt' : 'Last 5 Records'}
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.jumpBackInList}
-              >
+              <View style={styles.jumpBackInList}>
                 {recentTracks.map((track) => {
                   const levelColors: { [key: string]: string } = {
                     'A1': '#10B981', 'A2': '#3B82F6', 'B1': '#8B5CF6',
@@ -530,14 +613,27 @@ const HomeScreen: React.FC = () => {
                       track.input_type === 'podcast' ? 'Podcast' : 'Text';
                   const duration = track.duration ? `${Math.round(track.duration / 60)}m` : '';
 
+                  // Get display title from adapted_text or translated_text (first ~50 chars)
+                  const getDisplayTitle = (): string => {
+                    const text = track.adapted_text || track.translated_text || track.title;
+                    if (!text || text === 'Untitled') {
+                      return language === 'tr' ? 'Başlıksız' : 'Untitled';
+                    }
+                    // Take first ~50 characters for vertical layout
+                    if (text.length <= 50) return text;
+                    const truncated = text.substring(0, 50);
+                    const lastSpace = truncated.lastIndexOf(' ');
+                    return (lastSpace > 25 ? truncated.substring(0, lastSpace) : truncated) + '...';
+                  };
+
                   return (
                     <TouchableOpacity
                       key={track.id}
                       style={styles.jumpBackInCard}
                       activeOpacity={0.9}
                       onPress={() => {
-                        setSelectedTrack(track);
-                        setShowPlayer(true);
+                        // Navigate directly to AudioPlayer screen
+                        navigation.navigate('AudioPlayer', { track, highlightMode: 'word' } as any);
                       }}
                     >
                       <View style={styles.jumpBackInIconContainer}>
@@ -545,7 +641,7 @@ const HomeScreen: React.FC = () => {
                       </View>
                       <View style={styles.jumpBackInContent}>
                         <Text style={styles.jumpBackInTrackTitle} numberOfLines={1}>
-                          {track.title || 'Untitled'}
+                          {getDisplayTitle()}
                         </Text>
                         <View style={styles.jumpBackInMeta}>
                           <View style={[styles.jumpBackInLevelBadge, { backgroundColor: levelColor }]}>
@@ -559,8 +655,9 @@ const HomeScreen: React.FC = () => {
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
-            </View>
+              </View>
+            </WalkthroughableView>
+            </CopilotStep>
           )}
           {/* Tip Box */}
           <View style={styles.tipBox}>
@@ -583,19 +680,6 @@ const HomeScreen: React.FC = () => {
         </Animated.View>
       </ScrollView>
 
-      {/* Audio Player Modal */}
-      {selectedTrack && (
-        <AudioPlayer
-          track={selectedTrack}
-          visible={showPlayer}
-          onClose={() => {
-            setShowPlayer(false);
-            setSelectedTrack(null);
-          }}
-          timepoints={selectedTrack.timepoints || []}
-          words={selectedTrack.words || []}
-        />
-      )}
     </SafeAreaView>
   );
 };
@@ -840,7 +924,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   featureCard: {
-    width: (SCREEN_WIDTH - 48 - 12) / 2,
     height: 140,
     backgroundColor: COLORS.surface,
     borderRadius: 24,
@@ -1045,17 +1128,15 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   jumpBackInList: {
-    paddingRight: 24,
-    gap: 12,
+    gap: 10,
   },
   jumpBackInCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 14,
-    paddingRight: 20,
-    minWidth: 180,
+    borderRadius: 16,
+    padding: 12,
+    paddingRight: 16,
     shadowColor: '#94a3b8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -1102,4 +1183,10 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+const HomeScreen: React.FC = () => (
+  <TourProvider tooltip={CustomTooltip} maskPath={homeMaskPath}>
+    <HomeScreenContent />
+  </TourProvider>
+);
+
+export default React.memo(HomeScreen);

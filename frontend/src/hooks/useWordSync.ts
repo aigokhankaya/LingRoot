@@ -78,9 +78,15 @@ const findCurrentWordIndex = (wordTimestamps: WordTimestamp[], currentTime: numb
   return -1;
 };
 
-// Backend timepoints'lerden optimized word timestamps oluşturma
+// Normalize: lowercase, strip everything except letters, digits, apostrophe
+const normalizeWord = (word: string): string =>
+  word.toLowerCase().replace(/[^a-z0-9']/g, '');
+
+// Backend timepoints'lerden fuzzy-aligned word timestamps oluşturma
+// MFA kelime sayısı ile display kelime sayısı farklı olabilir (em/en dash split, ellipsis vb.)
+// Bu fonksiyon two-pointer greedy alignment ile doğru eşleşmeyi sağlar
 const createOptimizedWordTimestamps = (timepoints: Timepoint[], words: string[], offsetMs: number = 100): WordTimestamp[] => {
-  // Çoklu güvenlik kontrolü
+  // Güvenlik kontrolleri
   if (!timepoints) {
     console.warn('⚠️ [TIMEPOINTS ERROR] timepoints is null/undefined');
     return [];
@@ -96,35 +102,91 @@ const createOptimizedWordTimestamps = (timepoints: Timepoint[], words: string[],
     return [];
   }
 
-  const offsetSeconds = offsetMs / 1000; // ms'yi saniyeye çevir
-  // console removed
+  const offsetSeconds = offsetMs / 1000;
 
-  return timepoints.map((tp, index) => {
-    // Her timepoint objesini kontrol et
-    if (!tp || typeof tp !== 'object') {
-      console.warn(`⚠️ [TIMEPOINT ERROR] Invalid timepoint at index ${index}:`, tp);
-      return {
-        word: words[index] || `word_${index}`,
-        startTime: 0,
-        endTime: 0.5
-      };
+  // Word count mismatch uyarısı — alignment drift göstergesi
+  if (words.length !== timepoints.length) {
+    console.warn(
+      `⚠️ [WORD SYNC] Word count mismatch — display: ${words.length}, MFA timepoints: ${timepoints.length}. Fuzzy alignment active.`
+    );
+  }
+
+  const result: WordTimestamp[] = [];
+  let tpIdx = 0;
+
+  for (let i = 0; i < words.length; i++) {
+    const displayWord = words[i];
+    const cleanDisplay = normalizeWord(displayWord);
+
+    // Pure punctuation (e.g., standalone "—") → interpolate from neighbors
+    if (cleanDisplay === '') {
+      const prevEnd = result.length > 0 ? result[result.length - 1].endTime : 0;
+      result.push({ word: displayWord, startTime: prevEnd, endTime: prevEnd });
+      continue;
     }
 
-    const originalStartTime = tp.timeSeconds || 0;
-    const originalEndTime = tp.endTimeSeconds || (tp.timeSeconds + 0.5);
+    // MFA ran out of words → interpolate remaining display words
+    if (tpIdx >= timepoints.length) {
+      const prevEnd = result.length > 0 ? result[result.length - 1].endTime : 0;
+      result.push({ word: displayWord, startTime: prevEnd, endTime: prevEnd + 0.3 });
+      continue;
+    }
 
-    // Offset uygula ama negatif değerleri engelle
-    const adjustedStartTime = Math.max(0, originalStartTime - offsetSeconds);
-    const adjustedEndTime = Math.max(adjustedStartTime + 0.1, originalEndTime - offsetSeconds);
+    const tp = timepoints[tpIdx];
+    if (!tp || typeof tp !== 'object') {
+      console.warn(`⚠️ [TIMEPOINT ERROR] Invalid timepoint at index ${tpIdx}:`, tp);
+      const prevEnd = result.length > 0 ? result[result.length - 1].endTime : 0;
+      result.push({ word: displayWord, startTime: prevEnd, endTime: prevEnd + 0.3 });
+      tpIdx++;
+      continue;
+    }
 
-    if (false) { }
+    const tpWord = normalizeWord(tp.word || '');
 
-    return {
-      word: tp.word || words[index] || `word_${index}`,
-      startTime: adjustedStartTime,
-      endTime: adjustedEndTime
-    };
-  });
+    if (tpWord === cleanDisplay) {
+      // Direct 1:1 match
+      const startTime = tp.timeSeconds || 0;
+      const endTime = tp.endTimeSeconds || (startTime + 0.5);
+      result.push({ word: displayWord, startTime, endTime });
+      tpIdx++;
+    } else if (cleanDisplay.length > tpWord.length && cleanDisplay.startsWith(tpWord)) {
+      // Display word encompasses multiple MFA words (e.g., "well—known" → "well" + "known")
+      const startTime = tp.timeSeconds || 0;
+      let consumed = tpWord;
+      tpIdx++;
+
+      while (tpIdx < timepoints.length) {
+        const nextTp = timepoints[tpIdx];
+        const nextNorm = normalizeWord(nextTp?.word || '');
+        if (nextNorm && cleanDisplay.startsWith(consumed + nextNorm)) {
+          consumed += nextNorm;
+          tpIdx++;
+          if (consumed === cleanDisplay) break;
+        } else {
+          break;
+        }
+      }
+
+      const endTime = timepoints[tpIdx - 1]?.endTimeSeconds || (startTime + 0.5);
+      result.push({ word: displayWord, startTime, endTime });
+    } else {
+      // No exact match — use current timepoint as best guess, advance both pointers
+      const startTime = tp.timeSeconds || 0;
+      const endTime = tp.endTimeSeconds || (startTime + 0.5);
+      result.push({ word: displayWord, startTime, endTime });
+      tpIdx++;
+    }
+  }
+
+  // Apply offset
+  if (offsetSeconds !== 0) {
+    for (const wt of result) {
+      wt.startTime = Math.max(0, wt.startTime - offsetSeconds);
+      wt.endTime = Math.max(wt.startTime + 0.1, wt.endTime - offsetSeconds);
+    }
+  }
+
+  return result;
 };
 
 // Fallback linear timestamps oluşturma
@@ -238,7 +300,7 @@ export const useWordSync = ({
     if (!audioRef.current.paused && !audioRef.current.ended) {
       animationFrameId.current = requestAnimationFrame(syncLoop);
     }
-  }, [wordTimestamps, updateLiveRegion]);
+  }, [wordTimestamps, updateLiveRegion, isPlaying]);
 
   // Döngüyü başlatan ve durduran fonksiyonlar
   const startSync = useCallback(() => {

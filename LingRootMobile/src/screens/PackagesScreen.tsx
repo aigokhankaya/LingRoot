@@ -14,7 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { IAP_PRODUCTS, requestSubscription, restorePurchases } from '../services/iap';
-import { getSubscriptionPlans, getUsageSummary } from '../services/subscriptionService';
+import { getSubscriptionPlans, getUsageSummary, invalidatePlanFeaturesCache } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 
 interface SubscriptionPlan {
@@ -32,7 +32,30 @@ interface SubscriptionPlan {
     video_minutes?: number;
     text_pages?: number;
   };
+  promotion_active?: boolean;
+  promotion_discount_percentage?: number;
+  promotion_original_price?: number;
+  promotion_price?: number;
+  promotion_start_date?: string;
+  promotion_end_date?: string;
+  promotion_badge_text?: string;
+  promotion_description?: string;
 }
+
+const isPromotionActive = (plan: SubscriptionPlan): boolean => {
+  if (!plan.promotion_active) return false;
+  const now = new Date();
+  if (plan.promotion_start_date && new Date(plan.promotion_start_date) > now) return false;
+  if (plan.promotion_end_date && new Date(plan.promotion_end_date) < now) return false;
+  return true;
+};
+
+const getPromotionRemainingDays = (endDate?: string): number | null => {
+  if (!endDate) return null;
+  const diffMs = new Date(endDate).getTime() - Date.now();
+  if (diffMs <= 0) return 0;
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+};
 
 const PackagesScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -139,6 +162,8 @@ const PackagesScreen: React.FC = () => {
       if (result.ok) {
         console.log('[PackagesScreen] ✅ Purchase successful');
         console.log('[PackagesScreen] Success message:', result.message);
+        // Invalidate plan features cache so HomeScreen/CreateScreen fetch fresh data
+        await invalidatePlanFeaturesCache();
         Alert.alert(
           'Başarılı',
           result.message || `${plan.name} aboneliği başarıyla satın alındı`,
@@ -193,6 +218,8 @@ const PackagesScreen: React.FC = () => {
       const result = await restorePurchases();
 
       if (result.ok) {
+        // Invalidate plan features cache so HomeScreen/CreateScreen fetch fresh data
+        await invalidatePlanFeaturesCache();
         Alert.alert(
           language === 'tr' ? 'Başarılı' : 'Success',
           result.message || (language === 'tr'
@@ -325,14 +352,24 @@ const PackagesScreen: React.FC = () => {
               activePackageName.toLowerCase().includes(plan.name.toLowerCase())
             )
           );
+          const hasPromotion = isPromotionActive(plan);
+          const remainingDays = hasPromotion ? getPromotionRemainingDays(plan.promotion_end_date) : null;
 
           return (
             <View key={plan.id} style={[
               styles.planCard,
-              isActive && styles.activePlanCard
+              isActive && styles.activePlanCard,
+              hasPromotion && styles.promotionPlanCard,
             ]}>
               {/* Header with gradient-like background */}
               <View style={[styles.planHeader, { backgroundColor: planColor + '20' }]}>
+                {hasPromotion && plan.promotion_badge_text && (
+                  <View style={styles.promotionBadge}>
+                    <Text style={styles.promotionBadgeText}>
+                      {plan.promotion_badge_text}
+                    </Text>
+                  </View>
+                )}
                 {isActive && (
                   <View style={styles.activeBadge}>
                     <Icon name="check-circle" size={22} color="#FFFFFF" />
@@ -351,12 +388,45 @@ const PackagesScreen: React.FC = () => {
 
               {/* Price section */}
               <View style={styles.planBody}>
-                <View style={styles.priceSection}>
-                  <Text style={styles.price}>{formatPrice(plan.price)}</Text>
-                  <Text style={styles.priceInterval}>
-                    /{language === 'tr' ? 'ay' : 'month'}
+                {hasPromotion ? (
+                  <View style={styles.priceSection}>
+                    <Text style={styles.originalPrice}>
+                      {formatPrice(plan.promotion_original_price || plan.price)}
+                    </Text>
+                    <Text style={styles.promotionPrice}>
+                      {formatPrice(plan.promotion_price || plan.price)}
+                    </Text>
+                    <Text style={styles.priceInterval}>
+                      /{language === 'tr' ? 'ay' : 'month'}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.priceSection}>
+                    <Text style={styles.price}>{formatPrice(plan.price)}</Text>
+                    <Text style={styles.priceInterval}>
+                      /{language === 'tr' ? 'ay' : 'month'}
+                    </Text>
+                  </View>
+                )}
+
+                {hasPromotion && remainingDays !== null && (
+                  <View style={styles.promotionCountdown}>
+                    <Icon name="timer" size={16} color="#F59E0B" />
+                    <Text style={styles.promotionCountdownText}>
+                      {remainingDays <= 0
+                        ? (language === 'tr' ? 'Son gun!' : 'Last day!')
+                        : (language === 'tr'
+                          ? `Kampanya ${remainingDays} gun sonra sona eriyor`
+                          : `Campaign ends in ${remainingDays} days`)}
+                    </Text>
+                  </View>
+                )}
+
+                {hasPromotion && plan.promotion_description && (
+                  <Text style={styles.promotionDescriptionText}>
+                    {plan.promotion_description}
                   </Text>
-                </View>
+                )}
 
                 {isActive && (
                   <View style={styles.validityContainer}>
@@ -687,6 +757,61 @@ const styles = StyleSheet.create({
     borderColor: COLORS.brandTeal,
     backgroundColor: 'rgba(39, 190, 170, 0.03)',
   },
+  promotionPlanCard: {
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  promotionBadge: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start' as const,
+    marginBottom: 12,
+  },
+  promotionBadgeText: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+  },
+  originalPrice: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: COLORS.slate400,
+    textDecorationLine: 'line-through' as const,
+    marginRight: 8,
+  },
+  promotionPrice: {
+    fontSize: 48,
+    fontWeight: '900' as const,
+    color: '#F59E0B',
+  },
+  promotionCountdown: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  promotionCountdownText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#F59E0B',
+  },
+  promotionDescriptionText: {
+    fontSize: 13,
+    color: COLORS.slate600 || '#475569',
+    fontWeight: '500' as const,
+    marginBottom: 12,
+    fontStyle: 'italic' as const,
+  },
   activeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -777,4 +902,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PackagesScreen;
+export default React.memo(PackagesScreen);

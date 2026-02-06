@@ -1,6 +1,6 @@
 # Database Schema Overview
 
-> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-01-25 | **Versiyon:** 2.4
+> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-02-04 | **Versiyon:** 2.7
 
 **Database:** PostgreSQL (Supabase)
 **Total Tables:** 83+ (including views)
@@ -24,6 +24,7 @@
 | **Payments** | payment_providers, card_transactions |
 | **Support** | support_conversations, support_messages, support_message_attachments |
 | **Analytics** | api_costs, daily_usage_patterns, content_ratings, content_feedback |
+| **Audit** | admin_logs |
 | **Recommendations** | user_content_recommendations, recommendation_interactions, recommendation_generation_status |
 | **Other** | notifications, user_interests, user_favorites, user_book_progress, hobby_suggestions, parameters, external_services |
 
@@ -141,6 +142,14 @@ Subscription plan definitions.
 | google_product_id | VARCHAR(100) | Google Play product ID |
 | apple_product_id | VARCHAR(100) | App Store product ID |
 | is_active | BOOLEAN | Active status |
+| promotion_active | BOOLEAN | Promotion display enabled (default false) |
+| promotion_discount_percentage | INTEGER | Discount percentage for display (e.g. 50) |
+| promotion_original_price | NUMERIC | Original price in TRY for display |
+| promotion_price | NUMERIC | Promotional price in TRY for display |
+| promotion_start_date | TIMESTAMPTZ | Campaign start date |
+| promotion_end_date | TIMESTAMPTZ | Campaign end date |
+| promotion_badge_text | TEXT | Badge text shown on mobile |
+| promotion_description | TEXT | Optional promotional description |
 
 ### subscriptions (86 rows, 27 columns)
 User subscription records.
@@ -256,6 +265,7 @@ User-uploaded documents (PDF, etc.).
 | mime_type | TEXT | File type |
 | page_count | INTEGER | Number of pages |
 | cover_image_url | TEXT | Cover image |
+| original_text | TEXT | Full original extracted text |
 | author | TEXT | Document author |
 
 ### document_sections (528 rows)
@@ -269,6 +279,30 @@ Parsed document sections.
 | section_title | TEXT | Section title |
 | section_text | TEXT | Section content |
 | word_count | INTEGER | Word count |
+
+### contenthistory
+User content creation and listening history.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | FK → users |
+| input | TEXT | Original input text/topic |
+| input_type | VARCHAR(50) | topic, text, youtube, book, podcast, etc. |
+| level | VARCHAR(10) | CEFR level (A1-C2) |
+| mp3_url | TEXT | Generated audio URL |
+| translated_text | TEXT | Turkish translation |
+| adapted_text | TEXT | CEFR-adapted English text |
+| words | TEXT | JSON string of word array |
+| timepoints | TEXT | JSON string of word timestamps |
+| duration_seconds | INTEGER | Pre-computed audio duration in seconds (DEFAULT 0) |
+| dialogue_segments | TEXT | JSON string of podcast dialogue segments |
+| chapter_id | INTEGER | FK → book_chapters (optional) |
+| status | VARCHAR(20) | completed, in_progress |
+| detected_mood | VARCHAR(50) | AI-detected content mood |
+| processing_duration_ms | INTEGER | Processing time tracking |
+| created_at | TIMESTAMPTZ | Creation date |
+| updated_at | TIMESTAMPTZ | Last update date |
 
 ---
 
@@ -772,6 +806,26 @@ Extracted phrase patterns from content.
 | pattern_count | INTEGER | Patterns found |
 | patterns | JSONB | Pattern array |
 
+### admin_logs (NEW - Migration 0080)
+Admin action audit trail for compliance and traceability.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| admin_user_id | UUID | FK → users (ON DELETE SET NULL) |
+| admin_email | TEXT | Admin email (denormalized) |
+| action | TEXT | Action identifier (e.g. 'user.delete', 'plan.update') |
+| target_type | TEXT | Resource type: user, subscription, plan, content, setting |
+| target_id | TEXT | ID of the affected resource |
+| details | JSONB | Additional context (old/new values, reason) |
+| ip_address | TEXT | Client IP address |
+| user_agent | TEXT | Client User-Agent header |
+| created_at | TIMESTAMPTZ | Record creation time |
+
+**Indexes:** `created_at DESC`, `admin_user_id`, `action`
+**RLS:** Enabled — select/insert policies for backend service role.
+**Retention:** Unlimited (compliance-grade, never deleted).
+
 ---
 
 ## 10. Other Tables
@@ -983,6 +1037,7 @@ All tables have RLS enabled. Common policies:
 | *_progress | Users see own progress | `auth.uid() = user_id` |
 | content tables | Published content visible to all | `status = 'published'` |
 | admin tables | Admin-only access | Role check in backend |
+| admin_logs | Service role insert/select | Backend service role bypasses RLS |
 
 ---
 

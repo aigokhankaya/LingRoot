@@ -3,6 +3,7 @@
 import React from 'react';
 import { useEffect } from 'react';
 import Link from 'next/link';
+import { recordError } from '@/lib/otel';
 
 interface ErrorProps {
   error: Error;
@@ -11,7 +12,8 @@ interface ErrorProps {
 
 const Error: React.FC<ErrorProps> = ({ error, reset }) => {
   useEffect(() => {
-    console.error(error);
+    // Record exception in OTel for SigNoz tracking
+    recordError('route-error-boundary', error, { boundary: 'route' });
   }, [error]);
 
   return (

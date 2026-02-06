@@ -4,6 +4,7 @@ require("dotenv").config(); // Ensure environment variables are loaded
 const logger = require('../common/logger.js'); // Import Winston logger
 const fs = require("fs");
 const path = require("path");
+const { logApiCost, calculateOpenAiCost } = require('../infra/costTracker.js');
 
 // Initialize OpenAI client
 // Ensure OPENAI_API_KEY is set in the environment (.env file)
@@ -34,7 +35,16 @@ try {
  * @param {object} requestLogger The request logger object.
  * @returns {Promise<string|null>} The adapted text or null if an error occurs or adaptation is skipped.
  */
-async function adaptToCEFR(text, level, requestLogger) {
+async function adaptToCEFR(text, level, requestLogger, userId) {
+    // Load test mock: skip real OpenAI call
+    const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+    if (isLoadTestMode()) {
+        const { MOCK_ADAPTED_TEXT, MOCK_USAGE } = require('../../tests/load/mocks/openaiMock');
+        await new Promise(r => setTimeout(r, getLoadTestDelay('openai')));
+        const model = process.env.OPENAI_CEFR_MODEL || 'gpt-4-turbo';
+        return { text: MOCK_ADAPTED_TEXT, usage: MOCK_USAGE, model };
+    }
+
     if (!openai) {
         logger.error("OpenAI client is not initialized. Skipping CEFR adaptation and returning original text.");
         return text;
@@ -46,8 +56,7 @@ async function adaptToCEFR(text, level, requestLogger) {
     // Promptu seviyeye göre dosyadan oku
     const promptFile = `cefr_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../../prompts/legacy/${promptFile}`);
-    console.log(`🎯 [CEFR ADAPTER] Using prompt file: ${promptFile} for level: ${level.toUpperCase()}`);
-    logger.info(`🎯 CEFR Adapter - Selected prompt file: ${promptFile} for level: ${level.toUpperCase()}`);
+    logger.info(`[CEFR_ADAPTER] Using prompt file: ${promptFile} for level: ${level.toUpperCase()}`);
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     // CHUNK: metni küçük parçalara böl
     const { chunkText } = require('../content/textProcessor.js');
@@ -125,6 +134,18 @@ async function adaptToCEFR(text, level, requestLogger) {
             tokens: usage,
             note: 'cefrAdapter summary',
         });
+    }
+    if (userId) {
+        const cost = calculateOpenAiCost(usage, model);
+        logApiCost({
+            userId,
+            feature: 'cefr_adapt',
+            provider: 'openai',
+            model,
+            inputQuantity: cost.promptTokens,
+            outputQuantity: cost.completionTokens,
+            costUsd: cost.totalCostUsd,
+        }).catch(err => logger.warn('[COST] cefr_adapt log failed:', err.message));
     }
     return {
         text: merged,

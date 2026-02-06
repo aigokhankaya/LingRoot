@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import NewSyncedTextPlayer from './NewSyncedTextPlayer';
+import dynamic from 'next/dynamic';
 import PatternDetailModal from './PatternDetailModal';
+
+const NewSyncedTextPlayer = dynamic(() => import('./NewSyncedTextPlayer'), {
+  ssr: false,
+  loading: () => <div className="animate-pulse h-64 bg-gray-100 rounded-lg" />
+});
 import { markTopicAudioListened, addWordWithTranslation, lookupVocabularyWord, getApiUrl, createHeaders } from '../lib/api';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 import { useGamification } from '../hooks/useGamification';

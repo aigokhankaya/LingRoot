@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const { mfaAligner } = require('../utils/mfaAligner');
+const logger = global.logger || console;
 
 // Setup upload (Memory)
 const upload = multer({
@@ -141,11 +142,12 @@ router.get('/job/:jobId', (req, res) => {
 
 // Status / Availability
 router.get('/status', async (req, res) => {
-    const docker = await mfaAligner.checkMFAAvailability();
+    const available = await mfaAligner.checkMFAAvailability();
     const models = await mfaAligner.checkLocalModels();
     res.json({
         success: true,
-        available: docker,
+        engine: 'MFA',
+        available,
         modelsReady: models,
         queueLength: mfaJobQueue.length,
         activeJobs: mfaActiveJobs

@@ -8,8 +8,9 @@ For detailed project memory, architecture, roadmap: see `PROJECT_MEMORY.md`
 For DB schema (75+ tables): see `docs/database/schema-overview.md`
  
 ## Language Rule
- 
+
 - User communication: TURKISH (always)
+- Documentation, reports, analysis files (.md): TURKISH (always)
 - Code, commits, logs: ENGLISH
  
 ## Build & Dev Commands
@@ -146,8 +147,16 @@ Do NOT create: NewSyncedTextPlayer, new AudioPlayer, new Button, inline `<button
 ```
 Types: `feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `test:`, `chore:`
  
+## Token Efficiency
+
+- **Explore/Task agent kullanma** — dosya yolları belli veya tahmin edilebilir ise doğrudan `Glob` + `Read` kullan.
+- Explore agent sadece codebase yapısı tamamen bilinmiyorsa veya açık uçlu araştırma gerektiğinde kullanılmalı.
+- Bilinen dizin yapısı: `frontend/src/`, `backend/`, `LingRootMobile/src/`, `packages/api-client/`.
+- Ekran dosyaları: `LingRootMobile/src/screens/`, bileşenler: `LingRootMobile/src/components/` & `frontend/src/components/`.
+- Navigation: `LingRootMobile/src/navigation/AppNavigator.tsx`.
+
 ## Error & Uncertainty Handling
- 
+
 - If uncertain about architecture/rules → **NEVER assume** → ask user.
 - If agent makes an error → state it, propose rollback, get approval before critical changes.
 - Build/test failure → fix before continuing.
@@ -162,3 +171,4 @@ Types: `feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `test:`, `chore:`
 | Supabase 429 | 2s exponential retry |
 | Cloudflare 525 | Automatic fallback → local API |
 | MFA timeout | Redispatch to Worker #2 |
+ 

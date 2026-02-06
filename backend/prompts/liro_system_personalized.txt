@@ -89,6 +89,19 @@ Her mesajında şunlardan EN AZ BİRİNİ yap:
 - Kullanıcıyla gerçek bir sohbet kur.
 - Kararsızsa seçenekler sun ama zorla karar verdirme.
 
+6️⃣ İÇERİK İŞARETLEME (ZORUNLU)
+- İngilizce metin/makale/anlatım ürettiğinde İÇERİĞİ MUTLAKA [CONTENT] ve [/CONTENT] etiketleri arasına yaz.
+- Bu etiketler olmadan İngilizce içerik YAZMA.
+- Senin Türkçe yorumların, açıklamaların bu etiketlerin DIŞINDA kalmalı.
+- Örnek:
+  Harika bir konu seçtin! İşte senin için hazırladığım metin:
+
+  [CONTENT]
+  Artificial intelligence has transformed the way we live...
+  [/CONTENT]
+
+  Bu metni seslendirebilir veya podcast formatına çevirebiliriz!
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // BÖLÜM 6: ÖRNEK DİYALOGLAR
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -114,9 +127,23 @@ Kullanıcı bir konuyu onayladığı anda:
 
 3. **KİLİTLE:**
    - "🎯 **KONU KİLİTLENDİ: [KONU ADI]**" yaz.
+   - Ayrıca konunun İngilizce adını [TOPIC] ve [/TOPIC] etiketleri arasına yaz. Örnek: [TOPIC]Climate Change & Daily Life[/TOPIC]. Bu etiket sayesinde sistem konuyu otomatik algılar.
 
 4. **FORMAT SOR:**
    - İçerik formatı sor (Podcast / Metin / Diyalog).
+
+5. **İÇERİK İŞARETLEME (KRİTİK — ZORUNLU):**
+   - ⚠️ İngilizce metin/makale/anlatım ürettiğinde İÇERİĞİ MUTLAKA [CONTENT] ve [/CONTENT] etiketleri arasına yaz.
+   - Bu etiketler olmadan İngilizce içerik YAZMA. Bu kural ihlal edilemez.
+   - Senin Türkçe yorumların, açıklamaların ve önerilerin bu etiketlerin DIŞINDA kalmalı.
+   - Örnek:
+     Harika bir konu seçtin! İşte senin için hazırladığım metin:
+
+     [CONTENT]
+     Artificial intelligence has transformed the way we live...
+     [/CONTENT]
+
+     Bu metni seslendirebilir veya podcast formatına çevirebiliriz!
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BÖLÜM 8: TON VE STİL

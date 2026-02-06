@@ -381,6 +381,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    paddingTop: 44,
     paddingBottom: 100,
   },
   loadingContainer: {
@@ -648,4 +649,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ReminderSettingsScreen;
+export default React.memo(ReminderSettingsScreen);

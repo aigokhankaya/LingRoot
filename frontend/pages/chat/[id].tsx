@@ -8,7 +8,7 @@ import { TypingIndicator } from '../../src/components/chat/TypingIndicator';
 import { SmartPromptSuggester } from '../../src/components/chat/SmartPromptSuggester';
 import { ChatCTAButtons } from '../../src/components/chat/ChatCTAButtons';
 import { ActionConfirmModal } from '../../src/components/chat/ActionConfirmModal';
-import { getApiUrl } from '../../src/lib/api';
+import { getApiUrl, getUserSettings } from '../../src/lib/api';
 import OutputSection from '../../src/components/OutputSection';
 
 interface Message {
@@ -48,6 +48,7 @@ export default function ChatPage() {
     topic: string;
   }>({ isOpen: false, type: null, topic: '' });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [defaultVoice, setDefaultVoice] = useState<string>('lr_us_wavenet_f');
 
   // Sidebar toggle state - ChatGPT style
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -83,7 +84,7 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // Mesajları analiz et - konu/içerik netleşti mi?
+  // D3: Tag-based CTA readiness
   useEffect(() => {
     if (messages.length === 0) {
       setKonuSecildi(false);
@@ -91,43 +92,77 @@ export default function ChatPage() {
       return;
     }
 
-    // Son mesajları kontrol et
-    const recentMessages = messages.slice(-5);
-    const assistantMessages = recentMessages.filter(m => m.role === 'assistant');
+    const allAssistantContent = messages
+      .filter(m => m.role === 'assistant')
+      .map(m => m.content)
+      .join('\n');
 
-    if (assistantMessages.length > 0) {
-      const lastAssistant = assistantMessages[assistantMessages.length - 1];
-      const content = lastAssistant.content.toLowerCase();
+    const hasTopic = /\[TOPIC\][\s\S]*?\[\/TOPIC\]/i.test(allAssistantContent) ||
+      /KONU KİLİTLENDİ/i.test(allAssistantContent);
+    const hasContent = /\[CONTENT\][\s\S]*?\[\/CONTENT\]/i.test(allAssistantContent);
 
-      // Trigger keywords
-      const topicKeywords = ['konu', 'hakkında', 'konusunda', 'üzerinde', 'ile ilgili', 'yapalım', 'yapabiliriz', 'oluşturabiliriz'];
-      const contentKeywords = ['içerik', 'anlatım', 'podcast', 'metin', 'detaylı', 'araştır'];
-
-      const hasTopicKeyword = topicKeywords.some(kw => content.includes(kw));
-      const hasContentKeyword = contentKeywords.some(kw => content.includes(kw));
-
-      if (hasTopicKeyword) setKonuSecildi(true);
-      if (hasContentKeyword) setIcerikNetlesti(true);
+    // Fallback: keyword-based detection for backwards compatibility
+    if (!hasTopic && !hasContent) {
+      const recentMessages = messages.slice(-5);
+      const assistantMessages = recentMessages.filter(m => m.role === 'assistant');
+      if (assistantMessages.length > 0) {
+        const lastAssistant = assistantMessages[assistantMessages.length - 1].content.toLowerCase();
+        const topicKeywords = ['konu', 'hakkında', 'konusunda', 'yapalım', 'yapabiliriz', 'oluşturabiliriz'];
+        const contentKeywords = ['içerik', 'anlatım', 'podcast', 'metin'];
+        setKonuSecildi(topicKeywords.some(kw => lastAssistant.includes(kw)));
+        setIcerikNetlesti(contentKeywords.some(kw => lastAssistant.includes(kw)));
+        return;
+      }
     }
+
+    setKonuSecildi(hasTopic);
+    setIcerikNetlesti(hasContent);
   }, [messages]);
 
-  // Mesajdan konu çıkar
+  // D2: Tag-based topic extraction
   const extractTopicFromMessages = (): string => {
+    const allAssistantContent = messages
+      .filter(m => m.role === 'assistant')
+      .map(m => m.content)
+      .join('\n');
+
+    // Priority 1: [TOPIC]...[/TOPIC] tag
+    const topicTagMatch = allAssistantContent.match(/\[TOPIC\]([\s\S]*?)\[\/TOPIC\]/i);
+    if (topicTagMatch && topicTagMatch[1]?.trim()) {
+      return topicTagMatch[1].trim();
+    }
+
+    // Priority 2: KONU KİLİTLENDİ pattern
+    const lockMatch = allAssistantContent.match(/KONU KİLİTLENDİ[:\s]*\*?\*?([^*\n]+)/i);
+    if (lockMatch && lockMatch[1]?.trim()) {
+      return lockMatch[1].trim();
+    }
+
+    // Priority 3: Last user message
+    const userMessages = messages.filter(m => m.role === 'user');
+    if (userMessages.length > 0) {
+      const lastUserMessage = userMessages[userMessages.length - 1].content;
+      if (lastUserMessage.trim()) return lastUserMessage.slice(0, 200).trim();
+    }
+
+    // Priority 4: Quoted text in assistant message
     const assistantMessages = messages.filter(m => m.role === 'assistant');
     if (assistantMessages.length === 0) return 'Belirlenen konu';
 
     const lastMessage = assistantMessages[assistantMessages.length - 1].content;
-    const match = lastMessage.match(/"([^"]+)"|'([^']+)'/);
-    if (match) return match[1] || match[2];
+    const quoteMatch = lastMessage.match(/"([^"]+)"|'([^']+)'/);
+    if (quoteMatch) return quoteMatch[1] || quoteMatch[2];
 
-    const firstSentence = lastMessage.split(/[.!?]/)[0];
-    return firstSentence.slice(0, 80).trim();
+    return 'Belirlenen konu';
   };
 
-  // CTA buton handlers
+  // D5: No confirmation dialog — direct action
   const handleCTAClick = (type: 'narration' | 'podcast' | 'tts') => {
     const topic = extractTopicFromMessages();
-    setModalState({ isOpen: true, type, topic });
+    setModalState({ isOpen: false, type, topic });
+    // Directly trigger processing without confirmation
+    setIsProcessing(true);
+    handleConfirmCTADirect(type, topic);
   };
 
   const closeModal = () => {
@@ -136,14 +171,52 @@ export default function ChatPage() {
     }
   };
 
-  const handleConfirmCTA = async () => {
-    setIsProcessing(true);
+  const stripLiroCommentary = (text: string): string => {
+    if (!text) return '';
+    // Priority 1: [CONTENT]...[/CONTENT] markers
+    const contentMatch = text.match(/\[CONTENT\]([\s\S]*?)\[\/CONTENT\]/);
+    if (contentMatch && contentMatch[1]?.trim()) {
+      return contentMatch[1].trim();
+    }
+    // Priority 2: --- separators (legacy fallback)
+    const parts = text.split('---');
+    if (parts.length >= 3) {
+      const middle = parts.slice(1, -1).join('---').trim();
+      if (middle) return middle;
+    }
+    // Priority 3: Filter out Turkish commentary paragraphs
+    const paragraphs = text.split(/\n\n+/);
+    if (paragraphs.length >= 2) {
+      const isLikelyTurkish = (p: string): boolean => {
+        const t = p.trim();
+        if (!t) return false;
+        // Turkish-specific characters (never in English text)
+        if (/[çşğıİŞÇĞüöÜÖ]/.test(t)) return true;
+        // Common Turkish filler/commentary starters
+        if (/^(Hmm|Hm\b|Tabii|Tabi\b|Harika|Tamam|Peki|Buyur|Haydi|Evet|Şimdi|İşte|Sonuç\s+olarak)/i.test(t)) return true;
+        return false;
+      };
+      const nonTurkish = paragraphs.filter(p => {
+        const t = p.trim();
+        if (!t) return false;
+        return !isLikelyTurkish(t);
+      });
+      if (nonTurkish.length > 0) {
+        const result = nonTurkish.join('\n\n').trim();
+        if (result) return result;
+      }
+    }
+    // Fallback: return full text
+    return text;
+  };
+
+  const handleConfirmCTADirect = async (type: 'narration' | 'podcast' | 'tts', topic: string) => {
     try {
       const token = localStorage.getItem('lingroot_token');
       let result;
       const lastMessage = messages.filter(m => m.role === 'assistant').pop()?.content || '';
 
-      if (modalState.type === 'narration') {
+      if (type === 'narration') {
         const response = await fetch(getApiUrl('/api/tts/process'), {
           method: 'POST',
           headers: {
@@ -152,13 +225,14 @@ export default function ChatPage() {
           },
           body: JSON.stringify({
             type: 'topic',
-            input: modalState.topic,
+            input: topic,
             level: 'B1',
             speakingRate: 0.8,
+            voice: defaultVoice,
           }),
         });
         result = await response.json();
-      } else if (modalState.type === 'podcast') {
+      } else if (type === 'podcast') {
         const response = await fetch(getApiUrl('/api/tts/create-podcast'), {
           method: 'POST',
           headers: {
@@ -166,9 +240,10 @@ export default function ChatPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            topic: modalState.topic,
+            topic: topic,
             level: 'B1',
             duration: '10',
+            voice: defaultVoice,
           }),
         });
 
@@ -179,7 +254,8 @@ export default function ChatPage() {
         }
 
         result = data;
-      } else if (modalState.type === 'tts') {
+      } else if (type === 'tts') {
+        const cleanedMessage = stripLiroCommentary(lastMessage);
         const response = await fetch(getApiUrl('/api/tts/process'), {
           method: 'POST',
           headers: {
@@ -188,9 +264,10 @@ export default function ChatPage() {
           },
           body: JSON.stringify({
             type: 'text',
-            input: lastMessage,
+            input: cleanedMessage,
             level: 'B1',
             speakingRate: 0.8,
+            voice: defaultVoice,
           }),
         });
 
@@ -205,14 +282,20 @@ export default function ChatPage() {
 
       if (result) {
         setAudioResult(result);
-        closeModal();
       }
-    } catch (error: any) {
-      console.error('İşlem hatası:', error);
-      alert(`Hata: ${error.message || 'Bir hata oluştu. Lütfen tekrar deneyin.'}`);
-      // Do not close modal on error so user can retry
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Bir hata olustu. Lutfen tekrar deneyin.';
+      console.error('Islem hatasi:', error);
+      alert(`Hata: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Legacy handler kept for ActionConfirmModal compatibility
+  const handleConfirmCTA = async () => {
+    if (modalState.type) {
+      await handleConfirmCTADirect(modalState.type, modalState.topic);
     }
   };
 
@@ -440,6 +523,20 @@ export default function ChatPage() {
     router.push('/chat/new');
   };
 
+  // Load default voice setting
+  useEffect(() => {
+    const loadDefaultVoice = async () => {
+      try {
+        const settings = await getUserSettings();
+        const dv = settings?.data?.default_voice;
+        if (dv && typeof dv === 'string') {
+          setDefaultVoice(dv);
+        }
+      } catch {}
+    };
+    if (isAuthenticated) loadDefaultVoice();
+  }, [isAuthenticated]);
+
   // Load conversations on mount
   useEffect(() => {
     if (isAuthenticated) {
@@ -525,22 +622,6 @@ export default function ChatPage() {
                     İngilizce öğrenim içeriği oluşturmak için bir mesaj gönderin.
                   </p>
 
-                  {/* Quick starter suggestions */}
-                  <div className="mb-8 flex flex-wrap gap-2 justify-center">
-                    <button
-                      onClick={() => sendMessage('B1 seviyesinde teknoloji hakkında bir metin oluştur')}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 transition-colors"
-                    >
-                      B1 seviyesinde teknoloji metni
-                    </button>
-                    <button
-                      onClick={() => sendMessage('A2 seviyesinde günlük rutinler hakkında konuş')}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 transition-colors"
-                    >
-                      A2 günlük rutinler
-                    </button>
-                  </div>
-
                   {/* Smart suggestions */}
                   <div className="max-w-2xl mx-auto mt-8">
                     <SmartPromptSuggester
@@ -596,12 +677,15 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* CTA Buttons - Composer Üstünde Tek Instance */}
+          {/* CTA Buttons - Single smart button with format picker */}
           <ChatCTAButtons
             disabled={ctaDisabled}
+            isProcessing={isProcessing}
+            hasContent={icerikNetlesti}
             onAnlatim={() => handleCTAClick('narration')}
             onPodcast={() => handleCTAClick('podcast')}
             onSeslendir={() => handleCTAClick('tts')}
+            onCancel={() => setIsProcessing(false)}
           />
 
           {/* Input Area */}
