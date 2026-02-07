@@ -26,4 +26,16 @@ router.get('/circuits', (req, res) => {
     });
 });
 
+/**
+ * GET /api/health/env
+ * Load test mode durumu (debug için)
+ */
+router.get('/env', (req, res) => {
+    res.json({
+        loadTestMode: process.env.LOAD_TEST_MODE === 'true',
+        loadTestModeRaw: process.env.LOAD_TEST_MODE,
+        nodeEnv: process.env.NODE_ENV
+    });
+});
+
 module.exports = router;
