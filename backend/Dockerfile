@@ -12,8 +12,8 @@ RUN apk add --no-cache \
     musl-dev \
     python3-dev
 
-# Install MFA
-RUN pip3 install --no-cache-dir montreal-forced-aligner
+# Install MFA (--break-system-packages for PEP 668 compatibility)
+RUN pip3 install --no-cache-dir --break-system-packages montreal-forced-aligner
 
 # Set working directory
 WORKDIR /app
