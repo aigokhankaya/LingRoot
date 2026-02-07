@@ -191,8 +191,8 @@ export const addWordWithTranslation = async (
 export const getTopicTree = async (): Promise<any> => {
     try {
         const result = await apiClient.topic.getTree();
-        // Dashboard beklentisi: { success: boolean, data: { topics: [], total: number } }
-        return { success: true, data: result };
+        // Backend zaten { success: boolean, data: { topics: [], total: number } } formatında dönüyor
+        return result;
     } catch (error: any) {
         return { success: false, data: { topics: [], total: 0 }, message: error.message };
     }

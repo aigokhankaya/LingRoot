@@ -112,6 +112,9 @@ exports.getAllPlans = async (req, res) => {
       estimates: computeEstimates(p),
     }));
 
+    // Debug: Log plan IDs being returned
+    logger.info(`[PLANS] Returning ${withEstimates.length} plans:`, withEstimates.map(p => ({ id: p.id, name: p.name, is_active: p.is_active })));
+
     return res.json({ success: true, data: withEstimates });
   } catch (e) {
     logger.error("Server error getAllPlans:", e);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { addWordWithTranslation, lookupVocabularyWord, saveListeningProgress } from '../lib/api';
+import { addWordWithTranslation, lookupVocabularyWord } from '../lib/api';
+import { useListeningSession } from '@/hooks/useListeningSession';
 
 interface Timepoint {
   timeSeconds: number;
@@ -39,6 +40,9 @@ interface SyncedTextPlayerProps {
     wordsCount?: number;
     timepointsCount?: number;
   };
+  // LQS entegrasyonu
+  contentId?: string;
+  contentType?: string;
 }
 
 // Context Menu interface
@@ -169,9 +173,28 @@ export default function SyncedTextPlayer({
   level,
   originalTurkish,
   downloadUrls,
-  stats
+  stats,
+  contentId,
+  contentType
 }: SyncedTextPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // LQS Closure Fix - Refs for accurate unmount progress tracking
+  const currentTimeRef = useRef(0);
+  const audioDurationRef = useRef(0);
+
+  // LQS Hook - Listening Quality Session Tracking
+  const {
+    sessionId,
+    startSession,
+    endSession,
+    trackPause,
+    trackPlay,
+    trackWordTap,
+    trackSpeedChange,
+    trackSeek
+  } = useListeningSession();
+
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number>(-1);
   const [wordTimestamps, setWordTimestamps] = useState<WordTimestamp[]>([]);
@@ -191,65 +214,36 @@ export default function SyncedTextPlayer({
   const [contextMenu, setContextMenu] = useState<ContextMenu>({ show: false, x: 0, y: 0, word: '', wordIndex: -1 });
   const [isAddingWord, setIsAddingWord] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
-  const lastSavedProgressRef = useRef<number>(0); // Son kaydedilen pozisyon
-  const progressSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Dinleme pozisyonunu backend'e kaydet
-  const saveProgress = useCallback(async (position: number, duration: number, force: boolean = false) => {
-    if (!audioUrl || duration <= 0) return;
+  // LQS Closure Fix - Sync refs with state for accurate unmount tracking
+  useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
+  useEffect(() => { audioDurationRef.current = audioDuration; }, [audioDuration]);
 
-    // Pozisyon 0 ise ve force değilse kaydetme (başlangıçta gereksiz kayıt önleme)
-    if (position <= 0 && !force) return;
-
-    // Son kayıttan bu yana en az 5 saniye geçmeli (force değilse)
-    if (!force && Math.abs(position - lastSavedProgressRef.current) < 5) return;
-
-    try {
-      console.log(`📊 [PROGRESS] Saving listening progress: ${position.toFixed(1)}s / ${duration.toFixed(1)}s`);
-      await saveListeningProgress(audioUrl, position, duration);
-      lastSavedProgressRef.current = position;
-      console.log(`✅ [PROGRESS] Progress saved successfully`);
-    } catch (error) {
-      console.error('[PROGRESS] Failed to save progress:', error);
-    }
-  }, [audioUrl]);
-
-  // Periyodik ilerleme kaydetme (her 10 saniyede bir)
+  // LQS Warning - contentId missing
   useEffect(() => {
-    if (!isPlaying || !isAudioLoaded || audioDuration <= 0) {
-      if (progressSaveIntervalRef.current) {
-        clearInterval(progressSaveIntervalRef.current);
-        progressSaveIntervalRef.current = null;
-      }
-      return;
+    if (audioUrl && !contentId) {
+      console.warn('[LQS] contentId prop missing - session tracking disabled');
     }
+  }, [audioUrl, contentId]);
 
-    progressSaveIntervalRef.current = setInterval(() => {
-      if (audioRef.current && !audioRef.current.paused) {
-        saveProgress(audioRef.current.currentTime, audioDuration);
-      }
-    }, 10000); // Her 10 saniyede bir kaydet
+  // LQS Session Management - Start session when audio loads
+  useEffect(() => {
+    if (audioUrl && contentId && audioDuration > 0 && !sessionId) {
+      startSession(contentId, contentType || 'article', audioDuration);
+    }
+  }, [audioUrl, contentId, contentType, audioDuration, sessionId, startSession]);
 
-    return () => {
-      if (progressSaveIntervalRef.current) {
-        clearInterval(progressSaveIntervalRef.current);
-        progressSaveIntervalRef.current = null;
-      }
-    };
-  }, [isPlaying, isAudioLoaded, audioDuration, saveProgress]);
-
-  // Component unmount olurken kaydet (beforeunload sorunlu olduğu için sadece unmount'ta)
+  // LQS Session Cleanup - End session on unmount (with closure fix)
   useEffect(() => {
     return () => {
-      // Component unmount olurken son pozisyonu kaydet
-      if (audioRef.current && audioDuration > 0 && audioRef.current.currentTime > 0) {
-        // Senkron çağrı yapamayız ama en azından deneyelim
-        saveProgress(audioRef.current.currentTime, audioDuration, true);
+      if (sessionId) {
+        const dur = audioDurationRef.current;
+        const progress = dur > 0 ? Math.round((currentTimeRef.current / dur) * 100) : 0;
+        endSession(undefined, progress);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audioDuration]);
+  }, [sessionId, endSession]);
 
   // VTT dosyasını fetch et ve parse et
   useEffect(() => {
@@ -670,18 +664,10 @@ export default function SyncedTextPlayer({
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => {
       setIsPlaying(false);
-      // Duraklatıldığında pozisyonu kaydet
-      if (audio && audioDuration > 0) {
-        saveProgress(audio.currentTime, audioDuration);
-      }
     };
     const handleEnded = () => {
       setIsPlaying(false);
       setCurrentWordIndex(-1);
-      // Bittiğinde pozisyonu kaydet (tamamlandı olarak)
-      if (audio && audioDuration > 0) {
-        saveProgress(audioDuration, audioDuration);
-      }
     };
 
     // Update frequency - 60 FPS is sufficient for smooth word highlighting
@@ -714,7 +700,7 @@ export default function SyncedTextPlayer({
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [currentWordIndex, wordTimestamps, vttCues, currentCueIndex, autoHighlight, highlightType, sentenceTimestamps, playbackRate, timingMethod, timingOffset, timepoints, saveProgress, audioDuration]);
+  }, [currentWordIndex, wordTimestamps, vttCues, currentCueIndex, autoHighlight, highlightType, sentenceTimestamps, playbackRate, timingMethod, timingOffset, timepoints, audioDuration]);
 
   const handleWordClick = (wordIndex: number, startTime: number) => {
     const audio = audioRef.current;
@@ -732,6 +718,10 @@ export default function SyncedTextPlayer({
 
     // Current word index'i güncelle
     setCurrentWordIndex(wordIndex);
+
+    // LQS tracking - kelime tıklaması
+    const clickedWord = words[wordIndex] || `word_${wordIndex}`;
+    trackWordTap(clickedWord, startTime);
 
     console.log(`Word clicked: ${wordIndex}, Time: ${startTime}s`);
   };
@@ -869,8 +859,12 @@ export default function SyncedTextPlayer({
 
     if (isPlaying) {
       audio.pause();
+      // LQS tracking
+      trackPause(audio.currentTime);
     } else {
       audio.play();
+      // LQS tracking
+      trackPlay(audio.currentTime);
     }
   };
 
@@ -878,9 +872,20 @@ export default function SyncedTextPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
+    const fromTime = audio.currentTime;
     const seekTime = parseFloat(e.target.value);
     audio.currentTime = seekTime;
     setCurrentTime(seekTime);
+
+    // LQS tracking
+    trackSeek(fromTime, seekTime);
+  };
+
+  // Playback rate change handler with LQS tracking
+  const handlePlaybackRateChange = (rate: number) => {
+    setPlaybackRate(rate);
+    // LQS tracking
+    trackSpeedChange(rate, currentTime);
   };
 
   // Context menu handling
@@ -1230,7 +1235,7 @@ export default function SyncedTextPlayer({
             {[0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0].map((rate) => (
               <button
                 key={rate}
-                onClick={() => setPlaybackRate(rate)}
+                onClick={() => handlePlaybackRateChange(rate)}
                 className={`px-3 py-2 rounded transition-all duration-200 text-sm font-medium min-w-[60px] ${playbackRate === rate
                   ? 'bg-orange-600 text-white shadow-lg transform scale-105'
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-orange-50 hover:border-orange-300'

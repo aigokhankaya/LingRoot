@@ -1,6 +1,6 @@
 # Database Schema Overview
 
-> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-02-04 | **Versiyon:** 2.7
+> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-02-07 | **Versiyon:** 2.8
 
 **Database:** PostgreSQL (Supabase)
 **Total Tables:** 83+ (including views)
@@ -20,6 +20,7 @@
 | **Vocabulary** | user_vocabulary, word_reviews, word_mastery, pattern_library |
 | **AI Chat** | conversations, messages, user_insights, user_preference_cache, user_memory |
 | **Gamification** | user_gamification, user_goals, achievements, user_achievements, quest_nodes, user_quest_progress, daily_quests, xp_transactions, weekly_scores, leagues, weekly_challenges, user_challenge_progress, content_categories, user_topic_mastery, quiz_attempts |
+| **Listening Quality (NEW)** | listening_sessions, user_listening_stats, vocabulary_mastery_extended |
 | **Sector English** | sectors, user_sectors, sector_content, sector_vocabulary, user_sector_content_progress, user_sector_stats, sector_quizzes, user_quiz_results, sector_modules, module_items, user_module_progress, user_module_item_progress |
 | **Payments** | payment_providers, card_transactions |
 | **Support** | support_conversations, support_messages, support_message_attachments |
@@ -83,7 +84,18 @@
 │   └───────────────────────────────────────────────────────────────────────┘         │
 │                                                                                      │
 │   ┌───────────────────────────────────────────────────────────────────────┐         │
-│   │                      SECTOR ENGLISH (NEW)                             │         │
+│   │                 LISTENING QUALITY SYSTEM (NEW)                        │         │
+│   ├───────────────────────────────────────────────────────────────────────┤         │
+│   │  listening_sessions (LQS Tracking)                                    │         │
+│   │     └──▶ user_listening_stats (Aggregate Stats)                       │         │
+│   │                                                                       │         │
+│   │  vocabulary_mastery_extended (Memory Palace)                          │         │
+│   │     - palace_room: dark_zone | witness_room | learning_hall |         │         │
+│   │                    knowledge_library | golden_vault                   │         │
+│   └───────────────────────────────────────────────────────────────────────┘         │
+│                                                                                      │
+│   ┌───────────────────────────────────────────────────────────────────────┐         │
+│   │                      SECTOR ENGLISH                                   │         │
 │   ├───────────────────────────────────────────────────────────────────────┤         │
 │   │  sectors (16 predefined) ◀──▶ user_sectors                            │         │
 │   │     │                                                                 │         │
