@@ -58,28 +58,27 @@ exports.configureSecurity = (app) => {
 // Brute-force, DoS ve API abuse koruması
 // ============================================
 
+// Load test mode - bypass rate limiters
+const isLoadTest = process.env.LOAD_TEST_MODE === 'true';
+
 /**
  * Auth endpoint'leri için sıkı rate limit
  * Login/Register brute-force saldırılarını önler
  */
-exports.authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 dakika
-  max: 5, // IP başına 5 deneme
-  message: {
-    success: false,
-    code: 'RATE_LIMIT_EXCEEDED',
-    message: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Skip successful requests (only count failed attempts would need custom logic)
-  skipSuccessfulRequests: false,
-  // Skip rate limit for load test users
-  skip: (req) => {
-    const email = req.body?.email || '';
-    return email.includes('@loadtest.lingroot.com');
-  },
-});
+exports.authLimiter = isLoadTest
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 dakika
+    max: 5, // IP başına 5 deneme
+    message: {
+      success: false,
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: false,
+  });
 
 /**
  * Register endpoint için daha sıkı limit
@@ -133,8 +132,6 @@ exports.refreshLimiter = rateLimit({
  * TTS endpoint için maliyet koruması
  * OpenAI/Google TTS API maliyetlerini kontrol altında tutar
  */
-const isLoadTest = process.env.LOAD_TEST_MODE === 'true';
-
 exports.ttsLimiter = isLoadTest
   ? (req, res, next) => next()
   : rateLimit({
