@@ -1,19 +1,6 @@
-# Multi-stage build for MFA integration
-FROM node:20-alpine AS base
-
-# Install system dependencies for MFA
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    gcc \
-    g++ \
-    make \
-    linux-headers \
-    musl-dev \
-    python3-dev
-
-# Install MFA (--break-system-packages for PEP 668 compatibility)
-RUN pip3 install --no-cache-dir --break-system-packages montreal-forced-aligner
+# Simple Node.js container for Railway
+# MFA runs on separate VDS, not in this container
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
@@ -29,7 +16,6 @@ COPY . .
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV USE_MFA_ALIGNMENT=true
 
 # Expose port
 EXPOSE 5001
