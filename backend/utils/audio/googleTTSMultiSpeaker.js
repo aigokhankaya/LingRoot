@@ -724,7 +724,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
   const fullTranscript = turns.map(turn => turn.text).join(' ');
 
   const getUtf8ByteLength = (str) => Buffer.byteLength(String(str || ''), 'utf8');
-  const MAX_INPUT_TEXT_BYTES = 3900;
+  const MAX_INPUT_TEXT_BYTES = 3000; // Reduced from 3900 to prevent timeout on large chunks
 
   const chunkLinesByByteLimit = (lines, maxBytes) => {
     const chunks = [];
@@ -837,7 +837,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
                   'x-goog-user-project': projectId,
                   'Content-Type': 'application/json',
                 },
-                timeout: 120000,
+                timeout: 180000, // Increased from 120s to 180s for large chunks
               }
             );
 
@@ -927,7 +927,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
               'x-goog-user-project': projectId,
               'Content-Type': 'application/json',
             },
-            timeout: 120000,
+            timeout: 180000, // Increased from 120s to 180s
           }
         );
 
@@ -1088,7 +1088,7 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
             'x-goog-user-project': projectId,
             'Content-Type': 'application/json',
           },
-          timeout: 120000,
+          timeout: 180000, // Increased from 120s to 180s
         }
       );
 
