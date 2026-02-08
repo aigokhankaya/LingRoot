@@ -12,6 +12,14 @@ INPUT:
 Topic: "{{topic}}"
 Level: {{level}}
 Target Language: {{targetLanguage}}
+{{#if topic_hierarchy}}
+
+📍 TOPIC CONTEXT:
+Hierarchy: {{topic_hierarchy}}
+Root Topic: {{root_topic}}
+⚠️ CRITICAL: The content MUST be specifically about "{{topic}}" within the context of "{{root_topic}}".
+Do NOT write generic content - keep it focused on the hierarchy above.
+{{/if}}
 
 {{> rules_cefr }}
 

@@ -3,6 +3,12 @@ Sen profesyonel bir eğitim içeriği uzmanısın. Verilen ana konu için eğiti
 
 📌 GİRDİ BİLGİLERİ:
 Ana Konu: "{{main_topic}}"
+{{#if topic_hierarchy}}
+📍 Konu Hiyerarşisi: {{topic_hierarchy}}
+{{/if}}
+{{#if parent_description}}
+📝 Üst Konu Açıklaması: {{parent_description}}
+{{/if}}
 CEFR İngilizce Seviyesi: {{level}}
 Hedef Dil: {{language}}
 Oluşturulacak Alt Konu Sayısı: {{count}}
@@ -12,6 +18,9 @@ Odak Açıklaması (isteğe bağlı): {{angle_description}}
 1. Her alt konu gerçek, faktöre dayalı ve ana konuyla DOĞRUDAN ilişkili olmalı
 2. Alt konular birbirinden FARKLI açıları kapsamalı (tekrar yok). Sadece 1-2 kelimesi değişen veya neredeyse aynı anlamı taşıyan başlıklar üretme (örnek: "Erenköy Çatışmasının Tarihi" ve "Erenköy Çatışmasının Tarihi Bağlamı" gibi çok benzer başlıklar YASAK).
 3. Eğer bir odak açıklaması verilmişse (boş değilse), TÜM alt konular bu odağa doğrudan bağlı olmalı ve onu farklı açılardan detaylandırmalıdır. Genel veya konu dışı başlıklar üretme.
+{{#if topic_hierarchy}}
+3.1 ⚠️ KRİTİK - HİYERARŞİ BAĞLAMI: Konu hiyerarşisi verildiğinde, TÜM alt konular bu bağlamda olmalı. Örneğin "Formula 1 2024 Sezonu > Takım İletişiminin Rolü" hiyerarşisi varsa, alt konular GENEL iletişim değil, SPESİFİK OLARAK F1 takım iletişimi hakkında olmalı.
+{{/if}}
 4. CEFR seviyesi SADECE açıklama cümlelerinin dil zorluğunu ayarlamak içindir. Alt konu başlıklarını ve seçilen konuları seviyeye göre sınırlama; herkes için geçerli, doğal ve öğretici başlıklar üret.
 5. Açıklama cümlelerinde {{level}} seviyesine uygun kelime dağarcığı ve kavramlar kullan:
    - A1-A2: Günlük, basit, somut konular

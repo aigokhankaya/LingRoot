@@ -40,6 +40,9 @@ const JWT_REFRESH_SECRET = _JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";  // 15 minutes
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d"; // 7 days
 
+// Email verification token expiry (48 hours for international timezone support)
+const VERIFICATION_TOKEN_EXPIRY_MS = 48 * 60 * 60 * 1000; // 48 hours
+
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
 
 // Always issue a long-lived token based on env config
@@ -222,6 +225,22 @@ exports.register = async (req, res) => {
     if (fetchError) logger.error('[REGISTER] Error fetching user for register:', fetchError);
 
     if (existingUser) {
+      // Check if the existing user is unverified - offer resend option
+      const { data: fullUser } = await supabase
+        .from('users')
+        .select('isverified')
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+
+      if (fullUser && !fullUser.isverified) {
+        return res.status(400).json({
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED_EXISTING',
+          message: "Bu e-posta adresi daha önce kaydedilmiş ancak doğrulanmamış. Aktivasyon e-postası tekrar gönderilebilir.",
+          data: { can_resend: true }
+        });
+      }
+
       return res.status(400).json({ success: false, code: 'EMAIL_IN_USE', message: "Bu e-posta adresi zaten kullanılıyor" });
     }
 
@@ -331,7 +350,7 @@ exports.register = async (req, res) => {
     // Generate email verification token and send activation email
     try {
       const verificationCode = generateNumericCode();
-      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const verificationExpires = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY_MS).toISOString();
       const { error: verErr } = await supabase
         .from('users')
         .update({
@@ -355,11 +374,11 @@ exports.register = async (req, res) => {
           await sendMail({
             to: newUser[0].email,
             subject: 'LingRoot Hesap Aktivasyonu',
-            text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 24 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
+            text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 48 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
             html: `<p>Merhaba ${fullName},</p>
                    <p>Hesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:</p>
                    <p><a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">Hesabımı Doğrula</a></p>
-                   <p>Bağlantı 24 saat geçerlidir.</p>
+                   <p>Bağlantı 48 saat geçerlidir.</p>
                    <p>Teşekkürler,<br/>LingRoot Ekibi</p>`
           });
         } catch (mailErr) {
@@ -1093,9 +1112,9 @@ exports.resendVerificationEmail = async (req, res) => {
       return res.json({ success: true, message: 'Hesabınız zaten doğrulanmış. Giriş yapabilirsiniz.' });
     }
 
-    // Generate new token and expiry (24 hours)
+    // Generate new token and expiry (48 hours)
     const code = generateNumericCode();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY_MS).toISOString();
 
     const { error: updErr } = await supabase
       .from('users')
@@ -1122,11 +1141,11 @@ exports.resendVerificationEmail = async (req, res) => {
       await sendMail({
         to: email,
         subject: 'LingRoot Hesap Aktivasyonu',
-        text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 24 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
+        text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 48 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
         html: `<p>Merhaba ${fullName},</p>
                <p>Hesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:</p>
                <p><a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">Hesabımı Doğrula</a></p>
-               <p>Bağlantı 24 saat geçerlidir.</p>
+               <p>Bağlantı 48 saat geçerlidir.</p>
                <p>Teşekkürler,<br/>LingRoot Ekibi</p>`
       });
     } catch (mailErr) {

@@ -5,6 +5,7 @@ import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../src/lib/auth';
+import { resendVerificationEmail } from '../src/lib/api';
 import { initializeGoogleAuth, signInWithGoogle } from '../src/lib/googleAuth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
@@ -13,6 +14,7 @@ import { useTranslation } from '../src/lib/i18n';
 // Error code mapping for user-friendly messages
 const ERROR_CODE_MAP: Record<string, string> = {
   EMAIL_IN_USE: 'register_email_in_use',
+  EMAIL_NOT_VERIFIED_EXISTING: 'register_email_not_verified_existing',
   PHONE_IN_USE: 'register_phone_in_use',
   PASSWORD_TOO_WEAK: 'register_password_too_weak',
   PASSWORD_TOO_SHORT: 'register_password_too_weak',
@@ -131,9 +133,12 @@ const RegisterPage: React.FC = () => {
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   // Password strength calculation
   const passwordStrength = useMemo(() => {
@@ -169,6 +174,8 @@ const RegisterPage: React.FC = () => {
     setIsSubmitting(true);
     setLoading(true);
     setError(null);
+    setErrorCode(null);
+    setResendMessage(null);
 
     // Name validation
     const trimmedFirstName = firstName.trim();
@@ -248,21 +255,42 @@ const RegisterPage: React.FC = () => {
         });
       } else {
         // Map error code to user-friendly message
-        const errorCode = result.code;
-        const translationKey = errorCode ? ERROR_CODE_MAP[errorCode] : null;
+        const code = (result as { code?: string }).code;
+        setErrorCode(code || null);
+        const translationKey = code ? ERROR_CODE_MAP[code] : null;
         const userMessage = translationKey ? t(translationKey) : (result.message || t('register_failed_generic'));
         setError(userMessage);
       }
     } catch (err: unknown) {
       // Map error code from exception
       const error = err as { code?: string; message?: string };
-      const errorCode = error.code;
-      const translationKey = errorCode ? ERROR_CODE_MAP[errorCode] : null;
+      const code = error.code;
+      setErrorCode(code || null);
+      const translationKey = code ? ERROR_CODE_MAP[code] : null;
       const userMessage = translationKey ? t(translationKey) : (error.message || t('register_failed_error'));
       setError(userMessage);
     } finally {
       setLoading(false);
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendForExisting = async () => {
+    if (resendLoading || !email) return;
+    setResendLoading(true);
+    setResendMessage(null);
+    try {
+      const result = await resendVerificationEmail(email.trim());
+      if (result.success) {
+        setResendMessage(t('login_resend_activation_success') || 'Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+      } else {
+        setResendMessage(result.message || t('server_error'));
+      }
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setResendMessage(err?.message || t('server_error'));
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -323,6 +351,28 @@ const RegisterPage: React.FC = () => {
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* Show resend option for unverified existing accounts */}
+          {error && errorCode === 'EMAIL_NOT_VERIFIED_EXISTING' && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800 mb-2">
+                {t('verify_resend_prompt') || 'Aktivasyon e-postasını tekrar göndermek ister misiniz?'}
+              </p>
+              <button
+                type="button"
+                onClick={handleResendForExisting}
+                disabled={resendLoading || !email}
+                className="px-4 py-2 bg-yellow-600 text-white rounded-md text-sm font-medium hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+              >
+                {resendLoading ? (t('sending') || 'Gönderiliyor...') : (t('login_resend_activation_button') || 'Aktivasyon maili gönder')}
+              </button>
+              {resendMessage && (
+                <p className={`mt-2 text-sm ${resendMessage.includes('gönderildi') || resendMessage.includes('sent') ? 'text-green-600' : 'text-yellow-800'}`}>
+                  {resendMessage}
+                </p>
+              )}
             </div>
           )}
 
