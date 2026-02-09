@@ -8,17 +8,17 @@ set -e
 mkdir -p /etc/secrets
 
 if [ -n "$FIREBASE_FCM_JSON" ]; then
-  echo "$FIREBASE_FCM_JSON" > /etc/secrets/firebase-fcm.json
+  printf '%s' "$FIREBASE_FCM_JSON" > /etc/secrets/firebase-fcm.json
   echo "[start.sh] Written firebase-fcm.json"
 fi
 
 if [ -n "$GOOGLE_PLAY_SA_JSON" ]; then
-  echo "$GOOGLE_PLAY_SA_JSON" > /etc/secrets/google-play-service-account.json
+  printf '%s' "$GOOGLE_PLAY_SA_JSON" > /etc/secrets/google-play-service-account.json
   echo "[start.sh] Written google-play-service-account.json"
 fi
 
 if [ -n "$GOOGLE_TTS_KEY_JSON" ]; then
-  echo "$GOOGLE_TTS_KEY_JSON" > /etc/secrets/google-tts-key.json
+  printf '%s' "$GOOGLE_TTS_KEY_JSON" > /etc/secrets/google-tts-key.json
   echo "[start.sh] Written google-tts-key.json"
 fi
 
