@@ -20,9 +20,6 @@ for (const [envVar, fileName] of Object.entries(mapping)) {
   if ((val.startsWith('\"') && val.endsWith('\"')) || (val.startsWith(\"'\") && val.endsWith(\"'\"))) {
     val = val.slice(1, -1);
   }
-  // Debug: log first chars and char codes to diagnose encoding issues
-  console.log('[start.sh] ' + envVar + ' length=' + val.length + ' first80=' + JSON.stringify(val.substring(0, 80)));
-  console.log('[start.sh] ' + envVar + ' charCodes[0..9]=' + Array.from(val.substring(0, 10)).map(c => c.charCodeAt(0)).join(','));
   fs.writeFileSync('/etc/secrets/' + fileName, val);
   console.log('[start.sh] Written ' + fileName);
   // Validate JSON
