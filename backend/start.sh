@@ -13,9 +13,21 @@ const mapping = {
   GOOGLE_TTS_KEY_JSON: 'google-tts-key.json'
 };
 for (const [envVar, fileName] of Object.entries(mapping)) {
-  if (process.env[envVar]) {
-    fs.writeFileSync('/etc/secrets/' + fileName, process.env[envVar]);
-    console.log('[start.sh] Written ' + fileName);
+  let val = process.env[envVar];
+  if (!val) continue;
+  // Strip surrounding quotes that users may paste from Railway Raw Editor
+  val = val.trim();
+  if ((val.startsWith('\"') && val.endsWith('\"')) || (val.startsWith(\"'\") && val.endsWith(\"'\"))) {
+    val = val.slice(1, -1);
+  }
+  fs.writeFileSync('/etc/secrets/' + fileName, val);
+  console.log('[start.sh] Written ' + fileName);
+  // Validate JSON
+  try {
+    JSON.parse(val);
+    console.log('[start.sh] Valid JSON: ' + fileName);
+  } catch (e) {
+    console.error('[start.sh] WARNING: ' + fileName + ' is not valid JSON: ' + e.message);
   }
 }
 "
