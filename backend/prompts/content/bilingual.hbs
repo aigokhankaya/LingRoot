@@ -2,6 +2,16 @@
 Generate educational content about the given topic for CEFR {{level}} learners.
 Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versions in a single response.
 
+{{#if topic_hierarchy}}
+📍 TOPIC CONTEXT:
+Hierarchy: {{topic_hierarchy}}
+Root Topic: {{root_topic}}
+⚠️ CRITICAL: The content MUST be specifically about "{{topic}}" within the context of "{{root_topic}}".
+Do NOT write generic content - keep it focused on the hierarchy above.
+For example, if the hierarchy is "Formula 1 2024 Season > Team Communication Role > Teamwork Communication",
+the content should be about F1 team radio communication, NOT generic teamwork tips.
+{{/if}}
+
 📋 {{level}} LEVEL REQUIREMENTS:
 
 🟢 VOCABULARY:

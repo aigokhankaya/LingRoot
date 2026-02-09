@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const logger = require('../utils/common/logger.js'); // Import Winston logger
 const { limiters } = require('../utils/infra/concurrencyLimiter.js');
 const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require('../utils/ai/inputExtractor.js');
+const { getTopicPathInternal, formatTopicHierarchy, getRootTopic } = require('../utils/topic/topicPathHelper.js');
 const { cleanText, chunkText, chunkTextByCharLimit, preChunkTextByByteLimit, chunkTextForChirpVoices, isChirpVoice } = require('../utils/content/textProcessor.js');
 const { adaptToCEFR: adaptToCEFRFunc } = require('../utils/ai/cefrAdapter.js');
 const { translateAndAdaptToCEFR } = require('../utils/ai/translateAndAdapt.js');
@@ -356,11 +357,29 @@ const processTtsRequest = async (req, res) => {
         }
       }
 
+      // Get topic hierarchy context if topic_id is provided
+      let topicContext = null;
+      if (req.body.topic_id && userId) {
+        try {
+          const topicPath = await getTopicPathInternal(req.body.topic_id, userId);
+          if (topicPath && topicPath.length > 0) {
+            const hierarchyStr = formatTopicHierarchy(topicPath);
+            const rootTopic = getRootTopic(topicPath);
+            topicContext = {
+              hierarchy: hierarchyStr,
+              rootTopic: rootTopic?.title || null
+            };
+            logger.info(`[${requestId}] 📍 Topic hierarchy context: ${hierarchyStr}`);
+          }
+        } catch (pathErr) {
+          logger.warn(`[${requestId}] Failed to get topic path: ${pathErr.message}`);
+        }
+      }
+
       // Topic input returns {englishText, translatedText, usage, model}
       // Pass targetDurationMinutes to control content length
-      // PASS MOOD TO extractTextFromInput (assuming it accepts it as an options object or extra param - checking signature in next step, but for now passing it as last arg if possible or we will modify extractTextFromInput)
-      // Actually, let's update extractTextFromInput signature in a separate step. For now, I'll pass it.
-      const topicResult = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang, null, targetDurationMinutes, { mood: detectedMood });
+      // Pass topicContext for parent-aware content generation
+      const topicResult = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang, null, targetDurationMinutes, { mood: detectedMood, topicContext });
       if (!topicResult || !topicResult.englishText) {
         logger.error(`[${requestId}] Failed to generate narration for topic.`);
         return res.status(500).json({ success: false, message: "Failed to generate narration for topic." });

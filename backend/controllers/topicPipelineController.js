@@ -17,6 +17,7 @@ const { extractDailyUsagePatterns } = require('../utils/content/dailyPatternExtr
 const { supabase } = require('../utils/storage/supabaseClient.js');
 const { generateBilingualContent } = require('../utils/ai/translateAndAdapt.js');
 const { validateContent, generateFeedbackPrompt } = require('../utils/content/contentQualityValidator.js');
+const promptService = require('../utils/ai/promptService.js');
 
 /**
  * Helper function to get the correct content generation prompt file by CEFR level
@@ -93,7 +94,7 @@ exports.processTopicToEnglishText = async (req, res) => {
 
       let suggestionsPrompt;
       try {
-        suggestionsPrompt = promptService.getPrompt('topic/suggestions', {
+        suggestionsPrompt = promptService.getPrompt('topic/subtopics', {
           topic,
           input_language: 'Türkçe'
         });

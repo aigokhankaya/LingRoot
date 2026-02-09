@@ -1,6 +1,7 @@
-import React, { useState, useCallback, memo, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, memo, useMemo, useEffect, useRef } from 'react';
 import { useWordSync } from '../hooks/useWordSync';
 import { addWordWithTranslation, lookupVocabularyWord, getApiUrl } from '../lib/api';
+import { useListeningSession } from '@/hooks/useListeningSession';
 
 interface Timepoint {
   timeSeconds: number;
@@ -68,6 +69,9 @@ interface NewSyncedTextPlayerProps {
   uiVariant?: 'card' | 'bare';
   externalAudioRef?: React.RefObject<HTMLAudioElement | null>; // NEW
   initialPosition?: number; // Başlangıç pozisyonu (saniye) - resume için
+  // LQS entegrasyonu
+  contentId?: string;
+  contentType?: string;
 }
 
 interface ContextMenu {
@@ -76,6 +80,20 @@ interface ContextMenu {
   y: number;
   word: string;
   wordIndex: number;
+}
+
+// WordPopup interface - replaces `any` type
+interface WordPopupData {
+  mode: 'info' | 'confirm';
+  word: string;
+  data: {
+    original_word?: string;
+    word?: string;
+    definition?: string;
+    example_sentence?: string;
+    example_sentence_turkish?: string;
+    level?: string;
+  } | null;
 }
 
 const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
@@ -98,7 +116,9 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   hideText = false,
   uiVariant = 'card',
   externalAudioRef, // NEW
-  initialPosition // Resume için başlangıç pozisyonu
+  initialPosition, // Resume için başlangıç pozisyonu
+  contentId,
+  contentType
 }: NewSyncedTextPlayerProps) {
 
   // Use useWordSync hook directly in component
@@ -123,6 +143,17 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     externalAudioRef // NEW
   });
 
+  // LQS Hook - Listening Quality Session Tracking
+  const {
+    sessionId,
+    startSession,
+    endSession,
+    trackPause,
+    trackPlay,
+    trackWordTap,
+    trackSpeedChange,
+    trackSeek: lqsTrackSeek
+  } = useListeningSession();
 
   // Component local state
   const [playbackRate, setLocalPlaybackRate] = useState<number>(1.0);
@@ -140,7 +171,40 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   const [isAddingWord, setIsAddingWord] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [hasReportedPlay, setHasReportedPlay] = useState(false);
-  const [wordPopup, setWordPopup] = useState<any | null>(null);
+  const [wordPopup, setWordPopup] = useState<WordPopupData | null>(null);
+
+  // LQS Closure Fix - Refs for accurate unmount progress tracking
+  const currentTimeRef = useRef(currentTime);
+  const durationRef = useRef(duration);
+
+  // LQS Closure Fix - Sync refs with state
+  useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
+
+  // LQS Warning - contentId missing
+  useEffect(() => {
+    if (audioUrl && !contentId) {
+      console.warn('[LQS] contentId prop missing - session tracking disabled');
+    }
+  }, [audioUrl, contentId]);
+
+  // LQS Session Management - Start session when audio loads
+  useEffect(() => {
+    if (audioUrl && contentId && duration > 0 && !sessionId) {
+      startSession(contentId, contentType || 'article', duration);
+    }
+  }, [audioUrl, contentId, contentType, duration, sessionId, startSession]);
+
+  // LQS Session Cleanup - End session on unmount (with closure fix)
+  useEffect(() => {
+    return () => {
+      if (sessionId) {
+        const dur = durationRef.current;
+        const progress = dur > 0 ? Math.round((currentTimeRef.current / dur) * 100) : 0;
+        endSession(undefined, progress);
+      }
+    };
+  }, [sessionId, endSession]);
 
   // Call onWordChange callback when activeWordIndex or isPlaying changes
   useEffect(() => {
@@ -252,12 +316,17 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     const rate = parseFloat(e.target.value);
     setLocalPlaybackRate(rate);
     setPlaybackRate(rate);
+    // LQS tracking
+    trackSpeedChange(rate, currentTime);
   };
 
   // Handle seek
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fromTime = currentTime;
     const seekTime = parseFloat(e.target.value);
     seek(seekTime);
+    // LQS tracking
+    lqsTrackSeek(fromTime, seekTime);
   };
 
   const handleWordVocabularyAction = async (rawWord: string, wordIndex: number) => {
@@ -319,6 +388,9 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       console.log(`📍 [WEB WORD PRESS] Timepoint word: "${timestamp.word}", time=${timestamp.startTime.toFixed(2)}s`);
 
       seek(timestamp.startTime);
+
+      // LQS tracking - kelime tıklaması
+      trackWordTap(clickedWord, timestamp.startTime);
     }
 
     // Ardından vocabulary lookup / ekleme akışını çalıştır
@@ -829,8 +901,12 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
                     setHasReportedPlay(true);
                   }
                   play();
+                  // LQS tracking
+                  trackPlay(currentTime);
                 } else {
                   pause();
+                  // LQS tracking
+                  trackPause(currentTime);
                 }
               }}
               disabled={isBuffering}

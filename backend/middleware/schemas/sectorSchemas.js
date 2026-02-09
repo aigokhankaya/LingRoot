@@ -213,7 +213,7 @@ const createRoleplayScenarioSchema = Joi.object({
     context: Joi.object({
         situation: Joi.string().max(500).required(),
         goal: Joi.string().max(300).allow('', null),
-        setting: Joi.string().max(100).allow('', null)
+        setting: Joi.string().max(300).allow('', null)
     }).required(),
     roles: Joi.array().items(roleSchema).min(2).max(2).required(),
     key_vocabulary: Joi.array().items(Joi.string().max(100)).default([])

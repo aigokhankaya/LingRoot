@@ -14,8 +14,11 @@ import {
     Radio,
     Newspaper,
     MessageCircle,
-    BookOpen
+    BookOpen,
+    Lightbulb
 } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 
 // Podcast türleri
 const PODCAST_TYPES = [
@@ -57,6 +60,9 @@ export default function PodcastCreator({
     onClose,
     onContentCreated
 }: PodcastCreatorProps) {
+    const { isAuthenticated } = useAuth();
+    const router = useRouter();
+
     // Form durumu
     const [podcastType, setPodcastType] = useState<string>('news');
     const [topic, setTopic] = useState<string>('');
@@ -75,6 +81,7 @@ export default function PodcastCreator({
     const [isPlaying, setIsPlaying] = useState(false);
     const [audioRef, setAudioRef] = useState<HTMLAudioElement | null>(null);
     const [audioDuration, setAudioDuration] = useState<number>(0);
+    const [suggestingTopic, setSuggestingTopic] = useState(false);
 
     const updateKeyPoint = (index: number, value: string) => {
         const newPoints = [...keyPoints];
@@ -91,6 +98,69 @@ export default function PodcastCreator({
     const removeKeyPoint = (index: number) => {
         if (keyPoints.length > 1) {
             setKeyPoints(keyPoints.filter((_, i) => i !== index));
+        }
+    };
+
+    const handleSuggestTopic = async () => {
+        // Auth kontrolü
+        if (!isAuthenticated) {
+            const confirm = window.confirm('Bu özelliği kullanmak için giriş yapmanız gerekiyor. Giriş sayfasına yönlendirilmek ister misiniz?');
+            if (confirm) {
+                router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+            }
+            return;
+        }
+
+        setSuggestingTopic(true);
+        try {
+            const token = localStorage.getItem('lingroot_token');
+            console.log('[PodcastCreator] Token exists:', !!token);
+
+            if (!token) {
+                throw new Error('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
+            }
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/sectors/podcast/suggest`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        sector_id: sectorId,
+                        podcast_type: podcastType,
+                        cefr_level: selectedLevel
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (data.success && data.suggestion) {
+                const suggestion = data.suggestion;
+                // Form alanlarını doldur
+                setTopic(suggestion.topic || '');
+
+                // Key points'i doldur
+                if (suggestion.key_points && suggestion.key_points.length > 0) {
+                    // En az 3, en fazla 5 key point
+                    const points = suggestion.key_points.slice(0, 5);
+                    while (points.length < 3) {
+                        points.push('');
+                    }
+                    setKeyPoints(points);
+                }
+            } else {
+                throw new Error(data.error || 'Konu önerisi alınamadı');
+            }
+        } catch (error: unknown) {
+            console.error('Failed to suggest topic:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata';
+            alert(`Konu önerisi alınırken hata oluştu: ${errorMessage}`);
+        } finally {
+            setSuggestingTopic(false);
         }
     };
 
@@ -521,7 +591,27 @@ export default function PodcastCreator({
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3">
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleSuggestTopic}
+                        disabled={suggestingTopic || loading}
+                        className="flex items-center gap-2 px-5 py-3 border-2 border-amber-400 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl font-medium disabled:opacity-50 transition-colors"
+                        title="AI ile konu ve maddeleri otomatik doldur"
+                    >
+                        {suggestingTopic ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                Öneriliyor...
+                            </>
+                        ) : (
+                            <>
+                                <Lightbulb className="w-5 h-5" />
+                                Konu ve Maddeleri Öner
+                            </>
+                        )}
+                    </motion.button>
                     <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}

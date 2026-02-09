@@ -22,7 +22,7 @@ import { useTranslation } from '../src/lib/i18n';
 import BookTab from '../src/components/BookTab/BookTab';
 import AppHeader from '../src/components/AppHeader';
 // Gamification components
-import { GamificationBanner, DailyQuestsCard } from '../src/components/gamification';
+import { GamificationBanner, DailyQuestsCard, ListeningQualityCard, MemoryPalace } from '../src/components/gamification';
 import { useGamification } from '../src/hooks/useGamification';
 // Resume Content
 import ResumeContentCard from '../src/components/content/ResumeContentCard';
@@ -690,6 +690,16 @@ const Dashboard = () => {
                 {/* Today's Tasks (Dynamic) */}
                 <div id="daily-quests-section" className="hover-lift slideUp">
                   <DailyQuestsCard />
+                </div>
+
+                {/* Listening Quality Card - LQS Dashboard */}
+                <div className="col-span-3 md:col-span-1 hover-lift slideUp">
+                  <ListeningQualityCard />
+                </div>
+
+                {/* Memory Palace - Kelime Ustaligi */}
+                <div className="col-span-3 hover-lift slideUp">
+                  <MemoryPalace />
                 </div>
 
                 {/* Skills Progress */}

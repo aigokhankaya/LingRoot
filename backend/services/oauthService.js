@@ -18,6 +18,17 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
 
 /**
+ * Sanitize name to prevent XSS attacks
+ * Preserves apostrophes for names like O'Brien
+ */
+const sanitizeName = (name) => (name || '').trim().replace(/[<>"&]/g, '');
+
+/**
+ * Normalize email for consistent storage and lookup
+ */
+const normalizeEmail = (email) => (email || '').toLowerCase().trim();
+
+/**
  * Generate access token
  */
 const generateToken = (id, email, role, rememberMe = false) => {
@@ -173,11 +184,14 @@ const googleLoginService = async (credential, rememberMe = false) => {
     throw { code: 'EMAIL_REQUIRED', message: 'Google hesabından email alınamadı' };
   }
 
-  // Check if user exists
+  // Normalize email for consistent storage and lookup
+  const normalizedEmail = normalizeEmail(email);
+
+  // Check if user exists (case-insensitive)
   const { data: existingUser, error: fetchError } = await supabase
     .from('users')
     .select("id, email, isverified, password, verificationtoken, resetpasswordtoken, firstname, lastname, created_at, updated_at")
-    .eq("email", email)
+    .ilike("email", normalizedEmail)
     .maybeSingle();
 
   if (fetchError) {
@@ -212,10 +226,14 @@ const googleLoginService = async (credential, rememberMe = false) => {
     user = updatedUser;
   } else {
     // Create new user - Google users are auto-verified and start with free trial
+    // Sanitize names to prevent XSS
+    const sanitizedFirstName = sanitizeName(given_name || name?.split(' ')[0]) || 'Google';
+    const sanitizedLastName = sanitizeName(family_name || name?.split(' ').slice(1).join(' ')) || 'User';
+
     const newUserData = {
-      firstname: given_name || name?.split(' ')[0] || 'Google',
-      lastname: family_name || name?.split(' ').slice(1).join(' ') || 'User',
-      email: email,
+      firstname: sanitizedFirstName,
+      lastname: sanitizedLastName,
+      email: normalizedEmail,
       phonenumber: null,
       password: 'google-oauth',
       role: "user",
@@ -235,6 +253,12 @@ const googleLoginService = async (credential, rememberMe = false) => {
       .single();
 
     if (createError) {
+      // Handle race condition - unique constraint violation
+      if (createError.code === '23505') {
+        if (createError.message?.includes('email')) {
+          throw { code: 'EMAIL_IN_USE', message: 'Bu e-posta adresi zaten kullanılıyor' };
+        }
+      }
       logger.error('[GOOGLE_LOGIN_SERVICE] User creation error:', createError);
       throw { code: 'CREATE_FAILED', message: 'Kullanıcı oluşturulamadı' };
     }
@@ -305,11 +329,14 @@ const facebookLoginService = async (credential, rememberMe = false) => {
     throw { code: 'EMAIL_REQUIRED', message: 'Facebook hesabından email alınamadı' };
   }
 
-  // Check if user exists
+  // Normalize email for consistent storage and lookup
+  const normalizedEmail = normalizeEmail(email);
+
+  // Check if user exists (case-insensitive)
   const { data: existingUser, error: fetchError } = await supabase
     .from('users')
     .select("id, email, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
-    .eq("email", email)
+    .ilike("email", normalizedEmail)
     .maybeSingle();
 
   if (fetchError) {
@@ -346,10 +373,14 @@ const facebookLoginService = async (credential, rememberMe = false) => {
     // Create new user - requires activation
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
+    // Sanitize names to prevent XSS
+    const sanitizedFirstName = sanitizeName(first_name || name?.split(' ')[0]) || 'Facebook';
+    const sanitizedLastName = sanitizeName(last_name || name?.split(' ').slice(1).join(' ')) || 'User';
+
     const newUserData = {
-      firstname: first_name || name?.split(' ')[0] || 'Facebook',
-      lastname: last_name || name?.split(' ').slice(1).join(' ') || 'User',
-      email: email,
+      firstname: sanitizedFirstName,
+      lastname: sanitizedLastName,
+      email: normalizedEmail,
       phonenumber: null,
       password: 'facebook-oauth',
       role: "user",
@@ -369,6 +400,12 @@ const facebookLoginService = async (credential, rememberMe = false) => {
       .single();
 
     if (createError) {
+      // Handle race condition - unique constraint violation
+      if (createError.code === '23505') {
+        if (createError.message?.includes('email')) {
+          throw { code: 'EMAIL_IN_USE', message: 'Bu e-posta adresi zaten kullanılıyor' };
+        }
+      }
       logger.error('[FACEBOOK_LOGIN_SERVICE] User creation error:', createError);
       throw { code: 'CREATE_FAILED', message: 'Kullanıcı oluşturulamadı' };
     }
@@ -377,7 +414,7 @@ const facebookLoginService = async (credential, rememberMe = false) => {
 
     // Send verification email to new Facebook users
     try {
-      await sendVerificationEmail(email, verificationToken, first_name || name?.split(' ')[0], last_name || name?.split(' ').slice(1).join(' '));
+      await sendVerificationEmail(normalizedEmail, verificationToken, sanitizedFirstName, sanitizedLastName);
     } catch (emailError) {
       logger.error('[FACEBOOK_LOGIN_SERVICE] Verification email failed:', emailError);
     }
@@ -444,14 +481,17 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
     throw { code: 'EMAIL_OR_SUB_REQUIRED', message: 'Apple hesabından email veya kullanıcı ID alınamadı' };
   }
 
-  // Find user by email
+  // Normalize email for consistent storage and lookup
+  const normalizedEmail = email ? normalizeEmail(email) : null;
+
+  // Find user by email (case-insensitive)
   let existingUser = null;
 
-  if (email) {
+  if (normalizedEmail) {
     const { data, error: fetchError } = await supabase
       .from('users')
       .select("id, email, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
-      .eq("email", email)
+      .ilike("email", normalizedEmail)
       .maybeSingle();
 
     if (!fetchError) existingUser = data;
@@ -476,17 +516,18 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
 
     const name = providedName || 'Apple User';
     const nameParts = name.split(' ');
-    const firstname = nameParts[0] || 'Apple';
-    const lastname = nameParts.slice(1).join(' ') || 'User';
+    // Sanitize names to prevent XSS
+    const sanitizedFirstName = sanitizeName(nameParts[0]) || 'Apple';
+    const sanitizedLastName = sanitizeName(nameParts.slice(1).join(' ')) || 'User';
 
-    logger.debug('[APPLE_LOGIN_SERVICE] Parsed name', { firstname, lastname });
+    logger.debug('[APPLE_LOGIN_SERVICE] Parsed name', { firstname: sanitizedFirstName, lastname: sanitizedLastName });
 
     const { data: newUser, error: insertError } = await supabase
       .from('users')
       .insert([{
-        firstname: firstname,
-        lastname: lastname,
-        email: email,
+        firstname: sanitizedFirstName,
+        lastname: sanitizedLastName,
+        email: normalizedEmail,
         phonenumber: null,
         password: 'apple-oauth',
         role: "user",
@@ -502,6 +543,12 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
       .single();
 
     if (insertError) {
+      // Handle race condition - unique constraint violation
+      if (insertError.code === '23505') {
+        if (insertError.message?.includes('email')) {
+          throw { code: 'EMAIL_IN_USE', message: 'Bu e-posta adresi zaten kullanılıyor' };
+        }
+      }
       logger.error('[APPLE_LOGIN_SERVICE] User creation error:', insertError);
       throw { code: 'CREATE_FAILED', message: 'Kullanıcı kaydı oluşturulamadı' };
     }

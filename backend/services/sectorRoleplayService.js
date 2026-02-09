@@ -13,6 +13,7 @@ const logger = require('../utils/common/logger');
 const { v4: uuidv4 } = require('uuid');
 const sectorService = require('./sectorService');
 const { logApiCost, calculateOpenAiCost, calculateOpenAiTtsCost } = require('../utils/infra/costTracker.js');
+const promptService = require('../utils/ai/promptService.js');
 
 // Senaryo uzunlukları (replik sayısı)
 const SCENARIO_LENGTHS = {
@@ -639,6 +640,182 @@ Target level: ${cefr_level}`;
             audioUrl,
             duration: Math.round(ttsResult.totalDuration)
         };
+    }
+
+    /**
+     * Roleplay senaryo önerisi (AI ile otomatik doldurma)
+     * @param {Object} params - { sector_id, scenario_category, cefr_level, user_id }
+     */
+    async suggestRoleplayScenario(params) {
+        const { sector_id, scenario_category, cefr_level, user_id } = params;
+
+        try {
+            // 1. Sektör bilgilerini al
+            const { data: sector, error: sectorError } = await supabase
+                .from('sectors')
+                .select('name_tr, name_en, code')
+                .eq('id', sector_id)
+                .single();
+
+            if (sectorError || !sector) {
+                throw new Error(`Sector not found: ${sector_id}`);
+            }
+
+            // 2. Kullanıcı pozisyonu (varsa)
+            let userPosition = null;
+            if (user_id) {
+                try {
+                    const userSector = await sectorService.getUserSectorWithPosition(user_id);
+                    if (userSector?.job_position_en) {
+                        userPosition = userSector.job_position_en;
+                    }
+                } catch (e) {
+                    logger.debug('[SectorRoleplayService] User position not found, continuing without it');
+                }
+            }
+
+            // 3. Kategori bilgisi
+            const categoryInfo = SCENARIO_CATEGORIES[scenario_category] || SCENARIO_CATEGORIES.general;
+
+            // 4. Prompt oluştur
+            let prompt;
+            try {
+                prompt = promptService.getPrompt('sector/roleplay-suggest', {
+                    sector_name: sector.name_tr,
+                    sector_code: sector.code,
+                    category_name: categoryInfo.name_tr,
+                    category_id: scenario_category,
+                    cefr_level,
+                    user_position: userPosition
+                });
+            } catch (promptError) {
+                logger.error('[SectorRoleplayService] Failed to load prompt template:', promptError);
+                throw new Error('Prompt template yüklenemedi');
+            }
+
+            // 5. AI'dan öneri al
+            const response = await openaiClient.generateChatCompletion([
+                { role: 'user', content: prompt }
+            ], {
+                systemPrompt: `Sen profesyonel bir iş İngilizcesi eğitimcisisin. ${sector.name_tr} sektörü için gerçekçi iş senaryoları öneriyorsun.`,
+                temperature: 0.8,
+                model: 'gpt-4o-mini',
+                responseFormat: { type: 'json_object' }
+            });
+
+            // 6. Log API cost
+            if (user_id && response.usage) {
+                const cost = calculateOpenAiCost(response.usage, 'gpt-4o-mini');
+                logApiCost({
+                    userId: user_id,
+                    feature: 'roleplay_suggest',
+                    provider: 'openai',
+                    model: 'gpt-4o-mini',
+                    inputQuantity: cost.promptTokens,
+                    outputQuantity: cost.completionTokens,
+                    costUsd: cost.totalCostUsd,
+                }).catch(err => logger.warn('[COST] roleplay_suggest log failed:', err.message));
+            }
+
+            const parsed = JSON.parse(response.content);
+            logger.info(`✅ Roleplay scenario suggested for sector ${sector_id}`);
+
+            return {
+                success: true,
+                suggestion: {
+                    situation: parsed.situation || '',
+                    goal: parsed.goal || '',
+                    setting: parsed.setting || '',
+                    roles: parsed.roles || []
+                }
+            };
+
+        } catch (error) {
+            logger.error('[SectorRoleplayService] suggestRoleplayScenario error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Podcast konu önerisi (AI ile otomatik doldurma)
+     * @param {Object} params - { sector_id, podcast_type, cefr_level, user_id }
+     */
+    async suggestPodcastTopic(params) {
+        const { sector_id, podcast_type, cefr_level, user_id } = params;
+
+        try {
+            // 1. Sektör bilgilerini al
+            const { data: sector, error: sectorError } = await supabase
+                .from('sectors')
+                .select('name_tr, name_en, code')
+                .eq('id', sector_id)
+                .single();
+
+            if (sectorError || !sector) {
+                throw new Error(`Sector not found: ${sector_id}`);
+            }
+
+            // 2. Podcast türü eşleştirmesi
+            const podcastTypeNames = {
+                news: 'Sektör Haberleri',
+                interview: 'Uzman Röportajı',
+                analysis: 'Derinlemesine Analiz',
+                tutorial: 'Pratik Rehber'
+            };
+
+            // 3. Prompt oluştur
+            let prompt;
+            try {
+                prompt = promptService.getPrompt('sector/podcast-suggest', {
+                    sector_name: sector.name_tr,
+                    sector_code: sector.code,
+                    podcast_type: podcastTypeNames[podcast_type] || podcast_type,
+                    cefr_level
+                });
+            } catch (promptError) {
+                logger.error('[SectorRoleplayService] Failed to load prompt template:', promptError);
+                throw new Error('Prompt template yüklenemedi');
+            }
+
+            // 4. AI'dan öneri al
+            const response = await openaiClient.generateChatCompletion([
+                { role: 'user', content: prompt }
+            ], {
+                systemPrompt: `Sen profesyonel bir iş İngilizcesi podcast içerik üreticisisin. ${sector.name_tr} sektörü için eğitici podcast konuları öneriyorsun.`,
+                temperature: 0.8,
+                model: 'gpt-4o-mini',
+                responseFormat: { type: 'json_object' }
+            });
+
+            // 5. Log API cost
+            if (user_id && response.usage) {
+                const cost = calculateOpenAiCost(response.usage, 'gpt-4o-mini');
+                logApiCost({
+                    userId: user_id,
+                    feature: 'podcast_suggest',
+                    provider: 'openai',
+                    model: 'gpt-4o-mini',
+                    inputQuantity: cost.promptTokens,
+                    outputQuantity: cost.completionTokens,
+                    costUsd: cost.totalCostUsd,
+                }).catch(err => logger.warn('[COST] podcast_suggest log failed:', err.message));
+            }
+
+            const parsed = JSON.parse(response.content);
+            logger.info(`✅ Podcast topic suggested for sector ${sector_id}`);
+
+            return {
+                success: true,
+                suggestion: {
+                    topic: parsed.topic || '',
+                    key_points: parsed.key_points || []
+                }
+            };
+
+        } catch (error) {
+            logger.error('[SectorRoleplayService] suggestPodcastTopic error:', error);
+            throw error;
+        }
     }
 }
 

@@ -412,6 +412,107 @@ const addVocabularyToReview = async (req, res) => {
     }
 };
 
+/**
+ * İçeriği tamamla ve XP kazan
+ * POST /api/sectors/content/:contentId/complete
+ */
+const completeContent = async (req, res) => {
+    try {
+        const { contentId } = req.params;
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Giriş yapmanız gerekiyor'
+            });
+        }
+
+        // Get content details to find sector_id
+        const content = await sectorService.getContentById(contentId);
+        if (!content) {
+            return res.status(404).json({
+                success: false,
+                error: 'İçerik bulunamadı'
+            });
+        }
+
+        // Check if already completed
+        const sectorProgressService = require('../services/sectorProgressService');
+        const existingProgress = await sectorProgressService.getContentProgress(userId, contentId);
+        const wasAlreadyCompleted = existingProgress?.status === 'completed';
+
+        // Mark content as completed in progress (this also adds XP via sectorGamificationService)
+        const progress = await sectorProgressService.updateProgress(userId, contentId, {
+            status: 'completed',
+            progress_percentage: 100
+        });
+
+        // Get XP result for response
+        let xpResult = { xpAdded: 0, leveledUp: false };
+
+        // Only add XP and update daily quest if not already completed
+        if (!wasAlreadyCompleted) {
+            const gamificationService = require('../services/gamificationService');
+
+            // Update daily quest progress for 'complete_content'
+            await gamificationService.updateDailyQuestProgress(userId, 'complete_content', 1);
+
+            // Update streak
+            try {
+                await gamificationService.updateStreak(userId);
+            } catch (streakError) {
+                logger.warn('Streak update failed (non-blocking):', streakError.message);
+            }
+
+            // Check sector achievements
+            try {
+                const { supabase } = require('../utils/storage/supabaseClient');
+                const { data: stats } = await supabase
+                    .from('user_sector_content_progress')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('status', 'completed');
+
+                const totalCompleted = stats?.length || 0;
+                const achievements = await gamificationService.checkSectorAchievements(userId, 'content', totalCompleted);
+
+                // Estimate XP based on content type (sectorGamificationService adds the actual XP)
+                const xpRewards = gamificationService.xpRewards;
+                if (content.content_type === 'business_roleplay') {
+                    xpResult.xpAdded = xpRewards.SECTOR_DIALOGUE_COMPLETE || 60;
+                } else if (content.content_type === 'sector_podcast') {
+                    xpResult.xpAdded = xpRewards.SECTOR_PODCAST_COMPLETE || 80;
+                } else {
+                    xpResult.xpAdded = xpRewards.SECTOR_CONTENT_COMPLETE || 50;
+                }
+            } catch (achievementError) {
+                logger.warn('Sector achievement check failed:', achievementError.message);
+                xpResult.xpAdded = 50; // Default XP
+            }
+
+            logger.info(`[SECTOR] User ${userId} completed content ${contentId}, earned ~${xpResult.xpAdded} XP`);
+        } else {
+            logger.info(`[SECTOR] User ${userId} already completed content ${contentId}, no XP awarded`);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                progress,
+                xp: xpResult,
+                alreadyCompleted: wasAlreadyCompleted
+            }
+        });
+    } catch (error) {
+        logger.error('Error completing content:', error);
+        res.status(500).json({
+            success: false,
+            error: 'İçerik tamamlanırken hata oluştu'
+        });
+    }
+};
+
 module.exports = {
     getAllSectors,
     getSectorById,
@@ -424,5 +525,6 @@ module.exports = {
     updateContentProgress,
     getSectorProgress,
     getUserSectorStats,
-    addVocabularyToReview
+    addVocabularyToReview,
+    completeContent
 };
