@@ -15,7 +15,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:clean": "rm -rf .next && NEXT_PUBLIC_API_URL=http://localhost:5001 next dev",
-    "build": "cd ../packages/api-client && npm install && npm run build && cd ../../frontend && rm -f tsconfig.tsbuildinfo && next build",
+    "build": "cd ../packages/api-client && npm install && npm run build && cd ../../frontend && rm -rf .next/types tsconfig.tsbuildinfo && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
