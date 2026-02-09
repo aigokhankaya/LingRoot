@@ -872,3 +872,27 @@ button:disabled,
   direction: ltr;
   text-align: left;
 }
+
+/* ==============================================
+   Radix UI Portal Pozisyonlama Düzeltmesi
+   ============================================== */
+/* Bu kurallar en sonda olmalı - diğer container kurallarını override eder */
+[data-radix-popper-content-wrapper] {
+  max-width: none !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+/* Radix Portal - container kurallarından muaf tut */
+[data-radix-portal],
+[data-radix-portal] > * {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Dropdown menu content pozisyonlama */
+[role="menu"][data-state] {
+  max-width: none !important;
+  width: auto !important;
+}

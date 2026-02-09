@@ -3,12 +3,21 @@ Sen profesyonel bir eğitim içeriği uzmanısın. Verilen ana konu için eğiti
 
 📌 GİRDİ BİLGİLERİ:
 Ana Konu: "{{main_topic}}"
+{{#if topic_hierarchy}}
+📍 Konu Hiyerarşisi: {{topic_hierarchy}}
+{{/if}}
+{{#if parent_description}}
+Üst Konu Açıklaması: {{parent_description}}
+{{/if}}
 CEFR İngilizce Seviyesi: {{level}}
 Hedef Dil: {{language}}
 Oluşturulacak Alt Konu Sayısı: {{count}}
 Odak Açıklaması (isteğe bağlı): {{angle_description}}
 
 📋 KURALLAR:
+{{#if topic_hierarchy}}
+⚠️ KRİTİK - HİYERARŞİ BAĞLAMI: TÜM alt konular SPESİFİK OLARAK "{{root_topic}}" bağlamında olmalı. Genel veya bağlamdan bağımsız konular üretme.
+{{/if}}
 1. Her alt konu gerçek, faktöre dayalı ve ana konuyla DOĞRUDAN ilişkili olmalı
 2. Alt konular birbirinden FARKLI açıları kapsamalı (tekrar yok). Sadece 1-2 kelimesi değişen veya neredeyse aynı anlamı
 taşıyan başlıklar üretme.

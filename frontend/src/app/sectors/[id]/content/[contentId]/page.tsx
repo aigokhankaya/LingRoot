@@ -23,9 +23,12 @@ import {
     Bookmark,
     Share2,
     Eye,
-    EyeOff
+    EyeOff,
+    Loader2,
+    Sparkles
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { SECTOR_COLORS, DEFAULT_COLOR } from '@/components/sectors/SectorCard';
 import { CONTENT_TYPE_CONFIG, LEVEL_COLORS } from '@/components/sectors/ContentCard';
 
@@ -83,12 +86,17 @@ interface ContentData {
 export default function SectorContentPage() {
     const params = useParams();
     const router = useRouter();
+    const { isAuthenticated } = useAuth();
     const { id, contentId } = params as { id: string; contentId: string };
 
     // Content state
     const [content, setContent] = useState<ContentData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Completion state
+    const [isCompleting, setIsCompleting] = useState(false);
+    const [completionResult, setCompletionResult] = useState<{ xpAdded?: number; leveledUp?: boolean } | null>(null);
 
     // UI states
     const [showTranslation, setShowTranslation] = useState(false);
@@ -244,6 +252,55 @@ export default function SectorContentPage() {
             setAudioError('Ses oluşturulurken bir hata oluştu.');
         } finally {
             setIsGeneratingAudio(false);
+        }
+    };
+
+    // Complete content handler
+    const handleCompleteContent = async () => {
+        // If not authenticated, just go back
+        if (!isAuthenticated) {
+            router.back();
+            return;
+        }
+
+        try {
+            setIsCompleting(true);
+
+            const token = localStorage.getItem('lingroot_token');
+            const response = await fetch(api.getApiUrl(`sectors/content/${contentId}/complete`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data?.xp) {
+                    // If already completed, don't show XP animation
+                    if (result.data.alreadyCompleted) {
+                        router.back();
+                        return;
+                    }
+                    setCompletionResult({
+                        xpAdded: result.data.xp.xpAdded || 50,
+                        leveledUp: result.data.xp.leveledUp || false
+                    });
+                    // Show success animation briefly, then go back
+                    setTimeout(() => {
+                        router.back();
+                    }, 2000);
+                    return;
+                }
+            }
+            // If API fails, just go back
+            router.back();
+        } catch (e) {
+            console.error('Completion error:', e);
+            router.back();
+        } finally {
+            setIsCompleting(false);
         }
     };
 
@@ -434,7 +491,28 @@ Proje Yöneticisi: Görevleri tahmin edelim. Auth için 8, test için 5 puan dü
                             src={audioUrl || content.audio_url}
                             onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
                             onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
-                            onEnded={() => setIsPlaying(false)}
+                            onEnded={() => {
+                                setIsPlaying(false);
+                                // Track listening minutes when audio completes
+                                if (isAuthenticated && duration > 0) {
+                                    const minutes = Math.floor(duration / 60);
+                                    if (minutes > 0) {
+                                        const token = localStorage.getItem('lingroot_token');
+                                        fetch(api.getApiUrl(`sectors/content/${contentId}/progress`), {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Authorization': `Bearer ${token}`
+                                            },
+                                            body: JSON.stringify({
+                                                status: 'in_progress',
+                                                progress_percentage: 100,
+                                                last_position_seconds: duration
+                                            })
+                                        }).catch(console.error);
+                                    }
+                                }
+                            }}
                         />
 
                         <div className="flex items-center gap-4">
@@ -798,15 +876,41 @@ Proje Yöneticisi: Görevleri tahmin edelim. Auth için 8, test için 5 puan dü
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="flex justify-center"
+                    className="flex flex-col items-center gap-4"
                 >
-                    <button
-                        onClick={() => router.back()}
-                        className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-2xl font-semibold shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40 transition-all hover:-translate-y-0.5"
-                    >
-                        <Check className="w-5 h-5" />
-                        İçeriği Tamamladım
-                    </button>
+                    {completionResult ? (
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="text-center p-6 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/30 dark:to-cyan-900/30 rounded-2xl border border-teal-200 dark:border-teal-700"
+                        >
+                            <div className="flex items-center justify-center gap-2 mb-2">
+                                <Sparkles className="w-6 h-6 text-amber-500" />
+                                <span className="text-2xl font-bold text-teal-600 dark:text-teal-400">+{completionResult.xpAdded} XP</span>
+                            </div>
+                            <p className="text-gray-600 dark:text-gray-300">
+                                {completionResult.leveledUp ? 'Level atladın!' : 'İçerik tamamlandı!'}
+                            </p>
+                        </motion.div>
+                    ) : (
+                        <button
+                            onClick={handleCompleteContent}
+                            disabled={isCompleting}
+                            className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-2xl font-semibold shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40 transition-all hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {isCompleting ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Kaydediliyor...
+                                </>
+                            ) : (
+                                <>
+                                    <Check className="w-5 h-5" />
+                                    İçeriği Tamamladım
+                                </>
+                            )}
+                        </button>
+                    )}
                 </motion.div>
             </div>
         </div>

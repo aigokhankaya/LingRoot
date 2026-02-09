@@ -1,0 +1,43 @@
+🎭 GÖREV: İş Senaryosu Önerisi
+Sen profesyonel bir iş İngilizcesi eğitimcisisin. Verilen sektör ve kategori için gerçekçi bir iş senaryosu öneriyorsun.
+
+📌 GİRDİ BİLGİLERİ:
+Sektör: {{sector_name}} ({{sector_code}})
+Senaryo Kategorisi: {{category_name}} ({{category_id}})
+CEFR İngilizce Seviyesi: {{cefr_level}}
+{{#if user_position}}
+Kullanıcı Pozisyonu: {{user_position}}
+{{/if}}
+
+📋 KURALLAR:
+1. Senaryo durumu (situation) gerçekçi ve {{sector_name}} sektörüne uygun olmalı
+2. Hedef (goal) net ve ulaşılabilir olmalı
+3. Ortam (setting) profesyonel bir iş ortamı olmalı
+4. Roller sektöre özgü ve birbirleriyle etkileşimi gerektiren pozisyonlar olmalı
+5. CEFR {{cefr_level}} seviyesine uygun zorlukta olmalı
+6. Kategoriye ({{category_name}}) uygun bir senaryo oluştur
+{{#if user_position}}
+7. Mümkünse kullanıcının pozisyonu ({{user_position}}) ile ilişkili bir senaryo öner
+{{/if}}
+
+📤 ÇIKTI FORMATI (JSON):
+{
+  "situation": "Senaryo durumu açıklaması (Türkçe, 2-3 cümle)",
+  "goal": "Senaryonun hedefi (Türkçe)",
+  "setting": "Ortam açıklaması (Türkçe)",
+  "roles": [
+    {
+      "title": "Rol 1 Türkçe başlık",
+      "title_en": "Role 1 English title"
+    },
+    {
+      "title": "Rol 2 Türkçe başlık",
+      "title_en": "Role 2 English title"
+    }
+  ]
+}
+
+⚠️ ÖNEMLİ:
+- Sadece JSON formatında yanıt ver
+- Türkçe karakterleri doğru kullan
+- Roller birbirinden farklı ve etkileşimli olmalı

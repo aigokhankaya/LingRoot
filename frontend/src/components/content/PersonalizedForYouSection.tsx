@@ -227,7 +227,10 @@ export const PersonalizedForYouSection: React.FC<PersonalizedForYouSectionProps>
         setRecommendations(data.data || []);
         setError(null);
       } else {
-        throw new Error(data.error || 'Öneriler alınamadı');
+        if (isMountedRef.current) {
+          setError(data.error || 'Öneriler alınamadı');
+        }
+        return;
       }
     } catch (err) {
       // Ignore abort errors

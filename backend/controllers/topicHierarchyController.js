@@ -6,6 +6,8 @@ const fs = require('fs');
 const gamificationService = require('../services/gamificationService');
 const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
 const promptService = require('../utils/ai/promptService.js');
+const { getTopicPathInternal, formatTopicHierarchy, getParentTopic } = require('../utils/topic/topicPathHelper.js');
+const openaiClient = require('../utils/ai/openaiClient');
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -224,11 +226,21 @@ exports.generateSubtopics = async (req, res) => {
       logger.error('[TOPIC HIERARCHY] Error fetching existing subtopics for similarity check:', existingChildrenError);
     }
 
+    // Get topic path for hierarchy context
+    const topicPath = await getTopicPathInternal(id, userId);
+    const hierarchyContext = formatTopicHierarchy(topicPath);
+    const parentContext = getParentTopic(topicPath);
+
+    logger.info(`[TOPIC HIERARCHY] Topic path for ${id}: ${hierarchyContext}`);
+
     // Generate Prompt using PromptService
     let prompt;
     try {
       prompt = promptService.getPrompt('topic/subtopics', {
         main_topic: parentTopic.title,
+        topic_hierarchy: hierarchyContext,
+        parent_description: parentTopic.description || null,
+        root_topic: topicPath.length > 0 ? topicPath[0].title : parentTopic.title,
         level: parentTopic.level,
         language,
         count,
@@ -1061,6 +1073,96 @@ exports.getTopicContent = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'İçerik bilgisi alınırken hata oluştu',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * AI ile konu önerisi al
+ * POST /api/topic-hierarchy/topics/suggest
+ */
+exports.suggestTopic = async (req, res) => {
+  try {
+    const { cefr_level, mood } = req.body;
+    const userId = req.user.id;
+
+    logger.info(`[TOPIC HIERARCHY] Suggesting topic for user ${userId} at level ${cefr_level}`);
+
+    // Mevcut konuları al (benzerlik kontrolü için)
+    let existingTopicTitles = [];
+    try {
+      const { data: existingTopics } = await supabase
+        .from('topics')
+        .select('title')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (existingTopics && existingTopics.length > 0) {
+        existingTopicTitles = existingTopics.map(t => t.title);
+      }
+    } catch (e) {
+      logger.debug('[TOPIC HIERARCHY] Could not fetch existing topics for suggestion');
+    }
+
+    // Prompt oluştur
+    let prompt;
+    try {
+      prompt = promptService.getPrompt('topic/suggest', {
+        cefr_level: cefr_level || 'B1',
+        mood: mood || null,
+        existing_topics: existingTopicTitles.length > 0 ? existingTopicTitles.join(', ') : null
+      });
+    } catch (promptError) {
+      logger.error('[TOPIC HIERARCHY] Failed to load prompt template:', promptError);
+      return res.status(500).json({
+        success: false,
+        message: 'Prompt template yüklenemedi'
+      });
+    }
+
+    // AI'dan öneri al
+    const response = await openaiClient.generateChatCompletion([
+      { role: 'user', content: prompt }
+    ], {
+      systemPrompt: 'Sen yaratıcı bir içerik önerici sistemsin. Kullanıcının İngilizce öğrenmesi için ilgi çekici ve eğitici konular öneriyorsun.',
+      temperature: 0.9,
+      model: 'gpt-4o-mini',
+      responseFormat: { type: 'json_object' }
+    });
+
+    // Log API cost
+    if (response.usage) {
+      const cost = calculateOpenAiCost(response.usage, 'gpt-4o-mini');
+      logApiCost({
+        userId,
+        feature: 'topic_suggest',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        inputQuantity: cost.promptTokens,
+        outputQuantity: cost.completionTokens,
+        costUsd: cost.totalCostUsd,
+      }).catch(err => logger.warn('[COST] topic_suggest log failed:', err.message));
+    }
+
+    const parsed = JSON.parse(response.content);
+    logger.info(`✅ Topic suggested: "${parsed.title}"`);
+
+    return res.json({
+      success: true,
+      suggestion: {
+        title: parsed.title || '',
+        description: parsed.description || '',
+        mood: parsed.mood || 'Neutral'
+      }
+    });
+
+  } catch (error) {
+    logger.error('[TOPIC HIERARCHY] Error suggesting topic:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Konu önerilirken hata oluştu',
       error: error.message
     });
   }

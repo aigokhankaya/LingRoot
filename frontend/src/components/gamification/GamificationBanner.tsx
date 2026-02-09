@@ -190,11 +190,29 @@ export const GamificationBanner: React.FC<GamificationBannerProps> = (props) => 
     }
 
     // Check if onboarding is completed
-    const isOnboardingComplete = stats?.onboardingCompleted ||
-        (typeof window !== 'undefined' && localStorage.getItem('onboarding_completed') === 'true');
+    // Backend başarılı → Backend değeri, Backend hata → localStorage fallback
+    const isOnboardingComplete = stats?.onboardingCompleted === true ||
+        (stats === null && typeof window !== 'undefined' && localStorage.getItem('onboarding_completed') === 'true');
 
     // If alwaysShow is true (e.g. Welcome page), show daily progress summary OR onboarding prompt
     if (props.alwaysShow) {
+        // Stats henüz yüklenmediyse loading skeleton göster
+        if (loading) {
+            return (
+                <div className="mb-8">
+                    <Card className="relative bg-gray-100 animate-pulse p-6 rounded-xl">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-gray-200 rounded-full" />
+                            <div className="flex-1">
+                                <div className="h-5 bg-gray-200 rounded w-48 mb-2" />
+                                <div className="h-4 bg-gray-200 rounded w-64" />
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
         // If onboarding not complete, show "Create Your Roadmap" card
         if (!isOnboardingComplete) {
             return (

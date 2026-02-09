@@ -1,4 +1,7 @@
 # .env dosyalarının gizliliği kaldırıldı
 # .env
 # .env.local
-# .env.example 
+# .env.example
+
+# TypeScript build info (auto-generated, causes stale reference errors)
+*.tsbuildinfo

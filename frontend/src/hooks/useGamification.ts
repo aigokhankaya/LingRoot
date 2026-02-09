@@ -153,6 +153,13 @@ export function useGamification() {
             const data = await response.json();
             if (data.success) {
                 setStats(data.data);
+
+                // Backend-localStorage senkronizasyonu (single source of truth)
+                if (data.data?.onboardingCompleted === true) {
+                    localStorage.setItem('onboarding_completed', 'true');
+                } else {
+                    localStorage.removeItem('onboarding_completed');
+                }
             }
         } catch (err: any) {
             setError(err.message);

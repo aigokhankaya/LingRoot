@@ -199,21 +199,29 @@ async function extractFromWebLink(url) {
  * OPTIMIZED: Konu başlığından TEK LLM çağrısı ile ikili içerik üretir.
  * Eski yöntem (2 çağrı) yerine generateBilingualContent kullanır.
  * Token tasarrufu: ~33%
- * 
+ *
+ * @param {string} topic - Topic title to generate content about
+ * @param {string} level - CEFR level (A1-C2)
+ * @param {string} inputLanguage - Target language for translation
+ * @param {object} requestLogger - Optional request logger
+ * @param {number} targetDurationMinutes - Optional target duration in minutes
+ * @param {string} mood - Optional mood for content generation
+ * @param {object} topicContext - Optional topic hierarchy context {hierarchy: string, rootTopic: string}
  * @returns {{englishText: string, translatedText: string}} - İngilizce içerik (TTS için) ve çevrilmiş içerik (kayıt için)
  */
-async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger, targetDurationMinutes = null, mood = null) {
+async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger, targetDurationMinutes = null, mood = null, topicContext = null) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
     }
 
-    logger.info(`[OPTIMIZED] Generating bilingual narration for topic: ${topic} at level ${level}${mood ? ` [Mood: ${mood}]` : ''}`);
+    logger.info(`[OPTIMIZED] Generating bilingual narration for topic: ${topic} at level ${level}${mood ? ` [Mood: ${mood}]` : ''}${topicContext?.hierarchy ? ` [Hierarchy: ${topicContext.hierarchy}]` : ''}`);
 
     try {
         // OPTIMIZED: Single LLM call for both English and translated content
         // Pass targetDurationMinutes to control content length based on desired audio duration
-        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger, targetDurationMinutes, mood);
+        // Pass topicContext for parent-aware content generation
+        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger, targetDurationMinutes, mood, [], topicContext);
 
         if (targetDurationMinutes) {
             logger.info(`[OPTIMIZED] Duration target: ${targetDurationMinutes} minutes`);
@@ -261,7 +269,8 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
                 // content_generation prompt'u ile seviyeye uygun detaylı anlatım üret
                 const inputLanguage = detectedLanguage === 'tr' || detectedLanguage === 'tr-TR' ? 'Turkish' : 'English';
                 const mood = options.mood || null;
-                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger, targetDurationMinutes, mood);
+                const topicContext = options.topicContext || null;
+                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger, targetDurationMinutes, mood, topicContext);
                 if (!narration || !narration.englishText) {
                     logger.error("OpenAI could not generate narration from topic. User should provide a more descriptive topic.");
                     return null;

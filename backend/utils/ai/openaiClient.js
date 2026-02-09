@@ -79,6 +79,7 @@ class OpenAIClient {
         systemPrompt = this.getSystemPrompt(),
         topP = 0.9,
         model = this.chatModel, // Allow overriding model
+        responseFormat = null, // Support for JSON mode: { type: 'json_object' }
       } = options;
 
       // Prepare messages with system prompt
@@ -95,19 +96,26 @@ class OpenAIClient {
         model: model
       });
 
+      const requestBody = {
+        model: model,
+        messages: apiMessages,
+        temperature,
+        max_tokens: maxTokens,
+        top_p: topP,
+      };
+
+      // Add response_format if specified (for JSON mode)
+      if (responseFormat && responseFormat.type === 'json_object') {
+        requestBody.response_format = { type: 'json_object' };
+      }
+
       const response = await fetch(this.chatApiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify({
-          model: model,
-          messages: apiMessages,
-          temperature,
-          max_tokens: maxTokens,
-          top_p: topP,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {

@@ -109,3 +109,6 @@ backend/tests/load/fixtures/test-users.json
 backend/tests/load/reports/*.json
 backend/tests/load/scripts/seed-test-data.sql
 backend/tests/load/scripts/cleanup-test-data.sql
+
+# Temporary docs
+docs/temp/

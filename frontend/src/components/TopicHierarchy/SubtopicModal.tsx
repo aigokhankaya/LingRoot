@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { useTranslation, locales } from '../../lib/i18n';
+import { Bot, X, Info, Loader2, Sparkles } from 'lucide-react';
 
 interface SubtopicModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <i className="fas fa-robot me-2 text-primary"></i>
+            <Bot className="w-5 h-5 me-2 text-primary" />
             {t('topics_subtopic_modal_title')}
           </h3>
           <button
@@ -50,7 +51,7 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
             className="text-gray-400 hover:text-gray-600"
             disabled={isLoading}
           >
-            <i className="fas fa-times text-xl"></i>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -136,9 +137,9 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
 
           {/* Bilgilendirme */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-xs text-gray-700">
-              <i className="fas fa-info-circle me-1 text-yellow-600"></i>
-              {t('topics_subtopic_modal_info')}
+            <p className="text-xs text-gray-700 flex items-start gap-1">
+              <Info className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <span>{t('topics_subtopic_modal_info')}</span>
             </p>
           </div>
         </div>
@@ -160,12 +161,12 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
           >
             {isLoading ? (
               <>
-                <i className="fas fa-spinner fa-spin me-2"></i>
+                <Loader2 className="w-4 h-4 me-2 animate-spin" />
                 {t('topics_subtopic_modal_submit_loading')}
               </>
             ) : (
               <>
-                <i className="fas fa-magic me-2"></i>
+                <Sparkles className="w-4 h-4 me-2" />
                 {t('topics_subtopic_modal_submit_button')}
               </>
             )}

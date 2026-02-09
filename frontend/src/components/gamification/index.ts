@@ -27,3 +27,7 @@ export { SectorSkillTree } from './SectorSkillTree';
 export { QuestGuideModal } from './QuestGuideModal';
 export { ActiveQuestBanner } from './ActiveQuestBanner';
 
+// LQS (Listening Quality System) Components
+export { ListeningQualityCard } from './ListeningQualityCard';
+export { MemoryPalace } from './MemoryPalace';
+

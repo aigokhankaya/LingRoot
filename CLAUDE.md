@@ -66,10 +66,10 @@ These rules CANNOT be violated under any circumstances:
 11. **TTS voice names: do not change arbitrarily.**
 12. **Deployment: Cloudflare Tunnel → Backend Only.**
  
-## DB Operations (Manual Only)
- 
-- NEVER connect to Supabase directly or auto-execute schema changes.
-- Prepare SQL migration file → Tell user: "Run this SQL in Supabase SQL Editor."
+## DB Operations
+
+- **Analiz/okuma sorguları:** Supabase REST API üzerinden bağlanılabilir (`.env`'den credentials kullanarak).
+- **Schema değişiklikleri:** ASLA otomatik çalıştırma. SQL migration dosyası hazırla → Kullanıcıya "Supabase SQL Editor'da çalıştır" de.
 - Supabase RLS must always be active.
 - After every migration, update BOTH:
   - `docs/database/schema-overview.md`

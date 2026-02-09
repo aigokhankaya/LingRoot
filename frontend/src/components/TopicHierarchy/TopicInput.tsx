@@ -5,24 +5,27 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent } from '../ui/card';
 import { useTranslation } from '../../lib/i18n';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Plus, Lightbulb } from 'lucide-react';
 
 interface TopicInputProps {
   onCreateTopic: (title: string, description?: string, mood?: string) => Promise<void>;
   isLoading: boolean;
   level: string;
+  onSuggestTopic?: () => Promise<{ title: string; description: string; mood: string } | null>;
 }
 
 const TopicInput: React.FC<TopicInputProps> = ({
   onCreateTopic,
   isLoading,
-  level
+  level,
+  onSuggestTopic
 }) => {
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [mood, setMood] = useState('Neutral');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
 
   const moods = [
     { value: 'Neutral', label: t('mood_neutral') || 'Nötr / Dengeli' },
@@ -51,6 +54,27 @@ const TopicInput: React.FC<TopicInputProps> = ({
     setShowAdvanced(false);
   };
 
+  const handleSuggest = async () => {
+    if (!onSuggestTopic) return;
+
+    setSuggesting(true);
+    try {
+      const suggestion = await onSuggestTopic();
+      if (suggestion) {
+        setTitle(suggestion.title || '');
+        setDescription(suggestion.description || '');
+        setMood(suggestion.mood || 'Neutral');
+        if (suggestion.description) {
+          setShowAdvanced(true);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get topic suggestion:', error);
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   return (
     <Card className="border-none shadow-sm bg-gray-50/50">
       <CardContent className="p-4">
@@ -63,25 +87,42 @@ const TopicInput: React.FC<TopicInputProps> = ({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={t('topics_input_title_placeholder') || "Yeni bir konu başlığı girin..."}
                 className="text-base py-6 bg-white border-gray-200 focus:border-primary/50 focus:ring-primary/20"
-                disabled={isLoading}
+                disabled={isLoading || suggesting}
                 maxLength={200}
                 autoFocus={false}
               />
             </div>
 
+            {onSuggestTopic && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSuggest}
+                disabled={isLoading || suggesting}
+                className="px-3 h-auto border-amber-400 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                title={t('topics_suggest_tooltip') || 'AI ile konu öner'}
+              >
+                {suggesting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Lightbulb className="w-5 h-5" />
+                )}
+              </Button>
+            )}
+
             <Button
               type="submit"
-              disabled={isLoading || !title.trim()}
+              disabled={isLoading || suggesting || !title.trim()}
               className="px-6 font-semibold h-auto min-w-[140px]"
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
-                  <i className="fas fa-spinner fa-spin"></i>
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>{t('topics_input_submit_loading') || '...'}</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <i className="fas fa-plus"></i>
+                  <Plus className="w-4 h-4" />
                   <span>{t('topics_input_submit_button') || 'Ana Konu Oluştur'}</span>
                 </div>
               )}

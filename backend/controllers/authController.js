@@ -40,6 +40,9 @@ const JWT_REFRESH_SECRET = _JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";  // 15 minutes
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d"; // 7 days
 
+// Email verification token expiry (48 hours for international timezone support)
+const VERIFICATION_TOKEN_EXPIRY_MS = 48 * 60 * 60 * 1000; // 48 hours
+
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
 
 // Always issue a long-lived token based on env config
@@ -150,16 +153,18 @@ exports.register = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
   try {
-    logger.info(`[REGISTER] req.body:`, req.body);
+    // Filter password from logs for security
+    const { password: _pwd, ...safeBody } = req.body;
+    logger.info(`[REGISTER] req.body:`, safeBody);
     logStep({
       requestId,
       stepName: 'auth:register:start',
       stepSequence: stepSequence++,
       serviceName: 'Express',
       endpoint: '/auth/register',
-      inputData: req.body
+      inputData: safeBody
     });
-    logger.info("Register request received", { body: req.body });
+    logger.info("Register request received", { body: safeBody });
     const { firstName, lastName, email, phoneNumber, password, locale } = req.body;
 
     // Validate required fields
@@ -171,9 +176,26 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate email format
+    // Sanitize and normalize inputs
+    const sanitizeName = (name) => name.trim().replace(/[<>"&]/g, '');
+    const sanitizedFirstName = sanitizeName(firstName);
+    const sanitizedLastName = sanitizeName(lastName);
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Validate name length
+    if (sanitizedFirstName.length < 2 || sanitizedLastName.length < 2) {
+      return res.status(400).json({ success: false, code: 'NAME_TOO_SHORT', message: "İsim en az 2 karakter olmalıdır" });
+    }
+    if (sanitizedFirstName.length > 50 || sanitizedLastName.length > 50) {
+      return res.status(400).json({ success: false, code: 'NAME_TOO_LONG', message: "İsim 50 karakterden uzun olamaz" });
+    }
+
+    // Validate email format and length
+    if (normalizedEmail.length > 255) {
+      return res.status(400).json({ success: false, code: 'EMAIL_TOO_LONG', message: "E-posta 255 karakterden uzun olamaz" });
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({ success: false, code: 'INVALID_EMAIL', message: "Geçersiz e-posta formatı" });
     }
 
@@ -187,19 +209,38 @@ exports.register = async (req, res) => {
     if (password.length < 8) {
       return res.status(400).json({ success: false, code: 'PASSWORD_TOO_SHORT', message: "Şifre en az 8 karakter olmalıdır" });
     }
-    if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_WEAK', message: "Şifre en az 1 büyük harf ve 1 rakam içermelidir" });
+    if (password.length > 128) {
+      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_LONG', message: "Şifre 128 karakterden uzun olamaz" });
+    }
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_WEAK', message: "Şifre en az 1 küçük harf, 1 büyük harf ve 1 rakam içermelidir" });
     }
 
-    // Check if email already exists
+    // Check if email already exists (case-insensitive)
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select("email")
-      .eq("email", email)
+      .ilike("email", normalizedEmail)
       .maybeSingle();
     if (fetchError) logger.error('[REGISTER] Error fetching user for register:', fetchError);
 
     if (existingUser) {
+      // Check if the existing user is unverified - offer resend option
+      const { data: fullUser } = await supabase
+        .from('users')
+        .select('isverified')
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+
+      if (fullUser && !fullUser.isverified) {
+        return res.status(400).json({
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED_EXISTING',
+          message: "Bu e-posta adresi daha önce kaydedilmiş ancak doğrulanmamış. Aktivasyon e-postası tekrar gönderilebilir.",
+          data: { can_resend: true }
+        });
+      }
+
       return res.status(400).json({ success: false, code: 'EMAIL_IN_USE', message: "Bu e-posta adresi zaten kullanılıyor" });
     }
 
@@ -221,9 +262,9 @@ exports.register = async (req, res) => {
       .from('users')
       .insert([
         {
-          firstname: firstName,
-          lastname: lastName,
-          email,
+          firstname: sanitizedFirstName,
+          lastname: sanitizedLastName,
+          email: normalizedEmail,
           phonenumber: phoneNumber,
           password: hashedPassword,
           role: "user",
@@ -239,6 +280,16 @@ exports.register = async (req, res) => {
       ])
       .select();
     if (insertError) logger.error('[REGISTER] Error inserting new user:', insertError);
+
+    // Handle race condition: unique constraint violation
+    if (insertError?.code === '23505') {
+      if (insertError.message?.includes('email')) {
+        return res.status(400).json({ success: false, code: 'EMAIL_IN_USE', message: "Bu e-posta adresi zaten kullanılıyor" });
+      }
+      if (insertError.message?.includes('phone')) {
+        return res.status(400).json({ success: false, code: 'PHONE_IN_USE', message: "Bu telefon numarası zaten kullanılıyor" });
+      }
+    }
 
     if (insertError || !newUser?.length) {
       logger.error("User registration error:", insertError);
@@ -299,7 +350,7 @@ exports.register = async (req, res) => {
     // Generate email verification token and send activation email
     try {
       const verificationCode = generateNumericCode();
-      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const verificationExpires = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY_MS).toISOString();
       const { error: verErr } = await supabase
         .from('users')
         .update({
@@ -323,11 +374,11 @@ exports.register = async (req, res) => {
           await sendMail({
             to: newUser[0].email,
             subject: 'LingRoot Hesap Aktivasyonu',
-            text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 24 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
+            text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 48 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
             html: `<p>Merhaba ${fullName},</p>
                    <p>Hesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:</p>
                    <p><a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">Hesabımı Doğrula</a></p>
-                   <p>Bağlantı 24 saat geçerlidir.</p>
+                   <p>Bağlantı 48 saat geçerlidir.</p>
                    <p>Teşekkürler,<br/>LingRoot Ekibi</p>`
           });
         } catch (mailErr) {
@@ -1061,9 +1112,9 @@ exports.resendVerificationEmail = async (req, res) => {
       return res.json({ success: true, message: 'Hesabınız zaten doğrulanmış. Giriş yapabilirsiniz.' });
     }
 
-    // Generate new token and expiry (24 hours)
+    // Generate new token and expiry (48 hours)
     const code = generateNumericCode();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY_MS).toISOString();
 
     const { error: updErr } = await supabase
       .from('users')
@@ -1090,11 +1141,11 @@ exports.resendVerificationEmail = async (req, res) => {
       await sendMail({
         to: email,
         subject: 'LingRoot Hesap Aktivasyonu',
-        text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 24 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
+        text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 48 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
         html: `<p>Merhaba ${fullName},</p>
                <p>Hesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:</p>
                <p><a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">Hesabımı Doğrula</a></p>
-               <p>Bağlantı 24 saat geçerlidir.</p>
+               <p>Bağlantı 48 saat geçerlidir.</p>
                <p>Teşekkürler,<br/>LingRoot Ekibi</p>`
       });
     } catch (mailErr) {

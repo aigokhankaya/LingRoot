@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { getApiUrl } from '../src/lib/api';
+import { getApiUrl, resendVerificationEmail } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
 import Link from 'next/link';
 
@@ -13,6 +13,11 @@ export default function VerifyPage() {
   const { token, email } = router.query as { token?: string; email?: string };
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'timeout' | 'check_email'>('idle');
   const [message, setMessage] = useState<string>('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [showEmailInput, setShowEmailInput] = useState(false);
+  const [inputEmail, setInputEmail] = useState(email || '');
 
   const verifyToken = useCallback(async (tokenValue: string) => {
     setStatus('loading');
@@ -51,6 +56,46 @@ export default function VerifyPage() {
       }
     }
   }, [t]);
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown(prev => Math.max(0, prev - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // Update inputEmail when email query param changes
+  useEffect(() => {
+    if (email && !inputEmail) {
+      setInputEmail(email);
+    }
+  }, [email, inputEmail]);
+
+  const handleResend = useCallback(async () => {
+    if (resendCooldown > 0 || resendLoading) return;
+    const targetEmail = inputEmail || email;
+    if (!targetEmail) {
+      setShowEmailInput(true);
+      return;
+    }
+    setResendLoading(true);
+    setResendMessage(null);
+    try {
+      const result = await resendVerificationEmail(targetEmail);
+      if (result.success) {
+        setResendMessage(t('verify_resend_success') || t('login_resend_activation_success'));
+        setResendCooldown(60);
+        setShowEmailInput(false);
+      } else {
+        setResendMessage(result.message || t('server_error'));
+      }
+    } catch (e: unknown) {
+      const error = e as { message?: string };
+      setResendMessage(error?.message || t('server_error'));
+    } finally {
+      setResendLoading(false);
+    }
+  }, [inputEmail, email, resendCooldown, resendLoading, t]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -109,9 +154,45 @@ export default function VerifyPage() {
                 <h1 className="text-2xl font-bold mb-2">{t('error')}</h1>
                 <p className="text-red-600 mb-6">{message}</p>
                 <p className="text-sm text-gray-500 mb-4">{t('verify_error_expired')}</p>
-                <Link href="/login" className="text-primary hover:underline">
-                  {t('login')}
-                </Link>
+
+                {/* Resend section */}
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
+                  <p className="text-sm text-gray-600 mb-3">
+                    {t('verify_resend_prompt') || 'Bağlantı süresi dolmuş veya geçersiz mi? Yeni aktivasyon e-postası isteyin.'}
+                  </p>
+
+                  {showEmailInput && (
+                    <input
+                      type="email"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md mb-3 text-sm focus:outline-none focus:ring-primary focus:border-primary"
+                      placeholder={t('email_placeholder') || 'E-posta adresiniz'}
+                      value={inputEmail}
+                      onChange={(e) => setInputEmail(e.target.value)}
+                    />
+                  )}
+
+                  <button
+                    onClick={handleResend}
+                    disabled={resendLoading || resendCooldown > 0 || (!inputEmail && !email)}
+                    className="w-full px-4 py-2 bg-primary text-white rounded-md disabled:opacity-50 hover:bg-primary/90 transition-colors text-sm font-medium"
+                  >
+                    {resendLoading ? (t('sending') || 'Gönderiliyor...') :
+                     resendCooldown > 0 ? `${t('verify_resend_wait') || 'Tekrar göndermek için bekleyin'} (${resendCooldown}s)` :
+                     t('login_resend_activation_button') || 'Aktivasyon maili gönder'}
+                  </button>
+
+                  {resendMessage && (
+                    <p className={`mt-2 text-sm ${resendMessage.includes('gönderildi') || resendMessage.includes('sent') ? 'text-green-600' : 'text-gray-700'}`}>
+                      {resendMessage}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-4">
+                  <Link href="/login" className="text-primary hover:underline text-sm">
+                    {t('login')}
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -147,6 +228,26 @@ export default function VerifyPage() {
                 <p className="text-sm text-gray-500 mb-6">
                   {t('welcome_popup_activation_note')}
                 </p>
+
+                {/* Didn't receive email section */}
+                <div className="border-t pt-4 mb-6">
+                  <p className="text-sm text-gray-500 mb-3">{t('verify_not_received') || 'E-postayı almadınız mı?'}</p>
+                  <button
+                    onClick={handleResend}
+                    disabled={resendLoading || resendCooldown > 0}
+                    className="px-4 py-2 border border-primary text-primary rounded-md disabled:opacity-50 hover:bg-primary/5 transition-colors text-sm font-medium"
+                  >
+                    {resendLoading ? (t('sending') || 'Gönderiliyor...') :
+                     resendCooldown > 0 ? `(${resendCooldown}s)` :
+                     t('welcome_popup_resend') || 'Aktivasyon mailini tekrar gönder'}
+                  </button>
+                  {resendMessage && (
+                    <p className={`mt-2 text-sm ${resendMessage.includes('gönderildi') || resendMessage.includes('sent') ? 'text-green-600' : 'text-gray-700'}`}>
+                      {resendMessage}
+                    </p>
+                  )}
+                </div>
+
                 <Link href="/login" className="inline-block px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors">
                   {t('already_have_account_login')}
                 </Link>

@@ -16,8 +16,12 @@ import {
     Check,
     Loader2,
     RefreshCw,
-    Download
+    Download,
+    Lightbulb,
+    LogIn
 } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 
 // Ses seçenekleri
 const VOICE_OPTIONS = [
@@ -72,6 +76,9 @@ export default function RoleplayCreator({
     onClose,
     onContentCreated
 }: RoleplayCreatorProps) {
+    const { isAuthenticated } = useAuth();
+    const router = useRouter();
+
     // Wizard adımları (3 adım: Kategori, Durum/Roller, Sonuç)
     const [step, setStep] = useState(1);
     const totalSteps = 3;
@@ -101,6 +108,7 @@ export default function RoleplayCreator({
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [audioRef, setAudioRef] = useState<HTMLAudioElement | null>(null);
+    const [suggestingScenario, setSuggestingScenario] = useState(false);
 
     // Kategorileri yükle
     useEffect(() => {
@@ -126,6 +134,88 @@ export default function RoleplayCreator({
                 { id: 'customer_service', name_tr: 'Müşteri Hizmetleri', name_en: 'Customer Service' },
                 { id: 'feedback', name_tr: 'Geri Bildirim', name_en: 'Feedback' },
             ]);
+        }
+    };
+
+    const handleSuggestScenario = async () => {
+        if (!selectedCategory) {
+            return;
+        }
+
+        // Auth kontrolü
+        if (!isAuthenticated) {
+            const confirm = window.confirm('Bu özelliği kullanmak için giriş yapmanız gerekiyor. Giriş sayfasına yönlendirilmek ister misiniz?');
+            if (confirm) {
+                router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+            }
+            return;
+        }
+
+        setSuggestingScenario(true);
+        try {
+            const token = localStorage.getItem('lingroot_token');
+            console.log('[RoleplayCreator] Token exists:', !!token, 'Token length:', token?.length);
+
+            if (!token) {
+                throw new Error('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
+            }
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/sectors/roleplay/suggest`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        sector_id: sectorId,
+                        scenario_category: selectedCategory,
+                        cefr_level: selectedLevel
+                    })
+                }
+            );
+
+            const data = await response.json();
+            console.log('[RoleplayCreator] Suggest response:', data);
+
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            if (data.success && data.suggestion) {
+                const suggestion = data.suggestion;
+                // Form alanlarını doldur
+                setSituation(suggestion.situation || '');
+                setGoal(suggestion.goal || '');
+                setSetting(suggestion.setting || '');
+
+                // Rolleri doldur
+                if (suggestion.roles && suggestion.roles.length >= 2) {
+                    setRoles([
+                        {
+                            id: 'role_1',
+                            title: suggestion.roles[0].title || '',
+                            title_en: suggestion.roles[0].title_en || '',
+                            voice: 'onyx'
+                        },
+                        {
+                            id: 'role_2',
+                            title: suggestion.roles[1].title || '',
+                            title_en: suggestion.roles[1].title_en || '',
+                            voice: 'nova'
+                        }
+                    ]);
+                }
+            } else {
+                throw new Error(data.error || 'Senaryo önerisi alınamadı');
+            }
+        } catch (error: unknown) {
+            console.error('Failed to suggest scenario:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata';
+            alert(`Senaryo önerisi alınırken hata oluştu: ${errorMessage}`);
+        } finally {
+            setSuggestingScenario(false);
         }
     };
 
@@ -687,23 +777,43 @@ export default function RoleplayCreator({
                                 <ChevronRight className="w-4 h-4" />
                             </button>
                         ) : (
-                            <button
-                                onClick={handleGenerateScenario}
-                                disabled={loading || !canProceed()}
-                                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-xl font-semibold disabled:opacity-50"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Oluşturuluyor...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles className="w-4 h-4" />
-                                        Senaryo Oluştur
-                                    </>
-                                )}
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleSuggestScenario}
+                                    disabled={suggestingScenario || loading}
+                                    className="flex items-center gap-2 px-5 py-2 border-2 border-amber-400 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl font-medium disabled:opacity-50 transition-colors"
+                                    title="AI ile senaryo ve rolleri otomatik doldur"
+                                >
+                                    {suggestingScenario ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Öneriliyor...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Lightbulb className="w-4 h-4" />
+                                            Senaryo ve Rolleri Ata
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={handleGenerateScenario}
+                                    disabled={loading || !canProceed()}
+                                    className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-xl font-semibold disabled:opacity-50"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Oluşturuluyor...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="w-4 h-4" />
+                                            Senaryo Oluştur
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         )}
                     </div>
                 )}

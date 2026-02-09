@@ -16,6 +16,10 @@ import { useTranslation } from '../../lib/i18n';
 import TopicInput from './TopicInput';
 import TopicTree from './TopicTree';
 import { useAudioPlayer, AudioTrack } from '../../context/AudioPlayerContext';
+import {
+  Network, CheckCircle, History, FolderOpen, Loader2,
+  AlertTriangle, Check, X
+} from 'lucide-react';
 
 interface TopicHierarchySectionProps {
   userId: string;
@@ -243,7 +247,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
 
   const renderEmptyState = (formPosition: 'above' | 'below') => (
     <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-      <i className="fas fa-folder-open text-4xl text-gray-400 mb-4"></i>
+      <FolderOpen className="w-12 h-12 text-gray-400 mb-4 mx-auto" />
       <p className="text-gray-600 mb-2">{t('topics_empty_title')}</p>
       <p className="text-sm text-gray-500">
         {formPosition === 'above'
@@ -255,7 +259,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
 
   const renderLoadingState = () => (
     <div className="text-center py-12">
-      <i className="fas fa-spinner fa-spin text-3xl text-primary mb-3"></i>
+      <Loader2 className="w-8 h-8 text-primary mb-3 mx-auto animate-spin" />
       <p className="text-gray-600">{t('topics_loading')}</p>
     </div>
   );
@@ -294,13 +298,49 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
     }
   };
 
+  // AI ile konu önerisi al
+  const handleSuggestTopic = async (): Promise<{ title: string; description: string; mood: string } | null> => {
+    try {
+      const token = localStorage.getItem('lingroot_token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/topic-hierarchy/topics/suggest`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            cefr_level: level,
+            mood: null
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success && data.suggestion) {
+        return {
+          title: data.suggestion.title || '',
+          description: data.suggestion.description || '',
+          mood: data.suggestion.mood || 'Neutral'
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error('❌ Konu önerisi hatası:', err);
+      setError('Konu önerilirken bir hata oluştu');
+      return null;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Bilgilendirme */}
       <div className="bg-secondary/10 border border-secondary/40 rounded-lg p-6">
         <div className="flex items-start space-x-4">
           <div className="flex-shrink-0">
-            <i className="fas fa-sitemap text-3xl text-primary"></i>
+            <Network className="w-8 h-8 text-primary" />
           </div>
           <div className="flex-1">
             <div className="flex justify-between items-center mb-2">
@@ -311,7 +351,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
                 href="/dashboard?tab=reading-history"
                 className="text-xs text-primary hover:text-primary/80 flex items-center space-x-1"
               >
-                <i className="fas fa-history"></i>
+                <History className="w-3 h-3" />
                 <span>{t('topics_hierarchy_link_history')}</span>
               </Link>
             </div>
@@ -320,15 +360,15 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <div className="flex items-center space-x-2 text-primary">
-                <i className="fas fa-check-circle"></i>
+                <CheckCircle className="w-4 h-4" />
                 <span>{t('topics_hierarchy_bullet_infinite_tree')}</span>
               </div>
               <div className="flex items-center space-x-2 text-primary">
-                <i className="fas fa-check-circle"></i>
+                <CheckCircle className="w-4 h-4" />
                 <span>{t('topics_hierarchy_bullet_ai')}</span>
               </div>
               <div className="flex items-center space-x-2 text-primary">
-                <i className="fas fa-check-circle"></i>
+                <CheckCircle className="w-4 h-4" />
                 <span>{t('topics_hierarchy_bullet_audio')}</span>
               </div>
             </div>
@@ -341,14 +381,14 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       {/* Error/Success Messages */}
       {error && (
         <div className="flex items-center p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          <i className="fas fa-exclamation-triangle mr-2"></i>
+          <AlertTriangle className="w-4 h-4 mr-2" />
           <span>{error}</span>
         </div>
       )}
 
       {successMessage && (
         <div className="flex items-center p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
-          <i className="fas fa-check-circle mr-2"></i>
+          <CheckCircle className="w-4 h-4 mr-2" />
           <span>{successMessage}</span>
         </div>
       )}
@@ -364,7 +404,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center">
-              <i className="fas fa-check"></i>
+              <Check className="w-5 h-5" />
             </div>
             <div>
               <p className="font-medium text-green-800">Seslendirme tamamlandı</p>
@@ -378,7 +418,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             }}
             className="w-8 h-8 rounded-full hover:bg-green-200 flex items-center justify-center text-green-600"
           >
-            <i className="fas fa-times"></i>
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -407,6 +447,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             onCreateTopic={handleCreateMainTopic}
             isLoading={isLoading}
             level={level}
+            onSuggestTopic={handleSuggestTopic}
           />
         </>
       ) : (
@@ -416,6 +457,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             onCreateTopic={handleCreateMainTopic}
             isLoading={isLoading}
             level={level}
+            onSuggestTopic={handleSuggestTopic}
           />
 
           {/* Konu Ağacı */}
