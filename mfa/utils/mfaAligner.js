@@ -200,6 +200,145 @@ class MFAAligner {
             .trim();
     }
 
+    /**
+     * Get audio duration in seconds using ffprobe
+     */
+    async getAudioDuration(audioPath) {
+        try {
+            const { stdout } = await execAsync(
+                `ffprobe -v error -show_entries format=duration -of csv=p=0 "${audioPath}"`,
+                { timeout: 10000 }
+            );
+            const duration = parseFloat(stdout.trim());
+            if (isNaN(duration) || duration <= 0) return null;
+            logger.info(`[MFA] Audio duration: ${duration.toFixed(1)}s`);
+            return duration;
+        } catch (err) {
+            logger.warn(`[MFA] Could not determine audio duration via ffprobe: ${err.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Split long audio into segments and create a multi-file MFA corpus.
+     * Each segment gets its own audio file + transcript file.
+     */
+    async prepareSegmentedCorpus(audioPath, transcript, audioDuration, segmentDuration) {
+        const corpusDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mfa-corpus-'));
+        const numSegments = Math.ceil(audioDuration / segmentDuration);
+
+        logger.info(`[MFA] Splitting ${audioDuration.toFixed(1)}s audio into ${numSegments} segments (~${segmentDuration}s each)`);
+
+        const segments = [];
+        for (let i = 0; i < numSegments; i++) {
+            const startTime = i * segmentDuration;
+            const segName = `seg_${String(i + 1).padStart(3, '0')}`;
+            const segAudioPath = path.join(corpusDir, `${segName}.wav`);
+
+            // Re-encode to 16kHz mono WAV for MFA compatibility
+            await execAsync(
+                `ffmpeg -y -i "${audioPath}" -ss ${startTime} -t ${segmentDuration} -acodec pcm_s16le -ar 16000 -ac 1 "${segAudioPath}"`,
+                { timeout: 30000 }
+            );
+
+            segments.push({
+                index: i,
+                name: segName,
+                startOffset: startTime,
+                audioPath: segAudioPath
+            });
+        }
+
+        // Distribute transcript words proportionally across segments
+        const rawTranscript = transcript == null ? '' : String(transcript);
+        const cleaned = this.cleanTranscript(rawTranscript);
+        const words = cleaned.split(/\s+/).filter(Boolean);
+        const totalWords = words.length;
+
+        for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i];
+            const segStartRatio = seg.startOffset / audioDuration;
+            const segEndTime = Math.min(seg.startOffset + segmentDuration, audioDuration);
+            const segEndRatio = segEndTime / audioDuration;
+
+            const startWord = Math.round(segStartRatio * totalWords);
+            const endWord = Math.round(segEndRatio * totalWords);
+
+            const segWords = words.slice(startWord, endWord);
+            const segTranscript = segWords.join(' ');
+
+            const transcriptPath = path.join(corpusDir, `${seg.name}.txt`);
+            await fs.writeFile(transcriptPath, segTranscript || 'silence', 'utf-8');
+
+            seg.wordRange = { start: startWord, end: endWord };
+            logger.info(`[MFA] Segment ${i + 1}/${numSegments}: offset=${seg.startOffset.toFixed(1)}s, words=${segWords.length}`);
+        }
+
+        logger.info(`[MFA] Segmented corpus ready: ${numSegments} segments, ${totalWords} total words`);
+        return { corpusDir, segments };
+    }
+
+    /**
+     * Parse TextGrid files from all segments and merge with time offsets
+     */
+    async parseSegmentedTextGrids(outputDir, segments) {
+        const allWords = [];
+
+        for (const seg of segments) {
+            let textGridPath = path.join(outputDir, `${seg.name}.TextGrid`);
+
+            // Check if TextGrid exists at root
+            try {
+                await fs.access(textGridPath);
+            } catch {
+                // Search in subdirectories
+                let found = false;
+                try {
+                    const outputFiles = await fs.readdir(outputDir);
+                    for (const file of outputFiles) {
+                        const filePath = path.join(outputDir, file);
+                        const stat = await fs.stat(filePath);
+                        if (stat.isDirectory()) {
+                            const subPath = path.join(filePath, `${seg.name}.TextGrid`);
+                            try {
+                                await fs.access(subPath);
+                                textGridPath = subPath;
+                                found = true;
+                                break;
+                            } catch { /* continue */ }
+                        }
+                    }
+                } catch { /* ignore */ }
+
+                if (!found) {
+                    logger.warn(`[MFA] TextGrid not found for segment ${seg.name}, skipping`);
+                    continue;
+                }
+            }
+
+            try {
+                const segWords = await this.parseTextGrid(textGridPath);
+                // Add segment offset to all timestamps
+                for (const word of segWords) {
+                    allWords.push({
+                        word: word.word,
+                        startTime: word.startTime + seg.startOffset,
+                        endTime: word.endTime + seg.startOffset
+                    });
+                }
+                logger.info(`[MFA] Segment ${seg.name}: ${segWords.length} words aligned`);
+            } catch (err) {
+                logger.warn(`[MFA] Failed to parse TextGrid for segment ${seg.name}: ${err.message}`);
+            }
+        }
+
+        // Sort by startTime
+        allWords.sort((a, b) => a.startTime - b.startTime);
+
+        logger.info(`[MFA] Merged ${allWords.length} words from ${segments.length} segments`);
+        return allWords;
+    }
+
     async prepareDictionary(corpusDir) {
         const dictPath = path.join(corpusDir, 'english.dict');
         try {
@@ -283,7 +422,19 @@ class MFAAligner {
                 : spawn('sh', ['-c', command], { shell: false });
             const self = this;
 
-            child.stdout.on('data', d => { stdout += d.toString(); });
+            let lastLogTime = Date.now();
+            let lastHeartbeat = Date.now();
+            const HEARTBEAT_INTERVAL = 60000; // Log heartbeat every 60 seconds during long operations
+
+            child.stdout.on('data', d => {
+                stdout += d.toString();
+                // Log stdout if it contains useful info
+                const lines = d.toString().split('\n').filter(l => l.trim());
+                lines.forEach(l => {
+                    logger.debug(`📤 MFA stdout: ${l.trim()}`);
+                });
+            });
+
             child.stderr.on('data', d => {
                 const t = d.toString();
                 stderr += t;
@@ -295,23 +446,61 @@ class MFAAligner {
                     if (!trimmed) return;
 
                     // Check for steps
+                    let stepFound = false;
                     for (let i = currentStep; i < mfaSteps.length; i++) {
                         if (trimmed.toLowerCase().includes(mfaSteps[i].toLowerCase())) {
                             currentStep = i + 1;
                             const stepPercent = Math.round((currentStep / mfaSteps.length) * 100);
                             const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                             logger.info(`📍 MFA Step ${currentStep}/${mfaSteps.length} (${stepPercent}%): ${mfaSteps[i]} [${elapsed}s]`);
+                            lastLogTime = Date.now();
+                            stepFound = true;
                             break;
                         }
                     }
 
-                    if (trimmed.includes('ERROR')) {
+                    // Log important MFA output that might indicate sub-progress
+                    const lowerTrimmed = trimmed.toLowerCase();
+                    if (!stepFound && (
+                        lowerTrimmed.includes('processing') ||
+                        lowerTrimmed.includes('aligning') ||
+                        lowerTrimmed.includes('utterance') ||
+                        lowerTrimmed.includes('speaker') ||
+                        lowerTrimmed.includes('job') ||
+                        lowerTrimmed.includes('worker') ||
+                        lowerTrimmed.includes('progress') ||
+                        lowerTrimmed.includes('iteration') ||
+                        lowerTrimmed.includes('computing') ||
+                        lowerTrimmed.includes('writing') ||
+                        lowerTrimmed.includes('reading') ||
+                        lowerTrimmed.includes('loading') ||
+                        lowerTrimmed.includes('%') ||
+                        /\d+\/\d+/.test(trimmed) // Matches patterns like "5/10"
+                    )) {
+                        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                        logger.info(`🔄 MFA [${elapsed}s] Step ${currentStep}: ${trimmed.substring(0, 200)}`);
+                        lastLogTime = Date.now();
+                    }
+
+                    if (trimmed.includes('ERROR') || trimmed.includes('error:')) {
                         logger.error(`❌ MFA: ${trimmed}`);
+                    }
+
+                    if (trimmed.includes('WARNING') || trimmed.includes('warning:')) {
+                        logger.warn(`⚠️ MFA: ${trimmed.substring(0, 200)}`);
                     }
                 });
             });
 
+            // Heartbeat interval to show we're still alive during long operations
+            const heartbeatTimer = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                const sinceLast = ((Date.now() - lastLogTime) / 1000).toFixed(1);
+                logger.info(`💓 MFA Heartbeat: Step ${currentStep}/${mfaSteps.length} (${mfaSteps[currentStep-1] || 'Starting'}), elapsed: ${elapsed}s, silent for: ${sinceLast}s`);
+            }, HEARTBEAT_INTERVAL);
+
             child.on('close', async (code) => {
+                clearInterval(heartbeatTimer); // Clean up heartbeat timer
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 if (code === 0) {
                     logger.info(`✅ MFA Success in ${elapsed}s`);
@@ -320,6 +509,7 @@ class MFAAligner {
                     resolve(outputDir);
                 } else {
                     logger.error(`❌ MFA Failed code ${code} in ${elapsed}s`);
+                    logger.error(`📋 MFA stderr (last 2000 chars): ${stderr.slice(-2000)}`);
                     // Check for "No alignments"
                     if (stderr.includes('NoAlignmentsError') || stderr.includes('no successful alignments')) {
                         reject(new Error('NoAlignmentsError'));
@@ -331,11 +521,15 @@ class MFAAligner {
                 }
             });
 
-            // 40 min timeout to handle very long processing
+            // 60 min timeout to handle very long processing on slower servers
             setTimeout(() => {
+                clearInterval(heartbeatTimer); // Clean up heartbeat timer
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                logger.error(`⏰ MFA Timeout after ${elapsed}s at Step ${currentStep}/${mfaSteps.length} (${mfaSteps[currentStep-1] || 'Unknown'})`);
+                logger.error(`📋 MFA stderr (last 2000 chars): ${stderr.slice(-2000)}`);
                 child.kill();
                 reject(new Error('MFA Timeout'));
-            }, 2400000);
+            }, 3600000);
         });
     }
 
@@ -446,11 +640,31 @@ class MFAAligner {
         }
 
         let corpusDir = null, outputDir = null;
+        let segments = null;
         try {
             if (!await this.checkMFAAvailability()) throw new Error('Docker MFA Not Available');
             await this.ensureModels();
 
-            corpusDir = await this.prepareCorpus(audioPath, transcriptText);
+            // Check audio duration - split long audio into segments to prevent MFA hang
+            const SEGMENT_THRESHOLD = parseInt(process.env.MFA_SEGMENT_THRESHOLD || '90', 10);
+            const SEGMENT_DURATION = parseInt(process.env.MFA_SEGMENT_DURATION || '30', 10);
+            const audioDuration = await this.getAudioDuration(audioPath);
+
+            if (audioDuration && audioDuration > SEGMENT_THRESHOLD) {
+                logger.info(`[MFA] Long audio detected (${audioDuration.toFixed(1)}s > ${SEGMENT_THRESHOLD}s threshold). Splitting into ~${SEGMENT_DURATION}s segments.`);
+                const segResult = await this.prepareSegmentedCorpus(audioPath, transcriptText, audioDuration, SEGMENT_DURATION);
+                corpusDir = segResult.corpusDir;
+                segments = segResult.segments;
+                await this.writeDebugLine(debug, {
+                    stage: 'segmented-corpus',
+                    audioDuration,
+                    segmentCount: segments.length,
+                    segmentDuration: SEGMENT_DURATION,
+                });
+            } else {
+                corpusDir = await this.prepareCorpus(audioPath, transcriptText);
+            }
+
             let dictPath = await this.prepareDictionary(corpusDir);
 
             outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mfa-output-'));
@@ -590,52 +804,61 @@ class MFAAligner {
                 }
             }
 
-            const textGridPath = path.join(outputDir, 'audio.TextGrid');
+            let parsed;
 
-            // Debug: Check what files exist in output directory
-            try {
-                const outputFiles = await fs.readdir(outputDir);
-                logger.info(`[MFA] Output directory contents: ${outputFiles.length > 0 ? outputFiles.join(', ') : '(empty)'}`);
+            if (segments) {
+                // SEGMENTED: Parse all segment TextGrids and merge with offsets
+                parsed = await this.parseSegmentedTextGrids(outputDir, segments);
+            } else {
+                // SINGLE FILE: Original TextGrid parsing
+                const textGridPath = path.join(outputDir, 'audio.TextGrid');
 
-                // Also check for subdirectories
-                for (const file of outputFiles) {
-                    const filePath = path.join(outputDir, file);
-                    const stat = await fs.stat(filePath);
-                    if (stat.isDirectory()) {
-                        const subFiles = await fs.readdir(filePath);
-                        logger.info(`[MFA] Subdirectory "${file}" contents: ${subFiles.join(', ')}`);
+                // Debug: Check what files exist in output directory
+                try {
+                    const outputFiles = await fs.readdir(outputDir);
+                    logger.info(`[MFA] Output directory contents: ${outputFiles.length > 0 ? outputFiles.join(', ') : '(empty)'}`);
+
+                    // Also check for subdirectories
+                    for (const file of outputFiles) {
+                        const filePath = path.join(outputDir, file);
+                        const stat = await fs.stat(filePath);
+                        if (stat.isDirectory()) {
+                            const subFiles = await fs.readdir(filePath);
+                            logger.info(`[MFA] Subdirectory "${file}" contents: ${subFiles.join(', ')}`);
+                        }
                     }
+                } catch (e) {
+                    logger.error(`[MFA] Failed to read output dir: ${e.message}`);
                 }
-            } catch (e) {
-                logger.error(`[MFA] Failed to read output dir: ${e.message}`);
-            }
 
-            // Check if TextGrid exists, if not look in subdirectories
-            let actualTextGridPath = textGridPath;
-            try {
-                await fs.access(textGridPath);
-            } catch {
-                // TextGrid not found at root, search in subdirectories
-                logger.warn(`[MFA] TextGrid not found at ${textGridPath}, searching subdirectories...`);
-                const outputFiles = await fs.readdir(outputDir);
-                for (const file of outputFiles) {
-                    const filePath = path.join(outputDir, file);
-                    const stat = await fs.stat(filePath);
-                    if (stat.isDirectory()) {
-                        const subTextGrid = path.join(filePath, 'audio.TextGrid');
-                        try {
-                            await fs.access(subTextGrid);
-                            actualTextGridPath = subTextGrid;
-                            logger.info(`[MFA] Found TextGrid at: ${actualTextGridPath}`);
-                            break;
-                        } catch {
-                            // Not here, continue
+                // Check if TextGrid exists, if not look in subdirectories
+                let actualTextGridPath = textGridPath;
+                try {
+                    await fs.access(textGridPath);
+                } catch {
+                    // TextGrid not found at root, search in subdirectories
+                    logger.warn(`[MFA] TextGrid not found at ${textGridPath}, searching subdirectories...`);
+                    const outputFiles = await fs.readdir(outputDir);
+                    for (const file of outputFiles) {
+                        const filePath = path.join(outputDir, file);
+                        const stat = await fs.stat(filePath);
+                        if (stat.isDirectory()) {
+                            const subTextGrid = path.join(filePath, 'audio.TextGrid');
+                            try {
+                                await fs.access(subTextGrid);
+                                actualTextGridPath = subTextGrid;
+                                logger.info(`[MFA] Found TextGrid at: ${actualTextGridPath}`);
+                                break;
+                            } catch {
+                                // Not here, continue
+                            }
                         }
                     }
                 }
+
+                parsed = await this.parseTextGrid(actualTextGridPath);
             }
 
-            const parsed = await this.parseTextGrid(actualTextGridPath);
             logger.info(`✅ [MFA-SERVER] Execution finished. Returning ${parsed.length} timepoints.`);
             return parsed;
 

@@ -410,7 +410,9 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   useEffect(() => {
     if (dialogueSegments && dialogueSegments.length > 0) {
       if (!isPlaying) return;
-      const seg = dialogueSegments.find(s => currentTime >= s.startTimeSeconds && currentTime <= s.endTimeSeconds);
+      const PODCAST_SYNC_OFFSET_S = 0.05; // 50ms — audio output latency + MFA early boundary compensation
+      const adjustedTime = currentTime - PODCAST_SYNC_OFFSET_S;
+      const seg = dialogueSegments.find(s => adjustedTime >= s.startTimeSeconds && adjustedTime <= s.endTimeSeconds);
       const newIndex = seg ? seg.lineIndex : -1;
       if (newIndex !== activeSegmentIndex) {
         setActiveSegmentIndex(newIndex);

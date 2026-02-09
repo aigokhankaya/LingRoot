@@ -2421,6 +2421,7 @@ const Welcome: React.FC = () => {
                 </div>
                 {/* Varsayılan Ses butonu bu bölümden kaldırıldı */}
               </div>
+              {contentType !== 'topic_tree' && (
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-medium text-gray-700">{t('welcome_content_input_label')}</h3>
@@ -3495,8 +3496,20 @@ const Welcome: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Konu Ağacım - Audio Settings'den ÖNCE */}
+          {contentType === 'topic_tree' && user && (
+            <div className="mb-8">
+              <TopicHierarchySection
+                userId={user.id}
+                level={englishLevel}
+                targetDurationMinutes={contentDuration}
+              />
+            </div>
+          )}
 
           {/* Audio Settings - Podcast modunda gizle çünkü podcast kendi ses ayarlarını barındırıyor */}
           {contentType !== 'podcast' && (
@@ -3877,19 +3890,6 @@ const Welcome: React.FC = () => {
               </CardContent>
             </Card>
           )}
-
-          {/* Konu Ağacım - sadece konu ağacı sekmesi seçiliyken, Ses Ayarları kartının altında */}
-          {
-            contentType === 'topic_tree' && user && (
-              <div className="mt-8">
-                <TopicHierarchySection
-                  userId={user.id}
-                  level={englishLevel}
-                  targetDurationMinutes={contentDuration}
-                />
-              </div>
-            )
-          }
 
           <div className="flex justify-center mt-8">
             <Button
