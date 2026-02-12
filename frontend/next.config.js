@@ -1,11 +1,29 @@
 const path = require('path');
+const withBundleAnalyzer = process.env.ANALYZE === 'true'
+  ? require('@next/bundle-analyzer')({ enabled: true })
+  : (config) => config;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
+  compiler: {
+    removeConsole: {
+      exclude: ['error', 'warn'],
+    },
+  },
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'framer-motion',
+      'echarts',
+      'recharts',
+      'firebase',
+      'lodash',
+      '@radix-ui/react-icons',
+    ],
   },
   images: {
     domains: ['localhost', 'lingroot.com', 'ui-avatars.com', 'placehold.co', 'readdy.ai'],
@@ -13,6 +31,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '**.lingroot.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
       },
     ],
   },
@@ -23,9 +49,8 @@ const nextConfig = {
   async rewrites() {
     // Determine backend URL based on environment
     const isDev = process.env.NODE_ENV === 'development';
-    const backendUrl = isDev 
-      ? 'http://localhost:5001' 
-      : 'https://lingloops-backend.onrender.com';
+    const backendUrl = process.env.BACKEND_URL
+      || (isDev ? 'http://localhost:5001' : 'https://lingloops-backend.onrender.com');
     
     console.log('[NEXT.JS REWRITES] Environment:', process.env.NODE_ENV);
     console.log('[NEXT.JS REWRITES] Backend URL:', backendUrl);
@@ -53,4 +78,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withBundleAnalyzer(nextConfig);

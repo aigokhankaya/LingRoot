@@ -3,7 +3,7 @@ import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FaUserEdit, FaVolumeUp, FaCheckCircle, FaExclamationCircle, FaChartLine, FaHeadphones, FaMicrophone, FaClock, FaFire, FaTrophy } from 'react-icons/fa';
+import { UserPen, Volume2, CheckCircle, AlertCircle, TrendingUp, Headphones, Mic, Clock, Flame, Trophy } from 'lucide-react';
 import { getContentHistory, getUsageSummary, saveInterfaceLanguage } from '../src/lib/api';
 import { computeEstimates, formatEstimate, type UsageSummary, computeCostAwareEstimates, COST_PER_1K, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory, type CostAwarePerCategory } from '../src/lib/usageEstimates';
 import InterestManager from '../src/components/InterestManager';
@@ -237,7 +237,7 @@ export default function Profile() {
           <div className="flex items-center space-x-4">
             <Link href="/welcome">
               <button className="px-6 py-3 bg-white hover:bg-gray-100 text-primary rounded-xl text-base font-bold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2 transform hover:scale-105">
-                <FaVolumeUp className="text-xl" />
+                <Volume2 className="text-xl" />
                 <span>{t('profile_continue_listening')}</span>
               </button>
             </Link>
@@ -272,26 +272,26 @@ export default function Profile() {
                 <div className="w-full">
                   <h2 className="text-2xl font-extrabold text-gray-900 mb-1">{displayName}</h2>
                   <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-primary text-primary-foreground shadow-md">
-                    <FaTrophy className="mr-2" />
+                    <Trophy className="mr-2" />
                     {(currentPlanName || badge?.label || t('membership_free')) + ' ' + t('membership_suffix')}
                   </span>
                 </div>
               </div>
               <Link href="/profile" className="mt-6 w-full inline-flex items-center justify-center px-4 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:bg-primary/90 transition-all duration-200 shadow-md hover:shadow-lg">
-                <FaUserEdit className="mr-2" /> {t('profile_edit_profile')}
+                <UserPen className="mr-2" /> {t('profile_edit_profile')}
               </Link>
             </div>
 
             {/* İstatistikler */}
             <div className="bg-muted rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-border">
               <div className="flex items-center mb-6">
-                <FaChartLine className="text-3xl text-primary mr-3" />
+                <TrendingUp className="text-3xl text-primary mr-3" />
                 <h3 className="text-2xl font-bold text-gray-900">{t('profile_stats_title')}</h3>
               </div>
               <div className="space-y-6">
                 <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600 font-medium flex items-center"><FaHeadphones className="mr-2 text-primary" />{t('profile_content_created')}</span>
+                    <span className="text-gray-600 font-medium flex items-center"><Headphones className="mr-2 text-primary" />{t('profile_content_created')}</span>
                     <span className="text-3xl font-black text-primary">{stats.contentCreated}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -300,7 +300,7 @@ export default function Profile() {
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600 font-medium flex items-center"><FaFire className="mr-2 text-orange-500" />{t('profile_total_logins')}</span>
+                    <span className="text-gray-600 font-medium flex items-center"><Flame className="mr-2 text-orange-500" />{t('profile_total_logins')}</span>
                     <span className="text-3xl font-black bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{stats.totalLogins}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -309,7 +309,7 @@ export default function Profile() {
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 font-medium flex items-center"><FaClock className="mr-2 text-gray-500" />{t('profile_last_login')}</span>
+                    <span className="text-gray-600 font-medium flex items-center"><Clock className="mr-2 text-gray-500" />{t('profile_last_login')}</span>
                     <span className="text-sm font-semibold text-gray-700">{stats.lastLogin}</span>
                   </div>
                 </div>
@@ -325,7 +325,7 @@ export default function Profile() {
             {/* Hızlı Erişim Kartları */}
             <div className="bg-muted rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-border">
               <div className="flex items-center mb-6">
-                <FaUserEdit className="text-3xl text-primary mr-3" />
+                <UserPen className="text-3xl text-primary mr-3" />
                 <h3 className="text-2xl font-bold text-gray-900">{t('profile_info_title')}</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -387,7 +387,7 @@ export default function Profile() {
                   href="/settings"
                   className="inline-flex items-center px-5 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition"
                 >
-                  <FaUserEdit className="mr-2" />
+                  <UserPen className="mr-2" />
                   {t('profile_edit_settings_button')}
                 </Link>
               </div>
@@ -421,7 +421,7 @@ export default function Profile() {
             {/* Günlük Haklar */}
             <div className="bg-gradient-to-br from-white to-green-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-green-100">
               <div className="flex items-center mb-6">
-                <FaMicrophone className="text-3xl text-green-600 mr-3" />
+                <Mic className="text-3xl text-green-600 mr-3" />
                 <h3 className="text-2xl font-bold text-gray-900">{t('profile_daily_limits_title')}</h3>
               </div>
               <div className="space-y-4">

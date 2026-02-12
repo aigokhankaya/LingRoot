@@ -385,7 +385,7 @@ exports.getUserSubscription = async (req, res) => {
       if (sub.plan_id) {
         const { data: p } = await supabase
           .from('subscription_plans')
-          .select('id, name, price, is_active, features, monthly_price, yearly_price, description, interval, created_at')
+          .select('id, name, price, plantype, is_active, audio_limit, features, monthly_price, yearly_price, description, interval, created_at')
           .eq('id', sub.plan_id)
           .single();
         plan = p || null;
@@ -690,7 +690,7 @@ exports.mockIyzicoPayment = async (req, res) => {
     // Verify plan exists and active
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('id, name, price, is_active, features, interval, created_at')
+      .select('id, name, price, plantype, is_active, audio_limit, features, interval, created_at')
       .eq('id', planId)
       .eq('is_active', true)
       .single();

@@ -293,10 +293,21 @@
     "errors": {
       "fullNameRequired": "Please enter your full name",
       "emailInvalid": "Please enter a valid email",
-      "passwordShort": "Password must be at least 6 characters",
+      "passwordShort": "Password must be at least 8 characters",
+      "passwordWeak": "Password must be at least 8 characters with uppercase, lowercase and number",
       "passwordMismatch": "Passwords do not match",
       "acceptTerms": "Please accept the terms",
-      "generic": "Registration failed"
+      "generic": "Registration failed",
+      "emailInUse": "This email is already in use",
+      "phoneInUse": "This phone number is already in use",
+      "nameInvalid": "Name contains invalid characters",
+      "rateLimit": "Too many attempts. Try again in 1 hour",
+      "networkError": "No internet connection"
+    },
+    "passwordStrength": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "strong": "Strong"
     }
   },
   "usage": {

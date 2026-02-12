@@ -7,6 +7,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import SubtopicModal from './SubtopicModal';
 import ManualSubtopicModal from './ManualSubtopicModal';
 import { useTranslation } from '../../lib/i18n';
+import {
+  MoreVertical, Plus, Trash2, ChevronRight, ChevronDown, ChevronUp,
+  PlusCircle, Bot, Sparkles, Play, Loader2, Check, CheckCircle,
+  Clock, Headphones, Volume2, X, AlertTriangle
+} from 'lucide-react';
 
 interface TopicNodeProps {
   topic: Topic;
@@ -236,7 +241,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 }}
                 className={`${colors.icon} hover:opacity-70 transition-opacity mt-1`}
               >
-                <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'}`}></i>
+                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               </button>
             )}
 
@@ -273,18 +278,18 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 {hasSubtopics ? (
                   <div className="flex items-center gap-1">
                     <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <i className="fas fa-volume-up text-xs"></i>
+                      <Volume2 className="w-3 h-3" />
                       {audioCount}/{totalSubtopics}
                     </span>
                     {listenedCount > 0 && (
                       <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <i className="fas fa-check text-xs"></i>
+                        <Check className="w-3 h-3" />
                         {listenedCount}
                       </span>
                     )}
                     {inProgressCount > 0 && (
                       <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <i className="fas fa-clock text-xs"></i>
+                        <Clock className="w-3 h-3" />
                         {inProgressCount}
                       </span>
                     )}
@@ -300,17 +305,17 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                   >
                     {listeningStatus === 'completed' ? (
                       <>
-                        <i className="fas fa-check-circle text-xs"></i>
+                        <CheckCircle className="w-3 h-3" />
                         {t('topics_node_status_completed')}
                       </>
                     ) : listeningStatus === 'in_progress' ? (
                       <>
-                        <i className="fas fa-clock text-xs"></i>
+                        <Clock className="w-3 h-3" />
                         {t('topics_node_progress_percentage', { percentage: Math.round(progressPercentage) })}
                       </>
                     ) : (
                       <>
-                        <i className="fas fa-headphones text-xs"></i>
+                        <Headphones className="w-3 h-3" />
                         {t('topics_node_status_ready')}
                       </>
                     )}
@@ -333,7 +338,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 }`}>
                 {listeningStatus === 'completed' ? (
                   <>
-                    <i className="fas fa-check-circle"></i>
+                    <CheckCircle className="w-4 h-4" />
                     <span>{t('topics_node_status_completed')}</span>
                   </>
                 ) : listeningStatus === 'in_progress' ? (
@@ -348,7 +353,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                   </>
                 ) : (
                   <>
-                    <i className="fas fa-headphones"></i>
+                    <Headphones className="w-4 h-4" />
                     <span>{t('topics_node_status_ready_simple')}</span>
                   </>
                 )}
@@ -368,7 +373,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                   size="sm"
                   className="rounded-full px-6 font-medium bg-primary hover:bg-primary/90"
                 >
-                  <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} me-2`}></i>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 me-2" /> : <ChevronDown className="w-4 h-4 me-2" />}
                   {t('topics_node_button_show_subtopics')}
                 </Button>
               ) : (
@@ -383,7 +388,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                     className="rounded-full px-4 font-medium bg-primary hover:bg-primary/90"
                     disabled={isGenerating}
                   >
-                    <i className="fas fa-robot me-2"></i>
+                    <Bot className="w-4 h-4 me-2" />
                     {t('topics_node_button_suggest_subtopic')}
                   </Button>
                   <Button
@@ -395,7 +400,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                     variant="outline"
                     className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10"
                   >
-                    <i className="fas fa-plus me-2"></i>
+                    <Plus className="w-4 h-4 me-2" />
                     {t('topics_node_button_add_manual')}
                   </Button>
                 </div>
@@ -420,16 +425,16 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 >
                   {isTopicAudioLoading ? (
                     <>
-                      <i className="fas fa-circle-notch fa-spin me-2"></i>
+                      <Loader2 className="w-4 h-4 me-2 animate-spin" />
                       {t('topics_node_button_audio_creating')}
                     </>
                   ) : canPlayFromTree ? (
                     <>
-                      <i className="fas fa-play me-2"></i> {t('topics_node_button_listen')}
+                      <Play className="w-4 h-4 me-2" /> {t('topics_node_button_listen')}
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-magic me-2"></i> {t('topics_node_button_create_audio')}
+                      <Sparkles className="w-4 h-4 me-2" /> {t('topics_node_button_create_audio')}
                     </>
                   )}
                 </Button>
@@ -445,7 +450,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                     variant="outline"
                     className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10"
                   >
-                    <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} me-2`}></i>
+                    {isExpanded ? <ChevronUp className="w-4 h-4 me-2" /> : <ChevronDown className="w-4 h-4 me-2" />}
                     {t('topics_node_button_show_subtopics')}
                   </Button>
                 )}
@@ -465,40 +470,42 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 className="rounded-full px-4 font-medium border-amber-400 bg-amber-100 text-amber-700 hover:bg-amber-200 hover:border-amber-500"
                 disabled={isGenerating}
               >
-                <i className="fas fa-plus-circle me-2"></i>
+                <PlusCircle className="w-4 h-4 me-2" />
                 {t('topics_node_button_suggest_subtopic')}
               </Button>
             )}
 
             {/* Secondary Actions: Dropdown (Sil ve Manuel Ekle) - Daha kompakt tasarım */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-8 p-0 border-gray-300 bg-gray-100 hover:bg-gray-200 hover:border-gray-400"
-                >
-                  <span className="sr-only">Open menu</span>
-                  <i className="fas fa-ellipsis-v text-gray-700"></i>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[160px] p-1">
+            <div className="relative">
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-gray-300 bg-gray-100 hover:bg-gray-200 hover:border-gray-400"
+                  >
+                    <span className="sr-only">Open menu</span>
+                    <MoreVertical className="w-4 h-4 text-gray-700" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" usePortal={false} className="!w-auto min-w-[160px] max-w-[200px] p-1">
                 <DropdownMenuItem
                   onClick={() => setShowManualModal(true)}
                   className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-100 rounded-md"
                 >
-                  <i className="fas fa-plus text-primary"></i>
+                  <Plus className="w-4 h-4 text-primary" />
                   <span>{t('topics_node_button_add_manual')}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setShowDeleteConfirm(true)}
                   className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-red-50 rounded-md text-red-600"
                 >
-                  <i className="fas fa-trash"></i>
+                  <Trash2 className="w-4 h-4" />
                   <span>{t('topics_node_button_delete')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            </div>
 
           </div>
         </div>
@@ -549,7 +556,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <i className="fas fa-exclamation-triangle me-2 text-red-600"></i>
+                <AlertTriangle className="w-5 h-5 me-2 text-red-600" />
                 {t('topics_node_delete_title')}
               </h3>
               <button
@@ -557,7 +564,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 className="text-gray-400 hover:text-gray-600"
                 disabled={isDeleting}
               >
-                <i className="fas fa-times text-xl"></i>
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -584,12 +591,12 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               >
                 {isDeleting ? (
                   <>
-                    <i className="fas fa-spinner fa-spin me-2"></i>
+                    <Loader2 className="w-4 h-4 me-2 animate-spin" />
                     {t('topics_node_delete_confirm_loading')}
                   </>
                 ) : (
                   <>
-                    <i className="fas fa-trash me-2"></i>
+                    <Trash2 className="w-4 h-4 me-2" />
                     {t('topics_node_delete_confirm')}
                   </>
                 )}

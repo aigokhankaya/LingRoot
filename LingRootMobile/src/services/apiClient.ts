@@ -14,6 +14,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createApiClient, setAxios, LingRootApiClient } from '@lingroot/api-client';
 import { getApiBaseUrl } from './environmentConfig';
+import secureStorage from './secureStorage';
 
 // Initialize axios for the shared client (cast to any to avoid version mismatch)
 setAxios(axios as any);
@@ -49,30 +50,30 @@ export async function initializeApiClient(): Promise<LingRootApiClient> {
 
     initPromise = (async () => {
         const baseUrl = await getApiBaseUrl();
-        console.log('🔗 [API Client] Initializing with baseUrl:', baseUrl);
+        console.warn('[DEBUG-URL] API Client baseUrl:', baseUrl);
 
         clientInstance = createApiClient({
             baseUrl,
             timeout: 180000, // 3 minutes for Render cold start
 
             getToken: async () => {
-                return AsyncStorage.getItem(TOKEN_KEY);
+                return secureStorage.getItem(TOKEN_KEY);
             },
 
             setToken: async (token: string) => {
-                await AsyncStorage.setItem(TOKEN_KEY, token);
+                await secureStorage.setItem(TOKEN_KEY, token);
             },
 
             getRefreshToken: async () => {
-                return AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+                return secureStorage.getItem(REFRESH_TOKEN_KEY);
             },
 
             setRefreshToken: async (token: string) => {
-                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, token);
+                await secureStorage.setItem(REFRESH_TOKEN_KEY, token);
             },
 
             clearTokens: async () => {
-                await AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY]);
+                await secureStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY]);
             },
 
             onUnauthorized: () => {
@@ -135,6 +136,7 @@ export async function wakeBackendIfNeeded(force: boolean = false): Promise<boole
         }
 
         const healthUrl = `${baseUrl}/api/health`;
+        console.warn('[DEBUG-URL] Health check URL:', healthUrl);
         const res = await fetch(healthUrl, { method: 'GET' });
         if (res.ok) {
             lastBackendAwakeAt = Date.now();
@@ -179,13 +181,21 @@ export async function getApiClientWithWake(): Promise<LingRootApiClient> {
 
 /**
  * Standard error message extraction from API errors
+ * Supports backend validation middleware format: { error, details: [{ message }] }
  */
-export function extractErrorMessage(error: any, defaultMessage: string): string {
-    if (error?.response?.data?.message) {
-        return error.response.data.message;
+export function extractErrorMessage(error: unknown, defaultMessage: string): string {
+    const err = error as { response?: { data?: { details?: { message: string }[]; message?: string; error?: string } }; message?: string };
+    if (err?.response?.data?.details?.[0]?.message) {
+        return err.response.data.details[0].message;
     }
-    if (error?.message) {
-        return error.message;
+    if (err?.response?.data?.message) {
+        return err.response.data.message;
+    }
+    if (err?.response?.data?.error) {
+        return err.response.data.error;
+    }
+    if (err?.message) {
+        return err.message;
     }
     return defaultMessage;
 }

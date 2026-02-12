@@ -6,16 +6,16 @@ const logger = require('../utils/common/logger.js');
 
 /**
  * Get API costs analytics from api_costs table
- * GET /api/admin/api-costs?from=...&to=...&groupBy=feature|user|provider
+ * GET /api/admin/api-costs?startDate=...&endDate=...&groupBy=feature|user|provider
  */
-router.get('/api-costs', authenticate, authorizeAdmin, async (req, res) => {
+router.get('/', authenticate, authorizeAdmin, async (req, res) => {
     try {
-        const { from, to, groupBy = 'feature', limit = 100, userId } = req.query;
+        const { startDate, endDate, groupBy = 'feature', limit = 100, userId } = req.query;
 
         // Date range: default last 30 days
         const now = new Date();
-        const toDate = to ? new Date(String(to)) : now;
-        const fromDate = from ? new Date(String(from)) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const toDate = endDate ? new Date(String(endDate)) : now;
+        const fromDate = startDate ? new Date(String(startDate)) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
         const fromIso = fromDate.toISOString();
         const toIso = toDate.toISOString();

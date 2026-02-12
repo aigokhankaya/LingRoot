@@ -500,22 +500,51 @@ exports.getUserById = async (req, res) => {
     const { id } = req.params;
     logger.info(`Fetching user by ID: ${id}`);
 
-    // Use pool to get is_test_user field (not available in Supabase schema yet)
-    const pool = require('../config/db');
-    const result = await pool.query(
-      'SELECT id, firstname, lastname, email, role, created_at, updated_at, phonenumber, isverified, is_test_user FROM users WHERE id = $1',
-      [id]
-    );
+    // Use Supabase client for reliable connection (pool has Supabase Pooler issues)
+    let userData = null;
 
-    if (result.rows.length === 0) {
-      logger.warn(`User not found: ${id}`);
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+    // Try to fetch with is_test_user column
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, firstname, lastname, email, role, created_at, updated_at, phonenumber, isverified, is_test_user')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      // If is_test_user column doesn't exist, try without it
+      if (error.message && (error.message.includes('is_test_user') || error.code === '42703')) {
+        logger.warn('is_test_user column not found, falling back to basic query');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('users')
+          .select('id, firstname, lastname, email, role, created_at, updated_at, phonenumber, isverified')
+          .eq('id', id)
+          .single();
+
+        if (fallbackError) {
+          if (fallbackError.code === 'PGRST116') {
+            logger.warn(`User not found: ${id}`);
+            return res.status(404).json({ success: false, message: "User not found" });
+          }
+          logger.error(`Error fetching user ID ${id}:`, fallbackError);
+          return res.status(500).json({ success: false, message: "Error fetching user", error: fallbackError.message });
+        }
+
+        userData = { ...fallbackData, is_test_user: false };
+      } else if (error.code === 'PGRST116') {
+        logger.warn(`User not found: ${id}`);
+        return res.status(404).json({ success: false, message: "User not found" });
+      } else {
+        logger.error(`Error fetching user ID ${id}:`, error);
+        return res.status(500).json({ success: false, message: "Error fetching user", error: error.message });
+      }
+    } else {
+      userData = data;
     }
 
-    const data = result.rows[0];
+    if (!userData) {
+      logger.warn(`User not found: ${id}`);
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
 
     // Fetch active subscription info
     const { data: subscription, error: subError } = await supabase
@@ -532,8 +561,8 @@ exports.getUserById = async (req, res) => {
     }
 
     // Add subscription info to response (normalize field names for frontend)
-    const userData = {
-      ...data,
+    const responseData = {
+      ...userData,
       currentSubscription: subscription ? {
         ...subscription,
         start_date: subscription.startdate,
@@ -544,7 +573,7 @@ exports.getUserById = async (req, res) => {
     logger.info(`Successfully fetched user ID: ${id} with subscription info`);
     return res.status(200).json({
       success: true,
-      data: userData,
+      data: responseData,
     });
   } catch (error) {
     logger.error(`Server error while fetching user ID ${req.params.id}:`, error);
@@ -634,14 +663,32 @@ exports.updateUserTestStatus = async (req, res) => {
       });
     }
 
-    // Update using pool (direct PostgreSQL query)
-    const pool = require('../config/db');
-    const result = await pool.query(
-      'UPDATE users SET is_test_user = $1 WHERE id = $2 RETURNING id, email, is_test_user',
-      [isTestUser, id]
-    );
+    // Update using Supabase client for reliable connection
+    const { data, error } = await supabase
+      .from('users')
+      .update({ is_test_user: isTestUser })
+      .eq('id', id)
+      .select('id, email, is_test_user')
+      .single();
 
-    if (result.rows.length === 0) {
+    if (error) {
+      // If is_test_user column doesn't exist, return error with helpful message
+      if (error.message && (error.message.includes('is_test_user') || error.code === '42703')) {
+        logger.error('is_test_user column does not exist in database');
+        return res.status(500).json({
+          success: false,
+          message: "is_test_user kolonu veritabanında mevcut değil. Lütfen migration'ı çalıştırın: add_is_test_user_column.sql",
+        });
+      }
+      if (error.code === 'PGRST116') {
+        logger.warn(`Update test status failed: User ID ${id} not found.`);
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      logger.error(`Error updating test status for user ID ${id}:`, error);
+      return res.status(500).json({ success: false, message: "Error updating user test status", error: error.message });
+    }
+
+    if (!data) {
       logger.warn(`Update test status failed: User ID ${id} not found.`);
       return res.status(404).json({
         success: false,
@@ -653,7 +700,7 @@ exports.updateUserTestStatus = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "User test status updated successfully",
-      data: result.rows[0],
+      data: data,
     });
   } catch (error) {
     logger.error(`Server error while updating test status for user ID ${req.params.id}:`, error);
@@ -1215,18 +1262,26 @@ exports.assignPlanToUser = async (req, res) => {
 
     logger.info(`[ADMIN] Assigning plan ${planId} to user ${userId}`);
 
-    // Verify plan exists and is active
+    // Verify plan exists (check is_active separately for better error messages)
+    logger.info(`[ADMIN] Looking for plan with ID: ${planId}`);
+
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('id, name, price, is_active, features, interval, created_at')
+      .select('id, name, price, is_active, description, features, interval, created_at')
       .eq('id', planId)
-      .eq('is_active', true)
       .single();
 
-    if (planError || !plan) {
-      logger.error('[ADMIN] Plan not found or inactive:', planError);
-      return res.status(404).json({ success: false, message: 'Plan bulunamadı veya aktif değil' });
+    if (planError) {
+      logger.error(`[ADMIN] Plan query error for ID ${planId}:`, planError);
+      return res.status(404).json({ success: false, message: `Plan bulunamadı (ID: ${planId})` });
     }
+
+    if (!plan) {
+      logger.warn(`[ADMIN] Plan not found for ID: ${planId}`);
+      return res.status(404).json({ success: false, message: 'Plan bulunamadı' });
+    }
+
+    logger.info(`[ADMIN] Plan found: ${plan.name} (ID: ${planId})`)
 
     // Create or update subscription for user
     const now = new Date();

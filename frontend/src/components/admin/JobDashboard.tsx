@@ -64,8 +64,22 @@ export default function JobDashboard() {
 
     useEffect(() => {
         fetchJobs();
-        const interval = setInterval(fetchJobs, 10000); // Auto refresh every 10s
-        return () => clearInterval(interval);
+        let interval = setInterval(fetchJobs, 10000); // Auto refresh every 10s
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                clearInterval(interval);
+            } else {
+                fetchJobs();
+                interval = setInterval(fetchJobs, 10000);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, []);
 
     const getStatusBadge = (status: string) => {

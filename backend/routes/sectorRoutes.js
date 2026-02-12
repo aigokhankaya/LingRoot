@@ -9,6 +9,8 @@ const router = express.Router();
 const sectorController = require('../controllers/sectorController');
 const { optionalAuth, authenticate } = require('../middleware/authMiddleware');
 const logger = require('../utils/common/logger');
+const { setCacheHeaders } = require('../middleware/cacheHeaders');
+const { redisCache } = require('../middleware/redisCache');
 
 // ============ ROLEPLAY & PODCAST ROUTES ============
 // ⚠️ Bu route'lar /:id'den ÖNCE gelmeli (statik path'ler dinamik path'lerden önce)
@@ -51,6 +53,35 @@ router.post('/roleplay/create', authenticate, async (req, res) => {
     }
 });
 
+// Roleplay senaryo önerisi (AI ile otomatik doldurma)
+router.post('/roleplay/suggest', authenticate, async (req, res) => {
+    try {
+        const { sector_id, scenario_category, cefr_level } = req.body;
+
+        logger.info(`[ROLEPLAY SUGGEST] Request: sector_id=${sector_id}, category=${scenario_category}, level=${cefr_level}`);
+
+        if (!sector_id || !scenario_category) {
+            return res.status(400).json({
+                success: false,
+                error: 'sector_id ve scenario_category gerekli'
+            });
+        }
+
+        const result = await sectorRoleplayService.suggestRoleplayScenario({
+            sector_id,
+            scenario_category,
+            cefr_level: cefr_level || 'B1',
+            user_id: req.user.id
+        });
+
+        logger.info(`[ROLEPLAY SUGGEST] Success: ${JSON.stringify(result.suggestion?.situation?.substring(0, 50) || 'no situation')}`);
+        res.json(result);
+    } catch (error) {
+        logger.error('[ROLEPLAY SUGGEST] Error:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Senaryo önerisi alınamadı' });
+    }
+});
+
 // Roleplay için TTS ses oluştur (her role farklı ses)
 router.post('/roleplay/:contentId/audio', authenticate, async (req, res) => {
     try {
@@ -90,10 +121,36 @@ router.post('/podcast/create', authenticate, async (req, res) => {
     }
 });
 
+// Podcast konu önerisi (AI ile otomatik doldurma)
+router.post('/podcast/suggest', authenticate, async (req, res) => {
+    try {
+        const { sector_id, podcast_type, cefr_level } = req.body;
+
+        if (!sector_id || !podcast_type) {
+            return res.status(400).json({
+                success: false,
+                error: 'sector_id ve podcast_type gerekli'
+            });
+        }
+
+        const result = await sectorRoleplayService.suggestPodcastTopic({
+            sector_id,
+            podcast_type,
+            cefr_level: cefr_level || 'B1',
+            user_id: req.user.id
+        });
+
+        res.json(result);
+    } catch (error) {
+        logger.error('Podcast suggestion error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ============ PUBLIC ROUTES ============
 
 // Tüm sektörleri listele (Public)
-router.get('/', optionalAuth, sectorController.getAllSectors);
+router.get('/', setCacheHeaders(600), redisCache('sectors:all', 3600), optionalAuth, sectorController.getAllSectors);
 
 // Kullanıcı istatistikleri (Auth required) - /stats must come before /:id
 router.get('/stats', authenticate, sectorController.getUserSectorStats);
@@ -220,6 +277,9 @@ router.post('/content/:contentId/audio', optionalAuth, sectorController.generate
 // İçerik ilerleme durumu (Auth required)
 router.get('/content/:contentId/progress', authenticate, sectorController.getContentProgress);
 router.post('/content/:contentId/progress', authenticate, sectorController.updateContentProgress);
+
+// İçeriği tamamla ve XP kazan (Auth required)
+router.post('/content/:contentId/complete', authenticate, sectorController.completeContent);
 
 // ============ VOCABULARY ROUTES ============
 

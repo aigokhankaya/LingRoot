@@ -204,7 +204,7 @@ exports.verifyAppleReceipt = async (req, res) => {
     logger.info(`[IAP-${requestId}] Step 4: Looking up subscription plan for product ${productId}`);
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('id, name, price, is_active, features, apple_product_id, google_product_id, interval, created_at')
+      .select('id, name, price, plantype, is_active, audio_limit, features, apple_product_id, google_product_id, interval, created_at')
       .eq('apple_product_id', productId)
       .single();
 
@@ -543,7 +543,7 @@ exports.verifyGooglePlayPurchase = async (req, res) => {
     // Step 2: Find matching subscription plan
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('id, name, price, is_active, features, apple_product_id, google_product_id, interval, created_at')
+      .select('id, name, price, plantype, is_active, audio_limit, features, apple_product_id, google_product_id, interval, created_at')
       .eq('google_product_id', productId)
       .single();
 

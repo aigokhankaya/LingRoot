@@ -1,35 +1,13 @@
 const ffmpeg = require("fluent-ffmpeg");
+const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const logger = require('../common/logger.js'); // Winston logger
-const { execSync } = require("child_process");
 
-// Try to find FFmpeg path dynamically
-try {
-    const findCmd = process.platform === 'win32' ? 'where ffmpeg' : 'which ffmpeg';
-    const ffmpegPath = execSync(findCmd, { encoding: 'utf8' }).trim().split('\n')[0];
-    if (ffmpegPath) {
-        ffmpeg.setFfmpegPath(ffmpegPath);
-        logger.info(`✅ FFmpeg path set: ${ffmpegPath}`);
-    }
-} catch (err) {
-    logger.warn('⚠️ FFmpeg not found in PATH, will try default locations');
-    // Try common installation paths
-    const commonPaths = [
-        'C:\\ffmpeg\\bin\\ffmpeg.exe',
-        'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
-        process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0-full_build\\bin\\ffmpeg.exe') : null
-    ].filter(Boolean);
-    
-    for (const testPath of commonPaths) {
-        if (fs.existsSync(testPath)) {
-            ffmpeg.setFfmpegPath(testPath);
-            logger.info(`✅ FFmpeg found at: ${testPath}`);
-            break;
-        }
-    }
-}
+// Set FFmpeg path from @ffmpeg-installer/ffmpeg (works on all platforms including Docker/Nixpacks)
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+logger.info(`✅ FFmpeg path set: ${ffmpegInstaller.path}`);
 
 /**
  * Merges multiple MP3 audio segments (Buffers) into a single MP3 file using ffmpeg.
@@ -151,6 +129,13 @@ async function mergeAudioSegmentsToBuffer(audioSegments) {
     if (!audioSegments || audioSegments.length === 0) {
         logger.warn("No audio segments provided for merging.");
         return null;
+    }
+
+    // Load test mode: optionally skip FFmpeg merge and concatenate buffers
+    const { isLoadTestMode, shouldSkipFFmpeg } = require('../../tests/load/mocks/mockConfig');
+    if (isLoadTestMode() && shouldSkipFFmpeg()) {
+        logger.info('[LOAD_TEST] Skipping FFmpeg merge, returning concatenated buffer');
+        return Buffer.concat(audioSegments.filter(Boolean));
     }
 
     // Eğer tek segment varsa, direkt döndür

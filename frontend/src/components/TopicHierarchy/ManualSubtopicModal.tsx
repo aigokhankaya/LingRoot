@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useTranslation } from '../../lib/i18n';
+import { PlusCircle, X, Lightbulb, Loader2, Check } from 'lucide-react';
 
 interface ManualSubtopicModalProps {
   isOpen: boolean;
@@ -58,7 +59,7 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <i className="fas fa-plus-circle mr-2 text-green-600"></i>
+            <PlusCircle className="w-5 h-5 mr-2 text-green-600" />
             {t('topics_manual_modal_title')}
           </h3>
           <button
@@ -66,7 +67,7 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
             className="text-gray-400 hover:text-gray-600"
             disabled={isSubmitting}
           >
-            <i className="fas fa-times text-xl"></i>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -117,9 +118,9 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
 
           {/* Bilgilendirme */}
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
-            <p className="text-xs text-gray-700">
-              <i className="fas fa-lightbulb mr-1 text-primary"></i>
-              {t('topics_manual_modal_info')}
+            <p className="text-xs text-gray-700 flex items-start gap-1">
+              <Lightbulb className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+              <span>{t('topics_manual_modal_info')}</span>
             </p>
           </div>
 
@@ -141,12 +142,12 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
             >
               {isSubmitting ? (
                 <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   {t('topics_manual_modal_submit_loading')}
                 </>
               ) : (
                 <>
-                  <i className="fas fa-check mr-2"></i>
+                  <Check className="w-4 h-4 mr-2" />
                   {t('topics_manual_modal_submit_button')}
                 </>
               )}

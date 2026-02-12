@@ -149,13 +149,14 @@ export const requestPasswordReset = async (email: string): Promise<ApiResponse> 
 };
 
 // Reset password with token
-export const resetPassword = async (token: string, newPassword: string): Promise<ApiResponse> => {
+export const resetPassword = async (email: string, code: string, newPassword: string): Promise<ApiResponse> => {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: 'POST',
       headers: createHeaders(),
       body: JSON.stringify({
-        token,
+        email,
+        code,
         newPassword
       })
     });

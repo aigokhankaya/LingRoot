@@ -5,14 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  Dimensions,
+  useWindowDimensions,
   ScrollView,
-  PanResponder,
-  ActivityIndicator,
   Pressable,
-  TextInput,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../services/secureStorage';
 import { Platform } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,7 +19,7 @@ import { createSound } from '../services/audioService';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
-import { addWordToVocabulary, addWordWithTranslation, lookupVocabularyWord } from '../services/vocabularyService';
+import { lookupVocabularyWord } from '../services/vocabularyService';
 import { getUserContentById } from '../services/contentService';
 import perfLog from '../utils/performanceLogger';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -30,7 +28,14 @@ import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
 import { useCustomAlert } from '../contexts/AlertContext';
+import { CopilotStep, walkthroughable } from 'react-native-copilot';
+import { AUDIOPLAYER_TOUR_STEPS } from './GuideTour';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+import { PodcastDialogueView } from './audio/PodcastDialogueView';
+import { WordPopupModal } from './audio/WordPopupModal';
+import { PlaybackControls } from './audio/PlaybackControls';
+
+const WalkthroughableView = walkthroughable(View);
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -40,9 +45,8 @@ interface AudioPlayerProps {
   words?: string[];
   initialHighlightMode?: 'word' | 'sentence';
   asScreen?: boolean; // When true, renders without Modal wrapper (for use as navigation screen)
+  enableTour?: boolean; // When true, wraps key elements with CopilotStep for guide tour
 }
-
-const { width: screenWidth } = Dimensions.get('window');
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({
   track,
@@ -52,9 +56,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   words = [],
   initialHighlightMode = 'word',
   asScreen = false,
+  enableTour = false,
 }) => {
+  const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { language, t } = useLanguage();
+  const lang = language === 'tr' ? 'tr' : 'en';
   const { showAlert } = useCustomAlert();
   const { setCurrentTrack, setIsPlaying, isPlaying, currentTrack, sound, setSound, stopAllAudio } = useAudioContext();
   const [isLoading, setIsLoading] = useState(false);
@@ -127,20 +134,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         data: w,
       });
       await loadPronunciation(cleanWord);
-    } catch (error: any) {
+    } catch (error: unknown) {
       showAlert(
         language === 'tr' ? 'Hata' : 'Error',
         language === 'tr'
-          ? `Kelime bilgisi yüklenirken hata oluştu: ${error?.message || 'Bilinmeyen hata'}`
-          : `An error occurred while loading word info: ${error?.message || 'Unknown error'}`,
+          ? `Kelime bilgisi yüklenirken hata oluştu: ${(error as Error)?.message || 'Bilinmeyen hata'}`
+          : `An error occurred while loading word info: ${(error as Error)?.message || 'Unknown error'}`,
         [{ text: 'OK', style: 'default' }],
         'error-outline',
         '#EF4444'
       );
     }
   }, [language, loadPronunciation]);
-  const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
-  const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
   const [elapsedTime, setElapsedTime] = useState(0); // Elapsed time since play started
   const [textViewportHeight, setTextViewportHeight] = useState(0);
   const scrollOffsetRef = useRef<number>(0); // Track scroll position for touch events (use ref to avoid re-renders)
@@ -215,7 +220,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   useEffect(() => {
     if (!visible) return;
-    if (track.input_type !== 'podcast') return;
     if (!showOriginal) return;
     if (originalLoading) return;
     if (originalText && originalText.trim().length > 0) return;
@@ -236,7 +240,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         perfLog.end('loadOriginalText');
       }
     })();
-  }, [visible, track.input_type, track.id, showOriginal, originalLoading, originalText]);
+  }, [visible, track.id, showOriginal, originalLoading, originalText]);
 
   // Text parsing - Memoized to prevent unnecessary re-renders
   const textData = useMemo(() => {
@@ -295,7 +299,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setLoadingPatterns(true);
 
       const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
-      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
+      const token = await secureStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
 
       const response = await fetch(`${apiUrl}/api/patterns/find`, {
         method: 'POST',
@@ -1151,32 +1155,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         lastStatusTsRef.current = Date.now();
       }
 
-      // CRITICAL: Verify actual position after seek
-      const statusImmediate = await sound.getStatusAsync();
-      if (statusImmediate.isLoaded) {
-        const immediatePosition = statusImmediate.positionMillis;
-        console.log(`🔊 [AUDIO IMMEDIATE] Position right after seek: ${(immediatePosition / 1000).toFixed(2)}s (expected: ${(positionMs / 1000).toFixed(2)}s)`);
-      }
-
-      // CRITICAL: Wait 500ms and check again - audio buffer might need time
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const statusDelayed = await sound.getStatusAsync();
-      if (statusDelayed.isLoaded) {
-        const delayedPosition = statusDelayed.positionMillis;
-        // If audio is playing, expect position to have advanced by ~500ms * playback rate
-        const expectedPositionAfterDelay = isPlaying
-          ? positionMs + (500 * (playbackRate || 1))
-          : positionMs;
-        const tolerance = 1500; // Allow 1.5s tolerance for streaming/buffering delays
-
-        console.log(`🔊 [AUDIO DELAYED] Position after 500ms: ${(delayedPosition / 1000).toFixed(2)}s (expected: ~${(expectedPositionAfterDelay / 1000).toFixed(2)}s)`);
-
-        if (Math.abs(delayedPosition - expectedPositionAfterDelay) > tolerance) {
-          console.warn(`⚠️ [SEEK WARNING] Position drift after 500ms: Expected ~${(expectedPositionAfterDelay / 1000).toFixed(2)}s but got ${(delayedPosition / 1000).toFixed(2)}s (diff: ${Math.abs(delayedPosition - expectedPositionAfterDelay).toFixed(0)}ms)`);
-        }
-      }
-
       if (knownWordIndex !== undefined) {
         console.log(`🎯 [SEEK] Using known word index ${knownWordIndex}`);
         currentWordIndexRef.current = knownWordIndex;
@@ -1341,114 +1319,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   }, [wordsArray, timepoints, duration, handleSeek, isPlaying, sound, elapsedTime]);
 
-  const handleAddWordToVocabulary = useCallback(async (word: string, wordIndex: number) => {
-    const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
-
-    // Show loading state
-    setAddingWord(true);
-    setAddingWordText(language === 'tr' ? `"${cleanWord}" kelimesi ekleniyor...` : `Adding "${cleanWord}"...`);
-
-    try {
-      // Create context from surrounding words or text
-      let context = '';
-      let originalSentence = '';
-      if (wordsArray.length > 0 && wordIndex >= 0 && wordIndex < wordsArray.length) {
-        const startIndex = Math.max(0, wordIndex - 5);
-        const endIndex = Math.min(wordsArray.length, wordIndex + 6);
-        const contextWords = wordsArray.slice(startIndex, endIndex);
-        context = contextWords.join(' ');
-      } else {
-        // Fallback: use text around the word
-        const textToSearch = textToHighlight.toLowerCase();
-        const wordPos = textToSearch.indexOf(cleanWord.toLowerCase());
-        if (wordPos >= 0) {
-          const start = Math.max(0, wordPos - 50);
-          const end = Math.min(textToHighlight.length, wordPos + 50);
-          context = textToHighlight.substring(start, end);
-        } else {
-          context = `The word "${cleanWord}" appears in an English text.`;
-        }
-      }
-
-      // Find original sentence
-      const sentences = textToHighlight.split(/[.!?;]+/).map(s => s.trim()).filter(s => s.length > 5);
-      originalSentence = sentences.find(sentence =>
-        sentence.toLowerCase().includes(cleanWord.toLowerCase())
-      ) || context;
-
-      // Call the real API with translation (like web version)
-      const result = await addWordWithTranslation(
-        cleanWord,
-        context, // Context for AI translation
-        '', // Level boş - OpenAI otomatik belirleyecek
-        originalSentence
-      );
-
-      // Add word to selected words set for UI feedback
-      setSelectedWords(prev => new Set([...prev, cleanWord.toLowerCase()]));
-
-      // Show detailed success message like web version
-      if (result.isExisting) {
-        showAlert(
-          language === 'tr' ? 'Bilgi!' : 'Info!',
-          language === 'tr'
-            ? `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`
-            : `"${cleanWord}" is already in your vocabulary list:\n\nMeaning: ${result.data.definition || 'Not specified'}\nExample: ${result.data.example_sentence || 'Not specified'}`,
-          [{ text: language === 'tr' ? 'Tamam' : 'OK', style: 'default' }],
-          'info-outline',
-          '#3B82F6'
-        );
-      } else if (result.translationError) {
-        showAlert(
-          language === 'tr' ? 'Uyarı!' : 'Warning!',
-          language === 'tr'
-            ? `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`
-            : `"${cleanWord}" was added but translation failed. You can add the meaning manually.`,
-          [{ text: language === 'tr' ? 'Tamam' : 'OK', style: 'default' }],
-          'warning',
-          '#F59E0B'
-        );
-      } else {
-        showAlert(
-          language === 'tr' ? 'Başarılı!' : 'Success!',
-          language === 'tr'
-            ? `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`
-            : `"${cleanWord}" was successfully added!\n\nMeaning: ${result.data.definition}\nExample: ${result.data.example_sentence}\nLevel: ${result.data.level}`,
-          [{ text: language === 'tr' ? 'Tamam' : 'OK', style: 'default' }],
-          'check-circle',
-          '#10B981'
-        );
-      }
-
-    } catch (error: any) {
-      if (error.message?.includes('zaten listede mevcut')) {
-        showAlert(
-          language === 'tr' ? 'Bilgi' : 'Info',
-          language === 'tr'
-            ? `"${cleanWord}" kelimesi zaten kelime listenizdedir.`
-            : `"${cleanWord}" is already in your vocabulary list.`,
-          [{ text: 'OK', style: 'default' }],
-          'info-outline',
-          '#3B82F6'
-        );
-      } else {
-        showAlert(
-          language === 'tr' ? 'Hata' : 'Error',
-          language === 'tr'
-            ? `Kelime eklenirken bir hata oluştu: ${error.message || 'Lütfen internet bağlantınızı kontrol edin.'}`
-            : `An error occurred while adding the word: ${error.message || 'Please check your internet connection.'}`,
-          [{ text: 'OK', style: 'default' }],
-          'error-outline',
-          '#EF4444'
-        );
-      }
-    } finally {
-      // Hide loading state
-      setAddingWord(false);
-      setAddingWordText('');
-    }
-  }, [wordsArray, textToHighlight, language]);
-
   const handleWordLongPress = useCallback(async (word: string, wordIndex: number) => {
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
 
@@ -1479,7 +1349,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       word: cleanWord,
       data: { wordIndex },
     });
-  }, [language, handleAddWordToVocabulary, loadPronunciation]);
+  }, [language, loadPronunciation]);
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -1685,196 +1555,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     handleSeek(positionMs);
   }, [dialogueSegments, handleSeek]);
 
-  const renderPodcastDialogues = () => {
-    if (!dialogueSegments || dialogueSegments.length === 0) {
-      return (
-        <Text style={styles.podcastFallbackText}>
-          {language === 'tr' ? 'Podcast metni bulunamadı.' : 'Podcast transcript is not available.'}
-        </Text>
-      );
-    }
-
-    return (
-      <View style={styles.podcastDialoguesContainer}>
-        {dialogueSegments.map((segment, index) => {
-          const isActive = index === currentDialogueIndex;
-          const speakerKey = (segment.speaker || '').toUpperCase();
-          const isRight = speakerKey === 'B';
-          const originalSegment = originalDialogueSegments[index];
-          const originalContent = originalSegment?.content ? String(originalSegment.content) : '';
-          const hasOriginal = showOriginal && originalContent.trim().length > 0;
-          const speakerLabel = (segment as any).speakerLabel
-            ? (segment as any).speakerLabel
-            : segment.speaker
-              ? `Speaker ${speakerKey}`
-              : language === 'tr'
-                ? 'Anlatıcı'
-                : 'Narrator';
-
-          return (
-            <View
-              key={`${index}-${speakerKey}-${segment.content.slice(0, 10)}`}
-              ref={(ref) => {
-                if (ref) {
-                  dialogueRefs.current.set(index, ref);
-                }
-              }}
-              style={[
-                styles.podcastDialogueRow,
-                hasOriginal && styles.podcastDialogueRowWithOriginal,
-              ]}
-            >
-              {/* Left side: Speaker A (HOST) content or Speaker B (GUEST) original */}
-              <View style={[
-                styles.podcastBubbleColumn,
-                styles.podcastBubbleColumnLeft,
-                hasOriginal && (!isRight ? { flex: 5 } : { flex: 3 })
-              ]}>
-                {!isRight ? (
-                  // HOST: Ana diyalog solda
-                  <View style={styles.podcastBubbleWithAvatar}>
-
-                    <View
-                      style={[
-                        styles.podcastBubble,
-                        styles.podcastBubbleLeft,
-                        isActive && styles.podcastBubbleActive,
-                        isActive && styles.podcastBubbleActiveLeft,
-                        hasOriginal && { maxWidth: '100%' }
-                      ]}
-                    >
-                      <Text style={[
-                        styles.podcastSpeakerLabel,
-                        isActive && { color: 'rgba(255,255,255,0.8)' }
-                      ]}>
-                        {speakerLabel}
-                      </Text>
-                      <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
-                        <Text
-                          style={[
-                            styles.podcastBubbleText,
-                            isActive && styles.podcastBubbleTextActive,
-                          ]}
-                        >
-                          {segment.content
-                            .split(/\s+/)
-                            .filter(word => word.length > 0)
-                            .map((word, wordIndex, arr) => {
-                              const range = dialogueLineRanges.find(r => r.lineIndex === index);
-                              let globalIndex = range ? range.startIndex + wordIndex : -1;
-                              if (globalIndex < 0 || globalIndex >= wordsArray.length) {
-                                globalIndex = wordIndex;
-                              }
-                              return (
-                                <Text
-                                  key={`${index}-${wordIndex}`}
-                                  onLongPress={() => handleWordLongPress(word, globalIndex)}
-                                >
-                                  {word}
-                                  {wordIndex < arr.length - 1 ? ' ' : ''}
-                                </Text>
-                              );
-                            })}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : hasOriginal ? (
-                  // GUEST: Orijinal metin solda (sarı balon)
-                  <View
-                    style={[
-                      styles.podcastBubble,
-                      styles.podcastBubbleOriginalInline,
-                      hasOriginal && { maxWidth: '100%' }
-                    ]}
-                  >
-                    <Text style={styles.podcastBubbleOriginalText}>
-                      {originalContent}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {/* Right side: Speaker B (GUEST) content or Speaker A (HOST) original */}
-              <View style={[
-                styles.podcastBubbleColumn,
-                styles.podcastBubbleColumnRight,
-                hasOriginal && (isRight ? { flex: 5 } : { flex: 3 })
-              ]}>
-                {isRight ? (
-                  // GUEST: Ana diyalog sağda
-                  <View style={styles.podcastBubbleWithAvatarRight}>
-                    <View
-                      style={[
-                        styles.podcastBubble,
-                        styles.podcastBubbleRight,
-                        isActive && styles.podcastBubbleActive,
-                        isActive && styles.podcastBubbleActiveRight,
-                        hasOriginal && { maxWidth: '100%' }
-                      ]}
-                    >
-                      <Text style={[
-                        styles.podcastSpeakerLabel,
-                        styles.podcastSpeakerLabelRight,
-                        isActive && { color: 'rgba(255,255,255,0.8)' }
-                      ]}>
-                        {speakerLabel}
-                      </Text>
-                      <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
-                        <Text
-                          style={[
-                            styles.podcastBubbleText,
-                            styles.podcastBubbleTextRight,
-                            isActive && styles.podcastBubbleTextActive,
-                          ]}
-                        >
-                          {segment.content
-                            .split(/\s+/)
-                            .filter(word => word.length > 0)
-                            .map((word, wordIndex, arr) => {
-                              const range = dialogueLineRanges.find(r => r.lineIndex === index);
-                              let globalIndex = range ? range.startIndex + wordIndex : -1;
-                              if (globalIndex < 0 || globalIndex >= wordsArray.length) {
-                                globalIndex = wordIndex;
-                              }
-                              return (
-                                <Text
-                                  key={`${index}-${wordIndex}`}
-                                  onLongPress={() => handleWordLongPress(word, globalIndex)}
-                                >
-                                  {word}
-                                  {wordIndex < arr.length - 1 ? ' ' : ''}
-                                </Text>
-                              );
-                            })}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                  </View>
-                ) : hasOriginal ? (
-                  // HOST: Orijinal metin sağda (sarı balon)
-                  <View
-                    style={[
-                      styles.podcastBubble,
-                      styles.podcastBubbleOriginalInline,
-                      hasOriginal && { maxWidth: '100%' }
-                    ]}
-                  >
-                    <Text style={styles.podcastBubbleOriginalText}>
-                      {originalContent}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    );
-  };
-
-  const progressPercentage = duration > 0 ? (position / duration) * 100 : 0;
+  // Moved to PodcastDialogueView component
 
   // Inner content - rendered with or without Modal wrapper based on asScreen prop
   const playerContent = (
@@ -1892,34 +1573,63 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </TouchableOpacity>
 
           {/* Show Original Text toggle - works for both podcast and text content */}
-          <TouchableOpacity
-            style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
-            onPress={() => {
-              // Toggle showOriginal state
-              setShowOriginal(prev => !prev);
-              // For non-podcast content, also scroll to the original text page
-              // For podcast content, stay on the same page - originals are shown inline
-              if (!isPodcastTranscript) {
-                if (!showOriginal) {
-                  horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
-                  setPageIndex(1);
-                } else {
-                  horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
-                  setPageIndex(0);
+          {enableTour ? (
+            <CopilotStep order={1} name="playerOriginalToggle" text={AUDIOPLAYER_TOUR_STEPS.playerOriginalToggle[lang]}>
+              <WalkthroughableView>
+                <TouchableOpacity
+                  style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
+                  onPress={() => {
+                    setShowOriginal(prev => !prev);
+                    if (!isPodcastTranscript) {
+                      if (!showOriginal) {
+                        horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+                        setPageIndex(1);
+                      } else {
+                        horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+                        setPageIndex(0);
+                      }
+                    }
+                  }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
+                    {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
+                  </Text>
+                  {isPodcastTranscript && (
+                    <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
+                      <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </WalkthroughableView>
+            </CopilotStep>
+          ) : (
+            <TouchableOpacity
+              style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
+              onPress={() => {
+                setShowOriginal(prev => !prev);
+                if (!isPodcastTranscript) {
+                  if (!showOriginal) {
+                    horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+                    setPageIndex(1);
+                  } else {
+                    horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+                    setPageIndex(0);
+                  }
                 }
-              }
-            }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
-              {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
-            </Text>
-            {isPodcastTranscript && (
-              <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
-                <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
-              </View>
-            )}
-          </TouchableOpacity>
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
+                {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
+              </Text>
+              {isPodcastTranscript && (
+                <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
+                  <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Extra floating close button to guarantee tappable area */}
@@ -1937,394 +1647,196 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </TouchableOpacity>
 
         {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
-        {/* For podcast content, horizontal scroll is disabled - original text shown inline in bubbles */}
-        <ScrollView
-          ref={horizontalScrollRef}
-          horizontal
-          pagingEnabled
-          scrollEnabled={!isPodcastTranscript}
-          showsHorizontalScrollIndicator={false}
-          directionalLockEnabled={true}
-          scrollEventThrottle={16}
-          onMomentumScrollEnd={async (e) => {
-            const idx = Math.round((e.nativeEvent.contentOffset.x || 0) / screenWidth);
-            setPageIndex(idx);
-            if (idx === 1 && !originalText && !originalLoading) {
-              // Önce notification'dan gelen track.original_turkish'i kullanmayı dene
-              if (track.original_turkish) {
-                console.log('[AudioPlayer] Using track.original_turkish for originalText on first open:', {
-                  id: track.id,
-                  length: track.original_turkish.length,
-                });
-                setOriginalText(track.original_turkish);
-                return;
-              }
-
-              // Eğer track.original_turkish yoksa, backend'den içeriği çekmeye çalış
-              try {
-                setOriginalLoading(true);
-                const res = await getUserContentById(track.id);
-                if ((res as any)?.success && (res as any)?.data?.input) {
-                  setOriginalText((res as any).data.input);
-                }
-              } catch (err) {
-                // silent in production
-              } finally {
-                setOriginalLoading(false);
-              }
-            }
-          }}
-          style={{ flex: 1 }}
-        >
-          <View style={{ width: screenWidth, flex: 1 }}>
-            <ScrollView
-              ref={scrollViewRef}
-              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-              scrollEventThrottle={16}
-              removeClippedSubviews={false}
-              bounces={true}
-              onLayout={(event) => {
-                const { height } = event.nativeEvent.layout;
-                setTextViewportHeight(height);
-              }}
-              onScroll={(event) => {
-                const offsetY = event.nativeEvent.contentOffset.y;
-                scrollOffsetRef.current = offsetY;
-                // Debug: Log scroll position occasionally
-                if (Math.floor(offsetY) % 100 === 0) {
-                  console.log(`📜 [SCROLL] Offset: ${offsetY.toFixed(0)}px`);
-                }
-              }}
-            >
-              <View style={styles.textWrapper}>
-                {pageIndex === 0 && (
-                  isPodcastTranscript
-                    ? renderPodcastDialogues()
-                    : renderHighlightedText()
-                )}
-              </View>
-            </ScrollView>
-          </View>
-          <View style={{ width: screenWidth, flex: 1 }}>
-            <ScrollView
-              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
-              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-              scrollEventThrottle={16}
-              removeClippedSubviews={false}
-              bounces={true}
-            >
-              <Pressable>
-                <View style={styles.originalHeader}>
-                  <Text style={styles.originalTitle}>
-                    {t('audioPlayer.originalTurkishTitle')}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (copiedFeedback) return;
-                      perfLog.mark('copy:start');
-                      const textToCopy = originalText || track.original_turkish || '';
-                      if (textToCopy) {
-                        Clipboard.setString(textToCopy);
-                        perfLog.mark('copy:end');
-                        setCopiedFeedback(true);
-                        setTimeout(() => setCopiedFeedback(false), 1500);
-                      }
-                    }}
-                    style={styles.copyButton}
-                  >
-                    <Icon
-                      name={copiedFeedback ? 'check-circle' : 'content-copy'}
-                      size={20}
-                      color={copiedFeedback ? '#10B981' : COLORS.primary}
-                    />
-                  </TouchableOpacity>
-                </View>
-                {originalLoading ? (
-                  <Text style={styles.originalText}>
-                    {t('audioPlayer.originalLoading')}
-                  </Text>
-                ) : (
-                  <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
-                )}
-              </Pressable>
-            </ScrollView>
-          </View>
-        </ScrollView>
-
-        {/* Loading indicator for adding word */}
-        {addingWord && (
-          <View style={styles.loadingOverlay}>
-            <View style={styles.loadingCard}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>{addingWordText}</Text>
+        {/* For podcast: render vertical ScrollView directly (no horizontal wrapper) to fix Android nested scroll */}
+        {isPodcastTranscript ? (
+          <ScrollView
+            ref={scrollViewRef}
+            style={[styles.scrollContainer, { flex: 1, paddingTop: 8 }]}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+            showsVerticalScrollIndicator={true}
+            scrollEventThrottle={16}
+            removeClippedSubviews={false}
+            bounces={true}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setTextViewportHeight(height);
+            }}
+            onScroll={(event) => {
+              const offsetY = event.nativeEvent.contentOffset.y;
+              scrollOffsetRef.current = offsetY;
+            }}
+          >
+            <View style={styles.textWrapper}>
+              <PodcastDialogueView
+                dialogueSegments={dialogueSegments}
+                originalDialogueSegments={originalDialogueSegments}
+                currentDialogueIndex={currentDialogueIndex}
+                showOriginal={showOriginal}
+                wordsArray={wordsArray}
+                dialogueLineRanges={dialogueLineRanges}
+                onDialoguePress={handleDialoguePress}
+                onWordLongPress={handleWordLongPress}
+                language={lang}
+                dialogueRefs={dialogueRefs}
+              />
             </View>
-          </View>
+          </ScrollView>
+        ) : (
+          <ScrollView
+            ref={horizontalScrollRef}
+            horizontal
+            pagingEnabled
+            scrollEnabled={true}
+            showsHorizontalScrollIndicator={false}
+            directionalLockEnabled={true}
+            scrollEventThrottle={16}
+            onMomentumScrollEnd={async (e) => {
+              const idx = Math.round((e.nativeEvent.contentOffset.x || 0) / screenWidth);
+              setPageIndex(idx);
+              if (idx === 1 && !originalText && !originalLoading) {
+                // Önce notification'dan gelen track.original_turkish'i kullanmayı dene
+                if (track.original_turkish) {
+                  console.log('[AudioPlayer] Using track.original_turkish for originalText on first open:', {
+                    id: track.id,
+                    length: track.original_turkish.length,
+                  });
+                  setOriginalText(track.original_turkish);
+                  return;
+                }
+
+                // Eğer track.original_turkish yoksa, backend'den içeriği çekmeye çalış
+                try {
+                  setOriginalLoading(true);
+                  const res = await getUserContentById(track.id);
+                  if ((res as any)?.success && (res as any)?.data?.input) {
+                    setOriginalText((res as any).data.input);
+                  }
+                } catch (err) {
+                  // silent in production
+                } finally {
+                  setOriginalLoading(false);
+                }
+              }
+            }}
+            style={{ flex: 1 }}
+          >
+            <View style={{ width: screenWidth, flex: 1 }}>
+              <ScrollView
+                ref={scrollViewRef}
+                style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
+                contentContainerStyle={{ paddingHorizontal: 16 }}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                removeClippedSubviews={false}
+                bounces={true}
+                onLayout={(event) => {
+                  const { height } = event.nativeEvent.layout;
+                  setTextViewportHeight(height);
+                }}
+                onScroll={(event) => {
+                  const offsetY = event.nativeEvent.contentOffset.y;
+                  scrollOffsetRef.current = offsetY;
+                  if (Math.floor(offsetY) % 100 === 0) {
+                    console.log(`📜 [SCROLL] Offset: ${offsetY.toFixed(0)}px`);
+                  }
+                }}
+              >
+                <View style={styles.textWrapper}>
+                  {pageIndex === 0 && renderHighlightedText()}
+                </View>
+              </ScrollView>
+            </View>
+            <View style={{ width: screenWidth, flex: 1 }}>
+              <ScrollView
+                style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
+                contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                removeClippedSubviews={false}
+                bounces={true}
+              >
+                <Pressable>
+                  <View style={styles.originalHeader}>
+                    <Text style={styles.originalTitle}>
+                      {t('audioPlayer.originalTurkishTitle')}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (copiedFeedback) return;
+                        perfLog.mark('copy:start');
+                        const textToCopy = originalText || track.original_turkish || '';
+                        if (textToCopy) {
+                          Clipboard.setString(textToCopy);
+                          perfLog.mark('copy:end');
+                          setCopiedFeedback(true);
+                          setTimeout(() => setCopiedFeedback(false), 1500);
+                        }
+                      }}
+                      style={styles.copyButton}
+                    >
+                      <Icon
+                        name={copiedFeedback ? 'check-circle' : 'content-copy'}
+                        size={20}
+                        color={copiedFeedback ? '#10B981' : COLORS.primary}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  {originalLoading ? (
+                    <Text style={styles.originalText}>
+                      {t('audioPlayer.originalLoading')}
+                    </Text>
+                  ) : (
+                    <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
+                  )}
+                </Pressable>
+              </ScrollView>
+            </View>
+          </ScrollView>
         )}
 
         {/* Controls */}
-        <View style={styles.controlsContainer}>
-          {/* Mode Toggle - GİZLENDİ: 'Cümle' butonu gizlendi */}
-
-          {/* Debug Button - GİZLENDİ */}
-          {/* GIZLENDI - Debug butonu kaldırıldı */}
-
-          {/* Manual Seek Time Input - Only visible in TEST environment */}
-          {isTestEnvironment && (
-            <View style={styles.manualSeekContainer}>
-              <TextInput
-                style={styles.timeInput}
-                placeholder="Sn"
-                keyboardType="numeric"
-                maxLength={4}
-                value={manualSeconds}
-                onChangeText={setManualSeconds}
-              />
-              <Text style={styles.timeSeparator}>.</Text>
-              <TextInput
-                style={styles.timeInput}
-                placeholder="Ms"
-                keyboardType="numeric"
-                maxLength={3}
-                value={manualMillis}
-                onChangeText={setManualMillis}
-              />
-              <TouchableOpacity
-                style={styles.seekButton}
-                onPress={() => {
-                  const seconds = parseFloat(manualSeconds || '0');
-                  const millis = parseFloat(manualMillis || '0');
-                  const totalMs = (seconds * 1000) + millis;
-                  console.log(`🎯 [MANUAL SEEK] Seeking to ${seconds}.${millis}s (${totalMs}ms)`);
-                  handleSeek(totalMs);
-                }}
-              >
-                <Text style={styles.seekButtonText}>Git</Text>
-              </TouchableOpacity>
-            </View>
+        <PlaybackControls
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          duration={duration}
+          position={position}
+          playbackRate={playbackRate}
+          isTestEnvironment={isTestEnvironment}
+          manualSeconds={manualSeconds}
+          manualMillis={manualMillis}
+          wordsArray={wordsArray}
+          sentences={sentences}
+          currentSentenceIndex={currentSentenceIndex}
+          enableTour={enableTour}
+          tourSteps={AUDIOPLAYER_TOUR_STEPS}
+          lang={lang}
+          level={track.level}
+          onPlayPause={handlePlayPause}
+          onSpeedChange={handleSpeedChange}
+          onSeek={handleSeek}
+          onManualSecondsChange={setManualSeconds}
+          onManualMillisChange={setManualMillis}
+          onInfoPress={() => showAlert(
+            'Bilgi',
+            `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}\nCümle sayısı: ${sentences.length}\nAktif cümle: ${currentSentenceIndex + 1}`,
+            [{ text: 'OK', style: 'default' }],
+            'info-outline',
+            '#3B82F6'
           )}
-
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <Text style={styles.timeText}>{formatTime(position)}</Text>
-            <TouchableOpacity
-              style={styles.progressBar}
-              activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 0, right: 0 }}
-              onPress={(e) => {
-                const { locationX } = e.nativeEvent;
-                const progressBarWidth = screenWidth - 32 - 100; // Total width minus padding and time text
-                const percentage = locationX / progressBarWidth;
-                const seekPosition = percentage * duration;
-                console.log(`📊 [PROGRESS BAR] Clicked at ${locationX}px, seeking to ${(seekPosition / 1000).toFixed(2)}s`);
-                handleSeek(seekPosition);
-              }}
-            >
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${progressPercentage}%` }
-                ]}
-              />
-            </TouchableOpacity>
-            <Text style={styles.timeText}>{formatTime(duration)}</Text>
-          </View>
-
-          {/* Playback Controls */}
-          <View style={styles.playbackControls}>
-            <TouchableOpacity
-              style={styles.speedButton}
-              onPress={handleSpeedChange}
-            >
-              <Text style={styles.speedText}>{playbackRate}x</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.playButton}
-              onPress={handlePlayPause}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Icon name="hourglass-empty" size={32} color="#FFFFFF" />
-              ) : (
-                <Icon
-                  name={isPlaying ? "pause" : "play-arrow"}
-                  size={32}
-                  color="#FFFFFF"
-                />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.infoButton}
-              onPress={() => showAlert(
-                'Bilgi',
-                `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}\nCümle sayısı: ${sentences.length}\nAktif cümle: ${currentSentenceIndex + 1}`,
-                [{ text: 'OK', style: 'default' }],
-                'info-outline',
-                '#3B82F6'
-              )}
-            >
-              <Icon name="info" size={24} color="#666" />
-            </TouchableOpacity>
-
-            {/* Level Badge */}
-            <View style={styles.levelBadgeBottom}>
-              <Text style={styles.levelText}>{track.level}</Text>
-            </View>
-          </View>
-        </View>
+        />
 
         {/* Word info popup */}
-        {visible && wordPopup && (
-          <Modal
-            transparent
-            visible={true}
-            animationType="fade"
-            onRequestClose={() => {
-              setWordPopup(null);
-            }}
-          >
-            <TouchableOpacity
-              style={styles.wordPopupOverlay}
-              activeOpacity={1}
-              onPress={() => {
-                setWordPopup(null);
-              }}
-            >
-              <View style={styles.wordPopupCard}>
-                {/* Header with close button */}
-                <View style={styles.wordPopupHeader}>
-                  <View style={styles.wordPopupIconContainer}>
-                    <Icon name={wordPopup.mode === 'info' ? 'menu-book' : 'add-circle'} size={24} color={COLORS.primary} />
-                  </View>
-                  <TouchableOpacity
-                    style={styles.wordPopupCloseButton}
-                    onPress={() => setWordPopup(null)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Icon name="close" size={20} color={COLORS.slate400} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Word Title */}
-                <Text style={styles.wordPopupLabel}>
-                  {language === 'tr' ? 'Seçilen kelime' : 'Selected word'}
-                </Text>
-                <Text style={styles.wordPopupWord}>
-                  {wordPopup.data?.original_word || wordPopup.data?.word || wordPopup.word}
-                </Text>
-
-                {wordPopup.mode === 'info' ? (
-                  <>
-                    {/* Definition Card */}
-                    <View style={styles.wordPopupInfoCard}>
-                      <View style={styles.wordPopupInfoRow}>
-                        <View style={styles.wordPopupInfoIconBg}>
-                          <Icon name="translate" size={16} color={COLORS.primary} />
-                        </View>
-                        <View style={styles.wordPopupInfoContent}>
-                          <Text style={styles.wordPopupInfoLabel}>
-                            {language === 'tr' ? 'Anlam' : 'Meaning'}
-                          </Text>
-                          <Text style={styles.wordPopupInfoValue}>
-                            {wordPopup.data?.definition || '-'}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Level Badge */}
-                    <View style={styles.wordPopupLevelRow}>
-                      <View style={styles.wordPopupInfoIconBg}>
-                        <Icon name="school" size={16} color={COLORS.brandOrange} />
-                      </View>
-                      <Text style={styles.wordPopupInfoLabel}>
-                        {language === 'tr' ? 'Seviye' : 'Level'}
-                      </Text>
-                      <View style={styles.wordPopupLevelBadge}>
-                        <Text style={styles.wordPopupLevelText}>
-                          {(wordPopup.data?.level || '').toUpperCase() || '-'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Example Section */}
-                    {wordPopup.data?.example_sentence && (
-                      <View style={styles.wordPopupExampleCard}>
-                        <View style={styles.wordPopupExampleHeader}>
-                          <Icon name="format-quote" size={18} color={COLORS.brandIndigo} />
-                          <Text style={styles.wordPopupExampleTitle}>
-                            {language === 'tr' ? 'Örnek Cümle' : 'Example Sentence'}
-                          </Text>
-                        </View>
-                        <Text style={styles.wordPopupExampleText}>
-                          {wordPopup.data?.example_sentence}
-                        </Text>
-                        {wordPopup.data?.example_sentence_turkish && (
-                          <Text style={styles.wordPopupExampleTranslation}>
-                            {wordPopup.data?.example_sentence_turkish}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-
-                    {/* Close button for info mode */}
-                    <TouchableOpacity
-                      style={styles.wordPopupDoneButton}
-                      onPress={() => setWordPopup(null)}
-                    >
-                      <Text style={styles.wordPopupDoneText}>
-                        {language === 'tr' ? 'Tamam' : 'Done'}
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    {/* Confirm mode content */}
-                    <View style={styles.wordPopupConfirmContent}>
-                      <Icon name="help-outline" size={48} color={COLORS.primary} style={{ marginBottom: 12 }} />
-                      <Text style={styles.wordPopupConfirmMessage}>
-                        {language === 'tr'
-                          ? `Bu kelimeyi kelime listenize eklemek istiyor musunuz?`
-                          : `Do you want to add this word to your vocabulary list?`}
-                      </Text>
-                    </View>
-
-                    <View style={styles.wordPopupActionsRow}>
-                      <TouchableOpacity
-                        style={[styles.wordPopupActionButton, styles.wordPopupCancelButton]}
-                        onPress={() => {
-                          setWordPopup(null);
-                        }}
-                      >
-                        <Text style={styles.wordPopupCancelText}>
-                          {language === 'tr' ? 'İptal' : 'Cancel'}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.wordPopupActionButton, styles.wordPopupConfirmButton]}
-                        onPress={() => {
-                          handleAddWordToVocabulary(wordPopup.word, wordPopup.data?.wordIndex || 0);
-                          setWordPopup(null);
-                        }}
-                      >
-                        <Icon name="add" size={18} color="#FFFFFF" style={{ marginRight: 4 }} />
-                        <Text style={styles.wordPopupConfirmText}>
-                          {language === 'tr' ? 'Ekle' : 'Add'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                )}
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        )}
+        <WordPopupModal
+          visible={visible}
+          wordPopup={wordPopup}
+          language={lang}
+          wordsArray={wordsArray}
+          textToHighlight={textToHighlight}
+          onClose={() => setWordPopup(null)}
+          onWordAdded={(word) => setSelectedWords(prev => new Set([...prev, word]))}
+        />
       </View>
   );
 
@@ -2351,206 +1863,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  wordPopupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  wordPopupCard: {
-    width: '85%',
-    maxWidth: 380,
-    backgroundColor: COLORS.surface,
-    borderRadius: 32,
-    padding: 24,
-    shadowColor: COLORS.brandIndigo,
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-  },
-  wordPopupLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  wordPopupWord: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  wordPopupLine: {
-    fontSize: 14,
-    color: '#111827',
-    marginBottom: 4,
-  },
-  wordPopupLineLabel: {
-    fontWeight: '600',
-  },
-  wordPopupActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 16,
-  },
-  wordPopupActionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginLeft: 8,
-  },
-  wordPopupCancelButton: {
-    backgroundColor: '#E5E7EB',
-  },
-  wordPopupConfirmButton: {
-    backgroundColor: COLORS.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  wordPopupCancelText: {
-    fontSize: 13,
-    color: '#111827',
-    fontWeight: '500',
-  },
-  wordPopupConfirmText: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  // New modern popup styles
-  wordPopupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  wordPopupIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${COLORS.primary}15`,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  wordPopupCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.slate100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  wordPopupInfoCard: {
-    backgroundColor: COLORS.surfaceCard,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  wordPopupInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  wordPopupInfoIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: `${COLORS.primary}15`,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  wordPopupInfoContent: {
-    flex: 1,
-  },
-  wordPopupInfoLabel: {
-    fontSize: 12,
-    color: COLORS.slate500,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  wordPopupInfoValue: {
-    fontSize: 16,
-    color: COLORS.slate800,
-    fontWeight: '600',
-    lineHeight: 22,
-  },
-  wordPopupLevelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  wordPopupLevelBadge: {
-    backgroundColor: `${COLORS.brandOrange}20`,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginLeft: 8,
-  },
-  wordPopupLevelText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.brandOrange,
-  },
-  wordPopupExampleCard: {
-    backgroundColor: `${COLORS.brandIndigo}08`,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.brandIndigo,
-  },
-  wordPopupExampleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  wordPopupExampleTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.brandIndigo,
-    marginLeft: 8,
-  },
-  wordPopupExampleText: {
-    fontSize: 15,
-    color: COLORS.slate700,
-    fontStyle: 'italic',
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  wordPopupExampleTranslation: {
-    fontSize: 14,
-    color: COLORS.slate500,
-    lineHeight: 20,
-  },
-  wordPopupDoneButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  wordPopupDoneText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  wordPopupConfirmContent: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  wordPopupConfirmMessage: {
-    fontSize: 15,
-    color: COLORS.slate600,
-    textAlign: 'center',
-    lineHeight: 22,
   },
   header: {
     flexDirection: 'row',
@@ -2866,282 +2178,6 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '600',
   },
-  podcastDialoguesContainer: {
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-  },
-  podcastDialogueRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    gap: 4,
-  },
-  podcastDialogueRowWithOriginal: {
-    // Orijinal metin gösterildiğinde satır genişliğini ayarla
-  },
-  podcastDialogueRowLeft: {
-    justifyContent: 'flex-start',
-  },
-  podcastDialogueRowRight: {
-    justifyContent: 'flex-end',
-  },
-  podcastBubbleColumn: {
-    flex: 1,
-    justifyContent: 'flex-start',
-  },
-  podcastBubbleColumnLeft: {
-    alignItems: 'flex-start',
-  },
-  podcastBubbleColumnRight: {
-    alignItems: 'flex-end',
-  },
-  podcastBubbleWithAvatar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  podcastBubbleWithAvatarRight: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  podcastBubbleGroup: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    flexShrink: 1,
-    minWidth: 0,
-    gap: 8,
-  },
-  podcastBubbleGroupLeft: {
-    flexDirection: 'row',
-  },
-  podcastBubbleGroupRight: {
-    flexDirection: 'row-reverse',
-  },
-  podcastBubble: {
-    maxWidth: '82%',
-    borderRadius: 20,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: COLORS.slate100,
-    flexShrink: 1,
-    minWidth: 0,
-    backgroundColor: COLORS.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  podcastBubbleCompact: {
-    maxWidth: '72%',
-  },
-  podcastBubbleLeft: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 6,
-    borderColor: COLORS.slate100,
-  },
-  podcastBubbleRight: {
-    backgroundColor: COLORS.surface,
-    borderTopRightRadius: 6,
-    borderColor: COLORS.slate100,
-  },
-  podcastBubbleOriginal: {
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
-    borderColor: 'rgba(99, 102, 241, 0.15)',
-    marginTop: 8,
-    marginLeft: 32,
-  },
-  podcastBubbleOriginalLeft: {
-    marginLeft: 32,
-    borderTopLeftRadius: 6,
-  },
-  podcastBubbleOriginalRight: {
-    marginRight: 32,
-    borderTopRightRadius: 6,
-    marginLeft: 0,
-  },
-  podcastBubbleOriginalInline: {
-    backgroundColor: 'rgba(255, 237, 213, 0.9)', // Sarı/bej arka plan (eski tasarımdaki gibi)
-    borderColor: 'rgba(251, 191, 36, 0.3)',
-    maxWidth: '100%',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  podcastBubbleActive: {
-    shadowColor: COLORS.brandIndigo,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-    transform: [{ scale: 1.02 }],
-  },
-  podcastBubbleActiveLeft: {
-    backgroundColor: COLORS.brandIndigo,
-    borderColor: COLORS.brandIndigo,
-  },
-  podcastBubbleActiveRight: {
-    backgroundColor: COLORS.brandTeal,
-    borderColor: COLORS.brandTeal,
-  },
-  podcastSpeakerAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.slate200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  podcastSpeakerAvatarText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: COLORS.slate500,
-  },
-  podcastSpeakerLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    marginBottom: 6,
-    color: COLORS.slate400,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  podcastSpeakerLabelRight: {
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'right',
-  },
-  podcastBubbleText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: COLORS.slate700,
-    fontWeight: '700',
-  },
-  podcastBubbleTextRight: {
-    color: COLORS.slate700,
-    textAlign: 'right',
-  },
-  podcastBubbleTextActive: {
-    color: '#FFFFFF',
-  },
-  podcastBubbleOriginalText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: COLORS.slate500,
-    fontStyle: 'italic',
-  },
-  podcastBubbleOriginalTextRight: {
-    textAlign: 'right',
-  },
-  podcastFallbackText: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  controlsContainer: {
-    backgroundColor: COLORS.surfaceGlass,
-    padding: 20,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    shadowColor: COLORS.brandIndigo,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    elevation: 6,
-  },
-  modeToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    padding: 2,
-    marginBottom: 16,
-  },
-  modeButton: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 6,
-  },
-  modeButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  modeButtonText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  modeButtonTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  timeText: {
-    fontSize: 12,
-    color: '#666',
-    minWidth: 40,
-  },
-  progressBar: {
-    flex: 1,
-    height: 6,
-    backgroundColor: COLORS.slate100,
-    borderRadius: 3,
-    marginHorizontal: 12,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.brandTeal,
-    borderRadius: 3,
-  },
-  playbackControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  speedButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: COLORS.slate50,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.slate100,
-  },
-  speedText: {
-    fontSize: 12,
-    color: COLORS.slate600,
-    fontWeight: '800',
-  },
-  playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.brandOrange,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: COLORS.brandOrange,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  infoButton: {
-    padding: 8,
-  },
-  debugButton: {
-    padding: 8,
-    backgroundColor: '#ffeb3b',
-    borderRadius: 4,
-    marginVertical: 8,
-  },
-  debugButtonText: {
-    fontSize: 12,
-    color: '#333',
-    textAlign: 'center',
-  },
   floatingClose: {
     position: 'absolute',
     top: 12,
@@ -3154,75 +2190,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 20,
     elevation: 10,
-  },
-  // sentenceIndicator and number styles removed
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  loadingCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-  },
-  testButton: {
-    padding: 8,
-    backgroundColor: '#ff6b35',
-    borderRadius: 16,
-  },
-  manualSeekContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 16,
-  },
-  timeInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 8,
-    width: 60,
-    fontSize: 14,
-    textAlign: 'center',
-    backgroundColor: '#fff',
-  },
-  timeSeparator: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginHorizontal: 4,
-    color: '#333',
-  },
-  seekButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginLeft: 12,
-  },
-  seekButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { Suspense, useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, X, Sparkles, BookOpen, GraduationCap, TrendingUp } from 'lucide-react';
@@ -28,7 +28,7 @@ const FALLBACK_SECTORS: Sector[] = [
     { id: 16, code: 'manufacturing', name_tr: 'Üretim ve İmalat', description_tr: 'Fabrika üretimi, kalite kontrol ve endüstriyel süreçler', content_count: 0 },
 ];
 
-export default function SectorsPage() {
+function SectorsPageContent() {
     const router = useRouter();
     const [sectors, setSectors] = useState<Sector[]>([]);
     const [loading, setLoading] = useState(true);
@@ -300,5 +300,17 @@ export default function SectorsPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function SectorsPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+            </div>
+        }>
+            <SectorsPageContent />
+        </Suspense>
     );
 }

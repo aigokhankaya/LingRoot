@@ -183,4 +183,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TermsOfServiceScreen;
+export default React.memo(TermsOfServiceScreen);

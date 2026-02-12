@@ -1,5 +1,55 @@
 const logger = require('../utils/common/logger.js');
 const { supabase } = require('../utils/storage/supabaseClient.js');
+const crypto = require('crypto');
+
+/**
+ * Verify Apple JWS signedPayload using x5c certificate chain.
+ * Returns decoded payload if valid, throws if verification fails.
+ */
+async function verifyAppleJWS(signedPayload) {
+  const parts = signedPayload.split('.');
+  if (parts.length !== 3) {
+    throw new Error('Invalid JWS format');
+  }
+
+  // Decode header to get x5c certificate chain
+  const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
+  const x5c = header.x5c;
+
+  if (!x5c || !Array.isArray(x5c) || x5c.length === 0) {
+    throw new Error('Missing x5c certificate chain in JWS header');
+  }
+
+  // Build PEM from the leaf certificate (first in chain)
+  const leafCertPem = `-----BEGIN CERTIFICATE-----\n${x5c[0]}\n-----END CERTIFICATE-----`;
+
+  // Extract public key from leaf certificate
+  const leafCert = new crypto.X509Certificate(leafCertPem);
+
+  // Verify the issuer is Apple
+  if (!leafCert.issuer.includes('Apple')) {
+    throw new Error('Certificate not issued by Apple');
+  }
+
+  // Verify the JWS signature using the leaf certificate's public key
+  const signatureInput = `${parts[0]}.${parts[1]}`;
+  const signature = Buffer.from(parts[2].replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+  const publicKey = leafCert.publicKey;
+
+  const isValid = crypto.verify(
+    header.alg === 'ES256' ? 'SHA256' : 'SHA384',
+    Buffer.from(signatureInput),
+    { key: publicKey, dsaEncoding: 'ieee-p1363' },
+    signature
+  );
+
+  if (!isValid) {
+    throw new Error('JWS signature verification failed');
+  }
+
+  // Decode and return the payload
+  return JSON.parse(Buffer.from(parts[1], 'base64').toString());
+}
 
 /**
  * Apple App Store Server Notifications V2 Handler
@@ -22,15 +72,14 @@ exports.handleAppleNotification = async (req, res) => {
       return res.status(400).json({ error: 'Missing signedPayload' });
     }
 
-    // Decode the JWT payload (in production, you should verify the signature)
-    // For now, we'll decode without verification for logging
-    const payloadParts = signedPayload.split('.');
-    if (payloadParts.length !== 3) {
-      logger.error(`[${notificationId}] ❌ Invalid JWT format`);
-      return res.status(400).json({ error: 'Invalid signedPayload format' });
+    // Verify the JWS signature using Apple's certificate chain
+    let payloadData;
+    try {
+      payloadData = await verifyAppleJWS(signedPayload);
+    } catch (verifyError) {
+      logger.error(`[${notificationId}] JWS verification failed: ${verifyError.message}`);
+      return res.status(403).json({ error: 'Signature verification failed' });
     }
-
-    const payloadData = JSON.parse(Buffer.from(payloadParts[1], 'base64').toString());
     logger.info(`[${notificationId}] Decoded payload: ${JSON.stringify(payloadData, null, 2)}`);
 
     const { notificationType, subtype, data } = payloadData;
@@ -131,7 +180,7 @@ async function handleSubscriptionRenewal(notificationId, transactionId, productI
     // Find subscription by apple_transaction_id
     const { data: subscription, error: findError } = await supabase
       .from('subscriptions')
-      .select('*')
+      .select('id, user_id, apple_transaction_id, environment, status, enddate, plantype, created_at, updated_at')
       .eq('apple_transaction_id', transactionId)
       .single();
 

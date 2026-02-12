@@ -520,5 +520,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AccountSettingsScreen;
+export default React.memo(AccountSettingsScreen);
 

@@ -1,6 +1,7 @@
 const { supabase } = require('../utils/storage/supabaseClient.js');
 require("dotenv").config();
 const logger = require('../utils/common/logger.js');
+const { invalidateCache } = require('../middleware/redisCache');
 
 // Helper: derive estimates from plan price
 function computeEstimates(plan) {
@@ -111,6 +112,9 @@ exports.getAllPlans = async (req, res) => {
       estimates: computeEstimates(p),
     }));
 
+    // Debug: Log plan IDs being returned
+    logger.info(`[PLANS] Returning ${withEstimates.length} plans:`, withEstimates.map(p => ({ id: p.id, name: p.name, is_active: p.is_active })));
+
     return res.json({ success: true, data: withEstimates });
   } catch (e) {
     logger.error("Server error getAllPlans:", e);
@@ -164,6 +168,15 @@ exports.createPlan = async (req, res) => {
       google_product_id,
       // parametric features
       plan_features,
+    // promotion fields
+    promotion_active,
+    promotion_discount_percentage,
+    promotion_original_price,
+    promotion_price,
+    promotion_start_date,
+    promotion_end_date,
+    promotion_badge_text,
+    promotion_description,
     } = req.body || {};
 
     if (!name || price === undefined) {
@@ -218,6 +231,21 @@ exports.createPlan = async (req, res) => {
     if (plan_features !== undefined && plan_features !== null) {
       record.plan_features = plan_features;
     }
+    // Promotion fields
+    record.promotion_active = Boolean(promotion_active || false);
+    if (promotion_discount_percentage !== undefined && promotion_discount_percentage !== null && promotion_discount_percentage !== '') {
+      record.promotion_discount_percentage = Number(promotion_discount_percentage);
+    }
+    if (promotion_original_price !== undefined && promotion_original_price !== null && promotion_original_price !== '') {
+      record.promotion_original_price = Number(promotion_original_price);
+    }
+    if (promotion_price !== undefined && promotion_price !== null && promotion_price !== '') {
+      record.promotion_price = Number(promotion_price);
+    }
+    if (promotion_start_date) record.promotion_start_date = promotion_start_date;
+    if (promotion_end_date) record.promotion_end_date = promotion_end_date;
+    if (promotion_badge_text !== undefined) record.promotion_badge_text = promotion_badge_text || null;
+    if (promotion_description !== undefined) record.promotion_description = promotion_description || null;
 
     const insertData = [record];
 
@@ -232,6 +260,7 @@ exports.createPlan = async (req, res) => {
       return res.status(500).json({ success: false, message: "Error creating plan", error: error.message });
     }
 
+    await invalidateCache('sub:plans');
     return res.status(201).json({ success: true, data: { ...data, estimates: computeEstimates(data) } });
   } catch (e) {
     logger.error("Server error createPlan:", e);
@@ -260,6 +289,15 @@ exports.updatePlan = async (req, res) => {
       'trial_days',
       // parametric features
       'plan_features',
+      // promotion fields
+      'promotion_active',
+      'promotion_discount_percentage',
+      'promotion_original_price',
+      'promotion_price',
+      'promotion_start_date',
+      'promotion_end_date',
+      'promotion_badge_text',
+      'promotion_description',
     ];
     const payload = { updated_at: new Date().toISOString() };
     for (const key of allowed) {
@@ -305,6 +343,7 @@ exports.updatePlan = async (req, res) => {
     if (!data) {
       return res.status(404).json({ success: false, message: "Plan not found" });
     }
+    await invalidateCache('sub:plans');
     return res.json({ success: true, data: { ...data, estimates: computeEstimates(data) } });
   } catch (e) {
     logger.error("Server error updatePlan:", e);

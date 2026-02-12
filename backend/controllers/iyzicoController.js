@@ -125,7 +125,7 @@ exports.initCheckout = async (req, res) => {
     // Plan bilgilerini al
     const { data: planData, error: planError } = await supabase
       .from('subscription_plans')
-      .select('id, name, price, currency, description, is_active, interval')
+      .select('id, name, price, currency, description, is_active, plantype, interval')
       .eq('id', planId)
       .single();
 

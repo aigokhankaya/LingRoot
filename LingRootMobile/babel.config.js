@@ -12,5 +12,10 @@ module.exports = function(api) {
       // Reanimated plugin must be listed last
       'react-native-reanimated/plugin',
     ],
+    env: {
+      production: {
+        plugins: [['transform-remove-console', { exclude: ['warn', 'error'] }]],
+      },
+    },
   };
 };

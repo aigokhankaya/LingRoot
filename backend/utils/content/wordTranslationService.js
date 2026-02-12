@@ -19,6 +19,16 @@ try {
     openai = null;
 }
 
+// Cache prompt templates at startup (avoid repeated fs.readFileSync per request)
+const promptCache = {};
+function getPromptTemplate(name) {
+    if (!promptCache[name]) {
+        const promptPath = path.join(__dirname, `../../prompts/${name}.txt`);
+        promptCache[name] = fs.readFileSync(promptPath, 'utf-8');
+    }
+    return promptCache[name];
+}
+
 /**
  * İngilizce kelimeyi Türkçe'ye çevirir
  * @param {string} word - Çevrilecek kelime
@@ -31,8 +41,7 @@ async function translateWordToTurkish(word, context) {
     }
 
     try {
-        const promptPath = path.join(__dirname, '../../prompts/translate_word_to_turkish.txt');
-        const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+        const promptTemplate = getPromptTemplate('translate_word_to_turkish');
 
         const prompt = promptTemplate
             .replace('{{word}}', word)
@@ -82,8 +91,7 @@ async function generateExampleSentence(word, turkishMeaning, level = 'B1') {
     }
 
     try {
-        const promptPath = path.join(__dirname, '../../prompts/generate_example_sentence.txt');
-        const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+        const promptTemplate = getPromptTemplate('generate_example_sentence');
 
         const prompt = promptTemplate
             .replace('{{word}}', word)
@@ -132,8 +140,7 @@ async function translateSentenceToTurkish(englishSentence) {
     }
 
     try {
-        const promptPath = path.join(__dirname, '../../prompts/translate_sentence_to_turkish.txt');
-        const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+        const promptTemplate = getPromptTemplate('translate_sentence_to_turkish');
 
         const prompt = promptTemplate.replace('{{english_sentence}}', englishSentence);
 
@@ -258,91 +265,76 @@ async function processWordForVocabulary(word, context, level = null, originalSen
     try {
         logger.info(`Processing word "${word}" for vocabulary with context: "${context.substring(0, 50)}..."`);
 
-        // Maliyet takibi için usage bilgilerini topla
-        const usageList = [];
-
-        // Seviye belirtilmemişse OpenAI ile tahmin et
-        let estimatedLevel = level;
-        if (!estimatedLevel) {
-            const levelResult = await estimateCEFRLevel(word, context);
-            estimatedLevel = levelResult.result;
-            if (levelResult.usage) {
-                usageList.push({ usage: levelResult.usage, model: levelResult.model, step: 'estimate_level' });
-            }
+        if (!openai) {
+            throw new Error("OpenAI client is not initialized.");
         }
 
-        // Türkçe çeviriyi al
-        const translationResult = await translateWordToTurkish(word, context);
-        const turkishMeaning = translationResult.result;
-        if (translationResult.usage) {
-            usageList.push({ usage: translationResult.usage, model: translationResult.model, step: 'translate_word' });
-        }
+        // Single API call: CEFR level + Turkish translation + example sentence + example translation
+        const prompt = `For the English word "${word}" used in this context: "${context.substring(0, 300)}"
 
-        // Örnek cümle oluştur
-        const exampleResult = await generateExampleSentence(word, turkishMeaning, estimatedLevel);
-        const exampleSentence = exampleResult.result;
-        if (exampleResult.usage) {
-            usageList.push({ usage: exampleResult.usage, model: exampleResult.model, step: 'generate_example' });
-        }
+Provide ALL of the following in a single JSON response:
+1. The most accurate Turkish translation of the word (considering the context)
+2. CEFR difficulty level (A1/A2/B1/B2/C1/C2)
+3. A natural English example sentence using this word (appropriate for the CEFR level)
+4. Turkish translation of that example sentence
 
-        // Örnek cümleyi Türkçeye çevir
-        let exampleSentenceTurkish = '';
-        if (exampleSentence) {
-            try {
-                const sentenceTransResult = await translateSentenceToTurkish(exampleSentence);
-                exampleSentenceTurkish = sentenceTransResult.result;
-                if (sentenceTransResult.usage) {
-                    usageList.push({ usage: sentenceTransResult.usage, model: sentenceTransResult.model, step: 'translate_example' });
-                }
-                logger.info(`Example sentence translated to Turkish: "${exampleSentenceTurkish}"`);
-            } catch (error) {
-                logger.error(`Error translating example sentence to Turkish:`, error);
-                // Hata durumunda boş string bırak
-                exampleSentenceTurkish = '';
-            }
-        }
+CEFR Guidelines: A1=very basic, A2=common everyday, B1=intermediate daily, B2=advanced complex, C1=sophisticated academic, C2=rare/literary.
 
-        // Toplam maliyeti hesapla ve logla
-        if (userId && usageList.length > 0) {
-            let totalPromptTokens = 0;
-            let totalCompletionTokens = 0;
-            let totalCostUsd = 0;
+Return ONLY valid JSON:
+{"definition_tr":"Turkish meaning","level":"B2","example_en":"English example sentence","example_tr":"Turkish translation of example"}`;
 
-            for (const item of usageList) {
-                if (item.usage) {
-                    const costInfo = calculateOpenAiCost(item.usage, item.model);
-                    totalPromptTokens += costInfo.promptTokens;
-                    totalCompletionTokens += costInfo.completionTokens;
-                    totalCostUsd += costInfo.totalCostUsd;
-                }
-            }
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are an expert English-Turkish language teaching assistant. You provide accurate translations, appropriate CEFR levels, and natural example sentences. Always respond with valid JSON only."
+                },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 300
+        });
 
-            // api_costs tablosuna kaydet
-            await logApiCost({
+        const content = completion.choices[0]?.message?.content?.trim() || "{}";
+        const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
+        // Parse response, strip markdown fences if present
+        const cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        const parsed = JSON.parse(cleanContent);
+
+        const turkishMeaning = (parsed.definition_tr || '').toLowerCase().replace(/^(bir |birkaç |bazı |çok |şu |bu )/i, '');
+        const estimatedLevel = level || parsed.level || 'B1';
+        const validLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+        const finalLevel = validLevels.includes(estimatedLevel.toUpperCase()) ? estimatedLevel.toUpperCase() : 'B1';
+
+        logger.info(`Word "${word}" processed in single call: definition="${turkishMeaning}", level=${finalLevel}`);
+
+        // Cost tracking (fire-and-forget)
+        if (userId && usage) {
+            const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');
+            logApiCost({
                 userId,
                 feature: 'vocabulary_word_add',
                 provider: 'openai',
                 model: 'gpt-4o-mini',
-                inputQuantity: totalPromptTokens,
-                outputQuantity: totalCompletionTokens,
-                costUsd: totalCostUsd,
-                metadata: {
-                    word: word,
-                    steps: usageList.map(u => u.step)
-                }
-            });
+                inputQuantity: costInfo.promptTokens,
+                outputQuantity: costInfo.completionTokens,
+                costUsd: costInfo.totalCostUsd,
+                metadata: { word, steps: ['single_call'] }
+            }).catch(err => logger.warn('[COST] Failed to log vocabulary cost:', err.message));
 
-            logger.info(`[COST] Vocabulary word add for "${word}": ${totalPromptTokens} input + ${totalCompletionTokens} output tokens = $${totalCostUsd.toFixed(6)}`);
+            logger.info(`[COST] Vocabulary word add for "${word}": ${costInfo.promptTokens} input + ${costInfo.completionTokens} output tokens = $${costInfo.totalCostUsd.toFixed(6)}`);
         }
 
         const result = {
             word: word.toLowerCase(),
             original_word: word,
             definition: turkishMeaning,
-            example_sentence: exampleSentence,
-            example_sentence_turkish: exampleSentenceTurkish,
-            level: estimatedLevel.toUpperCase(),
-            context: context.substring(0, 200), // İlk 200 karakteri sakla
+            example_sentence: parsed.example_en || '',
+            example_sentence_turkish: parsed.example_tr || '',
+            level: finalLevel,
+            context: context.substring(0, 200),
             original_sentence: originalSentence || ''
         };
 

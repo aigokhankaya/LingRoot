@@ -1,6 +1,6 @@
 # Complete Database Column Reference
 
-> **Oluşturulma:** 2026-01-21 | **Güncelleme:** 2026-01-31 | **Versiyon:** 1.1
+> **Oluşturulma:** 2026-01-21 | **Güncelleme:** 2026-02-03 | **Versiyon:** 1.2
 
 **Source:** Direct Supabase `information_schema` query  
 **Total Tables:** 78+ (includes views)  
@@ -77,6 +77,14 @@
 | apple_product_id | text | ○ | - | |
 | google_product_id | text | ○ | - | |
 | plan_features | jsonb | ○ | *complex default* | |
+| promotion_active | boolean | ✓ | false | |
+| promotion_discount_percentage | integer | ○ | - | |
+| promotion_original_price | numeric | ○ | - | |
+| promotion_price | numeric | ○ | - | |
+| promotion_start_date | timestamptz | ○ | - | |
+| promotion_end_date | timestamptz | ○ | - | |
+| promotion_badge_text | text | ○ | - | |
+| promotion_description | text | ○ | - | |
 
 ### subscriptions
 | Column | Type | Null | Default | Key |
@@ -249,6 +257,7 @@
 | page_count | integer | ○ | - | |
 | language | varchar | ○ | - | |
 | created_at | timestamptz | ○ | now() | |
+| original_text | text | ○ | - | |
 | cover_image_url | text | ○ | - | |
 | author | text | ○ | - | |
 

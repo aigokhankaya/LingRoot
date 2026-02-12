@@ -78,14 +78,27 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
         }
     }, [isAuthenticated]);
 
-    // Initial fetch and polling
+    // Initial fetch and polling with visibility check
     useEffect(() => {
-        if (isAuthenticated) {
-            fetchUnreadCount();
-            // Poll every 60 seconds
-            const interval = setInterval(fetchUnreadCount, 60000);
-            return () => clearInterval(interval);
-        }
+        if (!isAuthenticated) return;
+
+        fetchUnreadCount();
+        let interval = setInterval(fetchUnreadCount, 60000);
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                clearInterval(interval);
+            } else {
+                fetchUnreadCount();
+                interval = setInterval(fetchUnreadCount, 60000);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [isAuthenticated, fetchUnreadCount]);
 
     // Fetch full list when dropdown opens

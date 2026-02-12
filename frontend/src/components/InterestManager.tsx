@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUserInterests, updateUserInterests } from '../lib/api';
-import { FaPlus, FaTrash, FaPen, FaSave, FaTimes } from 'react-icons/fa';
+import { Plus, Trash2, Pencil, Save, X } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
 
 interface InterestManagerProps {
@@ -159,7 +159,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
               className="text-primary hover:text-primary/80 flex items-center"
               disabled={isLoading}
             >
-              <FaPen className="mr-1" size={14} />
+              <Pencil className="mr-1" size={14} />
               <span>{t('common_button_edit')}</span>
             </button>
           ) : (
@@ -169,7 +169,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                 className="text-green-600 hover:text-green-800 flex items-center"
                 disabled={isLoading}
               >
-                <FaSave className="mr-1" size={14} />
+                <Save className="mr-1" size={14} />
                 <span>{t('common_button_save')}</span>
               </button>
               <button
@@ -177,7 +177,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                 className="text-red-600 hover:text-red-800 flex items-center"
                 disabled={isLoading}
               >
-                <FaTimes className="mr-1" size={14} />
+                <X className="mr-1" size={14} />
                 <span>{t('common_button_cancel')}</span>
               </button>
             </div>
@@ -222,7 +222,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                         className="ml-2 text-red-500 hover:text-red-700"
                         aria-label={t('interest_manager_button_remove')}
                       >
-                        <FaTrash size={12} />
+                        <Trash2 size={12} />
                       </button>
                     )}
                   </div>
@@ -246,7 +246,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                   onClick={addInterest}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-r flex items-center"
                 >
-                  <FaPlus className="mr-1" size={14} />
+                  <Plus className="mr-1" size={14} />
                   <span>{t('interest_manager_button_add')}</span>
                 </button>
               </div>

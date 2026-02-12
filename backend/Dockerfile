@@ -1,19 +1,9 @@
-# Multi-stage build for MFA integration
-FROM node:20-alpine AS base
+# Simple Node.js container for Railway
+# MFA runs on separate VDS, not in this container
+FROM node:20-alpine
 
-# Install system dependencies for MFA
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    gcc \
-    g++ \
-    make \
-    linux-headers \
-    musl-dev \
-    python3-dev
-
-# Install MFA
-RUN pip3 install --no-cache-dir montreal-forced-aligner
+# Install ffmpeg for audio merging (fluent-ffmpeg requires system binary)
+RUN apk add --no-cache ffmpeg
 
 # Set working directory
 WORKDIR /app
@@ -29,7 +19,6 @@ COPY . .
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV USE_MFA_ALIGNMENT=true
 
 # Expose port
 EXPOSE 5001

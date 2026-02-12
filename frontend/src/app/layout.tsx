@@ -1,8 +1,20 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { Manrope, Noto_Sans_Arabic } from 'next/font/google';
 import ClientLayout from './client-layout';
 import './globals.css'; // Import global styles
-import '@fortawesome/fontawesome-free/css/all.min.css'; // Import FontAwesome icons
+
+const manrope = Manrope({
+  subsets: ['latin'],
+  variable: '--font-manrope',
+  display: 'swap',
+});
+
+const notoSansArabic = Noto_Sans_Arabic({
+  subsets: ['arabic'],
+  variable: '--font-noto-arabic',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'LingRoot - AI-powered English Learning',
@@ -23,9 +35,8 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/favicon.ico" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
-      <body className="min-h-screen bg-background font-sans antialiased">
+      <body className={`${manrope.variable} ${notoSansArabic.variable} min-h-screen bg-background font-sans antialiased`}>
         <ClientLayout>
           <div className="mt-2 pt-2">
             {children}

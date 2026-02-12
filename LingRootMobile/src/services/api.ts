@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter, Topic } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from './secureStorage';
 import { getApiBaseUrl } from './environmentConfig';
 import { EXPO_PUBLIC_MFA_API_URL } from '@env';
 import { errorLogger } from '../utils/errorLogger';
@@ -18,8 +19,8 @@ import {
 } from './apiClient';
 
 // Backend URL - Will be set dynamically based on environment setting
-let API_BASE_URL = 'https://lingloops-backend.onrender.com';
-let MFA_API_BASE_URL = 'https://lingloops-backend.onrender.com'; // Default to same as main API
+let API_BASE_URL = 'https://lingroot-production.up.railway.app';
+let MFA_API_BASE_URL = 'https://lingroot-production.up.railway.app'; // Default to same as main API
 
 // Initialize API base URL from environment config
 getApiBaseUrl().then(url => {
@@ -118,7 +119,7 @@ async function performTokenRefresh(): Promise<void> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     try {
-      const refreshToken = await AsyncStorage.getItem('refresh_token');
+      const refreshToken = await secureStorage.getItem('refresh_token');
       if (!refreshToken) throw new Error('no_refresh_token');
       const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
         method: 'POST',
@@ -138,8 +139,8 @@ async function performTokenRefresh(): Promise<void> {
       const newAccess = body?.data?.token;
       const newRefresh = body?.data?.refreshToken;
       if (!newAccess || !newRefresh) throw new Error('invalid_refresh_response');
-      await AsyncStorage.setItem('auth_token', newAccess);
-      await AsyncStorage.setItem('refresh_token', newRefresh);
+      await secureStorage.setItem('auth_token', newAccess);
+      await secureStorage.setItem('refresh_token', newRefresh);
     } finally {
       // Reset lock after completion (success or failure)
       const _ = refreshPromise; // keep ref to avoid race
@@ -155,9 +156,9 @@ let tokenWarningShown = false;
 // Request interceptor - authentication token eklemek için
 apiClient.interceptors.request.use(
   async (config) => {
-    // Backend JWT token'ını AsyncStorage'dan al
+    // Backend JWT token'ini SecureStore'dan al
     try {
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = await secureStorage.getItem('auth_token');
       // Reduced logging - only log when token is missing
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -221,7 +222,7 @@ apiClient.interceptors.response.use(
         // Attempt refresh once
         try {
           await performTokenRefresh();
-          const newToken = await AsyncStorage.getItem('auth_token');
+          const newToken = await secureStorage.getItem('auth_token');
           if (newToken) {
             (error.config as any).__retryAfterRefresh = true;
             error.config.headers = error.config.headers || {};
@@ -231,9 +232,9 @@ apiClient.interceptors.response.use(
         } catch (refreshErr) {
           // If refresh fails, clear and notify
           try {
-            await AsyncStorage.removeItem('auth_token');
+            await secureStorage.removeItem('auth_token');
             await AsyncStorage.removeItem('user_data');
-            await AsyncStorage.removeItem('refresh_token');
+            await secureStorage.removeItem('refresh_token');
           } catch { }
           try {
             if (unauthorizedHandler) unauthorizedHandler();
@@ -242,9 +243,9 @@ apiClient.interceptors.response.use(
       } else if (isExplicitTokenProblem) {
         // Already retried or no config -> clear and notify
         try {
-          await AsyncStorage.removeItem('auth_token');
+          await secureStorage.removeItem('auth_token');
           await AsyncStorage.removeItem('user_data');
-          await AsyncStorage.removeItem('refresh_token');
+          await secureStorage.removeItem('refresh_token');
         } catch { }
         try {
           if (unauthorizedHandler) unauthorizedHandler();
@@ -260,7 +261,7 @@ apiClient.interceptors.response.use(
 mfaApiClient.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = await secureStorage.getItem('auth_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -288,7 +289,7 @@ mfaApiClient.interceptors.response.use(
       if (isExplicitTokenProblem && error.config && !(error.config as any).__retryAfterRefresh) {
         try {
           await performTokenRefresh();
-          const newToken = await AsyncStorage.getItem('auth_token');
+          const newToken = await secureStorage.getItem('auth_token');
           if (newToken) {
             (error.config as any).__retryAfterRefresh = true;
             error.config.headers = error.config.headers || {};
@@ -297,9 +298,9 @@ mfaApiClient.interceptors.response.use(
           }
         } catch (refreshErr) {
           try {
-            await AsyncStorage.removeItem('auth_token');
+            await secureStorage.removeItem('auth_token');
             await AsyncStorage.removeItem('user_data');
-            await AsyncStorage.removeItem('refresh_token');
+            await secureStorage.removeItem('refresh_token');
           } catch { }
           try {
             if (unauthorizedHandler) unauthorizedHandler();
@@ -374,6 +375,7 @@ export const apiService = {
   async processTextToSpeech(request: TTSRequest): Promise<TTSResponse> {
     try {
       const client = await getApiClientWithWake();
+      console.warn('[DEBUG-URL] TTS request baseURL:', client.http.defaults.baseURL);
       // apiClient.tts.process has same timeout (600000ms) configured
       // Cast to local TTSResponse type (minor type differences in 'level' field)
       return await client.tts.process(request) as unknown as TTSResponse;
@@ -470,6 +472,7 @@ export const apiService = {
   }): Promise<any> {
     try {
       const client = await getApiClientWithWake();
+      console.warn('[DEBUG-URL] Podcast request baseURL:', client.http.defaults.baseURL);
       // Map params to PodcastParams type
       const podcastParams = {
         topic: params.topic,
@@ -1190,18 +1193,14 @@ export const apiService = {
   },
 
   // Toggle favorite - Uses @lingroot/api-client
+  // Throws on error so callers can revert optimistic UI updates
   async toggleUserFavorite(itemId: string, itemType: string = 'content_item'): Promise<boolean> {
-    try {
-      const client = await getApiClientAsync();
-      const response = await client.http.post('/api/favorites/toggle', {
-        itemType,
-        itemId
-      });
-      return response.data?.success || false;
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      return false;
-    }
+    const client = await getApiClientAsync();
+    const response = await client.http.post('/api/favorites/toggle', {
+      itemType,
+      itemId
+    });
+    return response.data?.success || false;
   },
 
   async getUserFavoriteDetails(): Promise<any[]> {

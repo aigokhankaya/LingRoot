@@ -3,9 +3,11 @@ const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const subscriptionController = require('../controllers/subscriptionController');
 const planController = require('../controllers/planController');
+const { setCacheHeaders } = require('../middleware/cacheHeaders');
+const { redisCache } = require('../middleware/redisCache');
 
 // Public routes
-router.get('/plans', subscriptionController.getSubscriptionPlans);
+router.get('/plans', setCacheHeaders(300), redisCache('sub:plans', 1800), subscriptionController.getSubscriptionPlans);
 
 // Webhook for payment provider callbacks
 router.post('/webhook', express.raw({ type: 'application/json' }), subscriptionController.handleWebhook);

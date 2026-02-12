@@ -1,5 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -40,10 +41,11 @@ export const AppHeader: React.FC = () => {
                         {/* Logo + Brand */}
                         <Link href="/welcome">
                             <div className="flex items-center space-x-3 flex-shrink-0 cursor-pointer">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <Image
                                     src="/lingroot-icon.svg"
                                     alt="LingRoot Logo"
+                                    width={48}
+                                    height={48}
                                     className="w-10 h-10 md:w-12 md:h-12"
                                 />
                                 <BrandWordmark className="hidden sm:inline-block text-lg sm:text-xl md:text-2xl" />

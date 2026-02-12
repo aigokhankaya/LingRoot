@@ -7,22 +7,21 @@ import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
-  FaUserEdit,
-  FaVolumeUp,
-  FaBook,
-  FaCheckCircle,
-  FaExclamationCircle,
-  FaSitemap,
-  FaPodcast,
-  FaLightbulb,
-  FaYoutube,
-  FaFileWord,
-  FaFileAlt,
-  FaLink,
-  FaGraduationCap,
-  FaPlus,
-  FaBriefcase,
-} from 'react-icons/fa';
+  UserPen,
+  Volume2,
+  BookOpen,
+  CheckCircle,
+  AlertCircle,
+  Network,
+  Radio,
+  Lightbulb,
+  Youtube,
+  FileText,
+  Link2,
+  GraduationCap,
+  Plus,
+  Briefcase,
+} from 'lucide-react';
 import { MessageSquare } from 'lucide-react';
 import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails, createDocumentFromText, DocumentRecord, DocumentSection } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
@@ -49,6 +48,7 @@ import ResumeContentCard from "../src/components/content/ResumeContentCard";
 import PersonalizedForYouSection from "../src/components/content/PersonalizedForYouSection";
 import ContentQuizModal from "../src/components/quiz/ContentQuizModal";
 import AppHeader from "../src/components/AppHeader";
+import { getVoiceDisplayName } from "../src/utils/voiceDisplayNames";
 import { useAudioPlayerSafe } from "../src/context/AudioPlayerContext";
 import { IncompleteListeningItem, getListeningProgress } from "../src/lib/api";
 import { preloadSounds } from "../src/utils/soundEffects";
@@ -396,10 +396,10 @@ const Welcome: React.FC = () => {
   const [articleDetailError, setArticleDetailError] = useState<string | null>(null);
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
-  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('basic');
   const [selectedGender, setSelectedGender] = useState<string>('female');
   const [selectedAccent, setSelectedAccent] = useState<string>('american');
-  const [ttsProvider, setTtsProvider] = useState<string>('amazon'); // TTS provider from settings
+  const [ttsProvider, setTtsProvider] = useState<string>('google'); // TTS provider from settings
   // YouTube altyazı çekme state'leri
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [isFetchingSubtitle, setIsFetchingSubtitle] = useState<boolean>(false);
@@ -470,17 +470,17 @@ const Welcome: React.FC = () => {
 
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
-    { id: 'topic_tree', name: t('content_type_topic_tree'), icon: <FaSitemap /> },
-    { id: 'book', name: t('book'), icon: <FaBook /> },
-    { id: 'podcast', name: t('podcast'), icon: <FaPodcast /> },
-    { id: 'topic', name: t('content_type_hobbies'), icon: <FaLightbulb /> },
-    { id: 'youtube', name: t('youtube'), icon: <FaYoutube /> },
-    { id: 'youtube_v2', name: 'YouTube Transcript YENİ Versiyon', icon: <FaYoutube /> },
-    { id: 'document', name: t('document'), icon: <FaFileWord /> },
-    { id: 'text', name: t('text'), icon: <FaFileAlt /> },
-    { id: 'sectors', name: t('web_link'), icon: <FaBriefcase /> },
-    { id: 'subject', name: t('subject'), icon: <FaGraduationCap /> },
-    { id: 'custom', name: t('content_type_custom'), icon: <FaPlus /> },
+    { id: 'topic_tree', name: t('content_type_topic_tree'), icon: <Network /> },
+    { id: 'book', name: t('book'), icon: <BookOpen /> },
+    { id: 'podcast', name: t('podcast'), icon: <Radio /> },
+    { id: 'topic', name: t('content_type_hobbies'), icon: <Lightbulb /> },
+    { id: 'youtube', name: t('youtube'), icon: <Youtube /> },
+    { id: 'youtube_v2', name: 'YouTube Transcript YENİ Versiyon', icon: <Youtube /> },
+    { id: 'document', name: t('document'), icon: <FileText /> },
+    { id: 'text', name: t('text'), icon: <FileText /> },
+    { id: 'sectors', name: t('web_link'), icon: <Briefcase /> },
+    { id: 'subject', name: t('subject'), icon: <GraduationCap /> },
+    { id: 'custom', name: t('content_type_custom'), icon: <Plus /> },
   ];
 
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
@@ -553,18 +553,18 @@ const Welcome: React.FC = () => {
   ];
   const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
 
-  // Ses kategorileri - TTS provider'a göre dinamik
+  // Ses kategorileri - TTS provider'a göre dinamik (Mobil ile senkron)
   const voiceCategories = ttsProvider === 'google'
     ? [
-      { value: 'standard', label: t('voice_cat_standard'), icon: 'fas fa-volume-up', ssmlSupport: false },
-      { value: 'wavenet', label: t('voice_cat_wavenet'), icon: 'fas fa-star', badge: 'Premium', badgeLabel: t('badge_premium'), ssmlSupport: true },
-      { value: 'neural2', label: t('voice_cat_neural2'), icon: 'fas fa-brain', badge: 'Premium', badgeLabel: t('badge_premium'), ssmlSupport: true },
-      { value: 'studio', label: t('voice_cat_studio'), icon: 'fas fa-crown', badge: 'Platinium', badgeLabel: t('badge_platinum'), ssmlSupport: true },
-      { value: 'chirp3d', label: t('voice_cat_chirp3d'), icon: 'fas fa-gem', badge: 'Gold', badgeLabel: t('badge_gold'), ssmlSupport: true }
+      { value: 'basic', label: 'Basic', icon: 'fas fa-volume-up', badge: 'Free', ssmlSupport: false },
+      { value: 'silver', label: 'Silver', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
+      { value: 'gold', label: 'Gold', icon: 'fas fa-crown', badge: 'Ultra', ssmlSupport: true },
+      { value: 'platinum', label: 'Platinum', icon: 'fas fa-gem', badge: 'Pro', ssmlSupport: true }
     ]
     : [ // Amazon Polly categories
-      { value: 'standard', label: 'Standard', icon: 'fas fa-volume-up', ssmlSupport: false },
-      { value: 'neural', label: 'Neural', icon: 'fas fa-star', badge: 'Premium', badgeLabel: t('badge_premium'), ssmlSupport: true }
+      { value: 'basic', label: 'Basic', icon: 'fas fa-volume-up', badge: 'Free', ssmlSupport: false },
+      { value: 'neural', label: 'Neural', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
+      { value: 'generative', label: 'Generative', icon: 'fas fa-brain', badge: 'Ultra', ssmlSupport: true }
     ];
 
   const getVoiceName = (voice: any) => {
@@ -575,49 +575,56 @@ const Welcome: React.FC = () => {
     return `${accent} - ${gender} ${suffix}`;
   };
 
+  // Ses verileri - Yeni kategori yapısı (Mobil ile senkron)
+  // basic = Standard sesler
+  // silver = WaveNet + Neural2 sesler
+  // gold = Journey (Chirp3D) sesler
+  // platinum = Studio sesler
   const detailedVoices = {
-    wavenet: [
-      { id: 'en-US-Wavenet-A', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Wavenet-A' }), accent: 'american', gender: 'male', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-US-Wavenet-F', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Wavenet-F' }), accent: 'american', gender: 'female', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-GB-Wavenet-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Wavenet-B' }), accent: 'british', gender: 'male', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-GB-Wavenet-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Wavenet-C' }), accent: 'british', gender: 'female', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-AU-Wavenet-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Wavenet-A' }), accent: 'australian', gender: 'female', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-AU-Wavenet-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Wavenet-D' }), accent: 'australian', gender: 'male', category: 'wavenet', ssmlSupport: true }
+    basic: [
+      { id: 'en-US-Standard-B', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Standard-B' }), accent: 'american', gender: 'male', category: 'basic', ssmlSupport: false },
+      { id: 'en-US-Standard-C', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Standard-C' }), accent: 'american', gender: 'female', category: 'basic', ssmlSupport: false },
+      { id: 'en-US-Standard-D', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Standard-D' }), accent: 'american', gender: 'male', category: 'basic', ssmlSupport: false },
+      { id: 'en-US-Standard-E', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Standard-E' }), accent: 'american', gender: 'female', category: 'basic', ssmlSupport: false },
+      { id: 'en-GB-Standard-A', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Standard-A' }), accent: 'british', gender: 'female', category: 'basic', ssmlSupport: false },
+      { id: 'en-GB-Standard-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Standard-B' }), accent: 'british', gender: 'male', category: 'basic', ssmlSupport: false },
+      { id: 'en-GB-Standard-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Standard-C' }), accent: 'british', gender: 'female', category: 'basic', ssmlSupport: false },
+      { id: 'en-GB-Standard-D', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Standard-D' }), accent: 'british', gender: 'male', category: 'basic', ssmlSupport: false },
+      { id: 'en-AU-Standard-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Standard-A' }), accent: 'australian', gender: 'female', category: 'basic', ssmlSupport: false },
+      { id: 'en-AU-Standard-B', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Standard-B' }), accent: 'australian', gender: 'male', category: 'basic', ssmlSupport: false },
+      { id: 'en-AU-Standard-C', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Standard-C' }), accent: 'australian', gender: 'female', category: 'basic', ssmlSupport: false },
+      { id: 'en-AU-Standard-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Standard-D' }), accent: 'australian', gender: 'male', category: 'basic', ssmlSupport: false }
     ],
-    neural2: [
-      { id: 'en-US-Neural2-J', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Neural2-J' }), accent: 'american', gender: 'male', category: 'neural2', ssmlSupport: true },
-      { id: 'en-US-Neural2-H', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Neural2-H' }), accent: 'american', gender: 'female', category: 'neural2', ssmlSupport: true },
-      { id: 'en-GB-Neural2-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Neural2-B' }), accent: 'british', gender: 'male', category: 'neural2', ssmlSupport: true },
-      { id: 'en-GB-Neural2-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Neural2-C' }), accent: 'british', gender: 'female', category: 'neural2', ssmlSupport: true },
-      { id: 'en-AU-Neural2-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Neural2-A' }), accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
-      { id: 'en-AU-Neural2-C', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Neural2-C' }), accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
-      { id: 'en-AU-Neural2-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Neural2-D' }), accent: 'australian', gender: 'male', category: 'neural2', ssmlSupport: true }
+    silver: [
+      // WaveNet voices
+      { id: 'en-US-Wavenet-A', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Wavenet-A' }), accent: 'american', gender: 'male', category: 'silver', ssmlSupport: true },
+      { id: 'en-US-Wavenet-F', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Wavenet-F' }), accent: 'american', gender: 'female', category: 'silver', ssmlSupport: true },
+      { id: 'en-GB-Wavenet-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Wavenet-B' }), accent: 'british', gender: 'male', category: 'silver', ssmlSupport: true },
+      { id: 'en-GB-Wavenet-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Wavenet-C' }), accent: 'british', gender: 'female', category: 'silver', ssmlSupport: true },
+      { id: 'en-AU-Wavenet-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Wavenet-A' }), accent: 'australian', gender: 'female', category: 'silver', ssmlSupport: true },
+      { id: 'en-AU-Wavenet-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Wavenet-D' }), accent: 'australian', gender: 'male', category: 'silver', ssmlSupport: true },
+      // Neural2 voices
+      { id: 'en-US-Neural2-J', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Neural2-J' }), accent: 'american', gender: 'male', category: 'silver', ssmlSupport: true },
+      { id: 'en-US-Neural2-H', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Neural2-H' }), accent: 'american', gender: 'female', category: 'silver', ssmlSupport: true },
+      { id: 'en-GB-Neural2-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Neural2-B' }), accent: 'british', gender: 'male', category: 'silver', ssmlSupport: true },
+      { id: 'en-GB-Neural2-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Neural2-C' }), accent: 'british', gender: 'female', category: 'silver', ssmlSupport: true },
+      { id: 'en-AU-Neural2-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Neural2-A' }), accent: 'australian', gender: 'female', category: 'silver', ssmlSupport: true },
+      { id: 'en-AU-Neural2-C', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Neural2-C' }), accent: 'australian', gender: 'female', category: 'silver', ssmlSupport: true },
+      { id: 'en-AU-Neural2-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Neural2-D' }), accent: 'australian', gender: 'male', category: 'silver', ssmlSupport: true }
     ],
-    studio: [
-      { id: 'en-US-Studio-M', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Studio-M' }), accent: 'american', gender: 'male', category: 'studio', ssmlSupport: true },
-      { id: 'en-US-Studio-Q', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Studio-Q' }), accent: 'american', gender: 'female', category: 'studio', ssmlSupport: true },
-      { id: 'en-GB-Studio-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Studio-B' }), accent: 'british', gender: 'male', category: 'studio', ssmlSupport: true },
-      { id: 'en-GB-Studio-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Studio-C' }), accent: 'british', gender: 'female', category: 'studio', ssmlSupport: true }
+    gold: [
+      // Journey (Chirp3D) voices
+      { id: 'en-US-Journey-D', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Journey-D' }), accent: 'american', gender: 'female', category: 'gold', ssmlSupport: true },
+      { id: 'en-US-Journey-O', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Journey-O' }), accent: 'american', gender: 'male', category: 'gold', ssmlSupport: true },
+      { id: 'en-GB-Journey-F', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Journey-F' }), accent: 'british', gender: 'female', category: 'gold', ssmlSupport: true },
+      { id: 'en-GB-Journey-M', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Journey-M' }), accent: 'british', gender: 'male', category: 'gold', ssmlSupport: true }
     ],
-    chirp3d: [
-      { id: 'en-US-Journey-D', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Journey-D' }), accent: 'american', gender: 'female', category: 'chirp3d', ssmlSupport: true },
-      { id: 'en-US-Journey-O', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Journey-O' }), accent: 'american', gender: 'male', category: 'chirp3d', ssmlSupport: true },
-      { id: 'en-GB-Journey-F', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Journey-F' }), accent: 'british', gender: 'female', category: 'chirp3d', ssmlSupport: true },
-      { id: 'en-GB-Journey-M', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Journey-M' }), accent: 'british', gender: 'male', category: 'chirp3d', ssmlSupport: true }
-    ],
-    standard: [
-      { id: 'en-US-Standard-B', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Standard-B' }), accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-US-Standard-C', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Standard-C' }), accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-US-Standard-D', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Standard-D' }), accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-US-Standard-E', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Standard-E' }), accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-GB-Standard-A', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Standard-A' }), accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-GB-Standard-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Standard-B' }), accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-GB-Standard-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Standard-C' }), accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-GB-Standard-D', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Standard-D' }), accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-AU-Standard-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Standard-A' }), accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-AU-Standard-B', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Standard-B' }), accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-AU-Standard-C', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Standard-C' }), accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-AU-Standard-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Standard-D' }), accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false }
+    platinum: [
+      // Studio voices
+      { id: 'en-US-Studio-M', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Studio-M' }), accent: 'american', gender: 'male', category: 'platinum', ssmlSupport: true },
+      { id: 'en-US-Studio-Q', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Studio-Q' }), accent: 'american', gender: 'female', category: 'platinum', ssmlSupport: true },
+      { id: 'en-GB-Studio-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Studio-B' }), accent: 'british', gender: 'male', category: 'platinum', ssmlSupport: true },
+      { id: 'en-GB-Studio-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Studio-C' }), accent: 'british', gender: 'female', category: 'platinum', ssmlSupport: true }
     ]
   };
 
@@ -1378,7 +1385,7 @@ const Welcome: React.FC = () => {
         }
       } catch (error) {
         console.error('Error fetching TTS provider:', error);
-        setTtsProvider('amazon'); // Default to Amazon
+        setTtsProvider('google'); // Default to Google
       }
     };
 
@@ -1401,12 +1408,11 @@ const Welcome: React.FC = () => {
           setSavedDefaultVoice(settings.default_voice);
           // Varsayılan sese göre filtreleri ayarla (liste o sesi içersin)
           const name: string = settings.default_voice;
-          // Kategori
-          if (name.includes('Wavenet')) setSelectedVoiceCategory('wavenet');
-          else if (name.includes('Neural2')) setSelectedVoiceCategory('neural2');
-          else if (name.includes('Studio')) setSelectedVoiceCategory('studio');
-          else if (name.includes('Journey') || name.includes('Chirp')) setSelectedVoiceCategory('chirp3d');
-          else setSelectedVoiceCategory('standard');
+          // Kategori (yeni yapı: basic, silver, gold, platinum)
+          if (name.includes('Wavenet') || name.includes('Neural2')) setSelectedVoiceCategory('silver');
+          else if (name.includes('Journey') || name.includes('Chirp')) setSelectedVoiceCategory('gold');
+          else if (name.includes('Studio')) setSelectedVoiceCategory('platinum');
+          else setSelectedVoiceCategory('basic');
           // Aksan
           if (name.includes('en-GB')) setSelectedAccent('british');
           else if (name.includes('en-US')) setSelectedAccent('american');
@@ -1476,7 +1482,7 @@ const Welcome: React.FC = () => {
 
   // Filtreler değiştiğinde sesleri yeniden çek
   useEffect(() => {
-    const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || emotionType !== 'all' || selectedVoiceCategory !== 'standard';
+    const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || emotionType !== 'all' || selectedVoiceCategory !== 'basic';
 
     if (hasActiveFilters) {
       console.log('🎯 Filtre değişti, sesler yeniden çekiliyor...', {
@@ -2415,6 +2421,7 @@ const Welcome: React.FC = () => {
                 </div>
                 {/* Varsayılan Ses butonu bu bölümden kaldırıldı */}
               </div>
+              {contentType !== 'topic_tree' && (
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-medium text-gray-700">{t('welcome_content_input_label')}</h3>
@@ -3489,8 +3496,20 @@ const Welcome: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Konu Ağacım - Audio Settings'den ÖNCE */}
+          {contentType === 'topic_tree' && user && (
+            <div className="mb-8">
+              <TopicHierarchySection
+                userId={user.id}
+                level={englishLevel}
+                targetDurationMinutes={contentDuration}
+              />
+            </div>
+          )}
 
           {/* Audio Settings - Podcast modunda gizle çünkü podcast kendi ses ayarlarını barındırıyor */}
           {contentType !== 'podcast' && (
@@ -3633,7 +3652,7 @@ const Welcome: React.FC = () => {
                                         category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
                                     }`}
                                 >
-                                  {category.badgeLabel || category.badge}
+                                  {category.badge}
                                 </Badge>
                               )}
 
@@ -3681,12 +3700,12 @@ const Welcome: React.FC = () => {
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-md font-medium text-gray-600">{t('available_voices_title')}</h4>
                         {/* Aktif Filtre Göstergesi */}
-                        {(selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard') && (
+                        {(selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'basic') && (
                           <div className="flex items-center space-x-2 text-xs">
                             <i className="fas fa-filter text-primary"></i>
                             <span className="text-primary font-medium">
                               {t('filter_active_label')}
-                              {selectedVoiceCategory !== 'standard' && ` ${selectedVoiceCategory.charAt(0).toUpperCase() + selectedVoiceCategory.slice(1)}`}
+                              {selectedVoiceCategory !== 'basic' && ` ${selectedVoiceCategory.charAt(0).toUpperCase() + selectedVoiceCategory.slice(1)}`}
                               {selectedAccent !== 'all' && ` ${selectedAccent}`}
                               {selectedGender !== 'all' && ` ${selectedGender}`}
                               {voiceType && ` • ${getSelectedVoiceLabel()}`}
@@ -3701,7 +3720,9 @@ const Welcome: React.FC = () => {
                               {getFilteredVoices().map((voice) => {
                                 // Backend voices use 'name' as ID, hardcoded voices use 'id'
                                 const voiceId = voice.name || voice.id;
-                                const voiceName = voice.displayName || (voice.name ? voice.name.replace(/^[a-z]{2}-[A-Z]{2}-/, '') : voice.id);
+                                // Mobil ile senkron: getVoiceDisplayName kullan
+                                const fallbackName = voice.displayName || (voice.name ? voice.name.replace(/^[a-z]{2}-[A-Z]{2}-/, '') : voice.id);
+                                const voiceName = getVoiceDisplayName(voiceId, router.locale || 'tr', fallbackName);
                                 const isDefault = savedDefaultVoice && ((voice.name || voice.id) === savedDefaultVoice);
 
                                 return (
@@ -3720,33 +3741,15 @@ const Welcome: React.FC = () => {
                                     />
                                     <div className="flex-1">
                                       <div className="font-medium text-sm">
-                                        {voiceName} <span className="text-gray-400 font-mono">[{voiceId}]</span>
+                                        {voiceName}
                                         {isDefault && (
                                           <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                                             {t('voice_default')}
                                           </span>
                                         )}
-                                        {voice.ssmlSupport && (
-                                          <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                                            {t('voice_ssml_support')}
-                                          </span>
-                                        )}
                                       </div>
                                       <div className="text-xs text-gray-500">
-                                        {/* Accent bilgisi */}
-                                        {voice.accent === 'american' || voice.languageCode?.includes('US') ? t('accent_american') :
-                                          voice.accent === 'british' || voice.languageCode?.includes('GB') ? t('accent_british') :
-                                            voice.accent === 'australian' || voice.languageCode?.includes('AU') ? t('accent_australian') :
-                                              voice.accent || voice.languageCode || t('voice_unknown')} •
-                                        {/* Gender bilgisi */}
-                                        {voice.gender === 'MALE' || voice.gender === 'male' ? t('gender_male') :
-                                          voice.gender === 'FEMALE' || voice.gender === 'female' ? t('gender_female') : t('voice_unknown')}
-                                        {/* Voice type bilgisi backend'den geliyorsa */}
-                                        {voice.category && (
-                                          <span className="ml-1">
-                                            • {voice.category.charAt(0).toUpperCase() + voice.category.slice(1)}
-                                          </span>
-                                        )}
+                                        <span className="font-mono text-gray-400">{voiceId}</span>
                                       </div>
                                     </div>
                                   </label>
@@ -3887,19 +3890,6 @@ const Welcome: React.FC = () => {
               </CardContent>
             </Card>
           )}
-
-          {/* Konu Ağacım - sadece konu ağacı sekmesi seçiliyken, Ses Ayarları kartının altında */}
-          {
-            contentType === 'topic_tree' && user && (
-              <div className="mt-8">
-                <TopicHierarchySection
-                  userId={user.id}
-                  level={englishLevel}
-                  targetDurationMinutes={contentDuration}
-                />
-              </div>
-            )
-          }
 
           <div className="flex justify-center mt-8">
             <Button

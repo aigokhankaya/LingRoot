@@ -1,10 +1,12 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, Suspense } from 'react';
 import { NavigationContainer, NavigationContainerRef, CommonActions } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 // import { Ionicons } from '@expo/vector-icons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { View, TouchableOpacity, Text, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
@@ -20,7 +22,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
 import { logScreenView } from '../services/analytics';
 
-// Screens
+// Critical screens (eager loading)
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
@@ -29,19 +31,21 @@ import HomeScreen from '../screens/HomeScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import VocabularyScreen from '../screens/VocabularyScreen';
-import TopicTreeScreen from '../screens/TopicTreeScreen';
-import PatternListScreen from '../screens/PatternListScreen';
-import MembershipScreen from '../screens/MembershipScreen';
-import ChatScreen from '../screens/ChatScreen';
-import AccountSettingsScreen from '../screens/AccountSettingsScreen';
-import PackagesScreen from '../screens/PackagesScreen';
-import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
-import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
-import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
-import TtsProviderSettingsScreen from '../screens/TtsProviderSettingsScreen';
-import LiroScreen from '../screens/LiroScreen';
-import AudioPlayerScreen from '../screens/AudioPlayerScreen';
+
+// Lazy-loaded screens (non-critical)
+const VocabularyScreenLazy = React.lazy(() => import('../screens/VocabularyScreen'));
+const TopicTreeScreenLazy = React.lazy(() => import('../screens/TopicTreeScreen'));
+const PatternListScreenLazy = React.lazy(() => import('../screens/PatternListScreen'));
+const MembershipScreenLazy = React.lazy(() => import('../screens/MembershipScreen'));
+const ChatScreenLazy = React.lazy(() => import('../screens/ChatScreen'));
+const AccountSettingsScreenLazy = React.lazy(() => import('../screens/AccountSettingsScreen'));
+const PackagesScreenLazy = React.lazy(() => import('../screens/PackagesScreen'));
+const PrivacyPolicyScreenLazy = React.lazy(() => import('../screens/PrivacyPolicyScreen'));
+const TermsOfServiceScreenLazy = React.lazy(() => import('../screens/TermsOfServiceScreen'));
+const ReminderSettingsScreenLazy = React.lazy(() => import('../screens/ReminderSettingsScreen'));
+const TtsProviderSettingsScreenLazy = React.lazy(() => import('../screens/TtsProviderSettingsScreen'));
+const LiroScreenLazy = React.lazy(() => import('../screens/LiroScreen'));
+const AudioPlayerScreenLazy = React.lazy(() => import('../screens/AudioPlayerScreen'));
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -50,9 +54,88 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // so that polling + notification taps do not trigger multiple navigations
 let lastAudioNotificationHandledAt: number | null = null;
 
-const LoadingScreen = () => (
-  <View style={splashStyles.container} />
+// Lazy screen loading wrapper with Suspense
+const LazyScreenFallback = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9' }}>
+    <ActivityIndicator size="large" color={COLORS.brandTeal} />
+  </View>
 );
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const withLazy = (LazyComponent: React.LazyExoticComponent<React.ComponentType<any>>) => {
+  const Wrapped = (props: Record<string, unknown>) => (
+    <Suspense fallback={<LazyScreenFallback />}>
+      <LazyComponent {...props} />
+    </Suspense>
+  );
+  return Wrapped;
+};
+
+const LoadingScreen = () => {
+  const waveAnim = useRef(new Animated.Value(0)).current;
+  const dotAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Fade in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+
+    // Wave ring expand
+    const wave = Animated.loop(
+      Animated.sequence([
+        Animated.timing(waveAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+        Animated.timing(waveAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    );
+    wave.start();
+
+    // Dot pulse
+    const dot = Animated.loop(
+      Animated.sequence([
+        Animated.timing(dotAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(dotAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    dot.start();
+
+    return () => { wave.stop(); dot.stop(); };
+  }, []);
+
+  return (
+    <View style={splashStyles.container}>
+      <LinearGradient colors={['#E0F7FA', '#F1F5F9']} style={StyleSheet.absoluteFillObject} />
+      <Animated.View style={[splashStyles.content, { opacity: fadeAnim }]}>
+        {/* Wave rings */}
+        <View style={splashStyles.iconArea}>
+          <Animated.View style={[splashStyles.waveRing, {
+            opacity: waveAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.3, 0] }),
+            transform: [{ scale: waveAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }],
+          }]} />
+          <Animated.View style={[splashStyles.waveRing, splashStyles.waveRing2, {
+            opacity: waveAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.4, 0.2, 0] }),
+            transform: [{ scale: waveAnim.interpolate({ inputRange: [0, 1], outputRange: [1.2, 2.4] }) }],
+          }]} />
+
+          {/* Robot icon with headphones */}
+          <View style={splashStyles.robotCircle}>
+            <View style={splashStyles.headphoneBand} />
+            <Icon name="smart-toy" size={32} color="#FFFFFF" />
+            <View style={splashStyles.cupLeft} />
+            <View style={splashStyles.cupRight} />
+          </View>
+          <Animated.View style={[splashStyles.statusDot, { opacity: dotAnim }]} />
+        </View>
+
+        {/* Brand text */}
+        <Text style={splashStyles.brandText}>LingRoot</Text>
+      </Animated.View>
+    </View>
+  );
+};
 
 const AuthStack = () => {
   return (
@@ -65,7 +148,7 @@ const AuthStack = () => {
   );
 };
 
-const MainTabs = () => {
+const MainTabsContent = () => {
   const { t } = useLanguage();
   const [isTestEnv, setIsTestEnv] = useState(false);
   const isPollingRef = useRef(false);
@@ -229,6 +312,7 @@ const MainTabs = () => {
         headerTransparent: true,
         headerBackground: () => <BlurHeader />,
         headerTintColor: COLORS.slate900,
+        headerTitleAlign: 'center',
         headerTitleStyle: {
           fontWeight: '700',
           color: COLORS.slate900,
@@ -313,6 +397,8 @@ const MainTabs = () => {
   );
 };
 
+const MainTabs = MainTabsContent;
+
 const styles = StyleSheet.create({
   testBadge: {
     backgroundColor: '#FF3B30',
@@ -331,9 +417,90 @@ const styles = StyleSheet.create({
 const splashStyles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+  },
+  iconArea: {
+    width: 88,
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  waveRing: {
+    position: 'absolute',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 2,
+    borderColor: COLORS.brandTeal,
+  },
+  waveRing2: {
+    // second wave — animation values differ via inline styles
+  },
+  robotCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.brandTeal,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  headphoneBand: {
+    position: 'absolute',
+    top: 7,
+    width: 28,
+    height: 16,
+    borderTopWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderRightWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.8)',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+  },
+  cupLeft: {
+    position: 'absolute',
+    left: 9,
+    top: 23,
+    width: 6,
+    height: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 3,
+  },
+  cupRight: {
+    position: 'absolute',
+    right: 9,
+    top: 23,
+    width: 6,
+    height: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 3,
+  },
+  statusDot: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#4ade80',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  brandText: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.brandTeal,
+    letterSpacing: -0.5,
   },
 });
 
@@ -584,7 +751,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="TopicTree"
-                component={TopicTreeScreen}
+                component={withLazy(TopicTreeScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -597,7 +764,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Vocabulary"
-                component={VocabularyScreen}
+                component={withLazy(VocabularyScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -610,7 +777,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Liro"
-                component={LiroScreen}
+                component={withLazy(LiroScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -623,7 +790,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Settings"
-                component={AccountSettingsScreen}
+                component={withLazy(AccountSettingsScreenLazy)}
                 options={({ navigation }) => ({
                   headerShown: true,
                   headerTransparent: true,
@@ -636,7 +803,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Membership"
-                component={MembershipScreen}
+                component={withLazy(MembershipScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -648,28 +815,28 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="Packages"
-                component={PackagesScreen}
+                component={withLazy(PackagesScreenLazy)}
                 options={{
                   headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="Chat"
-                component={ChatScreen}
+                component={withLazy(ChatScreenLazy)}
                 options={{
                   headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="PatternList"
-                component={PatternListScreen}
+                component={withLazy(PatternListScreenLazy)}
                 options={{
                   headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="PrivacyPolicy"
-                component={PrivacyPolicyScreen}
+                component={withLazy(PrivacyPolicyScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -681,7 +848,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="TermsOfService"
-                component={TermsOfServiceScreen}
+                component={withLazy(TermsOfServiceScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -693,7 +860,7 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="ReminderSettings"
-                component={ReminderSettingsScreen}
+                component={withLazy(ReminderSettingsScreenLazy)}
                 options={{
                   headerShown: true,
                   headerTransparent: true,
@@ -706,14 +873,14 @@ const AppNavigator = () => {
               />
               <Stack.Screen
                 name="TtsProviderSettings"
-                component={TtsProviderSettingsScreen}
+                component={withLazy(TtsProviderSettingsScreenLazy)}
                 options={{
                   headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="AudioPlayer"
-                component={AudioPlayerScreen}
+                component={withLazy(AudioPlayerScreenLazy)}
                 options={{
                   headerShown: false,
                   presentation: 'modal',

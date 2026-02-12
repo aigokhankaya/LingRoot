@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 import { saveListeningProgress, getListeningProgress } from '../lib/api';
 
@@ -17,7 +17,7 @@ export interface AudioTrack {
     }>;
     originalText?: string;
     translatedText?: string;
-    dialogueSegments?: any[];
+    dialogueSegments?: Array<Record<string, unknown>>;
     topic?: string;
 }
 
@@ -30,6 +30,8 @@ interface AudioPlayerState {
     isLoading: boolean;
     error: string | null;
 }
+
+type CurrentTimeListener = (time: number) => void;
 
 interface AudioPlayerContextType extends AudioPlayerState {
     // Actions
@@ -44,6 +46,9 @@ interface AudioPlayerContextType extends AudioPlayerState {
     setPlaybackRate: (rate: number) => void;
     // Refs for external access
     audioRef: React.RefObject<HTMLAudioElement | null>;
+    // High-frequency currentTime subscription (ref-based, no re-renders)
+    subscribeToCurrentTime: (cb: CurrentTimeListener) => () => void;
+    getCurrentTime: () => number;
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | null>(null);
@@ -61,6 +66,25 @@ export const useAudioPlayerSafe = () => {
     return useContext(AudioPlayerContext);
 };
 
+// Custom hook for components that need reactive currentTime updates
+// Uses useSyncExternalStore for tear-free reads
+export const useCurrentTime = (): number => {
+    const context = useContext(AudioPlayerContext);
+    if (!context) {
+        throw new Error('useCurrentTime must be used within AudioPlayerProvider');
+    }
+
+    const { subscribeToCurrentTime, getCurrentTime } = context;
+
+    const currentTime = useSyncExternalStore(
+        subscribeToCurrentTime,
+        getCurrentTime,
+        getCurrentTime // server snapshot
+    );
+
+    return currentTime;
+};
+
 export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [activeTrack, setActiveTrack] = useState<AudioTrack | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -73,10 +97,45 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const syncIntervalRef = useRef<number | null>(null);
     const lastSavedTimeRef = useRef<number>(0); // Debounce progress saves
+    const listenersRef = useRef<Array<{ event: string; handler: EventListener }>>([]);
+
+    // Ref-based currentTime for high-frequency updates without re-renders
+    const currentTimeRef = useRef<number>(0);
+    const currentTimeListeners = useRef<Set<CurrentTimeListener>>(new Set());
+
+    // Notify all currentTime subscribers
+    const notifyCurrentTimeListeners = useCallback(() => {
+        const time = currentTimeRef.current;
+        currentTimeListeners.current.forEach(cb => cb(time));
+    }, []);
+
+    // Subscribe to currentTime updates (for useSyncExternalStore and direct use)
+    const subscribeToCurrentTime = useCallback((cb: CurrentTimeListener): (() => void) => {
+        currentTimeListeners.current.add(cb);
+        return () => {
+            currentTimeListeners.current.delete(cb);
+        };
+    }, []);
+
+    // Get current time snapshot (for useSyncExternalStore)
+    const getCurrentTime = useCallback((): number => {
+        return currentTimeRef.current;
+    }, []);
+
+    // Remove all event listeners from current audio element
+    const cleanupAudioListeners = useCallback(() => {
+        if (audioRef.current && listenersRef.current.length > 0) {
+            for (const { event, handler } of listenersRef.current) {
+                audioRef.current.removeEventListener(event, handler);
+            }
+        }
+        listenersRef.current = [];
+    }, []);
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
+            cleanupAudioListeners();
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current = null;
@@ -85,19 +144,20 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 clearInterval(syncIntervalRef.current);
             }
         };
-    }, []);
+    }, [cleanupAudioListeners]);
 
-    // Start time sync interval
+    // Start time sync interval - updates ref and notifies listeners instead of setState
     const startSync = useCallback(() => {
         if (syncIntervalRef.current) {
             clearInterval(syncIntervalRef.current);
         }
         syncIntervalRef.current = window.setInterval(() => {
             if (audioRef.current) {
-                setCurrentTime(audioRef.current.currentTime);
+                currentTimeRef.current = audioRef.current.currentTime;
+                notifyCurrentTimeListeners();
             }
         }, 100);
-    }, []);
+    }, [notifyCurrentTimeListeners]);
 
     // Stop time sync interval
     const stopSync = useCallback(() => {
@@ -109,7 +169,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     // Play a new track (autoPlay: false by default to prevent double audio issue)
     const playTrack = useCallback((track: AudioTrack, autoPlay: boolean = false) => {
-        console.log('🎵 [GLOBAL PLAYER] Loading new track:', track.title, 'autoPlay:', autoPlay);
+        console.log('[GLOBAL PLAYER] Loading new track:', track.title, 'autoPlay:', autoPlay);
+
+        // Clean up existing audio listeners before replacing
+        cleanupAudioListeners();
 
         // Stop existing audio
         if (audioRef.current) {
@@ -122,6 +185,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setError(null);
         setIsLoading(true);
         setCurrentTime(0);
+        currentTimeRef.current = 0;
+        notifyCurrentTimeListeners();
         setDuration(0);
         setActiveTrack(track);
 
@@ -129,7 +194,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         AnalyticsHelper.logEvent('content_view', {
             content_id: track.id,
             content_title: track.title,
-            content_type: 'audio', // Generic for now, context might know better
+            content_type: 'audio',
             cefr_level: track.level
         });
 
@@ -139,29 +204,29 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const audio = new Audio(track.url);
         audioRef.current = audio;
 
-        // Event listeners
-        audio.addEventListener('loadedmetadata', () => {
-            console.log('✅ [GLOBAL PLAYER] Audio loaded, duration:', audio.duration);
+        // Named event handlers for proper cleanup
+        const onLoadedMetadata = () => {
+            console.log('[GLOBAL PLAYER] Audio loaded, duration:', audio.duration);
             setDuration(audio.duration);
             setIsLoading(false);
-        });
+        };
 
-        audio.addEventListener('canplaythrough', () => {
+        const onCanPlayThrough = () => {
             setIsLoading(false);
-        });
+        };
 
-        audio.addEventListener('play', () => {
-            console.log('▶️ [GLOBAL PLAYER] Playing');
+        const onPlay = () => {
+            console.log('[GLOBAL PLAYER] Playing');
             setIsPlaying(true);
             AnalyticsHelper.logEvent('audio_play_start', {
                 content_id: track.id,
                 audio_url: track.url
             });
             startSync();
-        });
+        };
 
-        audio.addEventListener('pause', () => {
-            console.log('⏸️ [GLOBAL PLAYER] Paused');
+        const onPause = () => {
+            console.log('[GLOBAL PLAYER] Paused');
             setIsPlaying(false);
             stopSync();
 
@@ -172,14 +237,14 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     lastSavedTimeRef.current = now;
                     const trackUrl = audio.src;
                     saveListeningProgress(trackUrl, audio.currentTime, audio.duration)
-                        .then(() => console.log('💾 [GLOBAL PLAYER] Progress saved on pause'))
+                        .then(() => console.log('[GLOBAL PLAYER] Progress saved on pause'))
                         .catch(err => console.error('Progress save error:', err));
                 }
             }
-        });
+        };
 
-        audio.addEventListener('ended', () => {
-            console.log('⏹️ [GLOBAL PLAYER] Ended');
+        const onEnded = () => {
+            console.log('[GLOBAL PLAYER] Ended');
             setIsPlaying(false);
             AnalyticsHelper.logEvent('audio_play_complete', {
                 content_id: track.id,
@@ -187,34 +252,53 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             });
             stopSync();
             setCurrentTime(0);
+            currentTimeRef.current = 0;
+            notifyCurrentTimeListeners();
 
             // Mark as completed (100%)
             const trackUrl = audio.src;
             saveListeningProgress(trackUrl, audio.duration, audio.duration)
-                .then(() => console.log('✅ [GLOBAL PLAYER] Marked as completed'))
+                .then(() => console.log('[GLOBAL PLAYER] Marked as completed'))
                 .catch(err => console.error('Progress save error:', err));
-        });
+        };
 
-        audio.addEventListener('waiting', () => {
+        const onWaiting = () => {
             setIsLoading(true);
-        });
+        };
 
-        audio.addEventListener('playing', () => {
+        const onPlaying = () => {
             setIsLoading(false);
-        });
+        };
 
-        audio.addEventListener('error', (e) => {
-            console.error('❌ [GLOBAL PLAYER] Audio error:', e);
-            setError('Ses dosyası yüklenemedi');
+        const onError = (e: Event) => {
+            console.error('[GLOBAL PLAYER] Audio error:', e);
+            setError('Ses dosyasi yuklenemedi');
             setIsLoading(false);
             setIsPlaying(false);
-        });
+        };
+
+        // Register all event listeners and store references for cleanup
+        const listeners: Array<{ event: string; handler: EventListener }> = [
+            { event: 'loadedmetadata', handler: onLoadedMetadata },
+            { event: 'canplaythrough', handler: onCanPlayThrough },
+            { event: 'play', handler: onPlay },
+            { event: 'pause', handler: onPause },
+            { event: 'ended', handler: onEnded },
+            { event: 'waiting', handler: onWaiting },
+            { event: 'playing', handler: onPlaying },
+            { event: 'error', handler: onError as EventListener },
+        ];
+
+        for (const { event, handler } of listeners) {
+            audio.addEventListener(event, handler);
+        }
+        listenersRef.current = listeners;
 
         // Only auto-play if explicitly requested
         if (autoPlay) {
             audio.play().catch(err => {
-                console.error('❌ [GLOBAL PLAYER] Autoplay failed:', err);
-                setError('Otomatik oynatma engellendi. Oynat butonuna basın.');
+                console.error('[GLOBAL PLAYER] Autoplay failed:', err);
+                setError('Otomatik oynatma engellendi. Oynat butonuna basin.');
                 setIsPlaying(false);
             });
         }
@@ -223,22 +307,25 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         getListeningProgress(track.url)
             .then(res => {
                 if (res.success && res.data && res.data.position_seconds > 0 && !res.data.is_completed) {
-                    console.log('📍 [GLOBAL PLAYER] Resuming from', res.data.position_seconds, 'seconds');
+                    console.log('[GLOBAL PLAYER] Resuming from', res.data.position_seconds, 'seconds');
                     audio.currentTime = res.data.position_seconds;
                     setCurrentTime(res.data.position_seconds);
+                    currentTimeRef.current = res.data.position_seconds;
+                    notifyCurrentTimeListeners();
                 }
             })
             .catch(err => console.log('Could not load saved progress:', err));
-    }, [startSync, stopSync]);
+    }, [startSync, stopSync, cleanupAudioListeners, notifyCurrentTimeListeners]);
 
     // Play current track
     const play = useCallback(async () => {
         if (!audioRef.current) return;
         try {
             await audioRef.current.play();
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
             console.error('Play error:', err);
-            setError(`Oynatma hatası: ${err.message}`);
+            setError(`Oynatma hatasi: ${message}`);
         }
     }, []);
 
@@ -262,23 +349,25 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (!audioRef.current) return;
         audioRef.current.currentTime = time;
         setCurrentTime(time);
-    }, []);
+        currentTimeRef.current = time;
+        notifyCurrentTimeListeners();
+    }, [notifyCurrentTimeListeners]);
 
     // Minimize player
     const minimize = useCallback(() => {
-        console.log('📦 [GLOBAL PLAYER] Minimizing');
+        console.log('[GLOBAL PLAYER] Minimizing');
         setIsMinimized(true);
     }, []);
 
     // Expand player
     const expand = useCallback(() => {
-        console.log('📐 [GLOBAL PLAYER] Expanding');
+        console.log('[GLOBAL PLAYER] Expanding');
         setIsMinimized(false);
     }, []);
 
     // Close player completely
     const close = useCallback(() => {
-        console.log('❌ [GLOBAL PLAYER] Closing');
+        console.log('[GLOBAL PLAYER] Closing');
 
         // Save progress before closing
         if (audioRef.current && audioRef.current.currentTime > 0 && audioRef.current.duration > 0) {
@@ -286,10 +375,11 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const currentPos = audioRef.current.currentTime;
             const totalDur = audioRef.current.duration;
             saveListeningProgress(trackUrl, currentPos, totalDur)
-                .then(() => console.log('💾 [GLOBAL PLAYER] Progress saved on close'))
+                .then(() => console.log('[GLOBAL PLAYER] Progress saved on close'))
                 .catch(err => console.error('Progress save error:', err));
         }
 
+        cleanupAudioListeners();
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;
@@ -299,9 +389,11 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsPlaying(false);
         setIsMinimized(false);
         setCurrentTime(0);
+        currentTimeRef.current = 0;
+        notifyCurrentTimeListeners();
         setDuration(0);
         setError(null);
-    }, [stopSync]);
+    }, [stopSync, cleanupAudioListeners, notifyCurrentTimeListeners]);
 
     // Set playback rate
     const setPlaybackRate = useCallback((rate: number) => {
@@ -309,7 +401,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         audioRef.current.playbackRate = rate;
     }, []);
 
-    const value: AudioPlayerContextType = {
+    // currentTime is kept in state for backward compatibility but excluded from
+    // the useMemo dependency array so it does not trigger context re-renders.
+    // Consumers that need reactive currentTime should use the useCurrentTime hook.
+    const value: AudioPlayerContextType = useMemo(() => ({
         activeTrack,
         isPlaying,
         isMinimized,
@@ -327,7 +422,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         close,
         setPlaybackRate,
         audioRef,
-    };
+        subscribeToCurrentTime,
+        getCurrentTime,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [activeTrack, isPlaying, isMinimized, duration, isLoading, error, playTrack, play, pause, togglePlayPause, seek, minimize, expand, close, setPlaybackRate, subscribeToCurrentTime, getCurrentTime]);
 
     return (
         <AudioPlayerContext.Provider value={value}>

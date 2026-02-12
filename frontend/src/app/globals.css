@@ -1,6 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -87,7 +84,7 @@
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-manrope), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   
   /* Ana sayfa wrapper için maksimum genişlik */
@@ -121,29 +118,29 @@
     }
   }
   
-  /* Masaüstü için sabit font boyutları */
+  /* Desktop fixed font sizes — inside @layer base so no !important needed */
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }
-  
+
   h1 {
-    font-size: 3.75rem !important; /* 60px */
-    line-height: 1.1 !important;
+    font-size: 3.75rem; /* 60px */
+    line-height: 1.1;
   }
-  
+
   h2 {
-    font-size: 2.25rem !important; /* 36px */
-    line-height: 1.2 !important;
+    font-size: 2.25rem; /* 36px */
+    line-height: 1.2;
   }
-  
+
   h3 {
-    font-size: 1.5rem !important; /* 24px */
-    line-height: 1.3 !important;
+    font-size: 1.5rem; /* 24px */
+    line-height: 1.3;
   }
-  
+
   p {
-    font-size: 1rem !important; /* 16px */
-    line-height: 1.6 !important;
+    font-size: 1rem; /* 16px */
+    line-height: 1.6;
   }
   
   /* Sadece mobil cihazlarda responsive ayarlar */
@@ -235,13 +232,13 @@
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 
-/* Masaüstü için sabit container ayarları */
+/* Desktop fixed container settings */
 .container {
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
-  padding-left: 2rem !important;
-  padding-right: 2rem !important;
+  padding-left: 2rem;
+  padding-right: 2rem;
 }
 
 /* Masaüstü için sabit boyutlar - responsive olmayacak */
@@ -862,7 +859,7 @@ button:disabled,
 
 /* Arapça font desteği */
 [dir="rtl"] body {
-  font-family: 'Noto Sans Arabic', 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-noto-arabic), var(--font-manrope), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* RTL'de grid düzeni */
@@ -874,4 +871,28 @@ button:disabled,
 [dir="rtl"] .ltr-only {
   direction: ltr;
   text-align: left;
+}
+
+/* ==============================================
+   Radix UI Portal Pozisyonlama Düzeltmesi
+   ============================================== */
+/* Bu kurallar en sonda olmalı - diğer container kurallarını override eder */
+[data-radix-popper-content-wrapper] {
+  max-width: none !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+/* Radix Portal - container kurallarından muaf tut */
+[data-radix-portal],
+[data-radix-portal] > * {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Dropdown menu content pozisyonlama */
+[role="menu"][data-state] {
+  max-width: none !important;
+  width: auto !important;
 }

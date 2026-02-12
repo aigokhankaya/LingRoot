@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { AudioTrack } from '../types';
 import { SoundLike } from '../services/audioService';
 
@@ -32,20 +32,28 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [sound, setSound] = useState<SoundLike | null>(null);
 
-  const isTrackPlaying = (trackId: string): boolean => {
+  const isTrackPlaying = useCallback((trackId: string): boolean => {
     const result = currentTrack?.id === trackId && isPlaying;
     return result;
-  };
+  }, [currentTrack, isPlaying]);
 
-  const setCurrentTrackWithLog = (track: AudioTrack | null) => {
+  const setCurrentTrackWithLog = useCallback((track: AudioTrack | null) => {
     setCurrentTrack(track);
-  };
+  }, []);
 
-  const setIsPlayingWithLog = (playing: boolean) => {
+  const setIsPlayingWithLog = useCallback((playing: boolean) => {
     setIsPlaying(playing);
-  };
+  }, []);
 
-  const value: AudioContextType = {
+  const stopAllAudio = useCallback(async () => {
+    if (sound) {
+      await sound.stopAsync();
+      await sound.unloadAsync();
+      setSound(null);
+    }
+  }, [sound]);
+
+  const value: AudioContextType = useMemo(() => ({
     currentTrack,
     isPlaying,
     sound,
@@ -53,14 +61,8 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     setIsPlaying: setIsPlayingWithLog,
     setSound,
     isTrackPlaying,
-    stopAllAudio: async () => {
-      if (sound) {
-        await sound.stopAsync();
-        await sound.unloadAsync();
-        setSound(null);
-      }
-    },
-  };
+    stopAllAudio,
+  }), [currentTrack, isPlaying, sound, setCurrentTrackWithLog, setIsPlayingWithLog, isTrackPlaying, stopAllAudio]);
 
   return (
     <AudioContext.Provider value={value}>

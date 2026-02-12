@@ -142,6 +142,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     companyName?: string;
     companySize?: string;
   }>({ jobPosition: '' });
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [sectorGoals, setSectorGoals] = useState<SectorGoals>({
     vocabularyGoal: 50,   // Varsayılan: 50 kelime/ay
     contentGoal: 5,       // Varsayılan: 5 içerik/hafta
@@ -334,16 +335,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
 
   const completeOnboarding = async () => {
     setIsLoading(true);
+    setOnboardingError(null);
+
     try {
       const token = localStorage.getItem('lingroot_token');
 
-      // Token yoksa veya boşsa, kullanıcıyı bilgilendir ve devam et
+      // Token yoksa login sayfasına yönlendir
       if (!token || token.length < 10) {
-        console.warn('Token bulunamadı, demo mod ile devam ediliyor');
-        localStorage.setItem('onboarding_completed', 'true');
-        setStep('complete');
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        setTimeout(() => onComplete(), 3000);
+        console.warn('Token bulunamadı, login sayfasına yönlendiriliyor');
+        router.push('/login?redirect=/welcome&reason=onboarding');
         return;
       }
 
@@ -366,24 +366,21 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       });
 
       const data = await response.json();
+
+      // Sadece başarılı olduğunda localStorage'a yaz ve devam et
       if (data.success) {
         localStorage.setItem('onboarding_completed', 'true');
         setStep('complete');
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        // Kullanıcı butona tıklayarak yönlendirilecek
       } else {
-        // API başarısız olsa bile devam et
-        console.warn('API başarısız, demo mod ile devam');
-        localStorage.setItem('onboarding_completed', 'true');
-        setStep('complete');
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        // API başarısız - localStorage'a YAZMA, hata göster
+        console.error('Onboarding API failed:', data.error || 'Unknown error');
+        setOnboardingError(data.error || 'Yol haritası kaydedilemedi. Lütfen tekrar deneyin.');
       }
     } catch (error) {
       console.error('Complete onboarding error:', error);
-      // Hata durumunda da devam et
-      localStorage.setItem('onboarding_completed', 'true');
-      setStep('complete');
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      // Hata durumunda localStorage'a YAZMA, hata göster
+      setOnboardingError('Bağlantı hatası oluştu. İnternet bağlantınızı kontrol edip tekrar deneyin.');
     } finally {
       setIsLoading(false);
     }
@@ -956,6 +953,19 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
             </div>
           </div>
 
+          {/* Hata Mesajı */}
+          {onboardingError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex items-start gap-3">
+                <span className="text-xl flex-shrink-0">⚠️</span>
+                <div>
+                  <p className="text-sm font-semibold text-red-700 mb-1">Bir sorun oluştu</p>
+                  <p className="text-sm text-red-600">{onboardingError}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               className="flex-1 py-2.5 rounded-lg text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-sm font-medium"
@@ -973,7 +983,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>Hazırlanıyor...</span>
                 </div>
-              ) : 'Yolculuğu Başlat'}
+              ) : onboardingError ? 'Tekrar Dene' : 'Yolculuğu Başlat'}
             </button>
           </div>
         </div>

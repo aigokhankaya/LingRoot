@@ -125,7 +125,6 @@ function validateAndCorrectSpeakerAssignments(turns) {
   const GUEST_PATTERNS = [
     /^(yes|yeah|exactly|absolutely|definitely|certainly|of course|sure|right|correct|that's right|indeed|precisely)/i,
     /^(well,? actually|you see|the thing is|in fact|basically|essentially)/i,
-    /^(it'?s|there'?s|we|they|this|that|one|the|a |an )/i, // Explanations start
   ];
 
   const SHORT_REACTION_PATTERNS = [
@@ -153,10 +152,18 @@ function validateAndCorrectSpeakerAssignments(turns) {
     }
 
     // Rule 2: Questions (ending with ?) typically from Host (A)
+    // BUT: Long explanations that end with a rhetorical question should stay as Guest
     if (text.endsWith('?') && turn.speaker !== 'A' && !isShortReaction) {
       // Check if it's a clarifying question from Guest (shorter, starts with specific words)
       const isGuestQuestion = /^(you mean|so you're saying|like|wait)/i.test(text);
-      if (!isGuestQuestion && text.length > 30) {
+
+      // Don't reassign long multi-sentence texts that end with a rhetorical question.
+      // These are Guest explanations concluding with a thought-provoking question,
+      // not Host questions. Split by sentence-ending punctuation (. or !) before the final ?.
+      const priorSentences = text.split(/(?<=[.!])\s+/);
+      const isExplanationEndingWithQuestion = priorSentences.length >= 2 && text.length > 100;
+
+      if (!isGuestQuestion && !isExplanationEndingWithQuestion && text.length > 30) {
         corrections.push({
           index: i,
           original: turn.speaker,
@@ -174,7 +181,16 @@ function validateAndCorrectSpeakerAssignments(turns) {
       const hasHostPatterns = HOST_PATTERNS.some(p => p.test(text));
       const hasGuestPatterns = GUEST_PATTERNS.some(p => p.test(text));
 
-      if (hasGuestPatterns && !hasHostPatterns) {
+      // Skip reassignment if text addresses someone by name/title (e.g. "Precisely, Professor Ellsworth")
+      // This is a response-to-someone pattern that both Host and Guest use
+      const addressesSomeone = /^[\w']+,?\s+(professor|doctor|dr\.|mr\.|mrs\.|ms\.|sir|miss|captain|chief)\b/i.test(text);
+
+      // Skip reassignment for long multi-sentence texts (>200 chars)
+      // A simple agreement marker at the start doesn't mean the whole turn is Guest
+      const sentences = text.split(/(?<=[.!])\s+/);
+      const isLongMultiSentence = sentences.length >= 3 && text.length > 200;
+
+      if (hasGuestPatterns && !hasHostPatterns && !addressesSomeone && !isLongMultiSentence) {
         corrections.push({
           index: i,
           original: turn.speaker,
@@ -728,7 +744,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
   const fullTranscript = turns.map(turn => turn.text).join(' ');
 
   const getUtf8ByteLength = (str) => Buffer.byteLength(String(str || ''), 'utf8');
-  const MAX_INPUT_TEXT_BYTES = 3900;
+  const MAX_INPUT_TEXT_BYTES = 3000; // Reduced from 3900 to prevent timeout on large chunks
 
   const chunkLinesByByteLimit = (lines, maxBytes) => {
     const chunks = [];
@@ -841,7 +857,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
                   'x-goog-user-project': projectId,
                   'Content-Type': 'application/json',
                 },
-                timeout: 120000,
+                timeout: 180000, // Increased from 120s to 180s for large chunks
               }
             );
 
@@ -934,7 +950,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
               'x-goog-user-project': projectId,
               'Content-Type': 'application/json',
             },
-            timeout: 120000,
+            timeout: 180000, // Increased from 120s to 180s
           }
         );
 
@@ -1095,7 +1111,7 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
             'x-goog-user-project': projectId,
             'Content-Type': 'application/json',
           },
-          timeout: 120000,
+          timeout: 180000, // Increased from 120s to 180s
         }
       );
 
@@ -1226,6 +1242,14 @@ async function createGoogleTTSPodcast(options) {
     ttsModel,
     userId = null,
   } = options;
+
+  // Load test mock: skip real podcast creation pipeline
+  const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+  if (isLoadTestMode()) {
+    const { getMockPodcastResult } = require('../../tests/load/mocks/ttsMock');
+    await new Promise(r => setTimeout(r, getLoadTestDelay('ttsMulti')));
+    return getMockPodcastResult(options);
+  }
 
   logger.info(`[GOOGLE-PODCAST] Creating podcast - Topic: "${topic}", Level: ${level}, Duration: ${duration}min`);
 
@@ -1445,7 +1469,7 @@ async function createGoogleTTSPodcast(options) {
                   startTime: t.startTime,
                   endTime: t.endTime
                 })),
-                turns: turns
+                turns: turnsForTts
               },
               { timeout: 10000 }
             );
@@ -1456,11 +1480,11 @@ async function createGoogleTTSPodcast(options) {
 
               // Apply corrections to turns and turns_original
               for (const correction of mfaCorrections) {
-                if (turns[correction.turnIndex]) {
-                  turns[correction.turnIndex].speaker = correction.correctedSpeaker;
+                if (turnsForTts[correction.turnIndex]) {
+                  turnsForTts[correction.turnIndex].speaker = correction.correctedSpeaker;
                 }
-                if (turnsOriginal && turnsOriginal[correction.turnIndex]) {
-                  turnsOriginal[correction.turnIndex].speaker = correction.correctedSpeaker;
+                if (turnsOriginalForSave && turnsOriginalForSave[correction.turnIndex]) {
+                  turnsOriginalForSave[correction.turnIndex].speaker = correction.correctedSpeaker;
                 }
               }
 

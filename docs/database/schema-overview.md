@@ -1,6 +1,6 @@
 # Database Schema Overview
 
-> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-01-31 | **Versiyon:** 2.5
+> **Oluşturulma:** 2025-01-01 | **Güncelleme:** 2026-02-07 | **Versiyon:** 2.8
 
 **Database:** PostgreSQL (Supabase)
 **Total Tables:** 83+ (including views)
@@ -20,6 +20,7 @@
 | **Vocabulary** | user_vocabulary, word_reviews, word_mastery, pattern_library |
 | **AI Chat** | conversations, messages, user_insights, user_preference_cache, user_memory |
 | **Gamification** | user_gamification, user_goals, achievements, user_achievements, quest_nodes, user_quest_progress, daily_quests, xp_transactions, weekly_scores, leagues, weekly_challenges, user_challenge_progress, content_categories, user_topic_mastery, quiz_attempts |
+| **Listening Quality (NEW)** | listening_sessions, user_listening_stats, vocabulary_mastery_extended |
 | **Sector English** | sectors, user_sectors, sector_content, sector_vocabulary, user_sector_content_progress, user_sector_stats, sector_quizzes, user_quiz_results, sector_modules, module_items, user_module_progress, user_module_item_progress |
 | **Payments** | payment_providers, card_transactions |
 | **Support** | support_conversations, support_messages, support_message_attachments |
@@ -83,7 +84,18 @@
 │   └───────────────────────────────────────────────────────────────────────┘         │
 │                                                                                      │
 │   ┌───────────────────────────────────────────────────────────────────────┐         │
-│   │                      SECTOR ENGLISH (NEW)                             │         │
+│   │                 LISTENING QUALITY SYSTEM (NEW)                        │         │
+│   ├───────────────────────────────────────────────────────────────────────┤         │
+│   │  listening_sessions (LQS Tracking)                                    │         │
+│   │     └──▶ user_listening_stats (Aggregate Stats)                       │         │
+│   │                                                                       │         │
+│   │  vocabulary_mastery_extended (Memory Palace)                          │         │
+│   │     - palace_room: dark_zone | witness_room | learning_hall |         │         │
+│   │                    knowledge_library | golden_vault                   │         │
+│   └───────────────────────────────────────────────────────────────────────┘         │
+│                                                                                      │
+│   ┌───────────────────────────────────────────────────────────────────────┐         │
+│   │                      SECTOR ENGLISH                                   │         │
 │   ├───────────────────────────────────────────────────────────────────────┤         │
 │   │  sectors (16 predefined) ◀──▶ user_sectors                            │         │
 │   │     │                                                                 │         │
@@ -142,6 +154,14 @@ Subscription plan definitions.
 | google_product_id | VARCHAR(100) | Google Play product ID |
 | apple_product_id | VARCHAR(100) | App Store product ID |
 | is_active | BOOLEAN | Active status |
+| promotion_active | BOOLEAN | Promotion display enabled (default false) |
+| promotion_discount_percentage | INTEGER | Discount percentage for display (e.g. 50) |
+| promotion_original_price | NUMERIC | Original price in TRY for display |
+| promotion_price | NUMERIC | Promotional price in TRY for display |
+| promotion_start_date | TIMESTAMPTZ | Campaign start date |
+| promotion_end_date | TIMESTAMPTZ | Campaign end date |
+| promotion_badge_text | TEXT | Badge text shown on mobile |
+| promotion_description | TEXT | Optional promotional description |
 
 ### subscriptions (86 rows, 27 columns)
 User subscription records.
@@ -257,6 +277,7 @@ User-uploaded documents (PDF, etc.).
 | mime_type | TEXT | File type |
 | page_count | INTEGER | Number of pages |
 | cover_image_url | TEXT | Cover image |
+| original_text | TEXT | Full original extracted text |
 | author | TEXT | Document author |
 
 ### document_sections (528 rows)
@@ -270,6 +291,30 @@ Parsed document sections.
 | section_title | TEXT | Section title |
 | section_text | TEXT | Section content |
 | word_count | INTEGER | Word count |
+
+### contenthistory
+User content creation and listening history.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | FK → users |
+| input | TEXT | Original input text/topic |
+| input_type | VARCHAR(50) | topic, text, youtube, book, podcast, etc. |
+| level | VARCHAR(10) | CEFR level (A1-C2) |
+| mp3_url | TEXT | Generated audio URL |
+| translated_text | TEXT | Turkish translation |
+| adapted_text | TEXT | CEFR-adapted English text |
+| words | TEXT | JSON string of word array |
+| timepoints | TEXT | JSON string of word timestamps |
+| duration_seconds | INTEGER | Pre-computed audio duration in seconds (DEFAULT 0) |
+| dialogue_segments | TEXT | JSON string of podcast dialogue segments |
+| chapter_id | INTEGER | FK → book_chapters (optional) |
+| status | VARCHAR(20) | completed, in_progress |
+| detected_mood | VARCHAR(50) | AI-detected content mood |
+| processing_duration_ms | INTEGER | Processing time tracking |
+| created_at | TIMESTAMPTZ | Creation date |
+| updated_at | TIMESTAMPTZ | Last update date |
 
 ---
 

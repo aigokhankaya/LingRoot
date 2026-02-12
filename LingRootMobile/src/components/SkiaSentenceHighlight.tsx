@@ -10,7 +10,7 @@ import {
 import {
   View,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   TouchableOpacity,
   GestureResponderEvent,
 } from 'react-native';
@@ -38,22 +38,23 @@ interface SkiaSentenceHighlightProps {
   visible?: boolean; // Whether parent modal is visible - used to prevent rendering during close
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React.memo(({
   sentences,
   currentSentenceIndex,
   selectedWords,
   fontSize = 16,
   lineHeight = 20,
-  containerWidth = SCREEN_WIDTH - 32,
+  containerWidth,
   onSentencePress,
   onWordLongPress,
   visible = true,
 }) => {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const finalContainerWidth = containerWidth || SCREEN_WIDTH - 32;
+
   // Skia Paragraph API - Zero Reflow Architecture
   const INTERNAL_PADDING = 8; // Kenarlardan 8px boşluk
-  
+
   const currentSentenceShared = useSharedValue(currentSentenceIndex);
   
   useEffect(() => {
@@ -95,11 +96,11 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     builder.addText(textContent);
     
     const para = builder.build();
-    para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
+    para.layout(finalContainerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
     console.log(`✅ [Sentence Paragraph] heightMultiplier: ${heightMult} | TOTAL HEIGHT: ${para.getHeight()}px`);
     
     return para;
-  }, [sentences, fontSize, containerWidth, font, lineHeight]);
+  }, [sentences, fontSize, finalContainerWidth, font, lineHeight]);
   
   // Create white paragraph for highlighted sentence
   const whiteParagraph = useMemo(() => {
@@ -132,11 +133,11 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     builder.addText(textContent);
     
     const para = builder.build();
-    para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
+    para.layout(finalContainerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
     console.log(`[White Sentence] L: ${lineHeight} F: ${fontSize} | H: ${para.getHeight()}`);
     
     return para;
-  }, [sentences, fontSize, containerWidth, font, lineHeight]);
+  }, [sentences, fontSize, finalContainerWidth, font, lineHeight]);
   
   // STEP 2: Calculate Sentence Boundaries SYNCHRONOUSLY
   
@@ -162,7 +163,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
           endChar: endIndex,
           x: firstRect.x + INTERNAL_PADDING, // Paragraph x=INTERNAL_PADDING'den başlıyor
           y: firstRect.y,
-          width: containerWidth - firstRect.x - INTERNAL_PADDING * 2,
+          width: finalContainerWidth - firstRect.x - INTERNAL_PADDING * 2,
           height: lastRect.y + lastRect.height - firstRect.y,
           index,
         });
@@ -172,7 +173,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     });
     
     return boundaries;
-  }, [paragraph, sentences, containerWidth]);
+  }, [paragraph, sentences, finalContainerWidth]);
 
   // Calculate total height and chunk configuration
   const { totalHeight, chunks } = useMemo(() => {
@@ -240,7 +241,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
               activeOpacity={1}
               onPress={handleTouch}
             >
-              <Canvas style={{ width: containerWidth, height: chunk.height }}>
+              <Canvas style={{ width: finalContainerWidth, height: chunk.height }}>
                 {/* Dynamic Highlight with Glow Effect */}
                 {chunkBoundaries.map((boundary, idx) => {
                   const isHighlighted = boundary.index === currentSentenceIndex;
@@ -260,7 +261,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
                   
                   // Calculate width with right padding
                   const idealWidth = boundary.width + leftPaddingUsed + paddingX;
-                  const maxAllowedWidth = containerWidth - rectX;
+                  const maxAllowedWidth = finalContainerWidth - rectX;
                   const rectWidth = Math.min(idealWidth, maxAllowedWidth);
                   
                   return (
@@ -295,7 +296,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
                     paragraph={paragraph}
                     x={INTERNAL_PADDING}
                     y={-chunk.startY}
-                    width={containerWidth - INTERNAL_PADDING * 2}
+                    width={finalContainerWidth - INTERNAL_PADDING * 2}
                   />
                 )}
                 
@@ -313,7 +314,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
                   const rectX = Math.max(0, highlightedBoundary.x - paddingX);
                   const leftPaddingUsed = highlightedBoundary.x - rectX;
                   const idealWidth = highlightedBoundary.width + leftPaddingUsed + paddingX;
-                  const maxAllowedWidth = containerWidth - rectX;
+                  const maxAllowedWidth = finalContainerWidth - rectX;
                   const rectWidth = Math.min(idealWidth, maxAllowedWidth);
                   const relativeY = highlightedBoundary.y - chunk.startY;
                   const rectY = relativeY - paddingY;
@@ -324,7 +325,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
                       paragraph={whiteParagraph}
                       x={INTERNAL_PADDING}
                       y={-chunk.startY}
-                      width={containerWidth - INTERNAL_PADDING * 2}
+                      width={finalContainerWidth - INTERNAL_PADDING * 2}
                       clip={{
                         x: rectX,
                         y: rectY,

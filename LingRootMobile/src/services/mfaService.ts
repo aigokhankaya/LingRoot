@@ -10,24 +10,25 @@
 
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from './secureStorage';
 import { getApiBaseUrl } from './environmentConfig';
-import { EXPO_PUBLIC_MFA_API_URL } from '@env';
+import { EXPO_PUBLIC_API_URL, EXPO_PUBLIC_MFA_API_URL } from '@env';
 
-// Determine Base URLs
-let API_BASE_URL = 'https://lingloops-backend.onrender.com';
-let MFA_API_BASE_URL = 'https://lingloops-backend.onrender.com'; // Default to same as main API
+// Determine Base URLs from @env (synchronous, available at build time)
+const PRODUCTION_URL = 'https://lingroot-production.up.railway.app';
+const rawEnvUrl = (EXPO_PUBLIC_API_URL || '').trim().replace(/^\uFEFF/, '');
+const resolvedApiUrl = rawEnvUrl.startsWith('http') ? rawEnvUrl : PRODUCTION_URL;
 
-// Initialize logic (simplified for immediate usage, async init might be needed for perfect sync)
+let API_BASE_URL = resolvedApiUrl;
+let MFA_API_BASE_URL = EXPO_PUBLIC_MFA_API_URL || resolvedApiUrl;
+
+// Also update from async config (in case of dynamic overrides)
 getApiBaseUrl().then(url => {
     API_BASE_URL = url;
     if (!EXPO_PUBLIC_MFA_API_URL) {
         MFA_API_BASE_URL = url;
     }
 });
-
-if (EXPO_PUBLIC_MFA_API_URL) {
-    MFA_API_BASE_URL = EXPO_PUBLIC_MFA_API_URL;
-}
 
 // Global unauthorized handler
 let unauthorizedHandler: (() => void) | null = null;
@@ -51,7 +52,7 @@ async function performTokenRefresh(): Promise<void> {
     if (refreshPromise) return refreshPromise;
     refreshPromise = (async () => {
         try {
-            const refreshToken = await AsyncStorage.getItem('refresh_token');
+            const refreshToken = await secureStorage.getItem('refresh_token');
             if (!refreshToken) throw new Error('no_refresh_token');
             const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
                 method: 'POST',
@@ -66,8 +67,8 @@ async function performTokenRefresh(): Promise<void> {
             const newAccess = body?.data?.token;
             const newRefresh = body?.data?.refreshToken;
             if (newAccess && newRefresh) {
-                await AsyncStorage.setItem('auth_token', newAccess);
-                await AsyncStorage.setItem('refresh_token', newRefresh);
+                await secureStorage.setItem('auth_token', newAccess);
+                await secureStorage.setItem('refresh_token', newRefresh);
             }
         } finally {
             refreshPromise = null;
@@ -80,12 +81,12 @@ async function performTokenRefresh(): Promise<void> {
 mfaApiClient.interceptors.request.use(
     async (config) => {
         try {
-            const token = await AsyncStorage.getItem('auth_token');
+            const token = await secureStorage.getItem('auth_token');
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
             // Ensure baseURL is up to date if it wasn't ready at creation
-            if (config.baseURL === 'https://lingloops-backend.onrender.com' && MFA_API_BASE_URL !== 'https://lingloops-backend.onrender.com') {
+            if (config.baseURL === resolvedApiUrl && MFA_API_BASE_URL !== resolvedApiUrl) {
                 config.baseURL = MFA_API_BASE_URL;
             }
         } catch (error) {
@@ -109,7 +110,7 @@ mfaApiClient.interceptors.response.use(
             if (isExplicitTokenProblem && error.config && !(error.config as any).__retryAfterRefresh) {
                 try {
                     await performTokenRefresh();
-                    const newToken = await AsyncStorage.getItem('auth_token');
+                    const newToken = await secureStorage.getItem('auth_token');
                     if (newToken) {
                         (error.config as any).__retryAfterRefresh = true;
                         error.config.headers.Authorization = `Bearer ${newToken}`;
@@ -118,7 +119,7 @@ mfaApiClient.interceptors.response.use(
                 } catch {
                     // Logout if refresh fails
                     try {
-                        await AsyncStorage.multiRemove(['auth_token', 'user_data', 'refresh_token']);
+                        await secureStorage.multiRemove(['auth_token', 'user_data', 'refresh_token']);
                         if (unauthorizedHandler) unauthorizedHandler();
                     } catch { }
                 }

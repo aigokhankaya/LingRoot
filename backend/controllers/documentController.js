@@ -209,6 +209,7 @@ exports.uploadDocument = async (req, res) => {
         mime_type: file.mimetype,
         page_count: pdfData.numpages || null,
         language: null,
+        original_text: rawText,
       })
       .select("*")
       .single();
@@ -574,6 +575,7 @@ exports.createDocumentFromText = async (req, res) => {
         mime_type: "text/plain",
         page_count: null,
         language: null,
+        original_text: rawText,
         created_at: now,
       })
       .select("*")

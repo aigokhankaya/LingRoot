@@ -10,7 +10,7 @@ import {
 import {
   View,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   TouchableOpacity,
   GestureResponderEvent,
   Text,
@@ -54,14 +54,13 @@ interface SkiaWordHighlightProps {
   visible?: boolean; // Whether parent modal is visible - used to reset internal state
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ACCENT_COLOR = 'rgba(248, 177, 59, 1)';
 
 // Helper to clean a word for comparison (Global Scope - Aggressive Mode)
 const cleanWord = (w: string) => {
   try {
     // Keep only Letters and Numbers. Remove everything else (apostrophes, quotes, etc.)
-    // "Don't" -> "dont", "“Don’t" -> "dont"
+    // "Don't" -> "dont", ""Don't" -> "dont"
     return w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
   } catch (e) {
     // Fallback if Hermes/JS engine doesn't support unicode properties
@@ -75,7 +74,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   selectedWords,
   fontSize = 16,
   lineHeight = 150,
-  containerWidth = SCREEN_WIDTH - 32,
+  containerWidth,
   scrollOffsetRef,
   onWordPress,
   onWordLongPress,
@@ -85,6 +84,9 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   showPatterns = false,
   visible = true,
 }) => {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const finalContainerWidth = containerWidth || SCREEN_WIDTH - 32;
+
   console.log(`🎨 [SkiaWordHighlight] Received props - showPatterns: ${showPatterns}, patternData.length: ${patternData.length}`);
   if (showPatterns && patternData.length > 0) {
     console.log(`🎨 [SkiaWordHighlight] Pattern data:`, patternData.map(p => p.pattern));
@@ -265,11 +267,11 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     builder.addText(textContent);
 
     const para = builder.build();
-    para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
-    console.log(`✅ [Word Paragraph] containerWidth: ${containerWidth}`);
+    para.layout(finalContainerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
+    console.log(`✅ [Word Paragraph] finalContainerWidth: ${finalContainerWidth}`);
     console.log(`✅ [Word Paragraph] heightMultiplier: ${heightMult} | TOTAL HEIGHT: ${para.getHeight()}px`);
     return para;
-  }, [words, fontSize, containerWidth, font, lineHeight]);
+  }, [words, fontSize, finalContainerWidth, font, lineHeight]);
 
   // Create white paragraph for highlighted word
   const whiteParagraph = useMemo(() => {
@@ -302,12 +304,12 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     builder.addText(textContent);
 
     const para = builder.build();
-    para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
+    para.layout(finalContainerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
     console.log(`lineHeight: ${lineHeight} | PARAGRAPH HEIGHT: ${para.getHeight()}`);
     console.log(`[Paragraph] L: ${lineHeight} F: ${fontSize} | H: ${para.getHeight()}`);
 
     return para;
-  }, [words, fontSize, containerWidth, font, lineHeight]);
+  }, [words, fontSize, finalContainerWidth, font, lineHeight]);
 
   // STEP 2: Calculate Word Boundaries SYNCHRONOUSLY (NO ASYNC!)
 
@@ -541,7 +543,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
               onLongPress={createLongPressHandler(chunk)}
               delayLongPress={500}
             >
-              <Canvas style={{ width: containerWidth, height: chunk.height }}>
+              <Canvas style={{ width: finalContainerWidth, height: chunk.height }}>
                 {/* Pattern phrase highlights - render as STROKE (border) */}
                 {patternRanges.map((range, rangeIdx) => {
                   // Get boundaries for all words in this phrase
@@ -663,7 +665,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                     paragraph={paragraph}
                     x={INTERNAL_PADDING}
                     y={-chunk.startY}
-                    width={containerWidth - INTERNAL_PADDING * 2}
+                    width={finalContainerWidth - INTERNAL_PADDING * 2}
                   />
                 )}
 
@@ -681,7 +683,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                   const rectX = Math.max(0, highlightedBoundary.x - paddingX);
                   const leftPaddingUsed = highlightedBoundary.x - rectX;
                   const idealWidth = highlightedBoundary.width + leftPaddingUsed + paddingX;
-                  const maxAllowedWidth = containerWidth - rectX;
+                  const maxAllowedWidth = finalContainerWidth - rectX;
                   const rectWidth = Math.min(idealWidth, maxAllowedWidth);
                   const relativeY = highlightedBoundary.y - chunk.startY;
                   const rectY = relativeY - paddingY;
@@ -692,7 +694,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                       paragraph={whiteParagraph}
                       x={INTERNAL_PADDING}
                       y={-chunk.startY}
-                      width={containerWidth - INTERNAL_PADDING * 2}
+                      width={finalContainerWidth - INTERNAL_PADDING * 2}
                       clip={{
                         x: rectX,
                         y: rectY,

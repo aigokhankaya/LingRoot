@@ -28,9 +28,9 @@ export async function requestPasswordReset(email: string): Promise<void> {
 /**
  * Reset password with token
  */
-export async function resetPassword(token: string, newPassword: string): Promise<void> {
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
     const client = await getApiClientAsync();
-    await client.auth.resetPassword(token, newPassword);
+    await client.auth.resetPassword(email, code, newPassword);
 }
 
 /**

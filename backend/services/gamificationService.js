@@ -36,7 +36,7 @@ const XP_REWARDS = {
     STREAK_BONUS_7_DAYS: 100,
     STREAK_BONUS_30_DAYS: 500,
 
-    // Sektör İngilizcesi (NEW)
+    // Sektör İngilizcesi
     SECTOR_VOCAB_LEARN: 15,
     SECTOR_VOCAB_MASTER: 30,
     SECTOR_CONTENT_COMPLETE: 50,
@@ -47,6 +47,16 @@ const XP_REWARDS = {
     SECTOR_PODCAST_COMPLETE: 80,
     SECTOR_MODULE_COMPLETE: 200,
     SECTOR_STREAK_BONUS: 25,
+
+    // Dinleme Kalitesi (LQS) - NEW
+    // Base XP = dakika * 10, sonra LQS multiplier ile çarpılır
+    LISTENING_BASE_PER_MINUTE: 10,
+    LISTENING_COMPREHENSION_BONUS: 50,    // %90+ anlama bonusu
+    LISTENING_SPEED_BONUS: 25,            // 1.1x+ hız bonusu
+    LISTENING_WORD_DISCOVERY_BONUS: 15,   // 5+ kelime keşif bonusu
+    LISTENING_QUALITY_SESSION: 75,        // LQS 80+ session bonusu
+    WORD_TAP_BONUS: 3,                    // Her kelime tıklaması
+    REPLAY_BONUS: 2,                      // Her tekrar dinleme
 };
 
 
@@ -636,21 +646,66 @@ class GamificationService {
         }
 
         // Temel görevler (her zaman dahil) - Açıklamalı
+        // NOT: Eski görevler kaldırıldı, kalite odaklı görevler eklendi
         const baseTemplates = [
             {
+                type: 'quality_listen',
+                title: 'LQS 70+ ile 1 içerik tamamla',
+                description: 'Aktif dinle: duraklat, tekrar et, bilmediğin kelimelere tıkla. Dinleme Kalite Skorun (LQS) 70 üstü olsun.',
+                target: 1,
+                xp: 75,
+                relatedToParent: false
+            },
+            {
+                type: 'word_discovery',
+                title: '3 kelime keşfet',
+                description: 'Dinlerken bilmediğin 3 kelimeye tıkla ve anlamını öğren.',
+                target: 3,
+                xp: 40,
+                relatedToParent: false
+            },
+            {
                 type: 'listen_minutes',
-                title: '10 dakika dinle',
-                description: 'Ana sayfadan veya içerik sayfalarından bir içerik seç ve dinlemeye başla. Dinlediğin süre otomatik olarak sayılacak.',
+                title: '10 dakika kaliteli dinle',
+                description: 'Ana sayfadan bir içerik seç ve aktif dinleyerek 10 dakika tamamla.',
                 target: 10,
                 xp: 50,
                 relatedToParent: false
             },
+        ];
+
+        // Kalite odaklı ek görevler (rastgele seçilecek)
+        const qualityTemplates = [
             {
-                type: 'listen_content',
-                title: 'İçerik dinle',
-                description: 'Ana sayfadan veya "İçeriklerim" bölümünden bir içerik seç ve dinlemeye başla.',
+                type: 'comprehension_high',
+                title: '%80+ anlama ile 1 içerik bitir',
+                description: 'Bir içeriği tamamla ve quiz\'de %80 veya üstü başarı göster.',
                 target: 1,
+                xp: 100,
+                relatedToParent: false
+            },
+            {
+                type: 'replay_master',
+                title: '5 kez tekrar dinle',
+                description: 'Anlamadığın bölümleri tekrar dinleyerek toplam 5 replay yap.',
+                target: 5,
                 xp: 50,
+                relatedToParent: false
+            },
+            {
+                type: 'speed_challenge',
+                title: '1.1x hızda 1 içerik bitir',
+                description: 'Hızı 1.1x yaparak bir içeriği başarıyla tamamla.',
+                target: 1,
+                xp: 75,
+                relatedToParent: false
+            },
+            {
+                type: 'review_words',
+                title: '5 kelime tekrar et',
+                description: 'Dün öğrendiğin 5 kelimeyi Kelime Sarayında tekrar et.',
+                target: 5,
+                xp: 45,
                 relatedToParent: false
             },
         ];
@@ -803,7 +858,7 @@ class GamificationService {
         }
 
         const specific = typeSpecificTemplates[taskType] || [];
-        return [...baseTemplates, ...specific, ...sectorTemplates, ...generalTemplates];
+        return [...baseTemplates, ...qualityTemplates, ...specific, ...sectorTemplates, ...generalTemplates];
     }
 
     /**

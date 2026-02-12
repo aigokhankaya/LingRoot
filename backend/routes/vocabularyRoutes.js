@@ -349,25 +349,22 @@ router.post('/add', authenticate, async (req, res) => {
             });
         }
 
-        // 🔄 Sync to word_reviews for SRS flashcard system
-        try {
-            await supabase
-                .from('word_reviews')
-                .upsert({
-                    user_id: userId,
-                    word: normalizedWord,
-                    definition: vocabularyRow.definition || '',
-                    example_sentence: vocabularyRow.example_sentence || '',
-                    next_review_date: new Date().toISOString().split('T')[0], // Today
-                    interval_days: 1,
-                    ease_factor: 2.5,
-                    repetition_count: 0,
-                    streak_correct: 0
-                }, { onConflict: 'user_id,word' });
-            logger.info(`[Vocabulary Routes] Word "${normalizedWord}" synced to word_reviews for SRS`);
-        } catch (srsError) {
-            logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
-        }
+        // 🔄 Sync to word_reviews for SRS (fire-and-forget, non-blocking)
+        supabase
+            .from('word_reviews')
+            .upsert({
+                user_id: userId,
+                word: normalizedWord,
+                definition: vocabularyRow.definition || '',
+                example_sentence: vocabularyRow.example_sentence || '',
+                next_review_date: new Date().toISOString().split('T')[0],
+                interval_days: 1,
+                ease_factor: 2.5,
+                repetition_count: 0,
+                streak_correct: 0
+            }, { onConflict: 'user_id,word' })
+            .then(() => logger.info(`[Vocabulary Routes] Word "${normalizedWord}" synced to word_reviews for SRS`))
+            .catch(err => logger.warn('[Vocabulary Routes] word_reviews sync failed:', err.message));
 
         const mappedWord = mapUserVocabularyRow(newUserWord);
 
@@ -720,25 +717,22 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
                 });
             }
 
-            // 🔄 Sync to word_reviews for SRS flashcard system
-            try {
-                await supabase
-                    .from('word_reviews')
-                    .upsert({
-                        user_id: userId,
-                        word: normalizedWord,
-                        definition: existingVocabulary.definition || '',
-                        example_sentence: existingVocabulary.example_sentence || '',
-                        next_review_date: new Date().toISOString().split('T')[0],
-                        interval_days: 1,
-                        ease_factor: 2.5,
-                        repetition_count: 0,
-                        streak_correct: 0
-                    }, { onConflict: 'user_id,word' });
-                logger.info(`[Vocabulary Routes] Existing word "${normalizedWord}" synced to word_reviews`);
-            } catch (srsError) {
-                logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
-            }
+            // 🔄 Sync to word_reviews for SRS (fire-and-forget, non-blocking)
+            supabase
+                .from('word_reviews')
+                .upsert({
+                    user_id: userId,
+                    word: normalizedWord,
+                    definition: existingVocabulary.definition || '',
+                    example_sentence: existingVocabulary.example_sentence || '',
+                    next_review_date: new Date().toISOString().split('T')[0],
+                    interval_days: 1,
+                    ease_factor: 2.5,
+                    repetition_count: 0,
+                    streak_correct: 0
+                }, { onConflict: 'user_id,word' })
+                .then(() => logger.info(`[Vocabulary Routes] Existing word "${normalizedWord}" synced to word_reviews`))
+                .catch(err => logger.warn('[Vocabulary Routes] word_reviews sync failed:', err.message));
 
             const mappedNew = mapUserVocabularyRow(newUserWord);
 
@@ -857,25 +851,22 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
                 });
             }
 
-            // 🔄 Sync to word_reviews for SRS flashcard system
-            try {
-                await supabase
-                    .from('word_reviews')
-                    .upsert({
-                        user_id: userId,
-                        word: wordData.word.toLowerCase(),
-                        definition: wordData.definition || '',
-                        example_sentence: wordData.example_sentence || '',
-                        next_review_date: new Date().toISOString().split('T')[0],
-                        interval_days: 1,
-                        ease_factor: 2.5,
-                        repetition_count: 0,
-                        streak_correct: 0
-                    }, { onConflict: 'user_id,word' });
-                logger.info(`[Vocabulary Routes] New word "${wordData.word}" synced to word_reviews`);
-            } catch (srsError) {
-                logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
-            }
+            // 🔄 Sync to word_reviews for SRS (fire-and-forget, non-blocking)
+            supabase
+                .from('word_reviews')
+                .upsert({
+                    user_id: userId,
+                    word: wordData.word.toLowerCase(),
+                    definition: wordData.definition || '',
+                    example_sentence: wordData.example_sentence || '',
+                    next_review_date: new Date().toISOString().split('T')[0],
+                    interval_days: 1,
+                    ease_factor: 2.5,
+                    repetition_count: 0,
+                    streak_correct: 0
+                }, { onConflict: 'user_id,word' })
+                .then(() => logger.info(`[Vocabulary Routes] New word "${wordData.word}" synced to word_reviews`))
+                .catch(err => logger.warn('[Vocabulary Routes] word_reviews sync failed:', err.message));
 
             const mappedNew = mapUserVocabularyRow(newUserWord);
 

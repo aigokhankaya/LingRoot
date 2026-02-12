@@ -65,17 +65,80 @@ Only return valid JSON, no markdown.
     }
 
     /**
-     * Batch enrich multiple words
+     * Batch enrich multiple words using a single API call
+     * @param {Array<string|{word: string}>} words - Words to enrich
+     * @returns {Array<Object>} - Array of enriched word data
      */
     async enrichBatch(words) {
-        const results = [];
-        for (const word of words) {
-            const enriched = await this.enrichWord(word);
-            results.push(enriched);
-            // Small delay to avoid rate limiting
-            await new Promise(r => setTimeout(r, 200));
+        if (!words || words.length === 0) return [];
+
+        // Normalize input: accept both strings and objects with .word
+        const wordList = words.map(w => (typeof w === 'string' ? w : w.word));
+
+        // For single word, use the existing enrichWord method
+        if (wordList.length === 1) {
+            const enriched = await this.enrichWord(wordList[0]);
+            return [enriched];
         }
-        return results;
+
+        try {
+            const prompt = `For each of the following ${wordList.length} English words, provide enrichment data.
+Return a JSON object with a "words" array where each element has:
+{
+    "word": "the word",
+    "ipa": "IPA transcription (American English)",
+    "part_of_speech": "noun/verb/adjective/etc",
+    "definition_en": "English definition",
+    "definition_tr": "Turkish definition",
+    "example_sentence": "A natural example sentence using the word",
+    "example_sentence_tr": "Turkish translation of the example",
+    "frequency_rank": "common/uncommon/rare",
+    "collocations": ["word1", "word2", "word3"]
+}
+
+Words: ${wordList.join(', ')}
+
+Only return valid JSON, no markdown.`;
+
+            const response = await openaiClient.generateChatCompletion([
+                { role: 'user', content: prompt }
+            ], {
+                temperature: 0.3,
+                maxTokens: wordList.length * 300,
+                model: 'gpt-4o-mini'
+            });
+
+            const content = response.content.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(content);
+            const enrichedArray = parsed.words || parsed;
+
+            logger.info(`[WordEnrichment] Batch enriched ${wordList.length} words in single API call`);
+
+            // Map results back, with fallback for missing entries
+            return wordList.map((word, i) => {
+                const enriched = Array.isArray(enrichedArray)
+                    ? enrichedArray.find(e => e.word?.toLowerCase() === word.toLowerCase()) || enrichedArray[i]
+                    : null;
+                return enriched || {
+                    word,
+                    ipa: null,
+                    definition_en: null,
+                    definition_tr: null,
+                    example_sentence: null,
+                    frequency_rank: 'unknown',
+                    collocations: []
+                };
+            });
+        } catch (error) {
+            logger.error(`[WordEnrichment] Batch enrichment failed, falling back to sequential:`, error);
+            // Fallback: enrich one by one without delay
+            const results = [];
+            for (const word of wordList) {
+                const enriched = await this.enrichWord(word);
+                results.push(enriched);
+            }
+            return results;
+        }
     }
 
     /**

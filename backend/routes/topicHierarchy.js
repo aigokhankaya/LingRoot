@@ -92,4 +92,11 @@ router.get(
   topicHierarchyController.getTopicContent
 );
 
+// AI ile konu önerisi al
+router.post(
+  '/topics/suggest',
+  authenticate,
+  topicHierarchyController.suggestTopic
+);
+
 module.exports = router;

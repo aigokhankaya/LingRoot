@@ -40,6 +40,15 @@ try {
  * @returns {Promise<{text: string, usage: object, model: string}>}
  */
 async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogger, promptVariant = 'standard', mood = null) {
+    // Load test mock: skip real OpenAI call
+    const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
+    if (isLoadTestMode()) {
+        const { MOCK_TRANSLATED_TEXT, MOCK_USAGE } = require('../../tests/load/mocks/openaiMock');
+        await new Promise(r => setTimeout(r, getLoadTestDelay('openai')));
+        const model = process.env.OPENAI_TRANSLATE_ADAPT_MODEL || 'gpt-4o-mini';
+        return { text: MOCK_TRANSLATED_TEXT, usage: MOCK_USAGE, model };
+    }
+
     if (!openai) {
         logger.error("[TranslateAndAdapt] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");
@@ -212,9 +221,9 @@ function calculateWordCountFromDuration(durationMinutes) {
 /**
  * OPTIMIZED: Generates bilingual content (English + target language) in a SINGLE LLM call.
  * Replaces the old 2-step process: generateEnglish → translateToTarget
- * 
+ *
  * Token savings: ~33-47% compared to 2 separate calls
- * 
+ *
  * @param {string} topic - Topic to generate content about
  * @param {string} targetLanguage - Target language for translation (e.g., "Turkish")
  * @param {string} level - CEFR level (A1, A2, B1, B2, C1, C2)
@@ -222,9 +231,19 @@ function calculateWordCountFromDuration(durationMinutes) {
  * @param {number} targetDurationMinutes - Optional target duration in minutes (1.5, 5, 10, 15)
  * @param {string} mood - Optional mood for content generation (e.g. "Melancholic", "Cheerful")
  * @param {string[]} forbiddenOpenings - Optional list of opening sentences to avoid (for sibling variety)
+ * @param {object} topicContext - Optional topic hierarchy context {hierarchy: string, rootTopic: string}
  * @returns {Promise<{englishText: string, translatedText: string, usage: object, model: string}>}
  */
-async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null, mood = null, forbiddenOpenings = []) {
+async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null, mood = null, forbiddenOpenings = [], topicContext = null) {
+    // Load test mock: skip real OpenAI call
+    const { isLoadTestMode: isLTM2, getLoadTestDelay: gLTD2 } = require('../../tests/load/mocks/mockConfig');
+    if (isLTM2()) {
+        const { MOCK_BILINGUAL_RESPONSE, MOCK_USAGE } = require('../../tests/load/mocks/openaiMock');
+        await new Promise(r => setTimeout(r, gLTD2('openai')));
+        const model = 'gpt-4o-mini';
+        return { englishText: MOCK_BILINGUAL_RESPONSE.english_text, translatedText: MOCK_BILINGUAL_RESPONSE.translated_text, usage: MOCK_USAGE, model };
+    }
+
     if (!openai) {
         logger.error("[GenerateBilingual] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");
@@ -263,7 +282,10 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
             targetLanguage,
             level: level.toUpperCase(),
             durationOverride,
-            forbiddenOpenings: forbiddenStr
+            forbiddenOpenings: forbiddenStr,
+            // Topic hierarchy context for parent-aware content generation
+            topic_hierarchy: topicContext?.hierarchy || null,
+            root_topic: topicContext?.rootTopic || null
         });
     } catch (error) {
         logger.error(`[GenerateBilingual] Prompt generation failed: ${error.message}`);
@@ -301,7 +323,7 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
     const baseTemperature = (targetDurationMinutes && targetDurationMinutes >= 10) ? 0.3 : 0.7;
 
     try {
-        logger.info(`[GenerateBilingual] Generating bilingual content with ${model}`);
+        logger.info(`[GenerateBilingual] Generating bilingual content with ${model}${topicContext?.hierarchy ? ` [Hierarchy: ${topicContext.hierarchy}]` : ''}`);
         if (logger.llmCall) {
             logger.llmCall({
                 scope: 'generateBilingual',

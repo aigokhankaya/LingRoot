@@ -59,7 +59,7 @@ export function createTTSApi(api: AxiosInstance): TTSApi {
     return {
         async process(request: TTSRequest): Promise<TTSResponse> {
             const response = await api.post<TTSResponse>('/api/tts/process', request, {
-                timeout: 600000, // 10 minutes for long TTS processing
+                timeout: 900000, // 15 minutes for long TTS processing
             });
             return response.data;
         },
@@ -104,7 +104,7 @@ export function createTTSApi(api: AxiosInstance): TTSApi {
 
         async createPodcast(params: PodcastParams): Promise<TTSResponse> {
             const response = await api.post<TTSResponse>('/api/tts/create-podcast', params, {
-                timeout: 600000,
+                timeout: 900000, // 15 minutes for long podcast processing
             });
             return response.data;
         },
