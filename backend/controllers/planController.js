@@ -3,6 +3,62 @@ require("dotenv").config();
 const logger = require('../utils/common/logger.js');
 const { invalidateCache } = require('../middleware/redisCache');
 
+// Helper: get default premium features when plan_features is NULL
+function getDefaultPremiumFeatures() {
+  return {
+    homepage_features: {
+      text_input: true,
+      youtube: true,
+      file_upload: true,
+      podcast: true,
+      topic_suggestions: true,
+      topic_tree: true,
+      book: true,
+      liro: true,
+      daily_usage_patterns: true,
+    },
+    voice_categories: {
+      standard: true,
+      wavenet: true,
+      neural2: true,
+      studio: false,
+      chirp3d: false,
+    },
+    sentence_patterns: {
+      enabled: true,
+      max_patterns: 10
+    }
+  };
+}
+
+// Helper: get default free features
+function getDefaultFreeFeatures() {
+  return {
+    homepage_features: {
+      text_input: true,
+      youtube: false,
+      file_upload: false,
+      podcast: false,
+      topic_suggestions: true,
+      topic_tree: false,
+      book: false,
+      liro: false,
+      daily_usage_patterns: false,
+    },
+    voice_categories: {
+      standard: true,
+      wavenet: false,
+      neural2: false,
+      studio: false,
+      chirp3d: false
+    },
+    sentence_patterns: {
+      enabled: false,
+      max_patterns: 0
+    }
+  };
+}
+
 // Helper: derive estimates from plan price
 function computeEstimates(plan) {
   // TTS maliyeti: ~$0.000016 per karakter (Google TTS)
@@ -384,11 +440,10 @@ exports.getMyPlanFeatures = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Get user's active subscription
-    // plan_id kolonu varsa onu da al (bazı migrasyonlarda plan_id eklendi)
+    // Get user's active subscription with plantype for fallback matching
     const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
-      .select("plan_id, stripepriceid, status")
+      .select("id, plan_id, stripepriceid, plantype, status")
       .eq("user_id", userId)
       .eq("status", "active")
       .order("created_at", { ascending: false })
@@ -409,90 +464,126 @@ exports.getMyPlanFeatures = async (req, res) => {
         data: {
           plan_id: null,
           plan_name: "No Active Plan",
-          features: {
-            homepage_features: {
-              text_input: true,
-              youtube: false,
-              file_upload: false,
-              podcast: false,
-              topic_suggestions: true,
-              topic_tree: false,
-              book: false,
-              liro: false,
-              daily_usage_patterns: false,
-            },
-            voice_categories: {
-              standard: true,
-              wavenet: false,
-              neural2: false,
-              studio: false,
-              chirp3d: false
-            },
-            sentence_patterns: {
-              enabled: false,
-              max_patterns: 0
-            }
-          }
+          features: getDefaultFreeFeatures()
         }
       });
     }
 
-    // Identify the plan ID to lookup
-    // Priority: plan_id (UUID) -> stripepriceid
-    let lookupId = subscription.plan_id || subscription.stripepriceid;
+    // 4-Stage Fallback Strategy for plan matching
+    // 1. plan_id → subscription_plans.id (direct FK)
+    // 2. stripepriceid → subscription_plans.id (UUID match)
+    // 3. stripepriceid → subscription_plans.stripe_price_id (text match)
+    // 4. plantype → subscription_plans.name (ILIKE match)
 
-    if (!lookupId) {
-      logger.error(`Subscription ${subscription.id} has no plan_id or stripepriceid`);
-      return res.status(500).json({ success: false, message: "Invalid subscription data" });
+    let plan = null;
+
+    // Log subscription data for debugging
+    logger.info(`[getMyPlanFeatures] User ${userId} subscription data: plan_id=${subscription.plan_id}, stripepriceid=${subscription.stripepriceid}, plantype=${subscription.plantype}`);
+
+    // Stage 1: Try plan_id directly (most reliable if set)
+    if (subscription.plan_id) {
+      const { data: planData, error: planError } = await supabase
+        .from("subscription_plans")
+        .select("id, name, plan_features")
+        .eq("id", subscription.plan_id)
+        .maybeSingle();
+
+      if (!planError && planData) {
+        plan = planData;
+        logger.info(`[getMyPlanFeatures] Stage 1 match: plan_id=${subscription.plan_id} -> plan=${planData.name}`);
+      }
     }
 
-    if (typeof lookupId === 'string') {
-      lookupId = lookupId.trim();
+    // Stage 2: Try stripepriceid as UUID against subscription_plans.id
+    if (!plan && subscription.stripepriceid) {
+      const stripePriceId = subscription.stripepriceid.trim();
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stripePriceId);
+
+      if (isUUID) {
+        const { data: planData, error: planError } = await supabase
+          .from("subscription_plans")
+          .select("id, name, plan_features")
+          .eq("id", stripePriceId)
+          .maybeSingle();
+
+        if (!planError && planData) {
+          plan = planData;
+          logger.info(`[getMyPlanFeatures] Stage 2 match: stripepriceid as UUID=${stripePriceId} -> plan=${planData.name}`);
+        }
+      }
     }
 
-    // UUID format check
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lookupId);
+    // Stage 3: Try stripepriceid against subscription_plans.stripe_price_id (text match)
+    if (!plan && subscription.stripepriceid) {
+      const stripePriceId = subscription.stripepriceid.trim();
+      const { data: planData, error: planError } = await supabase
+        .from("subscription_plans")
+        .select("id, name, plan_features")
+        .eq("stripe_price_id", stripePriceId)
+        .maybeSingle();
 
-    let query = supabase.from("subscription_plans").select("id, name, plan_features");
-
-    if (isUUID) {
-      // It's a UUID, so it could be the PK 'id' OR 'stripe_price_id' (unlikely but possible)
-      // We use OR to be safe. 
-      // Note: using raw string in .or() requires careful formatting
-      query = query.or(`id.eq.${lookupId},stripe_price_id.eq.${lookupId}`);
-    } else {
-      // Not a UUID, so it MUST be stripe_price_id
-      query = query.eq("stripe_price_id", lookupId);
+      if (!planError && planData) {
+        plan = planData;
+        logger.info(`[getMyPlanFeatures] Stage 3 match: stripe_price_id=${stripePriceId} -> plan=${planData.name}`);
+      }
     }
 
-    const { data: plan, error: planError } = await query.maybeSingle();
+    // Stage 4: Try plantype against subscription_plans.name (ILIKE match)
+    if (!plan && subscription.plantype) {
+      const plantype = subscription.plantype.trim();
+      const { data: planData, error: planError } = await supabase
+        .from("subscription_plans")
+        .select("id, name, plan_features")
+        .ilike("name", `%${plantype}%`)
+        .limit(1)
+        .maybeSingle();
 
-    if (planError) {
-      logger.error("Error fetching plan features:", planError);
-      return res.status(500).json({ success: false, message: "Error fetching plan features" });
+      if (!planError && planData) {
+        plan = planData;
+        logger.info(`[getMyPlanFeatures] Stage 4 match: plantype ILIKE=${plantype} -> plan=${planData.name}`);
+      }
     }
 
+    // If no plan found after all stages, return premium defaults for active subscribers
+    // (They have an active subscription, so they should get premium features)
     if (!plan) {
-      logger.warn(`Plan not found for ID: ${lookupId}`);
-      // Fallback to default/free features instead of 500
+      logger.warn(`[getMyPlanFeatures] No plan found for subscription ${subscription.id} after 4 stages. Returning premium defaults.`);
       return res.json({
         success: true,
         data: {
           plan_id: null,
-          plan_name: "Unknown Plan",
-          features: {
-            homepage_features: { text_input: true }, // Minimal fallback
-          }
+          plan_name: subscription.plantype || "Premium (Fallback)",
+          features: getDefaultPremiumFeatures()
         }
       });
     }
 
+    // Plan found - check if plan_features is NULL or missing homepage_features
+    const planFeatures = plan.plan_features;
+    const hasValidFeatures = planFeatures &&
+                             planFeatures.homepage_features &&
+                             Object.keys(planFeatures.homepage_features).length > 1;
+
+    if (!hasValidFeatures) {
+      // Plan found but plan_features is NULL/incomplete - return default premium features
+      logger.warn(`[getMyPlanFeatures] Plan ${plan.name} (${plan.id}) has NULL/incomplete plan_features. Using defaults.`);
+      return res.json({
+        success: true,
+        data: {
+          plan_id: plan.id,
+          plan_name: plan.name,
+          features: getDefaultPremiumFeatures()
+        }
+      });
+    }
+
+    // All good - return actual plan features
     return res.json({
       success: true,
       data: {
         plan_id: plan.id,
         plan_name: plan.name,
-        features: plan.plan_features || {}
+        features: planFeatures
       }
     });
   } catch (e) {

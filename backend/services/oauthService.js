@@ -92,7 +92,7 @@ const assignFreeTrialPlan = async (userId) => {
   try {
     const { data: trialPlan, error: planErr } = await supabase
       .from('subscription_plans')
-      .select('id, name, price, plantype, is_active, audio_limit, features, monthly_price, yearly_price, description, created_at')
+      .select('id, name, price, is_active, features, description, created_at')
       .eq('name', 'Free Trial')
       .eq('is_active', true)
       .maybeSingle();
@@ -484,17 +484,39 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
   // Normalize email for consistent storage and lookup
   const normalizedEmail = email ? normalizeEmail(email) : null;
 
-  // Find user by email (case-insensitive)
+  // Find existing user - PRIORITY: Apple sub first, then email
+  // Apple does NOT provide email on subsequent logins (privacy policy)
+  // So we must search by Apple sub FIRST to find returning users
   let existingUser = null;
 
-  if (normalizedEmail) {
+  // 1. PRIMARY: Search by Apple sub (stored in password field)
+  // This is the reliable identifier for Apple users across all logins
+  if (appleSub) {
+    const { data, error: fetchError } = await supabase
+      .from('users')
+      .select("id, email, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
+      .eq("password", `apple-oauth:${appleSub}`)
+      .maybeSingle();
+
+    if (!fetchError && data) {
+      existingUser = data;
+      logger.info('[APPLE_LOGIN_SERVICE] Existing user found by Apple sub (primary lookup)', { id: data.id, email: data.email });
+    }
+  }
+
+  // 2. SECONDARY: Search by email (only for first-time users or migration)
+  // This catches users who registered before Apple sub was stored, or new users
+  if (!existingUser && normalizedEmail) {
     const { data, error: fetchError } = await supabase
       .from('users')
       .select("id, email, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
-    if (!fetchError) existingUser = data;
+    if (!fetchError && data) {
+      existingUser = data;
+      logger.info('[APPLE_LOGIN_SERVICE] Existing user found by email (secondary lookup)', { id: data.id, email: data.email });
+    }
   }
 
   let user;
@@ -506,6 +528,15 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
         code: 'EMAIL_NOT_VERIFIED',
         message: 'Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.'
       };
+    }
+
+    // Migrate old 'apple-oauth' password to include sub for future lookups
+    if (existingUser.password === 'apple-oauth' && appleSub) {
+      await supabase
+        .from('users')
+        .update({ password: `apple-oauth:${appleSub}`, updated_at: new Date().toISOString() })
+        .eq('id', existingUser.id);
+      logger.info('[APPLE_LOGIN_SERVICE] Migrated user password to include Apple sub', { id: existingUser.id });
     }
 
     user = existingUser;
@@ -529,7 +560,7 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
         lastname: sanitizedLastName,
         email: normalizedEmail,
         phonenumber: null,
-        password: 'apple-oauth',
+        password: appleSub ? `apple-oauth:${appleSub}` : 'apple-oauth',
         role: "user",
         isverified: true,
         verificationtoken: null,
