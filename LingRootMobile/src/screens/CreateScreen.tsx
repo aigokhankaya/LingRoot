@@ -22,6 +22,7 @@ import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } 
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useTtsJob } from '../contexts/TtsJobContext';
 import * as ttsService from '../services/ttsService';
 import * as bookService from '../services/bookService';
 import { submitContent } from '../services/contentService';
@@ -70,6 +71,7 @@ const CreateScreenContent: React.FC = () => {
   );
   const { t, language } = useLanguage();
   const { user } = useAuth();
+  const { isTtsJobLocked, ttsJobMessage, lockTtsJob, unlockTtsJob, checkActiveJob } = useTtsJob();
   const lang = language === 'tr' ? 'tr' : 'en';
   const scrollViewRef = useRef<ScrollView>(null);
   const createTourKey = mode === 'podcast'
@@ -86,8 +88,6 @@ const CreateScreenContent: React.FC = () => {
   const [speechRate, setSpeechRate] = useState(1.0);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingVoice, setIsCreatingVoice] = useState(false);
-  const [isTtsJobLocked, setIsTtsJobLocked] = useState(false);
-  const [ttsJobMessage, setTtsJobMessage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
 
@@ -121,27 +121,10 @@ const CreateScreenContent: React.FC = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      const checkActiveJob = async () => {
-        try {
-          const res = await ttsService.getActiveTtsJob();
-          if (res && res.hasActiveJob) {
-            setIsTtsJobLocked(true);
-            setIsCreatingVoice(true);
-            setTtsJobMessage(
-              language === 'tr'
-                ? 'Ses oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
-                : 'An audio creation process is still running. Please wait for it to finish.'
-            );
-          } else {
-            setIsTtsJobLocked(false);
-            setIsCreatingVoice(false);
-            setTtsJobMessage(null);
-          }
-        } catch (e) {
-          // Sessizce geç; hata durumunda kullanıcıyı kilitlemeyelim
-          setIsTtsJobLocked(false);
-        }
-      };
+      // Check for active TTS job via global context
+      checkActiveJob().then((hasActiveJob) => {
+        setIsCreatingVoice(hasActiveJob);
+      });
 
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' | 'podcast' =
         route.params?.mode === 'file'
@@ -423,6 +406,13 @@ const CreateScreenContent: React.FC = () => {
       }
       return;
     }
+
+    // Lock TTS job immediately to prevent navigation to other screens
+    const lockMsg = language === 'tr'
+      ? 'Ses oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
+      : 'An audio creation process is still running. Please wait for it to finish.';
+    lockTtsJob(lockMsg);
+
     // Suggestion mode: if no input yet, rewrite the topic/suggestion into narration text first
     let effectiveInputText = inputText;
     if (mode === 'suggestion' && !effectiveInputText.trim()) {
@@ -430,6 +420,7 @@ const CreateScreenContent: React.FC = () => {
         ? suggestionResults[0]
         : suggestion;
       if (!base || !base.trim()) {
+        unlockTtsJob();
         showError(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
         return;
       }
@@ -441,6 +432,7 @@ const CreateScreenContent: React.FC = () => {
         setInputText(narration);
       } catch (e: any) {
         setIsLoading(false);
+        unlockTtsJob();
         showError(t('common.error'), e.message || t('common.unexpectedError'));
         return;
       } finally {
@@ -450,10 +442,12 @@ const CreateScreenContent: React.FC = () => {
 
     if (mode === 'book') {
       if (!selectedChapterText || selectedChapterText.trim().length === 0) {
+        unlockTtsJob();
         showError(t('common.error'), t('create.book.alerts.selectChapter'));
         return;
       }
     } else if (mode !== 'file' && !effectiveInputText.trim()) {
+      unlockTtsJob();
       showError(t('common.error'), t('create.alerts.enterTextOrFile'));
       return;
     }
@@ -485,6 +479,7 @@ const CreateScreenContent: React.FC = () => {
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
         } else {
+          unlockTtsJob();
           showError(t('common.error'), t('create.alerts.fileProcessFailed'));
         }
       } else {
@@ -539,11 +534,13 @@ const CreateScreenContent: React.FC = () => {
             status: 'async_started',
           });
         } else {
+          unlockTtsJob();
           showError(t('common.error'), t('create.alerts.audioCreateFailed'));
         }
       }
     } catch (error: any) {
       console.error('🔴 [CREATE ASYNC] Error:', error);
+      unlockTtsJob();
 
       // Backend, devam eden iş varken yeni istek gelirse TTS_JOB_IN_PROGRESS döndürüyor
       if (error?.code === 'TTS_JOB_IN_PROGRESS') {
@@ -551,9 +548,8 @@ const CreateScreenContent: React.FC = () => {
           language === 'tr'
             ? 'Ses oluşturma süreci devam ediyor. Lütfen mevcut işlemin bitmesini bekleyin.'
             : 'An audio creation process is already running. Please wait for it to finish before starting a new one.';
-        setIsTtsJobLocked(true);
+        lockTtsJob(msg);
         setIsCreatingVoice(true);
-        setTtsJobMessage(msg);
         showError(t('common.info'), msg);
         return;
       }
@@ -606,6 +602,12 @@ const CreateScreenContent: React.FC = () => {
       }
       return;
     }
+
+    // Lock TTS job immediately to prevent navigation to other screens
+    const lockMsg = language === 'tr'
+      ? 'Podcast oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
+      : 'A podcast creation process is still running. Please wait for it to finish.';
+    lockTtsJob(lockMsg);
 
     setIsCreatingPodcast(true);
 
@@ -788,6 +790,9 @@ const CreateScreenContent: React.FC = () => {
         highlightMode: 'word'
       });
 
+      // Unlock TTS job since ElevenLabs podcast completed synchronously
+      unlockTtsJob();
+
       // Firebase Analytics: Podcast creation completed
       AnalyticsHelper.logEvent('content_creation_complete', {
         type: 'podcast',
@@ -802,6 +807,7 @@ const CreateScreenContent: React.FC = () => {
       const msg =
         error?.message ||
         (language === 'tr' ? 'Podcast oluşturulamadı.' : 'Podcast could not be created.');
+      unlockTtsJob();
       showError(t('common.error'), msg);
     } finally {
       setIsCreatingPodcast(false);
