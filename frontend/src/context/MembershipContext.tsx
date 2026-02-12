@@ -55,7 +55,7 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
         if (stats) {
           // Free Trial için: maxAudioCount - audioCreationCount
           const maxCount = 3; // Free Trial için sabit
-          const used = stats.subscription.audioCreationCount || 0;
+          const used = stats.subscription?.audioCreationCount || 0;
           const remainingCount = Math.max(0, maxCount - used);
           setRemaining(remainingCount);
 

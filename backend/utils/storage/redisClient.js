@@ -6,7 +6,6 @@
  */
 
 const Redis = require('ioredis');
-const logger = require('../common/logger.js');
 
 // Redis URL from environment
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
@@ -24,7 +23,6 @@ const createConnection = () => {
             enableReadyCheck: false,
             retryStrategy: (times) => {
                 if (times > 3) {
-                    logger.warn(`[Redis] Connection failed after ${times} attempts, falling back to in-memory mode`);
                     isRedisAvailable = false;
                     return null; // Stop retrying
                 }
@@ -33,27 +31,23 @@ const createConnection = () => {
         });
 
         connection.on('connect', () => {
-            logger.info('🔗 [Redis] Connected successfully');
             isRedisAvailable = true;
         });
 
-        connection.on('error', (err) => {
-            logger.error('[Redis] Connection error:', err.message);
+        connection.on('error', () => {
             isRedisAvailable = false;
         });
 
         connection.on('close', () => {
-            logger.warn('[Redis] Connection closed');
             isRedisAvailable = false;
         });
 
         connection.on('reconnecting', () => {
-            logger.info('[Redis] Attempting to reconnect...');
+            // Silent reconnect
         });
 
         return connection;
     } catch (error) {
-        logger.error('[Redis] Failed to create connection:', error.message);
         isRedisAvailable = false;
         return null;
     }
@@ -82,7 +76,6 @@ const closeConnection = async () => {
         await connection.quit();
         connection = null;
         isRedisAvailable = false;
-        logger.info('[Redis] Connection closed gracefully');
     }
 };
 

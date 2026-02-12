@@ -1147,7 +1147,7 @@ exports.getContentById = async (req, res) => {
     const { id } = req.params;
     const { data, error } = await supabase
       .from('contenthistory')
-      .select('*')
+      .select('id, user_id, input_text, adapted_text, mp3_url, vtt_url, voice_model, level, created_at, updated_at')
       .eq('id', id)
       .single();
     if (error) {
@@ -1218,7 +1218,7 @@ exports.assignPlanToUser = async (req, res) => {
     // Verify plan exists and is active
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('*')
+      .select('id, name, price, is_active, features, interval, created_at')
       .eq('id', planId)
       .eq('is_active', true)
       .single();

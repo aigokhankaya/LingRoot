@@ -19,49 +19,57 @@ const logger = winston.createLogger({
 
 // Supabase client is provided by shared utility
 
-// SUPABASE_URL'den proje referansını çıkar ve DB host oluştur (örn: db.<ref>.supabase.co)
+// SUPABASE_URL'den proje referansını çıkar
 const supabaseUrlEnv = (process.env.SUPABASE_URL || '').trim();
-let derivedDbHost = '';
+let projectRef = '';
 try {
   if (supabaseUrlEnv) {
     const u = new URL(supabaseUrlEnv);
     const host = u.hostname; // <ref>.supabase.co veya api.<ref>.supabase.co
     const match = host.match(/^(?:api\.)?([a-z0-9-]{10,})\.supabase\.co$/i);
     if (match && match[1]) {
-      derivedDbHost = `db.${match[1]}.supabase.co`;
+      projectRef = match[1];
     }
   }
 } catch { /* ignore parse errors */ }
 
 // SSL kullanımını ortam ve host'a göre belirle
-// Production'da pooler kullanıyoruz: aws-0-eu-central-1.pooler.supabase.com:6543
-// Local env'de PGHOST varsa ama db.*.supabase.co ise pooler'a yönlendir
+// PGHOST tanımlıysa onu kullan, yoksa pooler kullan
 let configuredHost = process.env.PGHOST || process.env.DB_HOST || process.env.SUPABASE_DB_HOST;
-if (configuredHost && configuredHost.startsWith('db.') && configuredHost.includes('.supabase.co')) {
+if (!configuredHost) {
   configuredHost = 'aws-0-eu-central-1.pooler.supabase.com';
 }
-const resolvedHost = (configuredHost || 'aws-0-eu-central-1.pooler.supabase.com').trim();
+const resolvedHost = configuredHost.trim();
+const isPooler = resolvedHost.includes('pooler.supabase.com');
+
+// Pooler kullanılıyorsa ve user sadece 'postgres' ise, project ref ekle
+let dbUser = process.env.PGUSER || process.env.DB_USER || 'postgres';
+if (isPooler && dbUser === 'postgres' && projectRef) {
+  dbUser = `postgres.${projectRef}`;
+}
 const isSupabaseHost = /\.supabase\.co$/i.test(resolvedHost) || resolvedHost.includes('pooler.supabase.com');
 const sslRequiredByEnv = (process.env.DB_SSL || '').toLowerCase() === 'true' || (process.env.PGSSLMODE || '').toLowerCase() === 'require';
 const useSSL = sslRequiredByEnv || isSupabaseHost || process.env.NODE_ENV === 'production';
+const resolvedPort = parseInt(process.env.PGPORT || process.env.DB_PORT || (isPooler ? '6543' : '5432'), 10);
 logger.info(`[DB] Connecting to PostgreSQL`, {
   host: resolvedHost.replace(/([\w-])\w*(\.[\w-]+)+/, '$1***'), // lightly mask
-  port: process.env.PGPORT || process.env.DB_PORT,
+  port: resolvedPort,
+  user: dbUser.replace(/\..*/, '.*****'), // mask project ref
   database: process.env.PGDATABASE || process.env.DB_NAME,
   ssl: useSSL,
-  isSupabaseHost
+  isPooler
 });
 logger.debug(`[DB] Resolved host (unmasked): ${resolvedHost}`);
 
 // PostgreSQL havuzu (ENV değişkenlerinden bağlan)
 const pool = new Pool({
   host: resolvedHost,
-  port: configuredHost === 'aws-0-eu-central-1.pooler.supabase.com' ? 6543 : (process.env.PGPORT || process.env.DB_PORT || 6543),
-  user: configuredHost === 'aws-0-eu-central-1.pooler.supabase.com' ? 'postgres.ffqfcmmbeeieouoghrac' : (process.env.PGUSER || process.env.DB_USER || 'postgres.ffqfcmmbeeieouoghrac'),
+  port: resolvedPort,
+  user: dbUser,
   password: process.env.PGPASSWORD || process.env.DB_PASSWORD || process.env.DB_PASS,
   database: process.env.PGDATABASE || process.env.DB_NAME || 'postgres',
   // Supabase ve üretim ortamları için SSL'i etkinleştir
-  ssl: useSSL ? { rejectUnauthorized: false } : false,
+  ssl: useSSL ? { rejectUnauthorized: process.env.NODE_ENV === 'production' } : false,
   max: 20, // Bağlantı havuzu boyutu
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
@@ -113,9 +121,9 @@ const testSupabaseConnection = async () => {
 };
 
 const dbConfig = {
-  host: process.env.PGHOST || process.env.DB_HOST,
-  port: process.env.PGPORT || process.env.DB_PORT,
-  user: process.env.PGUSER || process.env.DB_USER,
+  host: resolvedHost,
+  port: resolvedPort,
+  user: dbUser,
   password: process.env.PGPASSWORD || process.env.DB_PASSWORD || process.env.DB_PASS,
   database: process.env.PGDATABASE || process.env.DB_NAME,
 };

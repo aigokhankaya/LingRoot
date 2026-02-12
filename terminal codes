@@ -199,7 +199,6 @@ podcast_ling
 sudo journalctl -u mfa -f 
 
 mfa servisi yeniden başlatmak:
-systemctl restart lingroot-mfa 
 sudo systemctl restart mfa
 
 
@@ -212,3 +211,33 @@ sudo systemctl restart mfa
   Servis bazlı görmek için:                                                                                                                                      
                                                                                                                                                                  
   systemctl status mfa --no-pager  
+
+
+
+  Environmenti BFA yapmak  için:
+sed -i 's/FORCED_ALIGNER_ENGINE=MFA/FORCED_ALIGNER_ENGINE=BFA/' /opt/lingroot/mfa/.env && sudo systemctl restart mfa.service
+
+  Environmenti MFA yapmak  için:
+sed -i 's/FORCED_ALIGNER_ENGINE=BFA/FORCED_ALIGNER_ENGINE=MFA/' /opt/lingroot/mfa/.env && sudo systemctl restart mfa.service
+
+
+
+
+                                                                                                                      
+  # Kontrol et                                                                                                        
+  sudo systemctl status mfa                                                                                           
+  journalctl -u mfa -n 50 --no-pager                                                                                  
+                                                                                                                      
+  Seçenek 2: MFA Servisi .env Dosyası (Varsa)                                                                         
+                                                                                                                      
+  # VDS'e SSH                                                                                                         
+  ssh root@45.43.154.97                                                                                               
+                                                                                                                      
+  # MFA klasörüne git                                                                                                 
+  cd /opt/lingroot/mfa                                                                                                
+                                                                                                                      
+  # .env dosyasına ekle                                                                                               
+  echo "MFA_ASYNC_MAX_CONCURRENT=5" >> .env                                                                           
+                                                                                                                      
+  # Servisi restart et                                                                                                
+  sudo systemctl restart mfa      
