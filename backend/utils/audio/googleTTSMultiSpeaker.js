@@ -565,20 +565,24 @@ OUTPUT FORMAT (JSON):
           const segmentOriginals = segData.turns_original || [];
 
           if (segmentOriginals.length !== segData.turns.length) {
-            logger.warn(`[GOOGLE-PODCAST] Segment ${seg + 1} sync mismatch: ${segData.turns.length} turns vs ${segmentOriginals.length} translations. Auto-fixing to prevent offset.`);
+            logger.warn(`[GOOGLE-PODCAST] Segment ${seg + 1} sync mismatch: ${segData.turns.length} turns vs ${segmentOriginals.length} translations. Auto-fixing to prevent UI offset.`);
           }
 
           // Push exactly as many original turns as English turns
           for (let i = 0; i < segData.turns.length; i++) {
-            if (i < segmentOriginals.length) {
+            if (i < segmentOriginals.length && segmentOriginals[i]?.text?.trim()) {
               allTurnsOriginal.push(segmentOriginals[i]);
             } else {
-              // Fallback to avoid index shift
-              // We use empty string or original text as placeholder
+              // Fallback: Use English text as placeholder to avoid empty UI
+              // This is better than showing nothing - user sees content while translation is missing
+              const fallbackText = segData.turns[i]?.text || '';
               allTurnsOriginal.push({
                 speaker: segData.turns[i].speaker,
-                text: ""
+                text: fallbackText
               });
+              if (fallbackText) {
+                logger.warn(`[GOOGLE-PODCAST] Using English fallback for turn ${i} in segment ${seg + 1}`);
+              }
             }
           }
 
@@ -886,15 +890,18 @@ async function synthesizeMultiSpeakerPodcast(options) {
         await new Promise(resolve => setTimeout(resolve, 350));
       }
 
-      const merged = await mergeAudioSegmentsToBuffer(audioBuffers);
-      logger.info(`[GOOGLE-PODCAST] Merged chunked audio: ${merged.length} bytes`);
+      const mergeResult = await mergeAudioSegmentsToBuffer(audioBuffers, { includeDuration: true });
+      const mergedBuffer = mergeResult?.buffer || mergeResult;
+      const mergedDuration = mergeResult?.duration || null;
+      logger.info(`[GOOGLE-PODCAST] Merged chunked audio: ${mergedBuffer?.length || 0} bytes, duration: ${mergedDuration ? mergedDuration.toFixed(2) + 's' : 'unknown'}`);
 
       return {
-        audioContent: merged,
+        audioContent: mergedBuffer,
         transcript: fullTranscript,
         dialogueText: dialogueText,
         turns: turns,
         ttsCharacters: ttsCharactersTotal,
+        audioDurationSeconds: mergedDuration,
       };
     }
 
@@ -1519,24 +1526,43 @@ async function createGoogleTTSPodcast(options) {
             const mfaNorm = (mfaWordTimings || []).map(t => normalizeToken(t?.word));
             const turns = audioResult.turns || [];
 
-            const findBestWindow = (tokens, startFrom) => {
+            // Word count validation: compare script word count vs MFA word count
+            const scriptWordCount = turns.reduce((sum, t) => sum + tokenizeForAlignment(t?.text || '').length, 0);
+            const mfaWordCount = mfaNorm.filter(Boolean).length;
+            const wordCountDiff = Math.abs(scriptWordCount - mfaWordCount);
+            const wordCountDiffPercent = scriptWordCount > 0 ? (wordCountDiff / scriptWordCount * 100).toFixed(1) : 0;
+
+            if (wordCountDiff > 10 || wordCountDiffPercent > 5) {
+              logger.warn(`[GOOGLE-PODCAST] Word count mismatch: script=${scriptWordCount} vs MFA=${mfaWordCount} (diff=${wordCountDiff}, ${wordCountDiffPercent}%)`);
+            } else {
+              logger.info(`[GOOGLE-PODCAST] Word count validation OK: script=${scriptWordCount}, MFA=${mfaWordCount}`);
+            }
+
+            const findBestWindow = (tokens, startFrom, prevEndTime = null) => {
               if (!tokens || tokens.length === 0) return null;
               const first = tokens[0];
               if (!first) return null;
 
-              const maxSearchAhead = 500;
+              // Reduced search range to prevent cursor drift
+              const maxSearchAhead = Math.min(300, Math.max(100, tokens.length * 5));
               const searchEnd = Math.min(mfaNorm.length - 1, startFrom + maxSearchAhead);
 
               let best = null;
               for (let i = startFrom; i <= searchEnd; i++) {
                 if (mfaNorm[i] !== first) continue;
 
+                // Skip if this position's timestamp would break monotonicity
+                if (prevEndTime != null && mfaWordTimings[i]?.startTime < prevEndTime) {
+                  continue;
+                }
+
                 let j = i;
                 let ti = 0;
                 let matched = 0;
                 let lastMatchIndex = i;
                 let skips = 0;
-                const maxSkips = Math.max(20, tokens.length * 3);
+                // Stricter skip limit to prevent drift
+                const maxSkips = Math.max(10, Math.ceil(tokens.length * 1.5));
 
                 while (j < mfaNorm.length && ti < tokens.length) {
                   if (mfaNorm[j] === tokens[ti]) {
@@ -1552,10 +1578,11 @@ async function createGoogleTTSPodcast(options) {
                 }
 
                 const score = tokens.length > 0 ? matched / tokens.length : 0;
-                const minMatched = Math.min(tokens.length, Math.max(3, Math.floor(tokens.length * 0.6)));
+                // Raised threshold from 60% to 70%
+                const minMatched = Math.min(tokens.length, Math.max(3, Math.floor(tokens.length * 0.7)));
                 if (matched >= minMatched) {
                   if (!best || score > best.score) {
-                    best = { startIndex: i, endIndex: lastMatchIndex, score, matched, tokenCount: tokens.length };
+                    best = { startIndex: i, endIndex: lastMatchIndex, score, matched, tokenCount: tokens.length, skipsUsed: skips };
                     if (score >= 0.95) break;
                   }
                 }
@@ -1566,13 +1593,17 @@ async function createGoogleTTSPodcast(options) {
 
             let cursor = 0;
             const segments = [];
+            let prevEndTime = null;
+            let fallbackCount = 0;
+            let totalTurns = 0;
 
             for (let lineIndex = 0; lineIndex < turns.length; lineIndex++) {
               const turn = turns[lineIndex];
               const tokens = tokenizeForAlignment(turn?.text || '');
               if (tokens.length === 0) continue;
+              totalTurns++;
 
-              const best = findBestWindow(tokens, cursor);
+              const best = findBestWindow(tokens, cursor, prevEndTime);
               let startWordIndex = null;
               let endWordIndex = null;
               let usedFallback = false;
@@ -1581,25 +1612,40 @@ async function createGoogleTTSPodcast(options) {
                 startWordIndex = best.startIndex;
                 endWordIndex = best.endIndex;
               } else {
+                // Improved fallback: use proportional positioning based on turn index
+                const totalWords = mfaWordTimings.length;
+                const turnProgress = lineIndex / Math.max(1, turns.length - 1);
+                const estimatedStart = Math.floor(turnProgress * totalWords * 0.9);
                 const approxCount = tokens.length;
-                startWordIndex = Math.min(Math.max(0, cursor), mfaWordTimings.length - 1);
-                endWordIndex = Math.min(Math.max(0, startWordIndex + approxCount - 1), mfaWordTimings.length - 1);
+
+                startWordIndex = Math.max(cursor, Math.min(estimatedStart, totalWords - 1));
+                endWordIndex = Math.min(startWordIndex + approxCount - 1, totalWords - 1);
                 usedFallback = true;
+                fallbackCount++;
               }
 
               const startTimeSeconds = mfaWordTimings[startWordIndex]?.startTime ?? null;
               const endTimeSeconds = mfaWordTimings[endWordIndex]?.endTime ?? null;
               const speaker = turn?.speaker === 'A' ? 'Host' : 'Guest';
 
+              // Monotonicity check: ensure timestamps always increase
               if (startTimeSeconds != null && endTimeSeconds != null) {
-                segments.push({
-                  lineIndex,
-                  speaker,
-                  startTimeSeconds,
-                  endTimeSeconds,
-                  startWordIndex,
-                  endWordIndex,
-                });
+                const isMonotonic = prevEndTime == null || startTimeSeconds >= prevEndTime - 0.1;
+
+                if (isMonotonic) {
+                  segments.push({
+                    lineIndex,
+                    speaker,
+                    startTimeSeconds,
+                    endTimeSeconds,
+                    startWordIndex,
+                    endWordIndex,
+                  });
+                  prevEndTime = endTimeSeconds;
+                } else {
+                  // Skip this segment if it would break monotonicity
+                  logger.warn(`[GOOGLE-PODCAST] dialogue_segments monotonicity violation at lineIndex=${lineIndex}: startTime=${startTimeSeconds.toFixed(2)}s < prevEnd=${prevEndTime?.toFixed(2)}s, skipping`);
+                }
               }
 
               cursor = Math.min(mfaWordTimings.length, (endWordIndex != null ? endWordIndex + 1 : cursor));
@@ -1607,6 +1653,12 @@ async function createGoogleTTSPodcast(options) {
               if (usedFallback) {
                 logger.warn(`[GOOGLE-PODCAST] dialogue_segments fallback used for lineIndex=${lineIndex} tokens=${tokens.length} cursorNow=${cursor}`);
               }
+            }
+
+            // Log summary for debugging
+            if (fallbackCount > 0) {
+              const fallbackRatio = (fallbackCount / totalTurns * 100).toFixed(1);
+              logger.warn(`[GOOGLE-PODCAST] dialogue_segments matching: ${fallbackCount}/${totalTurns} turns used fallback (${fallbackRatio}%)`);
             }
 
             dialogueSegments = segments.length > 0 ? segments : null;
@@ -1632,9 +1684,33 @@ async function createGoogleTTSPodcast(options) {
       logger.info(`[GOOGLE-PODCAST] Skipping MFA alignment. Conditions: useMFA=${useMFAAlignment}, audioUrl=${!!audioUrl}, hasText=${!!(audioResult.dialogueText || audioResult.transcript)}`);
     }
 
-    // Step 4: Estimate duration (roughly 150 words per minute)
-    const wordCount = audioResult.transcript.split(/\s+/).length;
-    const estimatedDuration = Math.round((wordCount / 150) * 60);
+    // Step 4: Calculate audio duration
+    // Priority: 1) MFA last timepoint, 2) TTS-provided duration, 3) word-count estimate
+    let audioDurationSeconds = null;
+
+    // Try MFA-based duration (most accurate - last word's end time)
+    if (Array.isArray(timepoints) && timepoints.length > 0) {
+      const lastTimepoint = timepoints[timepoints.length - 1];
+      if (typeof lastTimepoint.endTimeSeconds === 'number' && lastTimepoint.endTimeSeconds > 0) {
+        audioDurationSeconds = Math.ceil(lastTimepoint.endTimeSeconds);
+        logger.info(`[GOOGLE-PODCAST] Duration from MFA: ${audioDurationSeconds}s`);
+      }
+    }
+
+    // Fallback to TTS-provided duration (from chunked synthesis)
+    if (!audioDurationSeconds && typeof audioResult.audioDurationSeconds === 'number') {
+      audioDurationSeconds = Math.round(audioResult.audioDurationSeconds);
+      logger.info(`[GOOGLE-PODCAST] Duration from TTS merge: ${audioDurationSeconds}s`);
+    }
+
+    // Final fallback: estimate from word count (roughly 150 words per minute)
+    if (!audioDurationSeconds) {
+      const wordCount = audioResult.transcript.split(/\s+/).length;
+      audioDurationSeconds = Math.round((wordCount / 150) * 60);
+      logger.info(`[GOOGLE-PODCAST] Duration estimated from word count: ${audioDurationSeconds}s (${wordCount} words)`);
+    }
+
+    const estimatedDuration = audioDurationSeconds;
 
     // Step 5: Save to contenthistory if user is authenticated
     let contentHistoryId = null;

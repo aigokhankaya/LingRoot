@@ -1267,7 +1267,7 @@ exports.assignPlanToUser = async (req, res) => {
 
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('id, name, price, description, features, interval')
+      .select('id, name, price, is_active, description, features, interval, created_at')
       .eq('id', planId)
       .single();
 
