@@ -388,7 +388,7 @@ exports.getMyPlanFeatures = async (req, res) => {
     // plan_id kolonu varsa onu da al (bazı migrasyonlarda plan_id eklendi)
     const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
-      .select("stripepriceid, status")
+      .select("plan_id, stripepriceid, status")
       .eq("user_id", userId)
       .eq("status", "active")
       .order("created_at", { ascending: false })
