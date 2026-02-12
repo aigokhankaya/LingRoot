@@ -52,6 +52,7 @@ const TopicTreeScreenContent: React.FC = () => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
+  const [isTtsJobLocked, setIsTtsJobLocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Voice selection from VoiceSelector component
@@ -125,6 +126,17 @@ const TopicTreeScreenContent: React.FC = () => {
   useFocusEffect(useCallback(() => {
     loadTopics();
     AnalyticsHelper.logScreenView('TopicTree', 'TopicTreeScreen');
+
+    // Check for active TTS job on focus (like CreateScreen does)
+    const checkActiveJob = async () => {
+      try {
+        const res = await ttsService.getActiveTtsJob();
+        setIsTtsJobLocked(res?.hasActiveJob === true);
+      } catch {
+        setIsTtsJobLocked(false);
+      }
+    };
+    checkActiveJob();
   }, [loadTopics]));
 
   // --- Helpers ---
@@ -324,6 +336,18 @@ const TopicTreeScreenContent: React.FC = () => {
 
   const handleCreateAudio = async () => {
     if (!activeTopic) return;
+    if (isTtsJobLocked) {
+      showAlert(
+        language === 'tr' ? 'Bilgi' : 'Info',
+        language === 'tr'
+          ? 'Ses oluşturma süreci devam ediyor. Lütfen mevcut işlemin bitmesini bekleyin.'
+          : 'An audio creation process is already running. Please wait for it to finish.',
+        [{ text: 'OK', style: 'default' }],
+        'info-outline',
+        '#3B82F6'
+      );
+      return;
+    }
     if (!voiceSelection?.voiceName) {
       showAlert(
         language === 'tr' ? 'Uyarı' : 'Warning',
@@ -372,8 +396,9 @@ const TopicTreeScreenContent: React.FC = () => {
       // Generate narration text from topic subject
       const res = await generateTopicNarrationFromSubject(topicSubject, lvl);
       const data = (res as Record<string, unknown>)?.data || res;
-      const generatedText = (data as Record<string, unknown>)?.translated_text as string ||
-        (data as Record<string, unknown>)?.adapted_text as string || '';
+      // adapted_text = English (for TTS), translated_text = Turkish (fallback only)
+      const generatedText = (data as Record<string, unknown>)?.adapted_text as string ||
+        (data as Record<string, unknown>)?.translated_text as string || '';
 
       if (!generatedText) {
         showAlert(
@@ -407,6 +432,7 @@ const TopicTreeScreenContent: React.FC = () => {
       if (ttsResponse.success) {
         setSuccessEstimatedTime(ttsResponse.estimatedTime || '2-5 minutes');
         setShowSuccessAlert(true);
+        setIsTtsJobLocked(true);
 
         AnalyticsHelper.logEvent('content_creation_complete', {
           type: 'narration',
@@ -570,19 +596,21 @@ const TopicTreeScreenContent: React.FC = () => {
                 />
 
                 <TouchableOpacity
-                  style={[styles.actionBtnPrimary, { marginTop: 12 }, isGeneratingNarration && { opacity: 0.7 }]}
-                  disabled={isGeneratingNarration}
+                  style={[styles.actionBtnPrimary, { marginTop: 12 }, (isGeneratingNarration || isTtsJobLocked) && { opacity: 0.7 }]}
+                  disabled={isGeneratingNarration || isTtsJobLocked}
                   onPress={handleCreateAudio}
                 >
                   {isGeneratingNarration ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Icon name="campaign" size={22} color="#FFFFFF" />
+                    <Icon name={isTtsJobLocked ? 'hourglass-top' : 'campaign'} size={22} color="#FFFFFF" />
                   )}
                   <Text style={styles.actionBtnLabelPrimary}>
                     {isGeneratingNarration
                       ? (language === 'tr' ? 'Oluşturuluyor...' : 'Generating...')
-                      : (language === 'tr' ? 'Ses Oluştur' : 'Create Audio')}
+                      : isTtsJobLocked
+                        ? (language === 'tr' ? 'Ses Hazırlanıyor...' : 'Audio Processing...')
+                        : (language === 'tr' ? 'Ses Oluştur' : 'Create Audio')}
                   </Text>
                 </TouchableOpacity>
               </View>

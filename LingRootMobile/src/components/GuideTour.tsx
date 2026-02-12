@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CopilotProvider, useCopilot, TooltipProps } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
@@ -568,7 +568,7 @@ export const TourProvider: React.FC<{
     backdropColor="rgba(0, 0, 0, 0.7)"
     tooltipComponent={tooltip as unknown as React.ComponentType<TooltipProps>}
     stepNumberComponent={() => null}
-    verticalOffset={0}
+    verticalOffset={Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0}
     svgMaskPath={(maskPath || roundedMaskPath) as unknown as (args: Record<string, unknown>) => string}
     margin={16}
     arrowColor={COLORS.brandTeal}

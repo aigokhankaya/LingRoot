@@ -12,23 +12,23 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import secureStorage from './secureStorage';
 import { getApiBaseUrl } from './environmentConfig';
-import { EXPO_PUBLIC_MFA_API_URL } from '@env';
+import { EXPO_PUBLIC_API_URL, EXPO_PUBLIC_MFA_API_URL } from '@env';
 
-// Determine Base URLs
-let API_BASE_URL = 'https://lingloops-backend.onrender.com';
-let MFA_API_BASE_URL = 'https://lingloops-backend.onrender.com'; // Default to same as main API
+// Determine Base URLs from @env (synchronous, available at build time)
+const PRODUCTION_URL = 'https://lingroot-production.up.railway.app';
+const rawEnvUrl = (EXPO_PUBLIC_API_URL || '').trim().replace(/^\uFEFF/, '');
+const resolvedApiUrl = rawEnvUrl.startsWith('http') ? rawEnvUrl : PRODUCTION_URL;
 
-// Initialize logic (simplified for immediate usage, async init might be needed for perfect sync)
+let API_BASE_URL = resolvedApiUrl;
+let MFA_API_BASE_URL = EXPO_PUBLIC_MFA_API_URL || resolvedApiUrl;
+
+// Also update from async config (in case of dynamic overrides)
 getApiBaseUrl().then(url => {
     API_BASE_URL = url;
     if (!EXPO_PUBLIC_MFA_API_URL) {
         MFA_API_BASE_URL = url;
     }
 });
-
-if (EXPO_PUBLIC_MFA_API_URL) {
-    MFA_API_BASE_URL = EXPO_PUBLIC_MFA_API_URL;
-}
 
 // Global unauthorized handler
 let unauthorizedHandler: (() => void) | null = null;
@@ -86,7 +86,7 @@ mfaApiClient.interceptors.request.use(
                 config.headers.Authorization = `Bearer ${token}`;
             }
             // Ensure baseURL is up to date if it wasn't ready at creation
-            if (config.baseURL === 'https://lingloops-backend.onrender.com' && MFA_API_BASE_URL !== 'https://lingloops-backend.onrender.com') {
+            if (config.baseURL === resolvedApiUrl && MFA_API_BASE_URL !== resolvedApiUrl) {
                 config.baseURL = MFA_API_BASE_URL;
             }
         } catch (error) {

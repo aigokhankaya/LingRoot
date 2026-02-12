@@ -50,7 +50,7 @@ export async function initializeApiClient(): Promise<LingRootApiClient> {
 
     initPromise = (async () => {
         const baseUrl = await getApiBaseUrl();
-        console.log('🔗 [API Client] Initializing with baseUrl:', baseUrl);
+        console.warn('[DEBUG-URL] API Client baseUrl:', baseUrl);
 
         clientInstance = createApiClient({
             baseUrl,
@@ -136,6 +136,7 @@ export async function wakeBackendIfNeeded(force: boolean = false): Promise<boole
         }
 
         const healthUrl = `${baseUrl}/api/health`;
+        console.warn('[DEBUG-URL] Health check URL:', healthUrl);
         const res = await fetch(healthUrl, { method: 'GET' });
         if (res.ok) {
             lastBackendAwakeAt = Date.now();

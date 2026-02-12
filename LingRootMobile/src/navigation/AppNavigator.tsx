@@ -312,6 +312,7 @@ const MainTabsContent = () => {
         headerTransparent: true,
         headerBackground: () => <BlurHeader />,
         headerTintColor: COLORS.slate900,
+        headerTitleAlign: 'center',
         headerTitleStyle: {
           fontWeight: '700',
           color: COLORS.slate900,
