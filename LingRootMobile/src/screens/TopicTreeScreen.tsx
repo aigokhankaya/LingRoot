@@ -53,6 +53,7 @@ const TopicTreeScreenContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [isTtsJobLocked, setIsTtsJobLocked] = useState(false);
+  const [ttsJobMessage, setTtsJobMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Voice selection from VoiceSelector component
@@ -131,9 +132,20 @@ const TopicTreeScreenContent: React.FC = () => {
     const checkActiveJob = async () => {
       try {
         const res = await ttsService.getActiveTtsJob();
-        setIsTtsJobLocked(res?.hasActiveJob === true);
+        if (res?.hasActiveJob === true) {
+          setIsTtsJobLocked(true);
+          setTtsJobMessage(
+            language === 'tr'
+              ? 'Ses oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
+              : 'An audio creation process is still running. Please wait for it to finish.'
+          );
+        } else {
+          setIsTtsJobLocked(false);
+          setTtsJobMessage(null);
+        }
       } catch {
         setIsTtsJobLocked(false);
+        setTtsJobMessage(null);
       }
     };
     checkActiveJob();
@@ -453,15 +465,19 @@ const TopicTreeScreenContent: React.FC = () => {
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
       if (error?.code === 'TTS_JOB_IN_PROGRESS') {
+        const msg = language === 'tr'
+          ? 'Ses oluşturma süreci devam ediyor. Lütfen mevcut işlemin bitmesini bekleyin.'
+          : 'An audio creation process is already running. Please wait for it to finish.';
+        setIsTtsJobLocked(true);
+        setTtsJobMessage(msg);
         showAlert(
           language === 'tr' ? 'Bilgi' : 'Info',
-          language === 'tr'
-            ? 'Ses oluşturma süreci devam ediyor. Lütfen mevcut işlemin bitmesini bekleyin.'
-            : 'An audio creation process is already running. Please wait for it to finish.',
+          msg,
           [{ text: 'OK', style: 'default' }],
           'info-outline',
           '#3B82F6'
         );
+        return;
       } else {
         showAlert(
           language === 'tr' ? 'Hata' : 'Error',
@@ -482,6 +498,22 @@ const TopicTreeScreenContent: React.FC = () => {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#E0F7FA', '#F1F5F9']} style={StyleSheet.absoluteFillObject} />
+
+      {/* TTS Job Lock Overlay */}
+      {isTtsJobLocked && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color={COLORS.brandTeal} />
+            <Text style={styles.loadingText}>
+              {ttsJobMessage ||
+                (language === 'tr'
+                  ? 'Ses oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
+                  : 'An audio creation process is still running. Please wait for it to finish.')}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
         {/* STEP 1: CREATE NEW TOPIC — always a CopilotStep */}
@@ -825,6 +857,11 @@ const styles = StyleSheet.create({
   successProgressText: { fontSize: 13, color: COLORS.brandTeal, fontWeight: '600' },
   successModalButton: { width: '100%', backgroundColor: COLORS.brandTeal, paddingVertical: 16, borderRadius: 16, alignItems: 'center', shadowColor: COLORS.brandTeal, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 4 },
   successModalButtonText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
+  // Loading Overlay (TTS Job Lock)
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255, 255, 255, 0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  loadingCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 32, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 8, maxWidth: 300 },
+  loadingText: { marginTop: 16, fontSize: 15, color: '#475569', textAlign: 'center', lineHeight: 22 },
 });
 
 const TopicTreeScreen: React.FC = () => (
