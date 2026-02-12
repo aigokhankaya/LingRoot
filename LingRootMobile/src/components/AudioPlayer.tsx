@@ -1647,134 +1647,154 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </TouchableOpacity>
 
         {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
-        {/* For podcast content, horizontal scroll is disabled - original text shown inline in bubbles */}
-        <ScrollView
-          ref={horizontalScrollRef}
-          horizontal
-          pagingEnabled
-          scrollEnabled={!isPodcastTranscript}
-          showsHorizontalScrollIndicator={false}
-          directionalLockEnabled={true}
-          scrollEventThrottle={16}
-          onMomentumScrollEnd={async (e) => {
-            const idx = Math.round((e.nativeEvent.contentOffset.x || 0) / screenWidth);
-            setPageIndex(idx);
-            if (idx === 1 && !originalText && !originalLoading) {
-              // Önce notification'dan gelen track.original_turkish'i kullanmayı dene
-              if (track.original_turkish) {
-                console.log('[AudioPlayer] Using track.original_turkish for originalText on first open:', {
-                  id: track.id,
-                  length: track.original_turkish.length,
-                });
-                setOriginalText(track.original_turkish);
-                return;
-              }
+        {/* For podcast: render vertical ScrollView directly (no horizontal wrapper) to fix Android nested scroll */}
+        {isPodcastTranscript ? (
+          <ScrollView
+            ref={scrollViewRef}
+            style={[styles.scrollContainer, { flex: 1, paddingTop: 8 }]}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+            showsVerticalScrollIndicator={true}
+            scrollEventThrottle={16}
+            removeClippedSubviews={false}
+            bounces={true}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setTextViewportHeight(height);
+            }}
+            onScroll={(event) => {
+              const offsetY = event.nativeEvent.contentOffset.y;
+              scrollOffsetRef.current = offsetY;
+            }}
+          >
+            <View style={styles.textWrapper}>
+              <PodcastDialogueView
+                dialogueSegments={dialogueSegments}
+                originalDialogueSegments={originalDialogueSegments}
+                currentDialogueIndex={currentDialogueIndex}
+                showOriginal={showOriginal}
+                wordsArray={wordsArray}
+                dialogueLineRanges={dialogueLineRanges}
+                onDialoguePress={handleDialoguePress}
+                onWordLongPress={handleWordLongPress}
+                language={lang}
+                dialogueRefs={dialogueRefs}
+              />
+            </View>
+          </ScrollView>
+        ) : (
+          <ScrollView
+            ref={horizontalScrollRef}
+            horizontal
+            pagingEnabled
+            scrollEnabled={true}
+            showsHorizontalScrollIndicator={false}
+            directionalLockEnabled={true}
+            scrollEventThrottle={16}
+            onMomentumScrollEnd={async (e) => {
+              const idx = Math.round((e.nativeEvent.contentOffset.x || 0) / screenWidth);
+              setPageIndex(idx);
+              if (idx === 1 && !originalText && !originalLoading) {
+                // Önce notification'dan gelen track.original_turkish'i kullanmayı dene
+                if (track.original_turkish) {
+                  console.log('[AudioPlayer] Using track.original_turkish for originalText on first open:', {
+                    id: track.id,
+                    length: track.original_turkish.length,
+                  });
+                  setOriginalText(track.original_turkish);
+                  return;
+                }
 
-              // Eğer track.original_turkish yoksa, backend'den içeriği çekmeye çalış
-              try {
-                setOriginalLoading(true);
-                const res = await getUserContentById(track.id);
-                if ((res as any)?.success && (res as any)?.data?.input) {
-                  setOriginalText((res as any).data.input);
+                // Eğer track.original_turkish yoksa, backend'den içeriği çekmeye çalış
+                try {
+                  setOriginalLoading(true);
+                  const res = await getUserContentById(track.id);
+                  if ((res as any)?.success && (res as any)?.data?.input) {
+                    setOriginalText((res as any).data.input);
+                  }
+                } catch (err) {
+                  // silent in production
+                } finally {
+                  setOriginalLoading(false);
                 }
-              } catch (err) {
-                // silent in production
-              } finally {
-                setOriginalLoading(false);
               }
-            }
-          }}
-          style={{ flex: 1 }}
-        >
-          <View style={{ width: screenWidth, flex: 1 }}>
-            <ScrollView
-              ref={scrollViewRef}
-              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-              scrollEventThrottle={16}
-              removeClippedSubviews={false}
-              bounces={true}
-              onLayout={(event) => {
-                const { height } = event.nativeEvent.layout;
-                setTextViewportHeight(height);
-              }}
-              onScroll={(event) => {
-                const offsetY = event.nativeEvent.contentOffset.y;
-                scrollOffsetRef.current = offsetY;
-                if (Math.floor(offsetY) % 100 === 0) {
-                  console.log(`📜 [SCROLL] Offset: ${offsetY.toFixed(0)}px`);
-                }
-              }}
-            >
-              <View style={styles.textWrapper}>
-                {pageIndex === 0 && (
-                  isPodcastTranscript
-                    ? <PodcastDialogueView
-                        dialogueSegments={dialogueSegments}
-                        originalDialogueSegments={originalDialogueSegments}
-                        currentDialogueIndex={currentDialogueIndex}
-                        showOriginal={showOriginal}
-                        wordsArray={wordsArray}
-                        dialogueLineRanges={dialogueLineRanges}
-                        onDialoguePress={handleDialoguePress}
-                        onWordLongPress={handleWordLongPress}
-                        language={lang}
-                        dialogueRefs={dialogueRefs}
-                      />
-                    : renderHighlightedText()
-                )}
-              </View>
-            </ScrollView>
-          </View>
-          <View style={{ width: screenWidth, flex: 1 }}>
-            <ScrollView
-              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
-              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-              scrollEventThrottle={16}
-              removeClippedSubviews={false}
-              bounces={true}
-            >
-              <Pressable>
-                <View style={styles.originalHeader}>
-                  <Text style={styles.originalTitle}>
-                    {t('audioPlayer.originalTurkishTitle')}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (copiedFeedback) return;
-                      perfLog.mark('copy:start');
-                      const textToCopy = originalText || track.original_turkish || '';
-                      if (textToCopy) {
-                        Clipboard.setString(textToCopy);
-                        perfLog.mark('copy:end');
-                        setCopiedFeedback(true);
-                        setTimeout(() => setCopiedFeedback(false), 1500);
-                      }
-                    }}
-                    style={styles.copyButton}
-                  >
-                    <Icon
-                      name={copiedFeedback ? 'check-circle' : 'content-copy'}
-                      size={20}
-                      color={copiedFeedback ? '#10B981' : COLORS.primary}
-                    />
-                  </TouchableOpacity>
+            }}
+            style={{ flex: 1 }}
+          >
+            <View style={{ width: screenWidth, flex: 1 }}>
+              <ScrollView
+                ref={scrollViewRef}
+                style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
+                contentContainerStyle={{ paddingHorizontal: 16 }}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                removeClippedSubviews={false}
+                bounces={true}
+                onLayout={(event) => {
+                  const { height } = event.nativeEvent.layout;
+                  setTextViewportHeight(height);
+                }}
+                onScroll={(event) => {
+                  const offsetY = event.nativeEvent.contentOffset.y;
+                  scrollOffsetRef.current = offsetY;
+                  if (Math.floor(offsetY) % 100 === 0) {
+                    console.log(`📜 [SCROLL] Offset: ${offsetY.toFixed(0)}px`);
+                  }
+                }}
+              >
+                <View style={styles.textWrapper}>
+                  {pageIndex === 0 && renderHighlightedText()}
                 </View>
-                {originalLoading ? (
-                  <Text style={styles.originalText}>
-                    {t('audioPlayer.originalLoading')}
-                  </Text>
-                ) : (
-                  <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
-                )}
-              </Pressable>
-            </ScrollView>
-          </View>
-        </ScrollView>
+              </ScrollView>
+            </View>
+            <View style={{ width: screenWidth, flex: 1 }}>
+              <ScrollView
+                style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
+                contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                removeClippedSubviews={false}
+                bounces={true}
+              >
+                <Pressable>
+                  <View style={styles.originalHeader}>
+                    <Text style={styles.originalTitle}>
+                      {t('audioPlayer.originalTurkishTitle')}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (copiedFeedback) return;
+                        perfLog.mark('copy:start');
+                        const textToCopy = originalText || track.original_turkish || '';
+                        if (textToCopy) {
+                          Clipboard.setString(textToCopy);
+                          perfLog.mark('copy:end');
+                          setCopiedFeedback(true);
+                          setTimeout(() => setCopiedFeedback(false), 1500);
+                        }
+                      }}
+                      style={styles.copyButton}
+                    >
+                      <Icon
+                        name={copiedFeedback ? 'check-circle' : 'content-copy'}
+                        size={20}
+                        color={copiedFeedback ? '#10B981' : COLORS.primary}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  {originalLoading ? (
+                    <Text style={styles.originalText}>
+                      {t('audioPlayer.originalLoading')}
+                    </Text>
+                  ) : (
+                    <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
+                  )}
+                </Pressable>
+              </ScrollView>
+            </View>
+          </ScrollView>
+        )}
 
         {/* Controls */}
         <PlaybackControls

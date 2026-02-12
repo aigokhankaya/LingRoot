@@ -1,7 +1,7 @@
 import { EXPO_PUBLIC_API_URL } from '@env';
 
 // Environment configuration
-const PRODUCTION_URL = 'https://lingloops-backend.onrender.com';
+const PRODUCTION_URL = 'https://lingroot-production.up.railway.app';
 
 // Normalize .env value (trim + remove potential BOM)
 const rawEnvUrl = (EXPO_PUBLIC_API_URL || '').trim().replace(/^\uFEFF/, '');

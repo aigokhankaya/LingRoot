@@ -19,8 +19,8 @@ import {
 } from './apiClient';
 
 // Backend URL - Will be set dynamically based on environment setting
-let API_BASE_URL = 'https://lingloops-backend.onrender.com';
-let MFA_API_BASE_URL = 'https://lingloops-backend.onrender.com'; // Default to same as main API
+let API_BASE_URL = 'https://lingroot-production.up.railway.app';
+let MFA_API_BASE_URL = 'https://lingroot-production.up.railway.app'; // Default to same as main API
 
 // Initialize API base URL from environment config
 getApiBaseUrl().then(url => {
@@ -375,6 +375,7 @@ export const apiService = {
   async processTextToSpeech(request: TTSRequest): Promise<TTSResponse> {
     try {
       const client = await getApiClientWithWake();
+      console.warn('[DEBUG-URL] TTS request baseURL:', client.http.defaults.baseURL);
       // apiClient.tts.process has same timeout (600000ms) configured
       // Cast to local TTSResponse type (minor type differences in 'level' field)
       return await client.tts.process(request) as unknown as TTSResponse;
@@ -471,6 +472,7 @@ export const apiService = {
   }): Promise<any> {
     try {
       const client = await getApiClientWithWake();
+      console.warn('[DEBUG-URL] Podcast request baseURL:', client.http.defaults.baseURL);
       // Map params to PodcastParams type
       const podcastParams = {
         topic: params.topic,
