@@ -6,6 +6,7 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import { AudioProvider } from './src/contexts/AudioContext';
 import { AlertProvider } from './src/contexts/AlertContext';
+import { TtsJobProvider } from './src/contexts/TtsJobContext';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuth } from './src/contexts/AuthContext';
@@ -89,11 +90,13 @@ export default function App() {
     <ErrorBoundary>
       <LanguageProvider>
         <AuthProvider>
-          <AudioProvider>
-            <AlertProvider>
-              <AppNavigator />
-            </AlertProvider>
-          </AudioProvider>
+          <TtsJobProvider>
+            <AudioProvider>
+              <AlertProvider>
+                <AppNavigator />
+              </AlertProvider>
+            </AudioProvider>
+          </TtsJobProvider>
         </AuthProvider>
       </LanguageProvider>
     </ErrorBoundary>
