@@ -37,11 +37,11 @@ function getDefaultFreeFeatures() {
     homepage_features: {
       text_input: true,
       youtube: false,
-      file_upload: false,
-      podcast: false,
-      topic_suggestions: true,
-      topic_tree: false,
-      book: false,
+      file_upload: true,
+      podcast: true,
+      topic_suggestions: false,
+      topic_tree: true,
+      book: true,
       liro: false,
       daily_usage_patterns: false,
     },
@@ -434,16 +434,20 @@ exports.deactivatePlan = async (req, res) => {
 // Get user's plan features
 // Get user's plan features
 exports.getMyPlanFeatures = async (req, res) => {
+  logger.info(`[getMyPlanFeatures] ENTRY - request received`);
   try {
     const userId = req.user?.id;
+    logger.info(`[getMyPlanFeatures] userId from req.user: ${userId}`);
     if (!userId) {
+      logger.warn(`[getMyPlanFeatures] No userId - returning 401`);
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     // Get user's active subscription with plantype for fallback matching
+    // Note: plan_id column may not exist in all environments - using stripepriceid as primary lookup
     const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
-      .select("id, plan_id, stripepriceid, plantype, status")
+      .select("id, stripepriceid, plantype, status")
       .eq("user_id", userId)
       .eq("status", "active")
       .order("created_at", { ascending: false })
@@ -455,9 +459,7 @@ exports.getMyPlanFeatures = async (req, res) => {
     }
 
     if (subError || !subscription) {
-      if (process.env.NODE_ENV !== 'production') {
-        logger.warn(`No active subscription for user ${userId} (or db error)`);
-      }
+      logger.info(`[getMyPlanFeatures] No active subscription for user ${userId} - returning FREE defaults`);
       // Return default free features
       return res.json({
         success: true,
@@ -469,32 +471,17 @@ exports.getMyPlanFeatures = async (req, res) => {
       });
     }
 
-    // 4-Stage Fallback Strategy for plan matching
-    // 1. plan_id → subscription_plans.id (direct FK)
-    // 2. stripepriceid → subscription_plans.id (UUID match)
-    // 3. stripepriceid → subscription_plans.stripe_price_id (text match)
-    // 4. plantype → subscription_plans.name (ILIKE match)
+    // 3-Stage Fallback Strategy for plan matching
+    // 1. stripepriceid → subscription_plans.id (UUID match)
+    // 2. stripepriceid → subscription_plans.stripe_price_id (text match)
+    // 3. plantype → subscription_plans.name (ILIKE match)
 
     let plan = null;
 
     // Log subscription data for debugging
-    logger.info(`[getMyPlanFeatures] User ${userId} subscription data: plan_id=${subscription.plan_id}, stripepriceid=${subscription.stripepriceid}, plantype=${subscription.plantype}`);
+    logger.info(`[getMyPlanFeatures] User ${userId} subscription data: stripepriceid=${subscription.stripepriceid}, plantype=${subscription.plantype}`);
 
-    // Stage 1: Try plan_id directly (most reliable if set)
-    if (subscription.plan_id) {
-      const { data: planData, error: planError } = await supabase
-        .from("subscription_plans")
-        .select("id, name, plan_features")
-        .eq("id", subscription.plan_id)
-        .maybeSingle();
-
-      if (!planError && planData) {
-        plan = planData;
-        logger.info(`[getMyPlanFeatures] Stage 1 match: plan_id=${subscription.plan_id} -> plan=${planData.name}`);
-      }
-    }
-
-    // Stage 2: Try stripepriceid as UUID against subscription_plans.id
+    // Stage 1: Try stripepriceid as UUID against subscription_plans.id
     if (!plan && subscription.stripepriceid) {
       const stripePriceId = subscription.stripepriceid.trim();
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stripePriceId);
@@ -508,12 +495,12 @@ exports.getMyPlanFeatures = async (req, res) => {
 
         if (!planError && planData) {
           plan = planData;
-          logger.info(`[getMyPlanFeatures] Stage 2 match: stripepriceid as UUID=${stripePriceId} -> plan=${planData.name}`);
+          logger.info(`[getMyPlanFeatures] Stage 1 match: stripepriceid as UUID=${stripePriceId} -> plan=${planData.name}`);
         }
       }
     }
 
-    // Stage 3: Try stripepriceid against subscription_plans.stripe_price_id (text match)
+    // Stage 2: Try stripepriceid against subscription_plans.stripe_price_id (text match)
     if (!plan && subscription.stripepriceid) {
       const stripePriceId = subscription.stripepriceid.trim();
       const { data: planData, error: planError } = await supabase
@@ -524,11 +511,11 @@ exports.getMyPlanFeatures = async (req, res) => {
 
       if (!planError && planData) {
         plan = planData;
-        logger.info(`[getMyPlanFeatures] Stage 3 match: stripe_price_id=${stripePriceId} -> plan=${planData.name}`);
+        logger.info(`[getMyPlanFeatures] Stage 2 match: stripe_price_id=${stripePriceId} -> plan=${planData.name}`);
       }
     }
 
-    // Stage 4: Try plantype against subscription_plans.name (ILIKE match)
+    // Stage 3: Try plantype against subscription_plans.name (ILIKE match)
     if (!plan && subscription.plantype) {
       const plantype = subscription.plantype.trim();
       const { data: planData, error: planError } = await supabase
@@ -540,14 +527,14 @@ exports.getMyPlanFeatures = async (req, res) => {
 
       if (!planError && planData) {
         plan = planData;
-        logger.info(`[getMyPlanFeatures] Stage 4 match: plantype ILIKE=${plantype} -> plan=${planData.name}`);
+        logger.info(`[getMyPlanFeatures] Stage 3 match: plantype ILIKE=${plantype} -> plan=${planData.name}`);
       }
     }
 
     // If no plan found after all stages, return premium defaults for active subscribers
     // (They have an active subscription, so they should get premium features)
     if (!plan) {
-      logger.warn(`[getMyPlanFeatures] No plan found for subscription ${subscription.id} after 4 stages. Returning premium defaults.`);
+      logger.warn(`[getMyPlanFeatures] No plan found for subscription ${subscription.id} after 3 stages. Returning premium defaults.`);
       return res.json({
         success: true,
         data: {
@@ -578,6 +565,7 @@ exports.getMyPlanFeatures = async (req, res) => {
     }
 
     // All good - return actual plan features
+    logger.info(`[getMyPlanFeatures] FINAL RESPONSE for user ${userId}: plan=${plan.name}, homepage_features=${JSON.stringify(planFeatures?.homepage_features)}`);
     return res.json({
       success: true,
       data: {

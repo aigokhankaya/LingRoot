@@ -84,6 +84,19 @@ export const AppHeader: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
+                        {/* Test Mode Badge - shows when using local API */}
+                        {(() => {
+                            const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                            const isLocal = apiUrl.includes('localhost') ||
+                                           apiUrl.includes('127.0.0.1') ||
+                                           /192\.168\.\d+\.\d+/.test(apiUrl) ||
+                                           /10\.\d+\.\d+\.\d+/.test(apiUrl);
+                            return isLocal ? (
+                                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                                    TEST
+                                </span>
+                            ) : null;
+                        })()}
                         {/* Compact Level Progress in Header */}
                         <div className="hidden md:block">
                             <LevelProgressBar compact={true} />

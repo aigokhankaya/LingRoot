@@ -303,7 +303,7 @@ exports.register = async (req, res) => {
     try {
       const { data: trialPlan, error: planErr } = await supabase
         .from('subscription_plans')
-        .select('id, name, price, plantype, is_active, audio_limit, features, monthly_price, yearly_price, description, created_at')
+        .select('id, name, price, is_active, features, description, created_at')
         .eq('name', 'Free Trial')
         .eq('is_active', true)
         .maybeSingle();
@@ -1033,7 +1033,7 @@ exports.verifyEmail = async (req, res) => {
     try {
       const { data: trialPlan, error: planErr } = await supabase
         .from('subscription_plans')
-        .select('id, name, price, plantype, is_active, audio_limit, features, monthly_price, yearly_price, description, created_at')
+        .select('id, name, price, is_active, features, description, created_at')
         .eq('name', 'Free Trial')
         .eq('is_active', true)
         .maybeSingle();
