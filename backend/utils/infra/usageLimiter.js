@@ -79,16 +79,7 @@ async function getActiveSubscriptionWithPlan(userId) {
   const sub = best;
   let plan = null;
   try {
-    // 1) Legacy by plan_id
-    if (!plan && sub.plan_id) {
-      const { data: planRow } = await supabase
-        .from('subscription_plans')
-        .select('*')
-        .eq('id', sub.plan_id)
-        .single();
-      if (planRow) plan = planRow;
-    }
-    // 2) Match by stripepriceid as plan ID (most common case - admin assigned or IAP)
+    // 1) Match by stripepriceid as plan ID (most common case - admin assigned or IAP)
     if (!plan && sub.stripepriceid) {
       const { data: planRow } = await supabase
         .from('subscription_plans')

@@ -173,21 +173,36 @@ const HomeScreenContent: React.FC = () => {
 
   const isAdmin = user?.role === 'admin';
 
+  // DEBUG: Log filter inputs
+  console.log('[HomeScreen] DEBUG - isAdmin:', isAdmin);
+  console.log('[HomeScreen] DEBUG - planFeatures:', JSON.stringify(planFeatures, null, 2));
+  console.log('[HomeScreen] DEBUG - planFeatures?.homepage_features:', planFeatures?.homepage_features);
+
   // Filter features based on plan (admin sees all)
   const features = allFeatures.filter(feature => {
     if (isAdmin) return true;
     if (!feature.featureKey) return true;
     if (!planFeatures?.homepage_features) {
-      return (
+      // Free paket default özellikleri (Admin paneli ile senkron)
+      const isVisible = (
         feature.featureKey === 'text_input' ||
-        feature.featureKey === 'topic_tree'
+        feature.featureKey === 'file_upload' ||
+        feature.featureKey === 'podcast' ||
+        feature.featureKey === 'topic_tree' ||
+        feature.featureKey === 'book'
       );
+      console.log(`[HomeScreen] DEBUG - Feature "${feature.featureKey}" (no homepage_features): ${isVisible}`);
+      return isVisible;
     }
     const homepage = planFeatures.homepage_features;
     const key = feature.featureKey as keyof typeof homepage;
     const rawValue = homepage[key];
-    return rawValue === true || (feature.featureKey === 'topic_tree' && rawValue === undefined);
+    const isVisible = rawValue === true || (feature.featureKey === 'topic_tree' && rawValue === undefined);
+    console.log(`[HomeScreen] DEBUG - Feature "${feature.featureKey}" rawValue=${rawValue}: ${isVisible}`);
+    return isVisible;
   });
+
+  console.log('[HomeScreen] DEBUG - Visible features:', features.map(f => f.featureKey));
 
   // Fetch user statistics
   const fetchUserStats = async () => {
@@ -250,7 +265,17 @@ const HomeScreenContent: React.FC = () => {
     perfLog.start('fetchPlanFeatures', 'HomeScreen');
     try {
       // Pass userId to enable user-aware caching
-      const result = await getMyPlanFeatures(user?.id);
+      // onRefresh callback updates UI when background refresh completes
+      const result = await getMyPlanFeatures(
+        user?.id,
+        false,
+        (refreshedData) => {
+          console.log('[HomeScreen] Background refresh received, updating UI');
+          setPlanFeatures(refreshedData.features);
+        }
+      );
+      console.log('[HomeScreen] DEBUG - Plan features from API:', JSON.stringify(result, null, 2));
+      console.log('[HomeScreen] DEBUG - homepage_features:', JSON.stringify(result.features?.homepage_features, null, 2));
       setPlanFeatures(result.features);
     } catch (error) {
       console.error('Error loading plan features:', error);
@@ -341,6 +366,8 @@ const HomeScreenContent: React.FC = () => {
     React.useCallback(() => {
       perfLog.mark('home:focus:start');
       fetchUserStats().then(() => perfLog.mark('home:focus:fetchDone'));
+      // Refresh plan features on focus (uses stale-while-revalidate cache strategy)
+      fetchPlanFeatures();
       return () => { };
     }, [user?.id])
   );
