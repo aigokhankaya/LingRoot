@@ -39,8 +39,7 @@ async function getExpiredSubscriptions() {
         .from('subscriptions')
         .select(`
       *,
-      users!inner(id, email, firstname, lastname),
-      subscription_plans!plan_id(id, name)
+      users!inner(id, email, firstname, lastname)
     `)
         .eq('status', 'active')
         .lt('enddate', now)
@@ -80,8 +79,7 @@ async function downgradeUserToFreeTrial(userId, freeTrialPlan, existingSubscript
         // Yeni Free Trial aboneliği oluştur
         const newSubscription = {
             user_id: userId,
-            plan_id: freeTrialPlan.id,
-            stripepriceid: freeTrialPlan.id, // Plan ID'yi stripepriceid olarak da set et (usageLimiter uyumu için)
+            stripepriceid: freeTrialPlan.id, // Plan ID'yi stripepriceid olarak set et (usageLimiter plan lookup için)
             plantype: 'Free Trial',
             status: 'active',
             startdate: new Date().toISOString(),
@@ -152,7 +150,7 @@ async function downgradeAllExpiredSubscriptions() {
     for (const sub of expiredSubscriptions) {
         const userId = sub.user_id;
         const userEmail = sub.users?.email || 'unknown';
-        const oldPlan = sub.subscription_plans?.name || sub.plantype || 'Unknown';
+        const oldPlan = sub.plantype || 'Unknown';
 
         const result = await downgradeUserToFreeTrial(userId, freeTrialPlan, sub);
 
