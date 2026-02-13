@@ -262,7 +262,24 @@ exports.verifyAppleReceipt = async (req, res) => {
       
       // Same transaction but different plan OR different transaction with same original = upgrade/downgrade
       logger.info(`[IAP] 🔄 Detected upgrade/downgrade from ${existingSub.plantype} to ${plan.name}`);
-      
+
+      // Deactivate all OTHER active subscriptions for this user (cleanup duplicates)
+      const { error: deactivateError } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'cancelled',
+          enddate: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .neq('id', existingSub.id);
+
+      if (deactivateError) {
+        logger.error(`[IAP] Error deactivating other subscriptions during upgrade:`, deactivateError);
+      } else {
+        logger.info(`[IAP] Deactivated other active subscriptions for user ${userId} during upgrade`);
+      }
+
       // Update existing subscription instead of creating new one
       const expiresDate = new Date(parseInt(latestReceiptInfo.expires_date_ms));
       const purchaseDate = new Date(parseInt(latestReceiptInfo.purchase_date_ms));
