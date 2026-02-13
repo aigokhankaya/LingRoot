@@ -10,6 +10,14 @@ const isValidEnvUrl = rawEnvUrl.startsWith('http');
 // If .env has a valid URL use it; otherwise fall back to production backend URL
 const resolvedApiUrl = isValidEnvUrl ? rawEnvUrl : PRODUCTION_URL;
 
+// Local URL detection for test mode badge
+const isLocalUrl = (url: string): boolean => {
+  return url.includes('localhost') ||
+         url.includes('127.0.0.1') ||
+         /192\.168\.\d+\.\d+/.test(url) ||
+         /10\.\d+\.\d+\.\d+/.test(url);
+};
+
 console.log('🌐 [ENV CONFIG] Raw EXPO_PUBLIC_API_URL from @env:', EXPO_PUBLIC_API_URL || '(empty)');
 console.log('🌐 [ENV CONFIG] Resolved API URL:', resolvedApiUrl);
 
@@ -32,7 +40,7 @@ export async function getEnvironmentConfig(): Promise<EnvironmentConfig> {
   }
 
   const config: EnvironmentConfig = {
-    environment: 'production',
+    environment: isLocalUrl(resolvedApiUrl) ? 'test' : 'production',
     baseUrl: resolvedApiUrl,
   };
   

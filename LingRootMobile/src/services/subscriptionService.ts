@@ -121,33 +121,57 @@ const saveToCache = async (data: UserPlanFeatures, userId: string): Promise<void
 };
 
 const fetchFromApi = async (): Promise<UserPlanFeatures> => {
-    const client = await getApiClientAsync();
-    // Uses corrected endpoint: /api/subscription/my-features
-    const response = await client.subscription.getMyPlanFeatures();
-    if (response.success) {
-        const responseData = (response as any).data;
-        if (!responseData) return getDefaultPlanFeatures();
-        return {
-            plan_id: responseData.plan_id || null,
-            plan_name: responseData.plan_name || null,
-            features: responseData.features || {}
-        };
+    try {
+        const client = await getApiClientAsync();
+        console.log('[PlanFeatures] Calling API /api/subscription/my-features...');
+        // Uses corrected endpoint: /api/subscription/my-features
+        const response = await client.subscription.getMyPlanFeatures();
+        console.log('[PlanFeatures] API response:', JSON.stringify(response, null, 2));
+        if (response.success) {
+            const responseData = (response as any).data;
+            if (!responseData) {
+                console.warn('[PlanFeatures] API success but no data - returning defaults');
+                return getDefaultPlanFeatures();
+            }
+            console.log('[PlanFeatures] Got features from API:', responseData.plan_name, responseData.features?.homepage_features);
+            return {
+                plan_id: responseData.plan_id || null,
+                plan_name: responseData.plan_name || null,
+                features: responseData.features || {}
+            };
+        }
+        console.warn('[PlanFeatures] API returned success=false - returning defaults');
+        return getDefaultPlanFeatures();
+    } catch (error: unknown) {
+        const err = error as { response?: { status?: number; data?: unknown }; message?: string };
+        console.error('[PlanFeatures] API call failed:', {
+            status: err?.response?.status,
+            data: err?.response?.data,
+            message: err?.message
+        });
+        return getDefaultPlanFeatures();
     }
-    return getDefaultPlanFeatures();
 };
 
 // Background refresh without blocking
-const refreshInBackground = (userId: string): void => {
+const refreshInBackground = (userId: string, onRefresh?: (data: UserPlanFeatures) => void): void => {
     console.log('[PlanFeatures] Background refresh started');
     fetchFromApi()
-        .then(data => saveToCache(data, userId))
+        .then(data => {
+            saveToCache(data, userId);
+            if (onRefresh) {
+                console.log('[PlanFeatures] Background refresh complete, calling onRefresh');
+                onRefresh(data);
+            }
+        })
         .catch(err => console.warn('[PlanFeatures] Background refresh failed:', err));
 };
 
 // Get user's plan features with caching
 export const getMyPlanFeatures = async (
     userId?: string,
-    forceRefresh = false
+    forceRefresh = false,
+    onRefresh?: (data: UserPlanFeatures) => void
 ): Promise<UserPlanFeatures> => {
     const startTime = Date.now();
     const effectiveUserId = userId || 'anonymous';
@@ -157,7 +181,7 @@ export const getMyPlanFeatures = async (
         const elapsed = Date.now() - startTime;
         console.log(`[PlanFeatures] Cache HIT (memory) - ${elapsed}ms`);
         if (isCacheStale(memoryCache)) {
-            refreshInBackground(effectiveUserId);
+            refreshInBackground(effectiveUserId, onRefresh);
         }
         return memoryCache.data;
     }
@@ -170,13 +194,13 @@ export const getMyPlanFeatures = async (
             const elapsed = Date.now() - startTime;
             console.log(`[PlanFeatures] Cache HIT (storage) - ${elapsed}ms`);
             if (isCacheStale(cached)) {
-                refreshInBackground(effectiveUserId);
+                refreshInBackground(effectiveUserId, onRefresh);
             }
             return cached.data;
         }
     }
 
-    // 3. API call (cache miss)
+    // 3. API call (cache miss or force refresh)
     console.log('[PlanFeatures] Cache MISS - fetching from API...');
     try {
         const result = await fetchFromApi();
@@ -210,11 +234,11 @@ export const getDefaultPlanFeatures = (): UserPlanFeatures => {
             homepage_features: {
                 text_input: true,
                 youtube: false,
-                file_upload: false,
-                podcast: false,
-                topic_suggestions: true,
-                topic_tree: false,
-                book: false,
+                file_upload: true,
+                podcast: true,
+                topic_suggestions: false,
+                topic_tree: true,
+                book: true,
                 liro: false,
                 daily_usage_patterns: false,
             },
