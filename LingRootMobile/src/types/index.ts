@@ -1,3 +1,17 @@
+// Notification Types
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  isRead: boolean;
+  link?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 // User Types
 export interface User {
   id: string;
@@ -154,8 +168,10 @@ export type RootStackParamList = {
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   ReminderSettings: undefined;
+  ReminderTest: undefined;
   TtsProviderSettings: undefined;
   TopicTree: undefined;
+  Notifications: undefined;
   AudioPlayer: { track: AudioTrack; highlightMode?: 'word' | 'sentence' };
 };
 

@@ -100,6 +100,10 @@ export const PROFILE_TOUR_STEPS: Record<string, { tr: string; en: string }> = {
     tr: 'Hesap bilgilerini ve şifre ayarlarını buradan yönet.',
     en: 'Manage your account info and password settings here.',
   },
+  profileNotifications: {
+    tr: 'Gelen bildirimlerini burada görüntüle. Okunmamış bildirimler belirgin olarak gösterilir.',
+    en: 'View your incoming notifications here. Unread notifications are highlighted.',
+  },
   profileLanguage: {
     tr: 'Uygulama dilini Türkçe veya İngilizce olarak değiştir.',
     en: 'Change the app language to Turkish or English.',
@@ -125,11 +129,12 @@ export const PROFILE_TOUR_STEPS: Record<string, { tr: string; en: string }> = {
 // Map profile menu item IDs to tour step config
 export const PROFILE_MENU_TOUR_MAP: Record<number, { order: number; name: string }> = {
   1: { order: 2, name: 'profileSettings' },
-  1.5: { order: 3, name: 'profileLanguage' },
-  2: { order: 4, name: 'profileReminder' },
-  3: { order: 5, name: 'profileUsage' },
-  3.2: { order: 6, name: 'profilePackages' },
-  3.5: { order: 7, name: 'profileSupport' },
+  1.2: { order: 3, name: 'profileNotifications' },
+  1.5: { order: 4, name: 'profileLanguage' },
+  2: { order: 5, name: 'profileReminder' },
+  3: { order: 6, name: 'profileUsage' },
+  3.2: { order: 7, name: 'profilePackages' },
+  3.5: { order: 8, name: 'profileSupport' },
 };
 
 // ---- Create Tour Steps ----

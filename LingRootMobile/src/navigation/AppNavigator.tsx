@@ -43,9 +43,11 @@ const PackagesScreenLazy = React.lazy(() => import('../screens/PackagesScreen'))
 const PrivacyPolicyScreenLazy = React.lazy(() => import('../screens/PrivacyPolicyScreen'));
 const TermsOfServiceScreenLazy = React.lazy(() => import('../screens/TermsOfServiceScreen'));
 const ReminderSettingsScreenLazy = React.lazy(() => import('../screens/ReminderSettingsScreen'));
+const ReminderTestScreenLazy = React.lazy(() => import('../screens/ReminderTestScreen'));
 const TtsProviderSettingsScreenLazy = React.lazy(() => import('../screens/TtsProviderSettingsScreen'));
 const LiroScreenLazy = React.lazy(() => import('../screens/LiroScreen'));
 const AudioPlayerScreenLazy = React.lazy(() => import('../screens/AudioPlayerScreen'));
+const NotificationsScreenLazy = React.lazy(() => import('../screens/NotificationsScreen'));
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -868,6 +870,32 @@ const AppNavigator = () => {
                   headerTintColor: COLORS.slate900,
                   headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                   headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
+                  headerBackTitle: t('common.back'),
+                }}
+              />
+              <Stack.Screen
+                name="ReminderTest"
+                component={withLazy(ReminderTestScreenLazy)}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: language === 'tr' ? 'Test Ekranı' : 'Test Screen',
+                  headerBackTitle: t('common.back'),
+                }}
+              />
+              <Stack.Screen
+                name="Notifications"
+                component={withLazy(NotificationsScreenLazy)}
+                options={{
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerBackground: () => <BlurHeader />,
+                  headerTintColor: COLORS.slate900,
+                  headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
+                  headerTitle: language === 'tr' ? 'Bildirimler' : 'Notifications',
                   headerBackTitle: t('common.back'),
                 }}
               />

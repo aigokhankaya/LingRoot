@@ -45,13 +45,13 @@ const getNotifications = async (req, res) => {
             id: n.id,
             userId: n.user_id,
             title: n.title,
-            message: n.message,
+            message: n.body,  // DB'de body, API'de message olarak dön
             type: n.type,
             isRead: n.is_read,
             link: n.link,
-            metadata: n.metadata,
+            metadata: n.data || n.metadata,
             createdAt: n.created_at,
-            updatedAt: n.updated_at
+            readAt: n.read_at
         }));
 
         res.json({
@@ -248,12 +248,11 @@ const sendNotification = async (req, res) => {
                 const notificationsToCreate = users.map(user => ({
                     user_id: user.id,
                     title,
-                    message,
+                    body: message,  // API'den message gelir, DB'ye body olarak yaz
                     type,
                     link,
                     is_read: false,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
+                    created_at: new Date().toISOString()
                 }));
 
                 // Chunk inserts to avoid request limits (e.g. 100 at a time)
@@ -278,12 +277,11 @@ const sendNotification = async (req, res) => {
                 .insert([{
                     user_id: userId,
                     title,
-                    message,
+                    body: message,  // API'den message gelir, DB'ye body olarak yaz
                     type,
                     link,
                     is_read: false,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
+                    created_at: new Date().toISOString()
                 }]);
 
             if (error) {
@@ -336,11 +334,11 @@ const getNotificationHistory = async (req, res) => {
             id: n.id,
             userId: n.user_id,
             title: n.title,
-            message: n.message,
+            message: n.body,  // DB'de body, API'de message olarak dön
             type: n.type,
             isRead: n.is_read,
             link: n.link,
-            metadata: n.metadata,
+            metadata: n.data || n.metadata,
             createdAt: n.created_at,
             user: n.users // Supabase returns the relation as 'users' object/array
         }));
@@ -393,6 +391,53 @@ const deleteNotificationAdmin = async (req, res) => {
     }
 };
 
+/**
+ * Create a vocabulary reminder notification
+ * Called from mobile when a vocabulary reminder is scheduled/shown
+ */
+const createVocabularyReminder = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { wordId, word, definition } = req.body;
+
+        if (!word) {
+            return res.status(400).json({
+                success: false,
+                message: 'Kelime zorunludur'
+            });
+        }
+
+        const { error } = await supabase
+            .from('notifications')
+            .insert([{
+                user_id: userId,
+                title: 'Kelime Hatırlatıcısı',
+                body: definition ? `${word} — ${definition}` : word,
+                type: 'vocabulary_reminder',
+                is_read: false,
+                data: wordId ? { wordId } : null,
+                created_at: new Date().toISOString()
+            }]);
+
+        if (error) {
+            logger.error('[NOTIFICATION] Supabase error creating vocabulary reminder:', error);
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            message: 'Kelime hatırlatıcı bildirimi oluşturuldu'
+        });
+    } catch (error) {
+        logger.error('[NOTIFICATION] Error creating vocabulary reminder:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Bildirim oluşturulurken hata oluştu',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     // User functions
     getNotifications,
@@ -400,6 +445,7 @@ module.exports = {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    createVocabularyReminder,
     // Admin functions
     sendNotification,
     getNotificationHistory,

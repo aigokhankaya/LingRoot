@@ -21,4 +21,7 @@ router.put('/read-all', notificationController.markAllAsRead);
 // Delete a notification
 router.delete('/:id', notificationController.deleteNotification);
 
+// Create vocabulary reminder notification (called from mobile)
+router.post('/vocabulary-reminder', notificationController.createVocabularyReminder);
+
 module.exports = router;
