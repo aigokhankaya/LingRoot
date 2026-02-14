@@ -197,10 +197,60 @@ export async function getUnreadNotifications(): Promise<any[]> {
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
     const client = await getApiClientAsync();
     try {
-        await client.http.post(`/api/tts/notifications/${notificationId}/read`);
+        await client.http.put(`/api/notifications/${notificationId}/read`);
     } catch {
         try {
-            await client.http.post(`/api/notifications/${notificationId}/read`);
+            await client.http.post(`/api/tts/notifications/${notificationId}/read`);
         } catch { }
     }
+}
+
+/**
+ * Get all notifications (paginated)
+ */
+export async function getAllNotifications(limit: number = 50, offset: number = 0): Promise<{ notifications: any[]; total: number }> {
+    const client = await getApiClientAsync();
+    try {
+        const response = await client.http.get(`/api/notifications?limit=${limit}&offset=${offset}`);
+        return {
+            notifications: response.data?.notifications || response.data?.data || [],
+            total: response.data?.total || 0
+        };
+    } catch {
+        return { notifications: [], total: 0 };
+    }
+}
+
+/**
+ * Get notification unread count
+ */
+export async function getNotificationUnreadCount(): Promise<number> {
+    const client = await getApiClientAsync();
+    try {
+        const response = await client.http.get('/api/notifications/unread-count');
+        return response.data?.count || response.data?.unreadCount || 0;
+    } catch {
+        return 0;
+    }
+}
+
+/**
+ * Mark all notifications as read
+ */
+export async function markAllNotificationsAsRead(): Promise<void> {
+    const client = await getApiClientAsync();
+    await client.http.put('/api/notifications/read-all');
+}
+
+/**
+ * Create a vocabulary reminder notification in backend
+ * Called when a vocabulary reminder is scheduled/shown locally
+ */
+export async function createVocabularyNotification(wordId: string, word: string, definition?: string): Promise<void> {
+    const client = await getApiClientAsync();
+    await client.http.post('/api/notifications/vocabulary-reminder', {
+        wordId,
+        word,
+        definition
+    });
 }

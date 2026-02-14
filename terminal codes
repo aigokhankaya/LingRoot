@@ -195,6 +195,18 @@ F:\Main\.github\pull_request_template.md
 
 podcast_ling
 
+
+
+VDS: 
+srv.tojfjq-vulut.com
+root
+FvMt4TRR@Kp@
+ssh root@45.43.154.97 -p 25416   
+
+Lingroot
+linEy-167010?
+ssh lingroot@45.43.154.97 -p 25416  
+
 #MFA canlı loglar:
 sudo journalctl -u mfa -f 
 
@@ -241,3 +253,6 @@ sed -i 's/FORCED_ALIGNER_ENGINE=BFA/FORCED_ALIGNER_ENGINE=MFA/' /opt/lingroot/mf
                                                                                                                       
   # Servisi restart et                                                                                                
   sudo systemctl restart mfa      
+
+
+  cat /opt/lingroot/mfa/.env 

@@ -3,6 +3,7 @@ import type { VocabularyWord } from './api';
 import { getVocabulary } from './api';
 import { ReminderSettingsService, ReminderSettings } from './reminderSettingsService';
 import PushNotification from 'react-native-push-notification';
+import { createVocabularyNotification } from './userService';
 
 class NotificationService {
   private static instance: NotificationService;
@@ -243,6 +244,15 @@ class NotificationService {
             // No repeatType - one-time notifications only
           });
           this.scheduledCount += 1;
+
+          // Also save to backend notifications table
+          if (word?.id) {
+            createVocabularyNotification(
+              word.id.toString(),
+              word.word,
+              word.definition
+            ).catch(() => {});
+          }
         } catch (schedErr) {
           console.warn('[Notification] Schedule error:', schedErr);
           // Silent error handling
@@ -299,6 +309,15 @@ class NotificationService {
     });
     // Immediate + backup
     this.scheduledCount += 2;
+
+    // Also save to backend notifications table
+    if (word.id) {
+      createVocabularyNotification(
+        word.id.toString(),
+        word.word,
+        word.definition
+      ).catch(() => {});
+    }
   }
 
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {

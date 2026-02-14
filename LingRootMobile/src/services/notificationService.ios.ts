@@ -5,6 +5,7 @@ import { getVocabulary } from './api';
 import { ReminderSettingsService, ReminderSettings } from './reminderSettingsService';
 import PushNotification from 'react-native-push-notification';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createVocabularyNotification } from './userService';
 
 // iOS: Early configure and native listener preserved
 try {
@@ -207,6 +208,15 @@ class NotificationService {
             fireDate: when,
             repeats: false,
           });
+
+          // Also save to backend notifications table
+          if (word?.id) {
+            createVocabularyNotification(
+              word.id.toString(),
+              word.word,
+              word.definition
+            ).catch(() => {});
+          }
         } catch {
           PushNotificationIOS.scheduleLocalNotification({
             alertTitle: title,
@@ -216,6 +226,15 @@ class NotificationService {
             userInfo: { wordId: word?.id?.toString() || '' },
             fireDate: when.toISOString(),
           });
+
+          // Also save to backend notifications table
+          if (word?.id) {
+            createVocabularyNotification(
+              word.id.toString(),
+              word.word,
+              word.definition
+            ).catch(() => {});
+          }
         }
       }
       
@@ -289,10 +308,10 @@ class NotificationService {
   public async scheduleVocabularyNotification(word: VocabularyWord): Promise<void> {
     await this.initialize();
     const lang = await this.getLanguage();
-    
+
     PushNotificationIOS.presentLocalNotification({
       alertTitle: lang === 'tr' ? '🎯 LingRoot Kelime' : '🎯 LingRoot Word',
-      alertBody: lang === 'tr' 
+      alertBody: lang === 'tr'
         ? `${word.word} - ${word.definition || 'Tanım yok'}`
         : `${word.word} - ${word.definition || 'No definition'}`,
       soundName: 'default',
@@ -309,6 +328,15 @@ class NotificationService {
       userInfo: { wordId: word.id?.toString() || '' },
       fireDate: new Date(Date.now() + 3000).toISOString(),
     });
+
+    // Also save to backend notifications table
+    if (word.id) {
+      createVocabularyNotification(
+        word.id.toString(),
+        word.word,
+        word.definition
+      ).catch(() => {});
+    }
   }
 
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import {
   View,
@@ -14,12 +14,13 @@ import {
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import NotificationService from '../services/notificationService';
+import { getNotificationUnreadCount } from '../services/userService';
 import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
 import {
@@ -37,11 +38,34 @@ const ProfileScreenContent: React.FC = () => {
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const lang = language === 'tr' ? 'tr' : 'en';
 
   // Guide tour auto-start
   useTourAutoStart(PROFILE_TOUR_KEY, 800);
+
+  // Load unread notification count
+  const loadUnreadCount = useCallback(async () => {
+    try {
+      const count = await getNotificationUnreadCount();
+      setUnreadNotificationCount(count);
+    } catch (error) {
+      console.error('Error loading unread notification count:', error);
+    }
+  }, []);
+
+  // Load on mount
+  useEffect(() => {
+    loadUnreadCount();
+  }, [loadUnreadCount]);
+
+  // Refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadUnreadCount();
+    }, [loadUnreadCount])
+  );
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -153,6 +177,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
 
   const menuItems = [
     { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => navigation.navigate('Settings') },
+    { id: 1.2, title: language === 'tr' ? 'Bildirimler' : 'Notifications', icon: 'notifications', action: () => navigation.navigate('Notifications'), badge: unreadNotificationCount > 0 ? unreadNotificationCount : undefined },
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
     { id: 2, title: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings', icon: 'alarm', action: () => navigation.navigate('ReminderSettings') },
     { id: 3, title: language === 'tr' ? 'Kalan Kullanım' : 'Remaining Usage', icon: 'assessment', action: () => navigation.navigate('Membership') },
@@ -161,6 +186,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     // Admin-only menu items (TTS Provider Settings removed - admin only feature)
     ...(isAdmin ? [
       { id: 3.8, title: language === 'tr' ? 'Bildirim Ayarlarını Aç' : 'Open Notification Settings', icon: 'notifications-none', action: handleOpenNotificationSettings },
+      { id: 3.9, title: language === 'tr' ? 'Test Ekranı' : 'Test Screen', icon: 'science', action: () => navigation.navigate('ReminderTest') },
       { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
       { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
       { id: 8, title: t('profile.quickDebug'), icon: 'bug-report', action: handleQuickDebug },
@@ -206,6 +232,13 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
                   <Icon name={item.icon} size={22} color={COLORS.slate600} />
                 </View>
                 <Text style={styles.menuText}>{item.title}</Text>
+                {item.badge !== undefined && (
+                  <View style={styles.menuBadge}>
+                    <Text style={styles.menuBadgeText}>
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </Text>
+                  </View>
+                )}
                 <Icon name="chevron-right" size={20} color={COLORS.slate300} />
               </TouchableOpacity>
             );
@@ -484,6 +517,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.slate50,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  menuBadge: {
+    backgroundColor: COLORS.brandOrange,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginRight: 8,
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   versionContainer: {
     marginTop: 32,
