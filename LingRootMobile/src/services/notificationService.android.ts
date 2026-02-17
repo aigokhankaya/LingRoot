@@ -189,14 +189,27 @@ class NotificationService {
     if (nowMs - this.lastRescheduleAt < 750) return;
     if (this.rescheduleRunning) { this.rescheduleQueued = true; return; }
     this.rescheduleRunning = true;
+    this.lastRescheduleAt = nowMs;
     try {
       // Reset our internal counter first
       this.scheduledCount = 0;
-      // Cancel all scheduled notifications first
-      try { 
-        PushNotification.cancelAllLocalNotifications();
-        PushNotification.removeAllDeliveredNotifications?.(); 
+
+      console.log('🔄 [Android Notifications] Canceling all existing notifications');
+
+      // First cancel all by getting the list and removing each
+      try {
+        const pending = await this.getScheduledNotifications();
+        console.log(`🗑️ [Android Notifications] Found ${pending.length} pending notifications`);
       } catch {}
+
+      // Cancel all scheduled notifications
+      try {
+        PushNotification.cancelAllLocalNotifications();
+        PushNotification.removeAllDeliveredNotifications?.();
+      } catch {}
+
+      // Wait for Android to process cancellations
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       let settings: ReminderSettings;
       try { settings = await ReminderSettingsService.getSettings(); }
@@ -260,7 +273,19 @@ class NotificationService {
           // Silent error handling
         }
       }
+      console.log(`✅ [Android Notifications] Successfully scheduled ${times.length} notifications`);
+
+      // Verify scheduled notifications
+      await new Promise(resolve => setTimeout(resolve, 200));
+      try {
+        const scheduled = await this.getScheduledNotifications();
+        console.log(`📊 [Android Notifications] Verification: ${scheduled.length} notifications in queue`);
+        scheduled.slice(0, 3).forEach((n, i) => {
+          console.log(`   ${i + 1}. ${n.fireDate.toLocaleString('tr-TR')} - ${n.body?.substring(0, 30)}...`);
+        });
+      } catch {}
     } catch (e) {
+      console.error('❌ [Android Notifications] Error scheduling:', e);
       // Silently fail - don't show alert to user
     } finally {
       this.rescheduleRunning = false;
@@ -282,8 +307,22 @@ class NotificationService {
 
   public async stopVocabularyReminders(): Promise<void> {
     try {
+      console.log('🗑️ [Android Notifications] Stopping all vocabulary reminders');
+
+      // Get count before clearing
+      const pending = await this.getScheduledNotifications();
+      console.log(`   Found ${pending.length} pending notifications`);
+
       PushNotification.cancelAllLocalNotifications();
       PushNotification.removeAllDeliveredNotifications?.();
+
+      // Wait for Android to process
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Verify
+      const remaining = await this.getScheduledNotifications();
+      console.log(`✅ [Android Notifications] After stop: ${remaining.length} notifications remaining`);
+
       Alert.alert('Bildirimler Durduruldu', 'Tüm kelime hatırlatmaları iptal edildi.');
     } catch {}
   }
