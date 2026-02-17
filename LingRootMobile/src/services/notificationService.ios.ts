@@ -150,7 +150,10 @@ class NotificationService {
     
     try {
       console.log('🔄 [iOS Notifications] Canceling all existing notifications');
-      PushNotificationIOS.cancelAllLocalNotifications();
+      // Use both old and new APIs to ensure all notifications are cleared
+      try { PushNotificationIOS.cancelAllLocalNotifications(); } catch {}
+      try { PushNotificationIOS.removeAllPendingNotificationRequests(); } catch {}
+      try { PushNotificationIOS.removeAllDeliveredNotifications(); } catch {}
 
       let settings: ReminderSettings;
       try { settings = await ReminderSettingsService.getSettings(); }
@@ -249,10 +252,15 @@ class NotificationService {
 
   private pickWordsForSlots(unlearned: VocabularyWord[], all: VocabularyWord[], count: number): VocabularyWord[] {
     const source = (unlearned.length > 0 ? [...unlearned] : [...all]).filter(Boolean);
-    for (let i = source.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [source[i], source[j]] = [source[j], source[i]]; }
-    const result: VocabularyWord[] = [];
-    for (let i = 0; i < count; i++) result.push(source[i % Math.max(1, source.length)]);
-    return result;
+    // Shuffle the source array (Fisher-Yates)
+    for (let i = source.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [source[i], source[j]] = [source[j], source[i]];
+    }
+    // Return only up to available words - NO REPEATING
+    // Each word should appear only once
+    const actualCount = Math.min(count, source.length);
+    return source.slice(0, actualCount);
   }
 
   public async initialize(): Promise<boolean> {
@@ -297,7 +305,10 @@ class NotificationService {
   }
 
   public async stopVocabularyReminders(): Promise<void> {
+    // Use all available methods to clear notifications
     try { PushNotificationIOS.cancelAllLocalNotifications(); } catch {}
+    try { PushNotificationIOS.removeAllPendingNotificationRequests(); } catch {}
+    try { PushNotificationIOS.removeAllDeliveredNotifications(); } catch {}
     const lang = await this.getLanguage();
     Alert.alert(
       lang === 'tr' ? 'Bildirimler Durduruldu' : 'Notifications Stopped',
@@ -377,8 +388,30 @@ class NotificationService {
 
   public async getStatus(): Promise<{ isInitialized: boolean; hasPermission: boolean; scheduledCount: number }> {
     try {
-      return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: 0 };
+      const pending = await this.getScheduledNotifications();
+      return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: pending.length };
     } catch { return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: 0 }; }
+  }
+
+  public async getScheduledNotifications(): Promise<Array<{ id: string; title: string; body: string; fireDate: Date; wordId?: string }>> {
+    return new Promise((resolve) => {
+      try {
+        PushNotificationIOS.getPendingNotificationRequests((requests) => {
+          const notifications = requests.map((req: any) => ({
+            id: req.id || req.identifier || '',
+            title: req.title || req.alertTitle || '',
+            body: req.body || req.alertBody || '',
+            fireDate: req.fireDate ? new Date(req.fireDate) : new Date(),
+            wordId: req.userInfo?.wordId || undefined,
+          }));
+          // Sort by fireDate ascending
+          notifications.sort((a, b) => a.fireDate.getTime() - b.fireDate.getTime());
+          resolve(notifications);
+        });
+      } catch {
+        resolve([]);
+      }
+    });
   }
 
   /**

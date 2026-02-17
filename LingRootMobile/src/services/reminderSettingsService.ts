@@ -57,14 +57,15 @@ export class ReminderSettingsService {
 
   /**
    * Calculate notification intervals based on settings
-   * Always schedules the full number of words from current time to end time
+   * Schedules notifications within the configured time window (startTime to endTime)
+   * If current time is past endTime, schedules for tomorrow
    */
   static calculateNotificationTimes(
     settings: ReminderSettings,
     unlearnedWordsCount: number
   ): Date[] {
     const notifications: Date[] = [];
-    
+
     if (!settings.isEnabled) {
       return notifications;
     }
@@ -73,59 +74,62 @@ export class ReminderSettingsService {
     const [startHour, startMinute] = settings.startTime.split(':').map(Number);
     const [endHour, endMinute] = settings.endTime.split(':').map(Number);
 
-    // Create today's start and end times
     const now = new Date();
-    const endTime = new Date(now);
-    endTime.setHours(endHour, endMinute, 0, 0);
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+    const startTimeInMinutes = startHour * 60 + startMinute;
+    const endTimeInMinutes = endHour * 60 + endMinute;
 
-    // Determine actual start time (now or configured start time, whichever is later)
-    const configuredStartTime = new Date(now);
-    configuredStartTime.setHours(startHour, startMinute, 0, 0);
-    
-    // Start scheduling from now + 1 minute (minimum lead time)
-    const actualStartTime = new Date(now.getTime() + 60000);
-    
-    // If we're before the configured start time, use configured start time
-    const startTime = actualStartTime < configuredStartTime ? configuredStartTime : actualStartTime;
+    // Determine the target day and time window
+    let targetDate = new Date(now);
+    let effectiveStartTime: Date;
+    let effectiveEndTime: Date;
 
-    // If end time is before start time, it means next day
-    if (endTime <= startTime) {
-      endTime.setDate(endTime.getDate() + 1);
+    // Case 1: Current time is before start time → schedule for today, full window
+    if (currentTimeInMinutes < startTimeInMinutes) {
+      effectiveStartTime = new Date(targetDate);
+      effectiveStartTime.setHours(startHour, startMinute, 0, 0);
+      effectiveEndTime = new Date(targetDate);
+      effectiveEndTime.setHours(endHour, endMinute, 0, 0);
+    }
+    // Case 2: Current time is within the window → schedule from now to end
+    else if (currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutes) {
+      effectiveStartTime = new Date(now.getTime() + 60000); // now + 1 minute
+      effectiveEndTime = new Date(targetDate);
+      effectiveEndTime.setHours(endHour, endMinute, 0, 0);
+    }
+    // Case 3: Current time is past end time → schedule for tomorrow, full window
+    else {
+      targetDate.setDate(targetDate.getDate() + 1);
+      effectiveStartTime = new Date(targetDate);
+      effectiveStartTime.setHours(startHour, startMinute, 0, 0);
+      effectiveEndTime = new Date(targetDate);
+      effectiveEndTime.setHours(endHour, endMinute, 0, 0);
     }
 
-    // If we're past the end time for today, schedule for tomorrow
-    if (startTime >= endTime) {
-      startTime.setDate(startTime.getDate() + 1);
-      endTime.setDate(endTime.getDate() + 1);
-    }
-
-    // Calculate total duration from NOW (or start time) to end time
-    const totalDurationMs = endTime.getTime() - startTime.getTime();
+    // Calculate total duration
+    const totalDurationMs = effectiveEndTime.getTime() - effectiveStartTime.getTime();
     const totalDurationMinutes = totalDurationMs / (1000 * 60);
 
-    // Always schedule the full desired number of reminders
-    // but never exceed available unlearned words to avoid repeating the same word
+    // Determine how many words to remind
     const maxAvailable = typeof unlearnedWordsCount === 'number' && unlearnedWordsCount > 0
       ? unlearnedWordsCount
       : settings.wordsPerDay;
     const wordsToRemind = Math.min(settings.wordsPerDay, maxAvailable);
-    
+
     if (wordsToRemind <= 0 || totalDurationMinutes <= 0) {
       return notifications;
     }
 
-    // Calculate interval between notifications based on remaining time
+    // Calculate interval between notifications
     const intervalMinutes = totalDurationMinutes / wordsToRemind;
     const intervalMs = intervalMinutes * 60 * 1000;
 
     // Schedule all notifications evenly distributed from start to end
     for (let i = 0; i < wordsToRemind; i++) {
-      const notificationTime = new Date(startTime.getTime() + i * intervalMs);
-      
-      // Only add if it's within the time window
-      if (notificationTime <= endTime) {
-        notifications.push(notificationTime);
-      }
+      const notificationTime = new Date(effectiveStartTime.getTime() + i * intervalMs);
+      notifications.push(notificationTime);
     }
 
     return notifications;
