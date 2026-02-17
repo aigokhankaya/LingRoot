@@ -101,24 +101,45 @@ export async function registerDeviceToken(payload: { platform: 'android' | 'ios'
  * Get reminder settings
  */
 export async function getReminderSettings(): Promise<ReminderSettings> {
+    const defaultSettings: ReminderSettings = {
+        wordsPerDay: 5,
+        startTime: '09:00',
+        endTime: '18:00',
+        isEnabled: true
+    };
+
     const client = await getApiClientAsync();
     try {
         const response = await client.http.get('/api/reminder-settings');
         // Check if response.data.data exists (like in api.ts), otherwise try response.data
-        return response.data?.data || response.data || {
-            wordsPerDay: 5,
-            startTime: '09:00',
-            endTime: '18:00',
-            isEnabled: true
-        };
+        const apiSettings = response.data?.data || response.data;
+        if (apiSettings && (apiSettings.startTime || apiSettings.endTime || apiSettings.wordsPerDay !== undefined)) {
+            const merged = { ...defaultSettings, ...apiSettings };
+            // Also save to AsyncStorage for consistency
+            try {
+                const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+                await AsyncStorage.setItem('reminder_settings', JSON.stringify(merged));
+            } catch (e) {
+                // Silent
+            }
+            return merged;
+        }
     } catch (error) {
-        return {
-            wordsPerDay: 5,
-            startTime: '09:00',
-            endTime: '18:00',
-            isEnabled: true
-        };
+        // API failed, try AsyncStorage
     }
+
+    // Fallback to AsyncStorage
+    try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const stored = await AsyncStorage.getItem('reminder_settings');
+        if (stored) {
+            return { ...defaultSettings, ...JSON.parse(stored) };
+        }
+    } catch (e) {
+        // Silent
+    }
+
+    return defaultSettings;
 }
 
 /**
@@ -127,6 +148,13 @@ export async function getReminderSettings(): Promise<ReminderSettings> {
 export async function saveReminderSettings(settings: ReminderSettings): Promise<void> {
     const client = await getApiClientAsync();
     await client.http.post('/api/reminder-settings', settings);
+    // Also save to AsyncStorage for NotificationService to use
+    try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.setItem('reminder_settings', JSON.stringify(settings));
+    } catch (e) {
+        // Silent fail - API save was successful
+    }
 }
 
 /**

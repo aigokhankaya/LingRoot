@@ -7,6 +7,8 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -22,12 +24,22 @@ interface NotificationStatus {
   scheduledCount: number;
 }
 
+interface ScheduledNotification {
+  id: string;
+  title: string;
+  body: string;
+  fireDate: Date;
+  wordId?: string;
+}
+
 const ReminderTestScreen: React.FC = () => {
   const { language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus | null>(null);
+  const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
+  const [calculatedTimes, setCalculatedTimes] = useState<Date[]>([]);
   const [unlearnedWords, setUnlearnedWords] = useState<VocabularyWord[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +55,24 @@ const ReminderTestScreen: React.FC = () => {
       const status = await NotificationService.getStatus();
       setNotificationStatus(status);
 
+      // Load scheduled notifications
+      if (NotificationService.getScheduledNotifications) {
+        const scheduled = await NotificationService.getScheduledNotifications();
+        setScheduledNotifications(scheduled);
+      }
+
       // Load unlearned vocabulary words
       const words = await getVocabulary();
       const unlearned = Array.isArray(words)
         ? words.filter(w => w && (w.is_learned === false || typeof w.is_learned === 'undefined'))
         : [];
       setUnlearnedWords(unlearned);
+
+      // Calculate expected notification times based on settings
+      if (reminderSettings) {
+        const times = ReminderSettingsService.calculateNotificationTimes(reminderSettings, unlearned.length);
+        setCalculatedTimes(times);
+      }
     } catch (err) {
       setError(language === 'tr' ? 'Veriler yüklenirken hata oluştu' : 'Error loading data');
     } finally {
@@ -66,6 +90,38 @@ const ReminderTestScreen: React.FC = () => {
     loadData();
   }, [loadData]);
 
+  const handleReschedule = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await NotificationService.setupSmartVocabularyNotifications();
+      Alert.alert(
+        language === 'tr' ? 'Başarılı' : 'Success',
+        language === 'tr' ? 'Bildirimler yeniden zamanlandı' : 'Notifications rescheduled'
+      );
+      await loadData();
+    } catch (err) {
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr' ? 'Bildirimler zamanlanırken hata oluştu' : 'Error scheduling notifications'
+      );
+      setRefreshing(false);
+    }
+  }, [language, loadData]);
+
+  const handleClearAll = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await NotificationService.stopVocabularyReminders();
+      await loadData();
+    } catch (err) {
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr' ? 'Bildirimler temizlenirken hata oluştu' : 'Error clearing notifications'
+      );
+      setRefreshing(false);
+    }
+  }, [language, loadData]);
+
   const renderStatusIcon = (isActive: boolean) => (
     <Icon
       name={isActive ? 'check-circle' : 'cancel'}
@@ -73,6 +129,23 @@ const ReminderTestScreen: React.FC = () => {
       color={isActive ? '#22c55e' : COLORS.danger}
     />
   );
+
+  const formatDateTime = (date: Date) => {
+    return date.toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatTimeOnly = (date: Date) => {
+    return date.toLocaleTimeString(language === 'tr' ? 'tr-TR' : 'en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   if (loading) {
     return (
@@ -101,6 +174,24 @@ const ReminderTestScreen: React.FC = () => {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
+
+        {/* Action Buttons */}
+        <View style={styles.section}>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.rescheduleButton} onPress={handleReschedule}>
+              <Icon name="refresh" size={20} color="#FFFFFF" />
+              <Text style={styles.rescheduleButtonText}>
+                {language === 'tr' ? 'Yeniden Zamanla' : 'Reschedule'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.clearButton} onPress={handleClearAll}>
+              <Icon name="delete-sweep" size={20} color="#FFFFFF" />
+              <Text style={styles.rescheduleButtonText}>
+                {language === 'tr' ? 'Hepsini Temizle' : 'Clear All'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Reminder Settings Section */}
         <View style={styles.section}>
@@ -212,6 +303,85 @@ const ReminderTestScreen: React.FC = () => {
           )}
         </View>
 
+        {/* Calculated Times Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Icon name="event" size={24} color="#8b5cf6" />
+            <Text style={styles.sectionTitle}>
+              {language === 'tr' ? 'Planlanan Gönderim Zamanları' : 'Planned Send Times'}
+              <Text style={styles.countBadge}> ({calculatedTimes.length})</Text>
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            {calculatedTimes.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Icon name="schedule" size={48} color={COLORS.slate400} />
+                <Text style={styles.emptyText}>
+                  {language === 'tr'
+                    ? 'Hesaplanmış zaman yok'
+                    : 'No calculated times'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.timeGrid}>
+                {calculatedTimes.map((time, index) => (
+                  <View key={index} style={styles.timeChip}>
+                    <Text style={styles.timeChipIndex}>{index + 1}</Text>
+                    <Text style={styles.timeChipTime}>{formatTimeOnly(time)}</Text>
+                    <Text style={styles.timeChipDate}>
+                      {time.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: 'short' })}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Scheduled Notifications Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Icon name="schedule" size={24} color={COLORS.brandOrange} />
+            <Text style={styles.sectionTitle}>
+              {language === 'tr' ? 'Cihazda Zamanlanmış' : 'Device Scheduled'}
+              <Text style={styles.countBadge}> ({scheduledNotifications.length})</Text>
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            {scheduledNotifications.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Icon name="notifications-off" size={48} color={COLORS.slate400} />
+                <Text style={styles.emptyText}>
+                  {language === 'tr'
+                    ? 'Cihazda zamanlanmış bildirim yok'
+                    : 'No notifications scheduled on device'}
+                </Text>
+              </View>
+            ) : (
+              scheduledNotifications.map((notif, index) => (
+                <View key={notif.id || index}>
+                  {index > 0 && <View style={styles.divider} />}
+                  <View style={styles.notificationRow}>
+                    <View style={styles.timeBadge}>
+                      <Text style={styles.timeBadgeText}>{formatTimeOnly(notif.fireDate)}</Text>
+                    </View>
+                    <View style={styles.notificationContent}>
+                      <Text style={styles.notificationBody} numberOfLines={2}>
+                        {notif.body}
+                      </Text>
+                      <Text style={styles.notificationDate}>
+                        {formatDateTime(notif.fireDate)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+
         {/* Unlearned Words Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -274,6 +444,37 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingTop: 100,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  rescheduleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.brandTeal,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 6,
+  },
+  clearButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.danger,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 6,
+  },
+  rescheduleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,
@@ -357,6 +558,67 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: COLORS.slate200,
     marginVertical: 8,
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timeChip: {
+    backgroundColor: COLORS.brandTeal + '15',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.brandTeal + '30',
+    minWidth: 80,
+  },
+  timeChipIndex: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.slate500,
+    marginBottom: 2,
+  },
+  timeChipTime: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.brandTeal,
+  },
+  timeChipDate: {
+    fontSize: 11,
+    color: COLORS.slate500,
+    marginTop: 2,
+  },
+  notificationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+  },
+  timeBadge: {
+    backgroundColor: COLORS.brandOrange,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginRight: 12,
+  },
+  timeBadgeText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationBody: {
+    fontSize: 14,
+    color: COLORS.slate700,
+    lineHeight: 20,
+  },
+  notificationDate: {
+    fontSize: 12,
+    color: COLORS.slate400,
+    marginTop: 4,
   },
   wordRow: {
     paddingVertical: 8,

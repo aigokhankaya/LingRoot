@@ -173,13 +173,15 @@ class NotificationService {
 
   private pickWordsForSlots(unlearned: VocabularyWord[], all: VocabularyWord[], count: number): VocabularyWord[] {
     const source = (unlearned.length > 0 ? [...unlearned] : [...all]).filter(Boolean);
+    // Shuffle the source array (Fisher-Yates)
     for (let i = source.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [source[i], source[j]] = [source[j], source[i]];
     }
-    const result: VocabularyWord[] = [];
-    for (let i = 0; i < count; i++) result.push(source[i % Math.max(1, source.length)]);
-    return result;
+    // Return only up to available words - NO REPEATING
+    // Each word should appear only once
+    const actualCount = Math.min(count, source.length);
+    return source.slice(0, actualCount);
   }
 
   private async rescheduleDailyReminders(): Promise<void> {
@@ -360,8 +362,31 @@ class NotificationService {
 
   public async getStatus(): Promise<{ isInitialized: boolean; hasPermission: boolean; scheduledCount: number }> {
     try {
-      return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: this.scheduledCount };
+      const pending = await this.getScheduledNotifications();
+      return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: pending.length };
     } catch { return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: this.scheduledCount }; }
+  }
+
+  public async getScheduledNotifications(): Promise<Array<{ id: string; title: string; body: string; fireDate: Date; wordId?: string }>> {
+    return new Promise((resolve) => {
+      try {
+        // Cast to any to access getScheduledLocalNotifications which exists at runtime
+        (PushNotification as any).getScheduledLocalNotifications((notifications: any[]) => {
+          const result = notifications.map((notif) => ({
+            id: notif.id || '',
+            title: notif.title || '',
+            body: notif.message || notif.body || '',
+            fireDate: notif.date ? new Date(notif.date) : new Date(),
+            wordId: notif.data?.wordId || notif.userInfo?.wordId || undefined,
+          }));
+          // Sort by fireDate ascending
+          result.sort((a: { fireDate: Date }, b: { fireDate: Date }) => a.fireDate.getTime() - b.fireDate.getTime());
+          resolve(result);
+        });
+      } catch {
+        resolve([]);
+      }
+    });
   }
 
   /**
