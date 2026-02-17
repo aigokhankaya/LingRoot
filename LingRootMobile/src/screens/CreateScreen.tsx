@@ -600,9 +600,16 @@ const CreateScreenContent: React.FC = () => {
     }
   };
 
-  const handleCreatePodcast = async (configArg?: PodcastConfig) => {
-    // Get config from ref if not provided as argument
-    const config = configArg || podcastConfigRef.current?.getConfig();
+  const handleCreatePodcast = async (configArg?: PodcastConfig | unknown) => {
+    // Check if configArg is actually a PodcastConfig (has 'topic' property)
+    // TouchableOpacity's onPress passes an event object, not our config
+    const isValidConfig = configArg && typeof configArg === 'object' && 'topic' in configArg;
+    const config = isValidConfig ? (configArg as PodcastConfig) : podcastConfigRef.current?.getConfig();
+
+    console.log('[Podcast] configArg:', configArg);
+    console.log('[Podcast] isValidConfig:', isValidConfig);
+    console.log('[Podcast] config from ref:', podcastConfigRef.current?.getConfig());
+    console.log('[Podcast] final config:', config);
 
     if (!config) {
       showError(
