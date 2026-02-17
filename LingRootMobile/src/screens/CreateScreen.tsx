@@ -40,7 +40,7 @@ import {
 } from '../components/GuideTour';
 import { VoiceSelectionPanel } from '../components/create/VoiceSelectionPanel';
 import { BookSearchView } from '../components/create/BookSearchView';
-import { PodcastConfigPanel, PodcastConfig } from '../components/create/PodcastConfigPanel';
+import { PodcastConfigPanel, PodcastConfig, PodcastConfigPanelRef } from '../components/create/PodcastConfigPanel';
 
 const WalkthroughableView = walkthroughable(View);
 
@@ -74,6 +74,7 @@ const CreateScreenContent: React.FC = () => {
   const { isTtsJobLocked, ttsJobMessage, lockTtsJob, unlockTtsJob, checkActiveJob } = useTtsJob();
   const lang = language === 'tr' ? 'tr' : 'en';
   const scrollViewRef = useRef<ScrollView>(null);
+  const podcastConfigRef = useRef<PodcastConfigPanelRef>(null);
   const createTourKey = mode === 'podcast'
     ? `${CREATE_TOUR_KEY}_podcast`
     : mode === 'file'
@@ -124,7 +125,21 @@ const CreateScreenContent: React.FC = () => {
       // Check for active TTS job via global context
       checkActiveJob().then((hasActiveJob) => {
         setIsCreatingVoice(hasActiveJob);
+        // Safety net: if backend says no job, force unlock
+        if (!hasActiveJob) {
+          unlockTtsJob();
+        }
       });
+
+      // Delayed re-check as safety net (handles race conditions and network delays)
+      const safetyTimer = setTimeout(() => {
+        checkActiveJob().then((hasActiveJob) => {
+          setIsCreatingVoice(hasActiveJob);
+          if (!hasActiveJob) {
+            unlockTtsJob();
+          }
+        });
+      }, 3000);
 
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' | 'podcast' =
         route.params?.mode === 'file'
@@ -189,7 +204,12 @@ const CreateScreenContent: React.FC = () => {
         setYoutubeLoading(false);
         setYoutubeError(null);
       }
-    }, [route.params?.mode, language])
+
+      // Cleanup timer on blur
+      return () => {
+        clearTimeout(safetyTimer);
+      };
+    }, [route.params?.mode, language, checkActiveJob, unlockTtsJob])
   );
   // --- Suggestion Mode State ---
   const [suggestion, setSuggestion] = useState('');
@@ -580,7 +600,18 @@ const CreateScreenContent: React.FC = () => {
     }
   };
 
-  const handleCreatePodcast = async (config: PodcastConfig) => {
+  const handleCreatePodcast = async (configArg?: PodcastConfig) => {
+    // Get config from ref if not provided as argument
+    const config = configArg || podcastConfigRef.current?.getConfig();
+
+    if (!config) {
+      showError(
+        t('common.error'),
+        language === 'tr' ? 'Podcast yapılandırması alınamadı.' : 'Could not get podcast configuration.'
+      );
+      return;
+    }
+
     // Podcast Log
     AnalyticsHelper.logEvent('action_create_podcast_click_mobile', {
       topic: config.topic,
@@ -924,6 +955,7 @@ const CreateScreenContent: React.FC = () => {
           <CopilotStep order={1} name="createPodcastConfig" text={CREATE_TOUR_STEPS.createPodcastConfig[lang]}>
             <WalkthroughableView>
               <PodcastConfigPanel
+                ref={podcastConfigRef}
                 onCreatePodcast={handleCreatePodcast}
                 language={language}
                 t={t}
