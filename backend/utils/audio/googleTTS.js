@@ -1,5 +1,6 @@
 const textToSpeech = require('@google-cloud/text-to-speech');
 const logger = require('../common/logger.js');
+const { notifyAIError, AI_PROVIDERS, AI_ERROR_TYPES } = require('../notifications/aiErrorNotifier.js');
 
 // Google TTS Client
 let ttsClient;
@@ -326,7 +327,7 @@ async function synthesizeWithGoogle(options) {
     throw new Error('Google TTS client not initialized');
   }
 
-  const { text, voiceName = 'en-US-Standard-C', languageCode = 'en-US', speakingRate = 1.0, ssmlGender = 'NEUTRAL' } = options;
+  const { text, voiceName = 'en-US-Standard-C', languageCode = 'en-US', speakingRate = 1.0, ssmlGender = 'NEUTRAL', userId = null } = options;
   const safePlainText = sanitizePlainText(text);
   
   logger.info(`🎯 Google TTS synthesis - Voice: ${voiceName}, Rate: ${speakingRate}x, Length: ${text.length} chars`);
@@ -599,6 +600,19 @@ async function synthesizeWithGoogle(options) {
           };
         } catch (finalErr) {
           logger.error(`Final safety fallback failed: ${finalErr.message}`);
+          // Notify admin of critical TTS failure
+          notifyAIError({
+            provider: AI_PROVIDERS.GOOGLE_TTS,
+            method: 'synthesizeWithGoogle',
+            error: finalErr,
+            userId,
+            context: {
+              voiceName,
+              languageCode,
+              textLength: safePlainText?.length || 0,
+              fallbackAttempt: 'final_safety_fallback'
+            }
+          }).catch(e => logger.warn('[GOOGLE_TTS] Failed to send error notification:', e.message));
           throw fallbackError;
         }
       }

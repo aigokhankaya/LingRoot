@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,10 @@ interface PodcastConfigPanelProps {
   language: string;
   t: (key: string, params?: Record<string, unknown>) => string;
   initialTtsProvider?: string;
+}
+
+export interface PodcastConfigPanelRef {
+  getConfig: () => PodcastConfig;
 }
 
 export interface PodcastConfig {
@@ -52,12 +56,12 @@ const GEMINI_PODCAST_SPEAKERS = [
   { value: 'Achilles', label: 'Achilles (M)' },
 ];
 
-export const PodcastConfigPanel: React.FC<PodcastConfigPanelProps> = ({
+export const PodcastConfigPanel = forwardRef<PodcastConfigPanelRef, PodcastConfigPanelProps>(({
   onCreatePodcast,
   language,
   t,
   initialTtsProvider,
-}) => {
+}, ref) => {
   const [podcastTopic, setPodcastTopic] = useState<string>('');
   const [podcastDuration, setPodcastDuration] = useState<number>(5);
   const [podcastTtsProvider, setPodcastTtsProvider] = useState<string>(initialTtsProvider || 'google');
@@ -70,6 +74,22 @@ export const PodcastConfigPanel: React.FC<PodcastConfigPanelProps> = ({
   const [podcastIncludeFiller, setPodcastIncludeFiller] = useState<boolean>(true);
   const [showPodcastHostVoiceModal, setShowPodcastHostVoiceModal] = useState(false);
   const [showPodcastGuestVoiceModal, setShowPodcastGuestVoiceModal] = useState(false);
+
+  // Expose getConfig method via ref so CreateScreen can get the current config
+  useImperativeHandle(ref, () => ({
+    getConfig: (): PodcastConfig => ({
+      topic: podcastTopic,
+      duration: podcastDuration,
+      ttsProvider: podcastTtsProvider,
+      hostSpeakerId: podcastHostSpeakerId,
+      guestSpeakerId: podcastGuestSpeakerId,
+      styleType: podcastStyleType,
+      personalityA: podcastPersonalityA,
+      personalityB: podcastPersonalityB,
+      includeHumor: podcastIncludeHumor,
+      includeFiller: podcastIncludeFiller,
+    }),
+  }), [podcastTopic, podcastDuration, podcastTtsProvider, podcastHostSpeakerId, podcastGuestSpeakerId, podcastStyleType, podcastPersonalityA, podcastPersonalityB, podcastIncludeHumor, podcastIncludeFiller]);
 
   const getGeminiSpeakerLabel = (value?: string) => {
     const found = GEMINI_PODCAST_SPEAKERS.find(s => s.value === value);
@@ -279,7 +299,7 @@ export const PodcastConfigPanel: React.FC<PodcastConfigPanelProps> = ({
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   inputSection: {

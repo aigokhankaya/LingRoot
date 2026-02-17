@@ -31,20 +31,71 @@ export const TtsJobProvider: React.FC<TtsJobProviderProps> = ({ children }) => {
 
   // Client-side lock flag - prevents backend check from unlocking when we just started a job
   const clientLockActiveRef = useRef(false);
+  // Timestamp when lock was acquired - used to determine if lock is "fresh"
+  const lockStartTimeRef = useRef<number | null>(null);
+  // Grace period: only respect client lock if it's recent (3 seconds)
+  // After 3s, trust backend - API request should have reached backend by then
+  const LOCK_GRACE_PERIOD = 3000;
 
-  const lockTtsJob = useCallback((message?: string) => {
-    clientLockActiveRef.current = true;
-    setIsTtsJobLocked(true);
-    if (message) {
-      setTtsJobMessage(message);
+  // Polling refs for active job status checking
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingStartTimeRef = useRef<number | null>(null);
+  const POLLING_INTERVAL = 5000; // 5 seconds
+  const MAX_POLLING_DURATION = 30 * 60 * 1000; // 30 minutes failsafe
+
+  // Stop polling function
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
+    pollingStartTimeRef.current = null;
   }, []);
 
   const unlockTtsJob = useCallback(() => {
     clientLockActiveRef.current = false;
+    lockStartTimeRef.current = null;
     setIsTtsJobLocked(false);
     setTtsJobMessage(null);
-  }, []);
+    stopPolling();
+  }, [stopPolling]);
+
+  // Start polling function - checks job status every 5 seconds
+  const startPolling = useCallback(() => {
+    // Don't start if already polling
+    if (pollingIntervalRef.current) return;
+
+    pollingStartTimeRef.current = Date.now();
+
+    pollingIntervalRef.current = setInterval(async () => {
+      // Timeout check - auto unlock after 30 minutes
+      const elapsed = Date.now() - (pollingStartTimeRef.current || 0);
+      if (elapsed > MAX_POLLING_DURATION) {
+        unlockTtsJob();
+        return;
+      }
+
+      try {
+        const res = await ttsService.getActiveTtsJob();
+        if (!res?.hasActiveJob) {
+          // Job completed or failed - unlock
+          unlockTtsJob();
+        }
+      } catch {
+        // On error, continue polling - don't unlock
+      }
+    }, POLLING_INTERVAL);
+  }, [unlockTtsJob]);
+
+  const lockTtsJob = useCallback((message?: string) => {
+    clientLockActiveRef.current = true;
+    lockStartTimeRef.current = Date.now();
+    setIsTtsJobLocked(true);
+    if (message) {
+      setTtsJobMessage(message);
+    }
+    startPolling();
+  }, [startPolling]);
 
   const checkActiveJob = useCallback(async (): Promise<boolean> => {
     try {
@@ -57,19 +108,27 @@ export const TtsJobProvider: React.FC<TtsJobProviderProps> = ({ children }) => {
         return true;
       } else {
         // Backend says no active job
-        // Only unlock if client-side lock is NOT active
+        // Respect client lock only if it's recent (within grace period)
         // This prevents race condition where API says no job but we just started one
-        if (!clientLockActiveRef.current) {
-          setIsTtsJobLocked(false);
-          setTtsJobMessage(null);
+        const lockAge = lockStartTimeRef.current
+          ? Date.now() - lockStartTimeRef.current
+          : Infinity;
+
+        if (clientLockActiveRef.current && lockAge < LOCK_GRACE_PERIOD) {
+          // Lock is recent (< 3 seconds), keep it - API request might still be in flight
+          return true;
         }
-        return clientLockActiveRef.current;
+
+        // Lock is old or doesn't exist - trust backend and unlock
+        // This handles both success and error cases properly
+        unlockTtsJob();
+        return false;
       }
     } catch {
       // On error, don't change lock state - return current state
       return isTtsJobLocked || clientLockActiveRef.current;
     }
-  }, [isTtsJobLocked]);
+  }, [isTtsJobLocked, unlockTtsJob]);
 
   // Check for active job when app comes to foreground
   useEffect(() => {
@@ -88,6 +147,13 @@ export const TtsJobProvider: React.FC<TtsJobProviderProps> = ({ children }) => {
       subscription.remove();
     };
   }, [checkActiveJob]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, [stopPolling]);
 
   const value: TtsJobContextType = {
     isTtsJobLocked,

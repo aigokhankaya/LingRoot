@@ -33,6 +33,7 @@ const {
   createWordLevelVTTFromOptimizedTimings,
   matchWordsWithTimings
 } = require('../services/subtitleService');
+const { notifyUserOfError, USER_FACING_ERROR_TYPES } = require('../utils/notifications/aiErrorNotifier.js');
 
 // Store references to temp files so they can be accessed via API
 const tempAudioFiles = new Map();
@@ -379,7 +380,7 @@ const processTtsRequest = async (req, res) => {
       // Topic input returns {englishText, translatedText, usage, model}
       // Pass targetDurationMinutes to control content length
       // Pass topicContext for parent-aware content generation
-      const topicResult = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang, null, targetDurationMinutes, { mood: detectedMood, topicContext });
+      const topicResult = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang, null, targetDurationMinutes, { mood: detectedMood, topicContext }, userId);
       if (!topicResult || !topicResult.englishText) {
         logger.error(`[${requestId}] Failed to generate narration for topic.`);
         return res.status(500).json({ success: false, message: "Failed to generate narration for topic." });
@@ -395,7 +396,7 @@ const processTtsRequest = async (req, res) => {
       logger.debug(`[${requestId}] Topic processing: English text for TTS (${rawText.length} chars), Translated text for storage (${translatedText.length} chars)`);
     } else {
       logger.debug(`[${requestId}] ❌ NON-TOPIC FLOW: Using old translate+adapt flow for inputType="${inputType}"`);
-      rawText = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang);
+      rawText = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang, null, null, {}, userId);
     }
     if (rawText === null) {
       logger.error(`[${requestId}] Failed to extract text from input.`);
@@ -584,7 +585,7 @@ const processTtsRequest = async (req, res) => {
       try {
         // OPTIMIZED: Single LLM call instead of 2 separate calls
         // Use narrator variant for book/document content (audiobook-style narration)
-        const result = await translateAndAdaptToCEFR(cleanedText, sourceLanguage, level, null, promptVariant, detectedMood);
+        const result = await translateAndAdaptToCEFR(cleanedText, sourceLanguage, level, null, promptVariant, detectedMood, userId);
         openaiCallCount += 1; // Only 1 call now instead of 2!
 
         if (result && result.text) {
@@ -1202,7 +1203,8 @@ const processTtsRequest = async (req, res) => {
             text: chunk,
             voiceName: selectedVoice,
             languageCode: languageCode,
-            speakingRate: speakingRate
+            speakingRate: speakingRate,
+            userId
           });
         }
 
@@ -1852,7 +1854,8 @@ const processTtsRequest = async (req, res) => {
       name: error.name,
       message: error.message,
       code: error.code,
-      stack: error.stack
+      stack: error.stack,
+      userFacing: error.userFacing
     });
     logStep({
       requestId,
@@ -1863,17 +1866,40 @@ const processTtsRequest = async (req, res) => {
       stack: error.stack
     });
 
-    // Return more detailed error message in development
-    const errorMessage = process.env.NODE_ENV === 'development'
-      ? `TTS Error: ${error.message}`
-      : "An internal server error occurred.";
+    // Send push notification to user for user-facing errors
+    if (userId && error.userFacing) {
+      const errorType = error.userErrorType || USER_FACING_ERROR_TYPES.PROCESSING_ERROR;
+      notifyUserOfError(userId, errorType, {
+        requestId,
+        retryable: error.retryable || false
+      }).catch(e => logger.warn(`[${requestId}] Failed to send user error notification:`, e.message));
+    }
+
+    // Determine error message for response
+    let errorMessage;
+    let errorCode = 'PROCESSING_ERROR';
+
+    if (error.userFacing) {
+      // Use user-friendly message for user-facing errors
+      errorMessage = error.userMessage || 'Bir hata oluştu. Lütfen tekrar deneyin.';
+      errorCode = error.userErrorType === USER_FACING_ERROR_TYPES.TEMPORARY_ERROR
+        ? 'TEMPORARY_ERROR'
+        : 'AI_SERVICE_ERROR';
+    } else if (process.env.NODE_ENV === 'development') {
+      errorMessage = `TTS Error: ${error.message}`;
+    } else {
+      errorMessage = 'Bir hata oluştu. Lütfen tekrar deneyin.';
+    }
 
     return res.status(500).json({
       success: false,
+      code: errorCode,
       message: errorMessage,
+      retryable: error.retryable || false,
       ...(process.env.NODE_ENV === 'development' && {
         errorDetails: error.message,
-        errorName: error.name
+        errorName: error.name,
+        originalMessage: error.originalMessage
       })
     });
   } finally {
@@ -2158,7 +2184,8 @@ const synthesizeChunkAPI = async (req, res) => {
       text: text,
       voiceName: selectedVoice || "en-US-Standard-B",
       languageCode: languageCode,
-      speakingRate: rate || 1.0
+      speakingRate: rate || 1.0,
+      userId: req.user?.id
     });
     logStep({ requestId, stepName: 'tts:synthesizeChunk:end', outputData: result });
     res.json(result);

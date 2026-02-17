@@ -27,6 +27,7 @@ const { ttsLimiter, podcastLimiter } = require('../middleware/security');
 const { limiters } = require('../utils/infra/concurrencyLimiter.js');
 const jobQueue = require('../utils/infra/jobQueue.js');
 const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/notifications/pushNotification.js');
+const { notifyAIError, AI_PROVIDERS } = require('../utils/notifications/aiErrorNotifier.js');
 
 // Helper function to write podcast-specific logs
 const podcastLogPath = path.join(__dirname, '../logs/podcast_logs.log');
@@ -267,15 +268,37 @@ router.post(
             error: error.message
           });
 
-          // Send failure notification
+          // Send admin notification email
+          notifyAIError({
+            provider: AI_PROVIDERS.GOOGLE_TTS,
+            method: 'process-async',
+            error: error,
+            httpStatus: error.status || error.response?.status,
+            userId,
+            context: {
+              jobId: job.id,
+              level: requestBody?.level,
+              inputType: requestBody?.input_type
+            }
+          }).catch(e => logger.warn('[AsyncTTS] Admin notification error:', e.message));
+
+          // Determine user-friendly error message based on error type
+          const isUserFacingError = error.userFacing === true;
+          const errorMessage = isUserFacingError
+            ? error.userMessage
+            : 'Bir hata oluştu. Lütfen tekrar deneyin.';
+          const notificationType = isUserFacingError ? 'content_failed' : 'tts_failed';
+
+          // Send failure notification with appropriate message
           try {
             await sendPushNotification(userId, {
-              title: '❌ Ses Oluşturulamadı',
-              body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
-              type: 'tts_failed',
+              title: 'Ses Oluşturulamadı',
+              body: errorMessage,
+              type: notificationType,
               data: {
                 jobId: job.id,
-                error: error.message
+                errorType: error.userErrorType || 'processing_error',
+                retryable: error.retryable || false
               }
             });
           } catch (notifError) {
@@ -643,16 +666,43 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
           error: error.message
         });
 
-        // Send failure notification
-        await sendPushNotification(userId, {
-          title: '❌ Podcast Oluşturulamadı',
-          body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
-          type: 'podcast_failed',
-          data: {
+        // Send admin notification email
+        notifyAIError({
+          provider: AI_PROVIDERS.GEMINI_TTS,
+          method: 'create-podcast-async',
+          error: error,
+          httpStatus: error.status || error.response?.status,
+          userId,
+          context: {
             jobId: job.id,
-            error: error.message
+            topic,
+            level,
+            duration
           }
-        });
+        }).catch(e => logger.warn('[AsyncPodcast] Admin notification error:', e.message));
+
+        // Determine user-friendly error message based on error type
+        const isUserFacingError = error.userFacing === true;
+        const errorMessage = isUserFacingError
+          ? error.userMessage
+          : 'Bir hata oluştu. Lütfen tekrar deneyin.';
+        const notificationType = isUserFacingError ? 'content_failed' : 'podcast_failed';
+
+        // Send failure notification with appropriate message
+        try {
+          await sendPushNotification(userId, {
+            title: 'Podcast Oluşturulamadı',
+            body: errorMessage,
+            type: notificationType,
+            data: {
+              jobId: job.id,
+              errorType: error.userErrorType || 'processing_error',
+              retryable: error.retryable || false
+            }
+          });
+        } catch (notifError) {
+          logger.error(`[AsyncPodcast] Failure notification error:`, notifError.message);
+        }
       } finally {
         if (slotAcquired) {
           limiters.podcast.release(); // Release route-level slot only if acquired
@@ -927,7 +977,8 @@ router.post("/generate-topic-narration", authenticate, async (req, res) => {
 
   try {
     const { generateNarrationForTopic } = require('../utils/ai/inputExtractor');
-    const result = await generateNarrationForTopic(subject, level);
+    const userId = req.user?.id;
+    const result = await generateNarrationForTopic(subject, level, 'Turkish', null, null, null, null, userId);
 
     if (!result || !result.englishText) {
       return res.status(500).json({
