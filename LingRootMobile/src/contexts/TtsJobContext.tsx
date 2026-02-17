@@ -33,8 +33,9 @@ export const TtsJobProvider: React.FC<TtsJobProviderProps> = ({ children }) => {
   const clientLockActiveRef = useRef(false);
   // Timestamp when lock was acquired - used to determine if lock is "fresh"
   const lockStartTimeRef = useRef<number | null>(null);
-  // Grace period: only respect client lock if it's recent (10 seconds)
-  const LOCK_GRACE_PERIOD = 10000;
+  // Grace period: only respect client lock if it's recent (3 seconds)
+  // After 3s, trust backend - API request should have reached backend by then
+  const LOCK_GRACE_PERIOD = 3000;
 
   // Polling refs for active job status checking
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -114,23 +115,20 @@ export const TtsJobProvider: React.FC<TtsJobProviderProps> = ({ children }) => {
           : Infinity;
 
         if (clientLockActiveRef.current && lockAge < LOCK_GRACE_PERIOD) {
-          // Lock is recent (< 10 seconds), keep it - API request might still be in flight
+          // Lock is recent (< 3 seconds), keep it - API request might still be in flight
           return true;
         }
 
         // Lock is old or doesn't exist - trust backend and unlock
         // This handles both success and error cases properly
-        clientLockActiveRef.current = false;
-        lockStartTimeRef.current = null;
-        setIsTtsJobLocked(false);
-        setTtsJobMessage(null);
+        unlockTtsJob();
         return false;
       }
     } catch {
       // On error, don't change lock state - return current state
       return isTtsJobLocked || clientLockActiveRef.current;
     }
-  }, [isTtsJobLocked]);
+  }, [isTtsJobLocked, unlockTtsJob]);
 
   // Check for active job when app comes to foreground
   useEffect(() => {

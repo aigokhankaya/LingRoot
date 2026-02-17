@@ -6,6 +6,7 @@
 const textToSpeech = require('@google-cloud/text-to-speech');
 const logger = require('../common/logger.js');
 const { v4: uuidv4 } = require('uuid');
+const { notifyAIError, AI_PROVIDERS } = require('../notifications/aiErrorNotifier.js');
 const { supabase } = require('../storage/supabaseClient.js');
 const { GoogleAuth } = require('google-auth-library');
 const axios = require('axios');
@@ -86,6 +87,20 @@ async function withRetry(fn, maxRetries = 3, baseDelayMs = 5000) {
           reason: !isRateLimit ? 'not a rate limit error' : 'max retries reached',
           willThrow: true
         });
+        // Notify admin of OpenAI failure in podcast script generation
+        notifyAIError({
+          provider: AI_PROVIDERS.OPENAI_CHAT,
+          method: 'generatePodcastScript (withRetry)',
+          error: error,
+          httpStatus: error.status,
+          userId,
+          context: {
+            attempt: attempt + 1,
+            maxRetries: maxRetries + 1,
+            isRateLimit,
+            errorCode: error.code
+          }
+        }).catch(e => logger.warn('[GEMINI_TTS] Failed to send error notification:', e.message));
         throw error;
       }
 
@@ -321,6 +336,7 @@ async function generatePodcastScript(options) {
     personalityB = 'knowledgeable_friend',
     includeHumor = true,
     includeFiller = true,
+    userId = null,
   } = options;
 
   // Calculate approximate word count based on duration (150 words per minute average)
@@ -695,6 +711,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
     stylePrompt = 'Have a natural, engaging conversation.',
     model = 'gemini-2.5-flash-tts',
     _attemptedVoicePairs = null,
+    userId = null,
   } = options;
 
   const femaleSpeakers = Object.keys(GEMINI_SPEAKERS).filter(
@@ -1026,6 +1043,20 @@ async function synthesizeMultiSpeakerPodcast(options) {
 
       const finalErr = new Error('Gemini TTS rejected all available female/male voice pairs (INVALID_ARGUMENT).');
       finalErr.code = 'GEMINI_INVALID_ARGUMENT';
+      // Notify admin of Gemini TTS failure
+      notifyAIError({
+        provider: AI_PROVIDERS.GEMINI_TTS,
+        method: 'synthesizeMultiSpeakerPodcast',
+        error: finalErr,
+        userId,
+        context: {
+          speakerAId,
+          speakerBId,
+          model,
+          attemptedPairs: _attemptedVoicePairs?.length || 0,
+          turnsCount: turns?.length || 0
+        }
+      }).catch(e => logger.warn('[GEMINI_TTS] Failed to send error notification:', e.message));
       throw finalErr;
     }
 
@@ -1035,6 +1066,22 @@ async function synthesizeMultiSpeakerPodcast(options) {
       return await synthesizeFallbackPodcast(turns, speakerAId, speakerBId);
     } catch (fallbackError) {
       logger.error('[GOOGLE-PODCAST] Fallback also failed:', fallbackError.message);
+      // Notify admin of complete TTS failure
+      notifyAIError({
+        provider: AI_PROVIDERS.GEMINI_TTS,
+        method: 'synthesizeMultiSpeakerPodcast (fallback)',
+        error: error,
+        httpStatus: error.response?.status,
+        userId,
+        context: {
+          originalError: error.message,
+          fallbackError: fallbackError.message,
+          speakerAId,
+          speakerBId,
+          model,
+          turnsCount: turns?.length || 0
+        }
+      }).catch(e => logger.warn('[GEMINI_TTS] Failed to send error notification:', e.message));
       throw error; // Throw original error
     }
   }
@@ -1279,6 +1326,7 @@ async function createGoogleTTSPodcast(options) {
       personalityB,
       includeHumor,
       includeFiller,
+      userId,
     });
 
     if (!scriptResult.turns || scriptResult.turns.length === 0) {
@@ -1348,6 +1396,7 @@ async function createGoogleTTSPodcast(options) {
       speakerBId: finalGuestSpeakerId,
       stylePrompt: stylePrompt,
       model: requestedModel,
+      userId,
     });
 
     // Step 3: Upload audio to storage
