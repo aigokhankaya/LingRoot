@@ -140,20 +140,37 @@ class NotificationService {
       console.log('⚠️ [iOS Notifications] Skipping reschedule - too soon');
       return;
     }
-    if (this.rescheduleRunning) { 
+    if (this.rescheduleRunning) {
       console.log('⚠️ [iOS Notifications] Reschedule already running, queuing');
-      this.rescheduleQueued = true; 
-      return; 
+      this.rescheduleQueued = true;
+      return;
     }
     this.rescheduleRunning = true;
     this.lastRescheduleAt = nowMs;
-    
+
     try {
       console.log('🔄 [iOS Notifications] Canceling all existing notifications');
+
+      // First, get all pending notifications and cancel them by ID
+      try {
+        const pending = await this.getScheduledNotifications();
+        console.log(`🗑️ [iOS Notifications] Found ${pending.length} pending notifications to cancel`);
+        for (const notif of pending) {
+          if (notif.id) {
+            try {
+              PushNotificationIOS.removePendingNotificationRequests([notif.id]);
+            } catch {}
+          }
+        }
+      } catch {}
+
       // Use both old and new APIs to ensure all notifications are cleared
       try { PushNotificationIOS.cancelAllLocalNotifications(); } catch {}
       try { PushNotificationIOS.removeAllPendingNotificationRequests(); } catch {}
       try { PushNotificationIOS.removeAllDeliveredNotifications(); } catch {}
+
+      // Wait for iOS to process cancellations before scheduling new ones
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       let settings: ReminderSettings;
       try { settings = await ReminderSettingsService.getSettings(); }
@@ -242,7 +259,18 @@ class NotificationService {
       }
       
       console.log(`✅ [iOS Notifications] Successfully scheduled ${times.length} notifications`);
+
+      // Verify scheduled notifications
+      await new Promise(resolve => setTimeout(resolve, 200));
+      try {
+        const scheduled = await this.getScheduledNotifications();
+        console.log(`📊 [iOS Notifications] Verification: ${scheduled.length} notifications in queue`);
+        scheduled.slice(0, 3).forEach((n, i) => {
+          console.log(`   ${i + 1}. ${n.fireDate.toLocaleString('tr-TR')} - ${n.body?.substring(0, 30)}...`);
+        });
+      } catch {}
     } catch (e) {
+      console.error('❌ [iOS Notifications] Error scheduling:', e);
       // Silently fail - don't show alert to user
     } finally {
       this.rescheduleRunning = false;
@@ -305,10 +333,33 @@ class NotificationService {
   }
 
   public async stopVocabularyReminders(): Promise<void> {
+    // First, cancel all notifications by ID
+    try {
+      const pending = await this.getScheduledNotifications();
+      console.log(`🗑️ [iOS Notifications] Stopping ${pending.length} vocabulary reminders`);
+      for (const notif of pending) {
+        if (notif.id) {
+          try {
+            PushNotificationIOS.removePendingNotificationRequests([notif.id]);
+          } catch {}
+        }
+      }
+    } catch {}
+
     // Use all available methods to clear notifications
     try { PushNotificationIOS.cancelAllLocalNotifications(); } catch {}
     try { PushNotificationIOS.removeAllPendingNotificationRequests(); } catch {}
     try { PushNotificationIOS.removeAllDeliveredNotifications(); } catch {}
+
+    // Wait for iOS to process
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Verify cancellation
+    try {
+      const remaining = await this.getScheduledNotifications();
+      console.log(`✅ [iOS Notifications] After stop: ${remaining.length} notifications remaining`);
+    } catch {}
+
     const lang = await this.getLanguage();
     Alert.alert(
       lang === 'tr' ? 'Bildirimler Durduruldu' : 'Notifications Stopped',
