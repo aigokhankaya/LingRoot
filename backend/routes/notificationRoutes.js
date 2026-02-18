@@ -21,6 +21,9 @@ router.put('/read-all', notificationController.markAllAsRead);
 // Delete a notification
 router.delete('/:id', notificationController.deleteNotification);
 
+// Delete all read notifications
+router.delete('/read/all', notificationController.deleteReadNotifications);
+
 // Create vocabulary reminder notification (called from mobile)
 router.post('/vocabulary-reminder', notificationController.createVocabularyReminder);
 

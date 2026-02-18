@@ -271,6 +271,16 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 }
 
 /**
+ * Delete all read notifications
+ * Returns the count of deleted notifications
+ */
+export async function deleteReadNotifications(): Promise<number> {
+    const client = await getApiClientAsync();
+    const response = await client.http.delete('/api/notifications/read/all');
+    return response.data?.deletedCount || 0;
+}
+
+/**
  * Create a vocabulary reminder notification in backend
  * Called when a vocabulary reminder is scheduled/shown locally
  */

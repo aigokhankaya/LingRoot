@@ -216,6 +216,50 @@ const deleteNotification = async (req, res) => {
     }
 };
 
+/**
+ * Delete all read notifications for a user
+ */
+const deleteReadNotifications = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Count how many will be deleted
+        const { count: deleteCount, error: countError } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', true);
+
+        if (countError) {
+            logger.warn('[NOTIFICATION] Error counting read notifications:', countError);
+        }
+
+        const { error } = await supabase
+            .from('notifications')
+            .delete()
+            .eq('user_id', userId)
+            .eq('is_read', true);
+
+        if (error) {
+            logger.error('[NOTIFICATION] Supabase error deleting read notifications:', error);
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            message: `${deleteCount || 0} okunmuş bildirim silindi`,
+            deletedCount: deleteCount || 0
+        });
+    } catch (error) {
+        logger.error('[NOTIFICATION] Error deleting read notifications:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Okunmuş bildirimler silinirken hata oluştu',
+            error: error.message
+        });
+    }
+};
+
 // ===================== ADMIN FUNCTIONS =====================
 
 /**
@@ -476,6 +520,7 @@ module.exports = {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    deleteReadNotifications,
     createVocabularyReminder,
     // Admin functions
     sendNotification,
