@@ -494,7 +494,7 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
   if (appleSub) {
     const { data, error: fetchError } = await supabase
       .from('users')
-      .select("id, email, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
+      .select("id, email, role, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
       .eq("password", `apple-oauth:${appleSub}`)
       .maybeSingle();
 
@@ -509,7 +509,7 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
   if (!existingUser && normalizedEmail) {
     const { data, error: fetchError } = await supabase
       .from('users')
-      .select("id, email, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
+      .select("id, email, role, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
