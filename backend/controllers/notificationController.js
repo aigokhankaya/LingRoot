@@ -216,6 +216,50 @@ const deleteNotification = async (req, res) => {
     }
 };
 
+/**
+ * Delete all read notifications for a user
+ */
+const deleteReadNotifications = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Count how many will be deleted
+        const { count: deleteCount, error: countError } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', true);
+
+        if (countError) {
+            logger.warn('[NOTIFICATION] Error counting read notifications:', countError);
+        }
+
+        const { error } = await supabase
+            .from('notifications')
+            .delete()
+            .eq('user_id', userId)
+            .eq('is_read', true);
+
+        if (error) {
+            logger.error('[NOTIFICATION] Supabase error deleting read notifications:', error);
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            message: `${deleteCount || 0} okunmuş bildirim silindi`,
+            deletedCount: deleteCount || 0
+        });
+    } catch (error) {
+        logger.error('[NOTIFICATION] Error deleting read notifications:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Okunmuş bildirimler silinirken hata oluştu',
+            error: error.message
+        });
+    }
+};
+
 // ===================== ADMIN FUNCTIONS =====================
 
 /**
@@ -394,6 +438,9 @@ const deleteNotificationAdmin = async (req, res) => {
 /**
  * Create a vocabulary reminder notification
  * Called from mobile when a vocabulary reminder is scheduled/shown
+ *
+ * DUPLICATE PREVENTION: Skips creation if same user+word notification
+ * was already created in the last 24 hours
  */
 const createVocabularyReminder = async (req, res) => {
     try {
@@ -407,12 +454,40 @@ const createVocabularyReminder = async (req, res) => {
             });
         }
 
+        // Check for duplicate: same user + word + vocabulary_reminder in last 24 hours
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const bodyToCheck = definition ? `${word} — ${definition}` : word;
+
+        const { data: existingNotif, error: checkError } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('type', 'vocabulary_reminder')
+            .eq('body', bodyToCheck)
+            .gte('created_at', twentyFourHoursAgo)
+            .limit(1)
+            .maybeSingle();
+
+        if (checkError) {
+            logger.warn('[NOTIFICATION] Error checking for duplicate:', checkError);
+            // Continue with creation anyway
+        }
+
+        // If duplicate exists, skip creation
+        if (existingNotif) {
+            return res.json({
+                success: true,
+                message: 'Bildirim zaten mevcut (duplicate skipped)',
+                skipped: true
+            });
+        }
+
         const { error } = await supabase
             .from('notifications')
             .insert([{
                 user_id: userId,
                 title: 'Kelime Hatırlatıcısı',
-                body: definition ? `${word} — ${definition}` : word,
+                body: bodyToCheck,
                 type: 'vocabulary_reminder',
                 is_read: false,
                 data: wordId ? { wordId } : null,
@@ -445,6 +520,7 @@ module.exports = {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    deleteReadNotifications,
     createVocabularyReminder,
     // Admin functions
     sendNotification,

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -18,6 +19,7 @@ import {
   getNotificationUnreadCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  deleteReadNotifications,
 } from '../services/userService';
 import { COLORS } from '../theme/colors';
 import type { RootStackParamList, AudioTrack, CEFRLevel } from '../types';
@@ -49,6 +51,7 @@ const NotificationsScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [isDeletingRead, setIsDeletingRead] = useState(false);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -132,6 +135,40 @@ const NotificationsScreen: React.FC = () => {
     } finally {
       setIsMarkingAll(false);
     }
+  };
+
+  const handleDeleteRead = async () => {
+    const readCount = notifications.filter((n) => n.isRead).length;
+    if (readCount === 0 || isDeletingRead) return;
+
+    Alert.alert(
+      language === 'tr' ? 'Okunmuslari Sil' : 'Delete Read',
+      language === 'tr'
+        ? `${readCount} okunmus bildirim silinecek. Emin misiniz?`
+        : `${readCount} read notifications will be deleted. Are you sure?`,
+      [
+        { text: language === 'tr' ? 'Iptal' : 'Cancel', style: 'cancel' },
+        {
+          text: language === 'tr' ? 'Sil' : 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeletingRead(true);
+              await deleteReadNotifications();
+              setNotifications((prev) => prev.filter((n) => !n.isRead));
+            } catch (error) {
+              console.error('Error deleting read notifications:', error);
+              Alert.alert(
+                language === 'tr' ? 'Hata' : 'Error',
+                language === 'tr' ? 'Bildirimler silinirken hata olustu' : 'Error deleting notifications'
+              );
+            } finally {
+              setIsDeletingRead(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getTypeIcon = (type: string): string => {
@@ -242,29 +279,49 @@ const NotificationsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with unread count and mark all button */}
+      {/* Header with unread count and action buttons */}
       <View style={styles.headerContainer}>
-        <View style={styles.unreadBadgeContainer}>
-          <Text style={styles.unreadBadgeLabel}>
-            {language === 'tr' ? 'Okunmamis' : 'Unread'}
-          </Text>
-          <View style={[styles.unreadBadge, unreadCount === 0 && styles.unreadBadgeEmpty]}>
-            <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.unreadBadgeContainer}>
+            <Text style={styles.unreadBadgeLabel}>
+              {language === 'tr' ? 'Okunmamis' : 'Unread'}
+            </Text>
+            <View style={[styles.unreadBadge, unreadCount === 0 && styles.unreadBadgeEmpty]}>
+              <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+            </View>
           </View>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={styles.markAllButton}
+              onPress={handleMarkAllAsRead}
+              disabled={isMarkingAll}
+            >
+              {isMarkingAll ? (
+                <ActivityIndicator size="small" color={COLORS.brandTeal} />
+              ) : (
+                <>
+                  <Icon name="done-all" size={18} color={COLORS.brandTeal} />
+                  <Text style={styles.markAllText}>
+                    {language === 'tr' ? 'Tumunu Okundu Isaretle' : 'Mark All Read'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
-        {unreadCount > 0 && (
+        {notifications.some((n) => n.isRead) && (
           <TouchableOpacity
-            style={styles.markAllButton}
-            onPress={handleMarkAllAsRead}
-            disabled={isMarkingAll}
+            style={styles.deleteReadButton}
+            onPress={handleDeleteRead}
+            disabled={isDeletingRead}
           >
-            {isMarkingAll ? (
-              <ActivityIndicator size="small" color={COLORS.brandTeal} />
+            {isDeletingRead ? (
+              <ActivityIndicator size="small" color={COLORS.danger} />
             ) : (
               <>
-                <Icon name="done-all" size={18} color={COLORS.brandTeal} />
-                <Text style={styles.markAllText}>
-                  {language === 'tr' ? 'Tumunu Okundu Isaretle' : 'Mark All Read'}
+                <Icon name="delete-sweep" size={18} color={COLORS.danger} />
+                <Text style={styles.deleteReadText}>
+                  {language === 'tr' ? 'Okunmuslari Sil' : 'Delete Read'}
                 </Text>
               </>
             )}
@@ -310,12 +367,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 56,
     paddingBottom: 16,
+    gap: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   unreadBadgeContainer: {
     flexDirection: 'row',
@@ -356,6 +416,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: COLORS.brandTeal,
+  },
+  deleteReadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  deleteReadText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.danger,
   },
   listContent: {
     paddingHorizontal: 24,
