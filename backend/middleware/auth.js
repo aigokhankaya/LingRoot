@@ -16,11 +16,37 @@ const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-developmen
 
 // Redis token blacklist check helper
 const { getConnection, checkRedisAvailability } = require('../utils/storage/redisClient');
+const memoryCache = require('../utils/cache/memoryCache');
+
+/**
+ * Optimized token blacklist check
+ * - Skips Redis check if token expires in < 5 minutes (will expire anyway)
+ * - Uses L1 memory cache for recently checked tokens
+ */
 async function isTokenBlacklisted(token) {
   try {
+    // Decode token to check expiry (without verification - saves CPU)
+    const decoded = jwt.decode(token);
+    if (!decoded || !decoded.exp) return false;
+
+    // Skip blacklist check if token expires in < 5 minutes
+    const timeUntilExpiry = decoded.exp - Math.floor(Date.now() / 1000);
+    if (timeUntilExpiry < 300) return false;
+
+    // L1: Check memory cache first
+    const cacheKey = `bl:check:${token.slice(-16)}`; // Use last 16 chars as key
+    const cached = memoryCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+
+    // L2: Check Redis
     if (!checkRedisAvailability()) return false;
     const result = await getConnection().get(`bl:${token}`);
-    return result === '1';
+    const isBlacklisted = result === '1';
+
+    // Cache result for 60 seconds
+    memoryCache.set(cacheKey, isBlacklisted, 60);
+
+    return isBlacklisted;
   } catch {
     // V-04: Intentional fail-open design. JWT TTL is 15 minutes, so the risk
     // window when Redis is unavailable is small. Blocking all requests on Redis
@@ -74,15 +100,24 @@ exports.authenticate = async (req, res, next) => {
       });
     }
 
-    // Check Redis cache for user data
+    // Check cache for user data (L1 Memory → L2 Redis → Database)
     const cacheKey = `auth:user:${decoded.id}`;
     let user = null;
 
-    if (checkRedisAvailability()) {
+    // L1: Check memory cache first (fastest)
+    const memoryCached = memoryCache.get(cacheKey);
+    if (memoryCached) {
+      user = memoryCached;
+    }
+
+    // L2: Check Redis if not in memory
+    if (!user && checkRedisAvailability()) {
       try {
         const cached = await getConnection().get(cacheKey);
         if (cached) {
           user = JSON.parse(cached);
+          // Populate L1 for subsequent requests (30s TTL)
+          memoryCache.set(cacheKey, user, 30);
         }
       } catch (err) {
         logger.debug(`[AUTH] Redis cache read error for user ${decoded.id}: ${err.message}`);
@@ -110,10 +145,13 @@ exports.authenticate = async (req, res, next) => {
       }
       user = data;
 
-      // Write to Redis cache (60s TTL)
+      // L1: Write to memory cache (30s TTL)
+      memoryCache.set(cacheKey, user, 30);
+
+      // L2: Write to Redis cache (300s TTL - 5 minutes)
       if (checkRedisAvailability()) {
         try {
-          await getConnection().setex(cacheKey, 60, JSON.stringify(user));
+          await getConnection().setex(cacheKey, 300, JSON.stringify(user));
         } catch (err) {
           logger.debug(`[AUTH] Redis cache write error for user ${decoded.id}: ${err.message}`);
         }
@@ -188,15 +226,24 @@ exports.optionalAuth = async (req, res, next) => {
         return next();
       }
 
-      // Check Redis cache for user data
+      // Check cache for user data (L1 Memory → L2 Redis → Database)
       const cacheKey = `auth:user:${decoded.id}`;
       let user = null;
 
-      if (checkRedisAvailability()) {
+      // L1: Check memory cache first
+      const memoryCached = memoryCache.get(cacheKey);
+      if (memoryCached) {
+        user = memoryCached;
+      }
+
+      // L2: Check Redis if not in memory
+      if (!user && checkRedisAvailability()) {
         try {
           const cached = await getConnection().get(cacheKey);
           if (cached) {
             user = JSON.parse(cached);
+            // Populate L1 (30s TTL)
+            memoryCache.set(cacheKey, user, 30);
           }
         } catch (err) {
           logger.debug(`[AUTH] Redis cache read error for optional auth user ${decoded.id}: ${err.message}`);
@@ -215,10 +262,12 @@ exports.optionalAuth = async (req, res, next) => {
           req.user = null;
         } else {
           user = data;
-          // Write to Redis cache (60s TTL)
+          // L1: Write to memory (30s TTL)
+          memoryCache.set(cacheKey, user, 30);
+          // L2: Write to Redis (300s TTL)
           if (checkRedisAvailability()) {
             try {
-              await getConnection().setex(cacheKey, 60, JSON.stringify(user));
+              await getConnection().setex(cacheKey, 300, JSON.stringify(user));
             } catch (err) {
               logger.debug(`[AUTH] Redis cache write error for optional auth user ${decoded.id}: ${err.message}`);
             }

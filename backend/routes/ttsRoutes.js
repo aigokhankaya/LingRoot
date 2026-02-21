@@ -411,6 +411,12 @@ router.post("/mergeAudio", mergeAudioAPI);
 // Google TTS Multi-Speaker Podcast Creator
 const { createGoogleTTSPodcast } = require('../utils/audio/googleTTSMultiSpeaker.js');
 
+// Podcast V2 - Separated Speaker Processing (PODCAST_TYPE=new)
+const { createPodcastV2 } = require('../utils/audio/podcastV2/index.js');
+
+// Environment variable for podcast system selection
+const PODCAST_TYPE = process.env.PODCAST_TYPE || 'old';
+
 // Create podcast from topic (Direct Google TTS Implementation)
 router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) => {
   // Global podcast limiti kontrolü
@@ -446,24 +452,44 @@ router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) =>
       duration,
       hostSpeakerId: body.hostSpeakerId,
       guestSpeakerId: body.guestSpeakerId,
-      userId: req.user?.id
+      userId: req.user?.id,
+      podcastType: PODCAST_TYPE
     });
 
-    // Call Direct Google TTS implementation
-    const result = await createGoogleTTSPodcast({
-      topic,
-      level,
-      duration,
-      styleType: body.styleType,
-      voiceChoice: body.voiceChoice,
-      personalityA: body.personalityA,
-      personalityB: body.personalityB,
-      hostSpeakerId: body.hostSpeakerId,
-      guestSpeakerId: body.guestSpeakerId,
-      includeHumor: body.includeHumor,
-      includeFiller: body.includeFiller,
-      userId: req.user?.id
-    });
+    // Route to appropriate podcast system based on PODCAST_TYPE env variable
+    let result;
+    if (PODCAST_TYPE === 'new') {
+      logger.info('[PODCAST] Using Podcast V2 (separated speaker processing)');
+      result = await createPodcastV2({
+        topic,
+        level,
+        duration,
+        styleType: body.styleType,
+        personalityA: body.personalityA,
+        personalityB: body.personalityB,
+        hostSpeakerId: body.hostSpeakerId,
+        guestSpeakerId: body.guestSpeakerId,
+        includeHumor: body.includeHumor,
+        includeFiller: body.includeFiller,
+        userId: req.user?.id
+      });
+    } else {
+      logger.info('[PODCAST] Using legacy podcast system');
+      result = await createGoogleTTSPodcast({
+        topic,
+        level,
+        duration,
+        styleType: body.styleType,
+        voiceChoice: body.voiceChoice,
+        personalityA: body.personalityA,
+        personalityB: body.personalityB,
+        hostSpeakerId: body.hostSpeakerId,
+        guestSpeakerId: body.guestSpeakerId,
+        includeHumor: body.includeHumor,
+        includeFiller: body.includeFiller,
+        userId: req.user?.id
+      });
+    }
 
     return res.json({
       success: true,
@@ -544,7 +570,7 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
       message: job.queuePosition > 1
         ? `Sıraya alındı. Sıra: ${job.queuePosition}`
         : 'Podcast oluşturma başlatıldı. Hazır olduğunda bildirim alacaksınız.',
-      estimatedTime: '3-7 minutes'
+      estimatedTime: '10-15 minutes'
     });
 
     // Process in background — slot waiting happens HERE, not before job creation
@@ -581,32 +607,51 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
         slotAcquired = true;
 
         jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
-        logger.info(`[AsyncPodcast] Job ${job.id} got slot, processing (waited: ${globalSlot.waited}ms)`);
+        logger.info(`[AsyncPodcast] Job ${job.id} got slot, processing (waited: ${globalSlot.waited}ms, podcastType: ${PODCAST_TYPE})`);
 
-        // Call Direct Google TTS implementation
-        const result = await createGoogleTTSPodcast({
-          topic,
-          level,
-          duration,
-          styleType: body.styleType,
-          voiceChoice: body.voiceChoice,
-          personalityA: body.personalityA,
-          personalityB: body.personalityB,
-          hostSpeakerId: body.hostSpeakerId,
-          guestSpeakerId: body.guestSpeakerId,
-          includeHumor: body.includeHumor,
-          includeFiller: body.includeFiller,
-          userId
-        });
+        // Route to appropriate podcast system based on PODCAST_TYPE env variable
+        let result;
+        if (PODCAST_TYPE === 'new') {
+          logger.info(`[AsyncPodcast] Job ${job.id} using Podcast V2 (separated speaker processing)`);
+          result = await createPodcastV2({
+            topic,
+            level,
+            duration,
+            styleType: body.styleType,
+            personalityA: body.personalityA,
+            personalityB: body.personalityB,
+            hostSpeakerId: body.hostSpeakerId,
+            guestSpeakerId: body.guestSpeakerId,
+            includeHumor: body.includeHumor,
+            includeFiller: body.includeFiller,
+            userId
+          });
+        } else {
+          logger.info(`[AsyncPodcast] Job ${job.id} using legacy podcast system`);
+          result = await createGoogleTTSPodcast({
+            topic,
+            level,
+            duration,
+            styleType: body.styleType,
+            voiceChoice: body.voiceChoice,
+            personalityA: body.personalityA,
+            personalityB: body.personalityB,
+            hostSpeakerId: body.hostSpeakerId,
+            guestSpeakerId: body.guestSpeakerId,
+            includeHumor: body.includeHumor,
+            includeFiller: body.includeFiller,
+            userId
+          });
+        }
 
         if (result && result.mp3_url) {
-          // Try to use the contenthistory_id from createGoogleTTSPodcast
-          const savedContentId = result.contenthistory_id || null;
+          // Try to use the contenthistory_id from createGoogleTTSPodcast or content_id from V2
+          const savedContentId = result.contenthistory_id || result.content_id || null;
 
-          // If createGoogleTTSPodcast failed to save, throw error - no fallback
+          // If podcast creation failed to save, throw error - no fallback
           if (!savedContentId) {
-            const saveError = new Error('createGoogleTTSPodcast failed to save to contenthistory');
-            logPodcast('SAVE_FAILED', { reason: 'contenthistory_id is null', topic, level, userId });
+            const saveError = new Error('Podcast creation failed to save to contenthistory');
+            logPodcast('SAVE_FAILED', { reason: 'content_id is null', topic, level, userId, podcastType: PODCAST_TYPE });
             throw saveError;
           }
 

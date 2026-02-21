@@ -12,12 +12,14 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useCustomAlert } from '../contexts/AlertContext';
 import { getReminderSettings, saveReminderSettings, ReminderSettings } from '../services/userService';
 import NotificationService from '../services/notificationService';
 import { COLORS } from '../theme/colors';
 
 const ReminderSettingsScreen: React.FC = () => {
   const { language } = useLanguage();
+  const { showAlert } = useCustomAlert();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
@@ -63,24 +65,27 @@ const ReminderSettingsScreen: React.FC = () => {
       // Save settings to backend
       await saveReminderSettings(settings);
 
-      // If reminders are enabled, reschedule with new settings
+      // If reminders are enabled, reschedule with new settings (force=true to override existing)
       if (settings.isEnabled) {
         try {
-          await NotificationService.setupSmartVocabularyNotifications();
+          await NotificationService.setupSmartVocabularyNotifications(true);
         } catch (error) {
           console.error('Error rescheduling notifications:', error);
         }
       }
 
-      Alert.alert(
-        language === 'tr' ? 'Başarılı' : 'Success',
+      showAlert(
+        language === 'tr' ? 'Ayarlar Kaydedildi' : 'Settings Saved',
         language === 'tr'
           ? settings.isEnabled
-            ? 'Hatırlatma ayarları başarıyla kaydedildi!\n\nYeni ayarlar aktif olacak.'
-            : 'Hatırlatma ayarları kaydedildi.\n\nTüm zamanlanmış bildirimler iptal edildi.'
+            ? 'Hatırlatma ayarlarınız güncellendi ve yeni bildirimler zamanlandı.'
+            : 'Hatırlatma ayarlarınız güncellendi. Tüm bildirimler iptal edildi.'
           : settings.isEnabled
-            ? 'Reminder settings saved successfully!\n\nNew settings will be active.'
-            : 'Reminder settings saved.\n\nAll scheduled notifications have been canceled.'
+            ? 'Your reminder settings have been updated and new notifications are scheduled.'
+            : 'Your reminder settings have been updated. All notifications have been canceled.',
+        [{ text: 'Tamam', style: 'default' }],
+        'check-circle',
+        '#14B8A6'
       );
     } catch (error) {
       console.error('Error saving reminder settings:', error);
@@ -622,7 +627,7 @@ const styles = StyleSheet.create({
     color: COLORS.slate800,
   },
   timeList: {
-    maxHeight: 400,
+    flexGrow: 1,
   },
   timeOption: {
     flexDirection: 'row',

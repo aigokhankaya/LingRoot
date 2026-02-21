@@ -5,9 +5,10 @@ const subscriptionController = require('../controllers/subscriptionController');
 const planController = require('../controllers/planController');
 const { setCacheHeaders } = require('../middleware/cacheHeaders');
 const { redisCache } = require('../middleware/redisCache');
+const { hybridCache } = require('../middleware/hybridCache');
 
-// Public routes
-router.get('/plans', setCacheHeaders(300), redisCache('sub:plans', 1800), subscriptionController.getSubscriptionPlans);
+// Public routes - L1: 60s, L2: 1800s (plans rarely change)
+router.get('/plans', setCacheHeaders(300), hybridCache('sub:plans', 1800, 60), subscriptionController.getSubscriptionPlans);
 
 // Webhook for payment provider callbacks
 router.post('/webhook', express.raw({ type: 'application/json' }), subscriptionController.handleWebhook);

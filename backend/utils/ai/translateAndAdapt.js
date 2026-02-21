@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const { chunkText } = require('../content/textProcessor.js');
 const promptService = require('./promptService.js');
+const { notifyAIError, AI_PROVIDERS, detectErrorType, AI_ERROR_TYPES, isCriticalError, createUserFacingError, USER_FACING_ERROR_TYPES } = require('../notifications/aiErrorNotifier.js');
 
 // Initialize OpenAI client
 let openai;
@@ -28,18 +29,19 @@ try {
 /**
  * OPTIMIZED: Translates text to English AND adapts to CEFR level in a SINGLE LLM call.
  * Replaces the old 2-step process: translateToEnglish → adaptToCEFR
- * 
+ *
  * Token savings: ~43% compared to 2 separate calls
- * 
+ *
  * @param {string} text - Source text in any language
  * @param {string} sourceLanguage - Source language (e.g., "Turkish", "Spanish")
  * @param {string} level - Target CEFR level (A1, A2, B1, B2, C1, C2)
  * @param {object} requestLogger - Optional request logger
  * @param {string} promptVariant - Optional prompt variant: 'standard' (default) or 'narrator' (for audiobook/book content)
  * @param {string} mood - Optional mood for narrator adaptation (e.g. "Melancholic", "Cheerful")
+ * @param {string} userId - Optional user ID for error notification
  * @returns {Promise<{text: string, usage: object, model: string}>}
  */
-async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogger, promptVariant = 'standard', mood = null) {
+async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogger, promptVariant = 'standard', mood = null, userId = null) {
     // Load test mock: skip real OpenAI call
     const { isLoadTestMode, getLoadTestDelay } = require('../../tests/load/mocks/mockConfig');
     if (isLoadTestMode()) {
@@ -161,6 +163,41 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
 
         } catch (error) {
             logger.error(`[TranslateAndAdapt] Error on chunk ${i + 1}: ${error.message}`);
+
+            // Detect error type and check if critical
+            const errorType = detectErrorType(error, error.status || error.response?.status);
+            const critical = isCriticalError(errorType);
+
+            // Notify admin of OpenAI error in translate/adapt
+            notifyAIError({
+                provider: AI_PROVIDERS.OPENAI_CHAT,
+                method: 'translateAndAdaptToCEFR',
+                error: error,
+                httpStatus: error.status || error.response?.status,
+                userId: userId,
+                context: {
+                    sourceLanguage,
+                    level,
+                    model,
+                    chunkIndex: i + 1,
+                    totalChunks: chunks.length,
+                    promptVariant,
+                    errorType,
+                    critical
+                }
+            }).catch(e => logger.warn('[TRANSLATE_ADAPT] Failed to send error notification:', e.message));
+
+            // For critical errors (billing, API key, quota), throw to stop processing
+            if (critical) {
+                logger.error(`[TRANSLATE_ADAPT] Critical error detected (${errorType}), stopping processing`);
+                const userErrorType = errorType === AI_ERROR_TYPES.RATE_LIMIT
+                    ? USER_FACING_ERROR_TYPES.TEMPORARY_ERROR
+                    : USER_FACING_ERROR_TYPES.AI_SERVICE_ERROR;
+                throw createUserFacingError(userErrorType, error.message, errorType === AI_ERROR_TYPES.RATE_LIMIT);
+            }
+
+            // For non-critical errors, use fallback
+            logger.warn(`[TRANSLATE_ADAPT] Non-critical error, using original text as fallback`);
             resultChunks.push(chunks[i]); // Fallback to original
         }
     }
@@ -232,9 +269,10 @@ function calculateWordCountFromDuration(durationMinutes) {
  * @param {string} mood - Optional mood for content generation (e.g. "Melancholic", "Cheerful")
  * @param {string[]} forbiddenOpenings - Optional list of opening sentences to avoid (for sibling variety)
  * @param {object} topicContext - Optional topic hierarchy context {hierarchy: string, rootTopic: string}
+ * @param {string} userId - Optional user ID for error notification
  * @returns {Promise<{englishText: string, translatedText: string, usage: object, model: string}>}
  */
-async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null, mood = null, forbiddenOpenings = [], topicContext = null) {
+async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null, mood = null, forbiddenOpenings = [], topicContext = null, userId = null) {
     // Load test mock: skip real OpenAI call
     const { isLoadTestMode: isLTM2, getLoadTestDelay: gLTD2 } = require('../../tests/load/mocks/mockConfig');
     if (isLTM2()) {
@@ -427,6 +465,38 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
 
     } catch (error) {
         logger.error(`[GenerateBilingual] Error: ${error.message}`);
+
+        // Detect error type and check if critical
+        const errorType = detectErrorType(error, error.status || error.response?.status);
+        const critical = isCriticalError(errorType);
+
+        // Notify admin of OpenAI error in bilingual content generation
+        notifyAIError({
+            provider: AI_PROVIDERS.OPENAI_CHAT,
+            method: 'generateBilingualContent',
+            error: error,
+            httpStatus: error.status || error.response?.status,
+            userId: userId,
+            context: {
+                topic,
+                targetLanguage,
+                level,
+                model,
+                targetDurationMinutes,
+                errorType,
+                critical
+            }
+        }).catch(e => logger.warn('[GENERATE_BILINGUAL] Failed to send error notification:', e.message));
+
+        // Create user-facing error for critical errors
+        if (critical) {
+            logger.error(`[GENERATE_BILINGUAL] Critical error detected (${errorType}), stopping processing`);
+            const userErrorType = errorType === AI_ERROR_TYPES.RATE_LIMIT
+                ? USER_FACING_ERROR_TYPES.TEMPORARY_ERROR
+                : USER_FACING_ERROR_TYPES.AI_SERVICE_ERROR;
+            throw createUserFacingError(userErrorType, error.message, errorType === AI_ERROR_TYPES.RATE_LIMIT);
+        }
+
         throw error;
     }
 }

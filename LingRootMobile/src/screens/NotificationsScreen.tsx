@@ -23,6 +23,7 @@ import {
 } from '../services/userService';
 import { COLORS } from '../theme/colors';
 import type { RootStackParamList, AudioTrack, CEFRLevel } from '../types';
+import NotificationService from '../services/notificationService';
 
 interface NotificationItem {
   id: string;
@@ -59,8 +60,21 @@ const NotificationsScreen: React.FC = () => {
         getAllNotifications(50, 0),
         getNotificationUnreadCount(),
       ]);
+      console.log('[NotificationsScreen] API response:', {
+        total: notifResult.total,
+        count: notifResult.notifications?.length,
+        unreadCount: count,
+        notifications: notifResult.notifications?.slice(0, 3).map((n: NotificationItem) => ({
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          metadata: n.metadata,
+        })),
+      });
       setNotifications(notifResult.notifications);
       setUnreadCount(count);
+      // Sync app icon badge with actual unread count
+      NotificationService.updateBadgeCount(count);
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
@@ -88,7 +102,10 @@ const NotificationsScreen: React.FC = () => {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+      const newUnreadCount = Math.max(0, unreadCount - 1);
+      setUnreadCount(newUnreadCount);
+      // Update app icon badge
+      NotificationService.updateBadgeCount(newUnreadCount);
     }
 
     // 2. Navigate based on notification type
@@ -130,6 +147,8 @@ const NotificationsScreen: React.FC = () => {
       await markAllNotificationsAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      // Clear app icon badge when all notifications are read
+      NotificationService.clearBadge();
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     } finally {

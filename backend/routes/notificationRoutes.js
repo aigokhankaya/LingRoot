@@ -18,13 +18,17 @@ router.put('/:id/read', notificationController.markAsRead);
 // Mark all notifications as read
 router.put('/read-all', notificationController.markAllAsRead);
 
-// Delete a notification
-router.delete('/:id', notificationController.deleteNotification);
-
 // Delete all read notifications
 router.delete('/read/all', notificationController.deleteReadNotifications);
 
 // Create vocabulary reminder notification (called from mobile)
 router.post('/vocabulary-reminder', notificationController.createVocabularyReminder);
+
+// Delete all scheduled (unread) vocabulary reminders (called before rescheduling)
+// IMPORTANT: This must come BEFORE /:id route to avoid being caught by the parameter
+router.delete('/vocabulary-reminders/scheduled', notificationController.deleteScheduledVocabularyReminders);
+
+// Delete a notification (must be last - catches all /:id patterns)
+router.delete('/:id', notificationController.deleteNotification);
 
 module.exports = router;

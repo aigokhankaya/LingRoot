@@ -50,6 +50,8 @@ export default function App() {
           await NotificationService.initialize();
           try {
             await NotificationService.setupSmartVocabularyNotifications();
+            // Sync badge on app launch
+            await NotificationService.syncBadgeWithBackend();
           } catch (e) {
             // Silent error handling
           }
@@ -70,6 +72,8 @@ export default function App() {
         try {
           if (Platform.OS === 'ios') {
             await NotificationService.setupSmartVocabularyNotifications();
+            // Sync badge count with backend when app comes to foreground
+            await NotificationService.syncBadgeWithBackend();
           } else {
             // On Android we still avoid aggressive auto-scheduling on every resume; will be triggered by user login/navigation flows
           }

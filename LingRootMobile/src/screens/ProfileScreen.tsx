@@ -149,8 +149,8 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
 
   const handleQuickDebug = async () => {
     try {
-      // Restart smart notifications immediately
-      await NotificationService.setupSmartVocabularyNotifications();
+      // Restart smart notifications immediately (force=true to override existing)
+      await NotificationService.setupSmartVocabularyNotifications(true);
       Alert.alert(t('notifications.debugCompleted'), t('notifications.debugCompletedMessage'));
     } catch (error: any) {
       Alert.alert(t('notifications.error'), t('notifications.debugFailed') + (error.message || t('notifications.unknownError')));

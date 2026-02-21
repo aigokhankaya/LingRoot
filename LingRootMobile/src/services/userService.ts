@@ -283,12 +283,29 @@ export async function deleteReadNotifications(): Promise<number> {
 /**
  * Create a vocabulary reminder notification in backend
  * Called when a vocabulary reminder is scheduled/shown locally
+ * @param scheduledFor - ISO date string when the notification is scheduled to fire
  */
-export async function createVocabularyNotification(wordId: string, word: string, definition?: string): Promise<void> {
+export async function createVocabularyNotification(
+    wordId: string,
+    word: string,
+    definition?: string,
+    scheduledFor?: string
+): Promise<void> {
     const client = await getApiClientAsync();
     await client.http.post('/api/notifications/vocabulary-reminder', {
         wordId,
         word,
-        definition
+        definition,
+        scheduledFor
     });
+}
+
+/**
+ * Delete all scheduled (unread) vocabulary reminder notifications from backend
+ * Called before rescheduling to avoid duplicates
+ */
+export async function deleteScheduledVocabularyReminders(): Promise<number> {
+    const client = await getApiClientAsync();
+    const response = await client.http.delete('/api/notifications/vocabulary-reminders/scheduled');
+    return response.data?.deletedCount || 0;
 }

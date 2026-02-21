@@ -39,7 +39,6 @@ const ReminderTestScreen: React.FC = () => {
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus | null>(null);
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
-  const [calculatedTimes, setCalculatedTimes] = useState<Date[]>([]);
   const [unlearnedWords, setUnlearnedWords] = useState<VocabularyWord[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,12 +66,6 @@ const ReminderTestScreen: React.FC = () => {
         ? words.filter(w => w && (w.is_learned === false || typeof w.is_learned === 'undefined'))
         : [];
       setUnlearnedWords(unlearned);
-
-      // Calculate expected notification times based on settings
-      if (reminderSettings) {
-        const times = ReminderSettingsService.calculateNotificationTimes(reminderSettings, unlearned.length);
-        setCalculatedTimes(times);
-      }
     } catch (err) {
       setError(language === 'tr' ? 'Veriler yüklenirken hata oluştu' : 'Error loading data');
     } finally {
@@ -93,7 +86,7 @@ const ReminderTestScreen: React.FC = () => {
   const handleReschedule = useCallback(async () => {
     try {
       setRefreshing(true);
-      await NotificationService.setupSmartVocabularyNotifications();
+      await NotificationService.setupSmartVocabularyNotifications(true);
       Alert.alert(
         language === 'tr' ? 'Başarılı' : 'Success',
         language === 'tr' ? 'Bildirimler yeniden zamanlandı' : 'Notifications rescheduled'
@@ -303,34 +296,36 @@ const ReminderTestScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Calculated Times Section */}
+        {/* Scheduled Notifications Section - Shows actual scheduled times from device */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Icon name="event" size={24} color="#8b5cf6" />
             <Text style={styles.sectionTitle}>
               {language === 'tr' ? 'Planlanan Gönderim Zamanları' : 'Planned Send Times'}
-              <Text style={styles.countBadge}> ({calculatedTimes.length})</Text>
+              <Text style={styles.countBadge}> ({scheduledNotifications.length})</Text>
             </Text>
           </View>
 
           <View style={styles.card}>
-            {calculatedTimes.length === 0 ? (
+            {scheduledNotifications.length === 0 ? (
               <View style={styles.emptyState}>
                 <Icon name="schedule" size={48} color={COLORS.slate400} />
                 <Text style={styles.emptyText}>
                   {language === 'tr'
-                    ? 'Hesaplanmış zaman yok'
-                    : 'No calculated times'}
+                    ? 'Zamanlanmış bildirim yok'
+                    : 'No scheduled notifications'}
                 </Text>
               </View>
             ) : (
               <View style={styles.timeGrid}>
-                {calculatedTimes.map((time, index) => (
-                  <View key={index} style={styles.timeChip}>
+                {scheduledNotifications
+                  .sort((a, b) => a.fireDate.getTime() - b.fireDate.getTime())
+                  .map((notif, index) => (
+                  <View key={notif.id || index} style={styles.timeChip}>
                     <Text style={styles.timeChipIndex}>{index + 1}</Text>
-                    <Text style={styles.timeChipTime}>{formatTimeOnly(time)}</Text>
+                    <Text style={styles.timeChipTime}>{formatTimeOnly(notif.fireDate)}</Text>
                     <Text style={styles.timeChipDate}>
-                      {time.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: 'short' })}
+                      {notif.fireDate.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: 'short' })}
                     </Text>
                   </View>
                 ))}
@@ -339,12 +334,12 @@ const ReminderTestScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Scheduled Notifications Section */}
+        {/* Scheduled Notifications Detail Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Icon name="schedule" size={24} color={COLORS.brandOrange} />
             <Text style={styles.sectionTitle}>
-              {language === 'tr' ? 'Cihazda Zamanlanmış' : 'Device Scheduled'}
+              {language === 'tr' ? 'Bildirim Detayları' : 'Notification Details'}
               <Text style={styles.countBadge}> ({scheduledNotifications.length})</Text>
             </Text>
           </View>
@@ -360,7 +355,9 @@ const ReminderTestScreen: React.FC = () => {
                 </Text>
               </View>
             ) : (
-              scheduledNotifications.map((notif, index) => (
+              scheduledNotifications
+                .sort((a, b) => a.fireDate.getTime() - b.fireDate.getTime())
+                .map((notif, index) => (
                 <View key={notif.id || index}>
                   {index > 0 && <View style={styles.divider} />}
                   <View style={styles.notificationRow}>

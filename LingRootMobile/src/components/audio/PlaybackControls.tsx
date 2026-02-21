@@ -5,9 +5,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  useWindowDimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  runOnJS,
+} from 'react-native-reanimated';
 import { COLORS } from '../../theme/colors';
 import { CopilotStep, walkthroughable } from 'react-native-copilot';
 
@@ -67,8 +72,72 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   onManualMillisChange,
   onInfoPress,
 }) => {
-  const { width: screenWidth } = useWindowDimensions();
   const progressPercentage = duration > 0 ? (position / duration) * 100 : 0;
+
+  // Shared values for dragging
+  const isDragging = useSharedValue(false);
+  const dragProgress = useSharedValue(0);
+  const startX = useSharedValue(0);
+  const barWidth = useSharedValue(200); // Default width, updated on layout
+
+  // Helper to call onSeek from worklet
+  const seekTo = React.useCallback(
+    (positionMs: number) => {
+      onSeek(positionMs);
+    },
+    [onSeek]
+  );
+
+  // Pan gesture for dragging
+  const panGesture = Gesture.Pan()
+    .minDistance(0)
+    .onBegin((e) => {
+      isDragging.value = true;
+      startX.value = e.x;
+      const progress = Math.max(0, Math.min(1, e.x / barWidth.value));
+      dragProgress.value = progress;
+    })
+    .onUpdate((e) => {
+      // Use initial touch point + translation for accurate tracking
+      const currentX = startX.value + e.translationX;
+      const progress = Math.max(0, Math.min(1, currentX / barWidth.value));
+      dragProgress.value = progress;
+    })
+    .onEnd((e) => {
+      isDragging.value = false;
+      const currentX = startX.value + e.translationX;
+      const progress = Math.max(0, Math.min(1, currentX / barWidth.value));
+      const seekPosition = progress * duration;
+      runOnJS(seekTo)(seekPosition);
+    });
+
+  // Tap gesture for clicking
+  const tapGesture = Gesture.Tap().onEnd((e) => {
+    const progress = Math.max(0, Math.min(1, e.x / barWidth.value));
+    const seekPosition = progress * duration;
+    runOnJS(seekTo)(seekPosition);
+  });
+
+  // Combine gestures - tap has priority, pan activates on movement
+  const composedGesture = Gesture.Exclusive(panGesture, tapGesture);
+
+  // Animated style for progress fill
+  const animatedFillStyle = useAnimatedStyle(() => {
+    if (isDragging.value) {
+      return { width: `${dragProgress.value * 100}%` };
+    }
+    return { width: `${progressPercentage}%` };
+  });
+
+  // Animated style for thumb position
+  const animatedThumbStyle = useAnimatedStyle(() => {
+    const currentProgress = isDragging.value
+      ? dragProgress.value
+      : progressPercentage / 100;
+    return {
+      left: `${currentProgress * 100}%`,
+    };
+  });
 
   const controlsContent = (
     <View style={styles.controlsContainer}>
@@ -108,26 +177,19 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
       <View style={styles.progressContainer}>
         <Text style={styles.timeText}>{formatTime(position)}</Text>
-        <TouchableOpacity
-          style={styles.progressBar}
-          activeOpacity={0.8}
-          hitSlop={{ top: 12, bottom: 12, left: 0, right: 0 }}
-          onPress={(e) => {
-            const { locationX } = e.nativeEvent;
-            const progressBarWidth = screenWidth - 32 - 100;
-            const percentage = locationX / progressBarWidth;
-            const seekPosition = percentage * duration;
-            console.log(`📊 [PROGRESS BAR] Clicked at ${locationX}px, seeking to ${(seekPosition / 1000).toFixed(2)}s`);
-            onSeek(seekPosition);
-          }}
-        >
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${progressPercentage}%` }
-            ]}
-          />
-        </TouchableOpacity>
+        <GestureDetector gesture={composedGesture}>
+          <Animated.View
+            style={styles.progressBarContainer}
+            onLayout={(e) => {
+              barWidth.value = e.nativeEvent.layout.width;
+            }}
+          >
+            <View style={styles.progressBar}>
+              <Animated.View style={[styles.progressFill, animatedFillStyle]} />
+            </View>
+            <Animated.View style={[styles.progressThumb, animatedThumbStyle]} />
+          </Animated.View>
+        </GestureDetector>
         <Text style={styles.timeText}>{formatTime(duration)}</Text>
       </View>
 
@@ -259,18 +321,36 @@ const styles = StyleSheet.create({
     color: '#666',
     minWidth: 40,
   },
-  progressBar: {
+  progressBarContainer: {
     flex: 1,
+    height: 24,
+    marginHorizontal: 12,
+    justifyContent: 'center',
+  },
+  progressBar: {
     height: 6,
     backgroundColor: COLORS.slate100,
     borderRadius: 3,
-    marginHorizontal: 12,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: COLORS.brandTeal,
     borderRadius: 3,
+  },
+  progressThumb: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.brandTeal,
+    top: 4,
+    marginLeft: -8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   playbackControls: {
     flexDirection: 'row',

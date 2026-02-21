@@ -89,7 +89,7 @@ export const PodcastDialogueView: React.FC<PodcastDialogueViewProps> = ({
             <View style={[
               styles.podcastBubbleColumn,
               styles.podcastBubbleColumnLeft,
-              hasOriginal && (!isRight ? { flex: 5 } : { flex: 3 })
+              !isRight ? { flex: 5 } : (hasOriginal ? { flex: 3 } : { flex: 1 })
             ]}>
               {!isRight ? (
                 // HOST: Ana diyalog solda
@@ -101,7 +101,6 @@ export const PodcastDialogueView: React.FC<PodcastDialogueViewProps> = ({
                       styles.podcastBubbleLeft,
                       isActive && styles.podcastBubbleActive,
                       isActive && styles.podcastBubbleActiveLeft,
-                      hasOriginal && { maxWidth: '100%' }
                     ]}
                   >
                     <Text style={[
@@ -146,7 +145,6 @@ export const PodcastDialogueView: React.FC<PodcastDialogueViewProps> = ({
                   style={[
                     styles.podcastBubble,
                     styles.podcastBubbleOriginalInline,
-                    hasOriginal && { maxWidth: '100%' }
                   ]}
                 >
                   <Text style={styles.podcastBubbleOriginalText}>
@@ -160,7 +158,7 @@ export const PodcastDialogueView: React.FC<PodcastDialogueViewProps> = ({
             <View style={[
               styles.podcastBubbleColumn,
               styles.podcastBubbleColumnRight,
-              hasOriginal && (isRight ? { flex: 5 } : { flex: 3 })
+              isRight ? { flex: 5 } : (hasOriginal ? { flex: 3 } : { flex: 1 })
             ]}>
               {isRight ? (
                 // GUEST: Ana diyalog sağda
@@ -171,7 +169,6 @@ export const PodcastDialogueView: React.FC<PodcastDialogueViewProps> = ({
                       styles.podcastBubbleRight,
                       isActive && styles.podcastBubbleActive,
                       isActive && styles.podcastBubbleActiveRight,
-                      hasOriginal && { maxWidth: '100%' }
                     ]}
                   >
                     <Text style={[
@@ -219,7 +216,6 @@ export const PodcastDialogueView: React.FC<PodcastDialogueViewProps> = ({
                   style={[
                     styles.podcastBubble,
                     styles.podcastBubbleOriginalInline,
-                    hasOriginal && { maxWidth: '100%' }
                   ]}
                 >
                   <Text style={styles.podcastBubbleOriginalText}>
@@ -269,7 +265,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   podcastBubble: {
-    maxWidth: '82%',
+    maxWidth: '100%',
     borderRadius: 20,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -287,12 +283,12 @@ const styles = StyleSheet.create({
   podcastBubbleLeft: {
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 6,
-    borderColor: COLORS.slate100,
+    borderColor: COLORS.brandTeal,
   },
   podcastBubbleRight: {
     backgroundColor: COLORS.surface,
     borderTopRightRadius: 6,
-    borderColor: COLORS.slate100,
+    borderColor: COLORS.brandOrange,
   },
   podcastBubbleOriginalInline: {
     backgroundColor: 'rgba(255, 237, 213, 0.9)', // Sarı/bej arka plan (eski tasarımdaki gibi)
@@ -310,8 +306,8 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.02 }],
   },
   podcastBubbleActiveLeft: {
-    backgroundColor: COLORS.brandIndigo,
-    borderColor: COLORS.brandIndigo,
+    backgroundColor: COLORS.brandOrange,
+    borderColor: COLORS.brandOrange,
   },
   podcastBubbleActiveRight: {
     backgroundColor: COLORS.brandTeal,
@@ -326,7 +322,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   podcastSpeakerLabelRight: {
-    color: 'rgba(255,255,255,0.8)',
     textAlign: 'right',
   },
   podcastBubbleText: {

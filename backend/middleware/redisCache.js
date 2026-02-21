@@ -48,15 +48,31 @@ const redisCache = (keyPrefix, ttlSeconds) => async (req, res, next) => {
 
 /**
  * Invalidate cache entries matching a key pattern
+ * Uses SCAN instead of KEYS to avoid blocking Redis
  * @param {string} keyPattern - Pattern to match (e.g. 'sub:plans' or 'stats:user:uuid')
  */
 const invalidateCache = async (keyPattern) => {
   if (!checkRedisAvailability()) return;
+
+  const redis = getConnection();
+  const fullPattern = `cache:${keyPattern}*`;
+  let cursor = '0';
+  let totalDeleted = 0;
+
   try {
-    const keys = await getConnection().keys(`cache:${keyPattern}*`);
-    if (keys.length > 0) {
-      await getConnection().del(...keys);
-      logger.debug(`[CACHE] Invalidated ${keys.length} keys for pattern: ${keyPattern}`);
+    do {
+      // SCAN is non-blocking, iterates in batches of 100
+      const [newCursor, keys] = await redis.scan(cursor, 'MATCH', fullPattern, 'COUNT', 100);
+      cursor = newCursor;
+
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        totalDeleted += keys.length;
+      }
+    } while (cursor !== '0');
+
+    if (totalDeleted > 0) {
+      logger.debug(`[CACHE] Invalidated ${totalDeleted} keys for pattern: ${keyPattern}`);
     }
   } catch (err) {
     logger.debug(`[CACHE] Invalidation error: ${err.message}`);

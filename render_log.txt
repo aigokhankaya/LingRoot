@@ -1,0 +1,937 @@
+
+2026-02-06 12:25:52 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:25:52 [ERROR]: [Redis] Connection error:
+2026-02-06 12:25:52 [WARN]: [Redis] Connection closed
+2026-02-06 12:25:52 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:25:53 [INFO]: GET /job/job_1770380616133_iaxxwuwam 200 387ms
+2026-02-06 12:25:53 [INFO]: GET /job/job_1770380616131_u333mbkf9 200 357ms
+2026-02-06 12:25:53 [INFO]: GET /job/job_1770380616128_bvvjub7fz 200 355ms
+2026-02-06 12:25:53 [INFO]: GET /job/job_1770380616134_si0qocton 200 340ms
+2026-02-06 12:25:53 [INFO]: GET /job/job_1770380616724_pozcwu1mg 200 376ms
+2026-02-06 12:25:53 [INFO]: GET /job/job_1770380616721_i8vl682gu 200 348ms
+2026-02-06 12:25:53 [INFO]: GET /job/job_1770380616132_gglnldtoh 200 385ms
+2026-02-06 12:25:53 [INFO]: File uploaded to Cloudflare R2 path: audio/podcast_podcast_5190bc6e-b959-41b4-a9b4-272b9ec9ea22.mp3
+2026-02-06 12:25:53 [INFO]: [GOOGLE-PODCAST] Audio uploaded: https://cdn.booklevel.store/audio/podcast_podcast_5190bc6e-b959-41b4-a9b4-272b9ec9ea22.mp3
+2026-02-06 12:25:53 [INFO]: [GOOGLE-PODCAST] MFA alignment enabled: true
+2026-02-06 12:25:53 [INFO]: [GOOGLE-PODCAST] Converted MP3 to WAV for MFA: /tmp/podcast_mfa_1770380753398.wav
+2026-02-06 12:25:53 [INFO]: [GOOGLE-PODCAST] Using transcript for MFA (main Gemini multi-speaker mode)
+2026-02-06 12:25:53 [INFO]: [GOOGLE-PODCAST] MFA transcript (first 200 chars): Welcome to another enthralling episode of our podcast, where we delve into the intricate tapestry of knowledge surrounding space exploration. Today, we shall embark on a cerebral journey to unravel th
+2026-02-06 12:25:53 [INFO]: [GOOGLE-PODCAST] MFA input - Audio size: 4830381 bytes, Transcript length: 4637 chars, Words: 664
+2026-02-06 12:25:53 [INFO]: 🌐 Calling Remote MFA Service: https://mfa.lingroot.com
+2026-02-06 12:25:54 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:25:54 [INFO]: 🚀 Starting Async MFA Job at https://mfa.lingroot.com/api/mfa/align-async
+2026-02-06 12:25:54 [ERROR]: [Redis] Connection error:
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user a7a9989f-0250-4935-8a0a-6cbb69983985: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user 7e07c104-688c-44c2-aa06-d21a3b8008f1: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user ed5cee29-008b-4cc1-aad3-3fe1bb609c34: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user 70f66e30-11d7-4cdf-a242-22acac54a3de: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user 96df9bb9-3712-48ef-aa37-e03e52ab2402: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user 2bf23ad5-d7f6-466d-a508-285674e517dc: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user ad498c16-0d18-4a17-a4fb-a1915bfe86d8: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user 3e6ea5c6-79c9-4f29-ad6e-202ed5205856: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user 277bb5ac-dac5-4987-9f6b-9175d69e460f: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user ad580000-eab9-4759-8a04-82d90a7a0d94: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user e2a50381-cdc9-4c5b-8125-4ad79a61d713: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user 6dee1287-276f-4408-8a74-a346805be5a3: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [DEBUG]: [AUTH] Redis cache write error for user 9cceaa59-eea5-4f09-b28d-1bb14ead4305: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380617312_qcdi5d38a 200 405ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616730_1ynf6vmw1 200 396ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616717_brgkzjaqi 200 404ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616803_mx042k8j5 200 403ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616715_760fvj6yl 200 397ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616799_oh91szeio 200 410ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616126_q7qb36t0h 200 402ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616801_iy52ukwud 200 401ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616127_bpj1v76ob 200 395ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616722_iganwq055 200 382ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616723_13m1pftia 200 384ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616130_hd328x68h 200 379ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616136_2isfeglyh 200 303ms
+2026-02-06 12:25:54 [WARN]: [Redis] Connection closed
+2026-02-06 12:25:54 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380617714_ulw9g2qye 200 316ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380617316_k0qinvgmq 200 383ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616718_1auz6fgpl 200 387ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616713_dtd40fjuv 200 485ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616732_k4mr2bmq1 200 478ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616194_8rfjmiymo 200 484ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380617313_3vdaoifk0 200 487ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616720_gb7eyu8yn 200 499ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380617317_vatmspft2 200 184ms
+2026-02-06 12:25:54 [INFO]: 🔊 Starting merge of 2 segments to Buffer
+2026-02-06 12:25:54 [DEBUG]: 🗂️ Created temp dir: /tmp/lingroot-audio-9VsXFO
+2026-02-06 12:25:54 [DEBUG]: ✅ Segment 1 written: /tmp/lingroot-audio-9VsXFO/segment_0.mp3
+2026-02-06 12:25:54 [DEBUG]: ✅ Segment 2 written: /tmp/lingroot-audio-9VsXFO/segment_1.mp3
+2026-02-06 12:25:54 [DEBUG]: 📄 FFmpeg list file created: /tmp/lingroot-audio-9VsXFO/mylist.txt
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616125_fq9ygoopq 200 208ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380617713_8mfq6wqma 200 213ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616800_kaau4vpca 200 196ms
+2026-02-06 12:25:54 [DEBUG]: ▶️ FFmpeg started: ffmpeg -f concat -safe 0 -i /tmp/lingroot-audio-9VsXFO/mylist.txt -y -c:a libmp3lame -b:a 128k -ar 24000 -ac 1 -f mp3 /tmp/lingroot-audio-9VsXFO/merged_output.mp3
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380617315_4jybr7u4u 200 212ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616733_e83rc74mf 200 207ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616798_2yt1l3w6r 200 197ms
+2026-02-06 12:25:54 [INFO]: GET /job/job_1770380616127_bpj1v76ob 200 198ms
+2026-02-06 12:25:54 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:25:55 [ERROR]: [Redis] Connection error:
+2026-02-06 12:25:55 [DEBUG]: [AUTH] Redis cache write error for user 69e48184-b1ab-47df-b7e6-f6ede23aa194: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:55 [DEBUG]: [AUTH] Redis cache write error for user f5b7a266-9072-4d1f-bb64-3b0199d9a701: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:55 [DEBUG]: [AUTH] Redis cache write error for user e7df23f6-b752-4426-aeda-47c7c2e3abd3: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:55 [INFO]: GET /job/job_1770380616795_zm4s49nf5 200 373ms
+2026-02-06 12:25:55 [INFO]: GET /job/job_1770380616729_qpdm3n6zd 200 347ms
+2026-02-06 12:25:55 [INFO]: GET /job/job_1770380616196_xydvki92e 200 299ms
+2026-02-06 12:25:55 [WARN]: [Redis] Connection closed
+2026-02-06 12:25:55 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:25:55 [INFO]: GET /job/job_1770380616728_5ovie3lm9 200 335ms
+2026-02-06 12:25:55 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:25:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:25:56 [DEBUG]: [AUTH] Redis cache write error for user 65a7e6de-ab66-473d-a154-d15ac96fb0d2: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:56 [INFO]: GET /job/job_1770380616132_sqqbdp6eu 200 310ms
+2026-02-06 12:25:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:25:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:25:56 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:25:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:25:56 [DEBUG]: [AUTH] Redis cache write error for user 4995fc4d-fff0-4401-b944-71f8f9651375: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:56 [DEBUG]: [AUTH] Redis cache write error for user 2937d3d0-4491-455f-9dc9-c87ffc20f789: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:56 [DEBUG]: [AUTH] Redis cache write error for user dcfa38ea-7a58-4fc5-961b-f403bbbbf6b6: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:56 [DEBUG]: [AUTH] Redis cache write error for user 96ad9484-9a5b-428e-97f7-99091cd5a4f6: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:25:56 [INFO]: GET /job/job_1770380616129_lguuv3c69 200 465ms
+2026-02-06 12:25:56 [INFO]: GET /job/job_1770380616133_uf3i0du3c 200 404ms
+2026-02-06 12:25:56 [INFO]: GET /job/job_1770380616135_xoiki710b 200 398ms
+2026-02-06 12:25:56 [INFO]: GET /job/job_1770380616128_0me2441gl 200 399ms
+2026-02-06 12:25:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:25:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:25:57 [INFO]: GET /job/job_1770380616196_xydvki92e 200 400ms
+2026-02-06 12:25:57 [INFO]: 🎉 Merge complete: /tmp/lingroot-audio-9VsXFO/merged_output.mp3
+2026-02-06 12:25:57 [INFO]: ✅ Merged audio buffer created - Size: 4143021 bytes
+2026-02-06 12:25:57 [INFO]: 🧼 Cleaned temp directory: /tmp/lingroot-audio-9VsXFO
+2026-02-06 12:25:57 [INFO]: [GOOGLE-PODCAST] Merged chunked audio: 4143021 bytes
+2026-02-06 12:25:57 [INFO]: [GOOGLE-PODCAST] Uploading audio: 4143021 bytes
+2026-02-06 12:25:57 [INFO]: Attempting to upload Buffer (4143021 bytes) to storage at path 'audio/podcast_podcast_7b9ef3b3-4f50-4361-921a-d098b8ffdf7d.mp3'
+2026-02-06 12:25:57 [INFO]: Uploading with content type: audio/mpeg
+2026-02-06 12:25:57 [INFO]: GET /job/job_1770380616135_jol13yzoo 200 522ms
+2026-02-06 12:25:57 [INFO]: GET /job/job_1770380615826_xrvzxt948 200 498ms
+2026-02-06 12:25:57 [INFO]: GET /job/job_1770380615823_cxbcy3j6n 200 477ms
+2026-02-06 12:25:57 [INFO]: [GOOGLE-PODCAST] Received audio: 809856 bytes
+2026-02-06 12:25:57 [INFO]: [GOOGLE-PODCAST] Uploading audio: 809856 bytes
+2026-02-06 12:25:57 [INFO]: Attempting to upload Buffer (809856 bytes) to storage at path 'audio/podcast_podcast_d5d91e46-5eef-49b4-bcfe-651a706ac591.mp3'
+2026-02-06 12:25:57 [INFO]: Uploading with content type: audio/mpeg
+2026-02-06 12:25:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:25:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:25:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:25:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:25:57 [INFO]: GET /job/job_1770380616124_fku0lngry 200 356ms
+2026-02-06 12:25:58 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:25:58 [ERROR]: [Redis] Connection error:
+2026-02-06 12:25:58 [WARN]: [Redis] Connection closed
+2026-02-06 12:25:58 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:25:58 [INFO]: GET /job/job_1770380616724_pozcwu1mg 200 318ms
+2026-02-06 12:25:58 [INFO]: GET /job/job_1770380616131_u333mbkf9 200 367ms
+2026-02-06 12:25:58 [INFO]: GET /job/job_1770380616134_si0qocton 200 387ms
+2026-02-06 12:25:58 [INFO]: GET /job/job_1770380616128_bvvjub7fz 200 348ms
+2026-02-06 12:25:58 [INFO]: GET /job/job_1770380616132_gglnldtoh 200 348ms
+2026-02-06 12:25:58 [INFO]: GET /job/job_1770380616721_i8vl682gu 200 369ms
+2026-02-06 12:25:58 [INFO]: GET /job/job_1770380616133_iaxxwuwam 200 405ms
+2026-02-06 12:25:58 [INFO]: File uploaded to Cloudflare R2 path: audio/podcast_podcast_7b9ef3b3-4f50-4361-921a-d098b8ffdf7d.mp3
+2026-02-06 12:25:58 [INFO]: [GOOGLE-PODCAST] Audio uploaded: https://cdn.booklevel.store/audio/podcast_podcast_7b9ef3b3-4f50-4361-921a-d098b8ffdf7d.mp3
+2026-02-06 12:25:58 [INFO]: [GOOGLE-PODCAST] MFA alignment enabled: true
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] Converted MP3 to WAV for MFA: /tmp/podcast_mfa_1770380758779.wav
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] Using transcript for MFA (main Gemini multi-speaker mode)
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] MFA transcript (first 200 chars): Welcome to our podcast, where today we’ll be delving into the increasingly evident ramifications of climate change. It seems the evidence mounts daily, does it not? Indeed, it's a profound subject tha
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] MFA input - Audio size: 4143021 bytes, Transcript length: 4024 chars, Words: 577
+2026-02-06 12:25:59 [INFO]: 🌐 Calling Remote MFA Service: https://mfa.lingroot.com
+2026-02-06 12:25:59 [INFO]: File uploaded to Cloudflare R2 path: audio/podcast_podcast_d5d91e46-5eef-49b4-bcfe-651a706ac591.mp3
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] Audio uploaded: https://cdn.booklevel.store/audio/podcast_podcast_d5d91e46-5eef-49b4-bcfe-651a706ac591.mp3
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] MFA alignment enabled: true
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] Converted MP3 to WAV for MFA: /tmp/podcast_mfa_1770380759242.wav
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] Using transcript for MFA (main Gemini multi-speaker mode)
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] MFA transcript (first 200 chars): Hey everyone! Welcome back to our podcast. Today, we’re diving into ancient civilizations! Hi! Yeah, it’s a fascinating topic. There's so much to talk about! Totally! So, what ancient civilization do 
+2026-02-06 12:25:59 [INFO]: [GOOGLE-PODCAST] MFA input - Audio size: 809856 bytes, Transcript length: 3040 chars, Words: 519
+2026-02-06 12:25:59 [INFO]: 🌐 Calling Remote MFA Service: https://mfa.lingroot.com
+2026-02-06 12:25:59 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:26:00 [ERROR]: [Redis] Connection error:
+2026-02-06 12:26:00 [WARN]: [Redis] Connection closed
+2026-02-06 12:26:00 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:26:00 [INFO]: 🚀 Starting Async MFA Job at https://mfa.lingroot.com/api/mfa/align-async
+2026-02-06 12:26:00 [INFO]: 🚀 Starting Async MFA Job at https://mfa.lingroot.com/api/mfa/align-async
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380617312_qcdi5d38a 200 727ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616126_q7qb36t0h 200 593ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616722_iganwq055 200 782ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616718_1auz6fgpl 200 602ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380617714_ulw9g2qye 200 785ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616730_1ynf6vmw1 200 786ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616723_13m1pftia 200 792ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616194_8rfjmiymo 200 621ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616136_2isfeglyh 200 917ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380617315_4jybr7u4u 200 422ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616798_2yt1l3w6r 200 326ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616125_fq9ygoopq 200 531ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616717_brgkzjaqi 200 324ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616715_760fvj6yl 200 422ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380617316_k0qinvgmq 200 273ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380617713_8mfq6wqma 200 413ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616803_mx042k8j5 200 396ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616732_k4mr2bmq1 200 209ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616799_oh91szeio 200 305ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616801_iy52ukwud 200 389ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616720_gb7eyu8yn 200 191ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380617313_3vdaoifk0 200 197ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616713_dtd40fjuv 200 205ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616127_bpj1v76ob 200 414ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616733_e83rc74mf 200 201ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380617317_vatmspft2 200 207ms
+2026-02-06 12:26:00 [INFO]: GET /job/job_1770380616130_hd328x68h 200 364ms
+2026-02-06 12:26:00 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:26:01 [ERROR]: [Redis] Connection error:
+2026-02-06 12:26:01 [DEBUG]: [AUTH] Redis cache write error for user 277bb5ac-dac5-4987-9f6b-9175d69e460f: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:01 [DEBUG]: [AUTH] Redis cache write error for user 6aeef6d5-6751-4ae2-8f5d-3c8ed524875a: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:01 [DEBUG]: [AUTH] Redis cache write error for user f5b7a266-9072-4d1f-bb64-3b0199d9a701: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:01 [DEBUG]: [AUTH] Redis cache write error for user 53b0ac62-30b9-4e90-95ef-0dae2bc10fab: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:01 [DEBUG]: [AUTH] Redis cache write error for user 69e48184-b1ab-47df-b7e6-f6ede23aa194: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:01 [DEBUG]: [AUTH] Redis cache write error for user e7df23f6-b752-4426-aeda-47c7c2e3abd3: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:01 [INFO]: GET /job/job_1770380616127_bpj1v76ob 200 552ms
+2026-02-06 12:26:01 [INFO]: GET /job/job_1770380616800_kaau4vpca 200 555ms
+2026-02-06 12:26:01 [INFO]: GET /job/job_1770380616729_qpdm3n6zd 200 550ms
+2026-02-06 12:26:01 [INFO]: GET /job/job_1770380616728_5ovie3lm9 200 491ms
+2026-02-06 12:26:01 [INFO]: GET /job/job_1770380616795_zm4s49nf5 200 495ms
+2026-02-06 12:26:01 [INFO]: GET /job/job_1770380616196_xydvki92e 200 485ms
+2026-02-06 12:26:01 [WARN]: [Redis] Connection closed
+2026-02-06 12:26:01 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:26:01 [INFO]: 🔊 Starting merge of 2 segments to Buffer
+2026-02-06 12:26:01 [DEBUG]: 🗂️ Created temp dir: /tmp/lingroot-audio-9Rct4I
+2026-02-06 12:26:01 [DEBUG]: ✅ Segment 1 written: /tmp/lingroot-audio-9Rct4I/segment_0.mp3
+2026-02-06 12:26:01 [DEBUG]: ✅ Segment 2 written: /tmp/lingroot-audio-9Rct4I/segment_1.mp3
+2026-02-06 12:26:01 [DEBUG]: 📄 FFmpeg list file created: /tmp/lingroot-audio-9Rct4I/mylist.txt
+2026-02-06 12:26:01 [DEBUG]: ▶️ FFmpeg started: ffmpeg -f concat -safe 0 -i /tmp/lingroot-audio-9Rct4I/mylist.txt -y -c:a libmp3lame -b:a 128k -ar 24000 -ac 1 -f mp3 /tmp/lingroot-audio-9Rct4I/merged_output.mp3
+2026-02-06 12:26:01 [INFO]: GET /job/job_1770380616132_sqqbdp6eu 200 206ms
+2026-02-06 12:26:01 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:26:01 [ERROR]: [Redis] Connection error:
+2026-02-06 12:26:01 [WARN]: [Redis] Connection closed
+2026-02-06 12:26:01 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:26:02 [INFO]: GET /job/job_1770380616128_0me2441gl 200 194ms
+2026-02-06 12:26:02 [INFO]: GET /job/job_1770380616135_xoiki710b 200 269ms
+2026-02-06 12:26:02 [INFO]: GET /job/job_1770380616129_lguuv3c69 200 208ms
+2026-02-06 12:26:02 [INFO]: GET /job/job_1770380616133_uf3i0du3c 200 226ms
+2026-02-06 12:26:02 [INFO]: ⏳ MFA Job Started: job_1770380762397_ytq0qcifvx. Waiting for completion...
+2026-02-06 12:26:02 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:26:02 [ERROR]: [Redis] Connection error:
+2026-02-06 12:26:02 [DEBUG]: [AUTH] Redis cache write error for user bb2059b5-38c8-4b73-84f5-3a6e3c225b2c: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:02 [DEBUG]: [AUTH] Redis cache write error for user 483785f6-3d95-45c0-9f2e-2c80f59d579e: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:02 [DEBUG]: [AUTH] Redis cache write error for user e7df23f6-b752-4426-aeda-47c7c2e3abd3: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:02 [DEBUG]: [AUTH] Redis cache write error for user efb38363-92aa-4f53-b7f4-051383604e87: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:02 [INFO]: GET /job/job_1770380615826_xrvzxt948 200 395ms
+2026-02-06 12:26:02 [INFO]: GET /job/job_1770380616135_jol13yzoo 200 393ms
+2026-02-06 12:26:02 [INFO]: GET /job/job_1770380616196_xydvki92e 200 399ms
+2026-02-06 12:26:02 [INFO]: GET /job/job_1770380615823_cxbcy3j6n 200 469ms
+2026-02-06 12:26:02 [WARN]: [Redis] Connection closed
+2026-02-06 12:26:02 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:26:03 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:26:03 [ERROR]: [Redis] Connection error:
+2026-02-06 12:26:03 [DEBUG]: [AUTH] Redis cache write error for user cf9bf06e-82c5-4da1-9fcc-0b6ae3efd409: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:03 [INFO]: GET /job/job_1770380616124_fku0lngry 200 403ms
+2026-02-06 12:26:03 [WARN]: [Redis] Connection closed
+2026-02-06 12:26:03 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:26:03 [INFO]: 🎉 Merge complete: /tmp/lingroot-audio-9Rct4I/merged_output.mp3
+2026-02-06 12:26:03 [INFO]: ✅ Merged audio buffer created - Size: 4747053 bytes
+2026-02-06 12:26:03 [INFO]: 🧼 Cleaned temp directory: /tmp/lingroot-audio-9Rct4I
+2026-02-06 12:26:03 [INFO]: [GOOGLE-PODCAST] Merged chunked audio: 4747053 bytes
+2026-02-06 12:26:03 [INFO]: [GOOGLE-PODCAST] Uploading audio: 4747053 bytes
+2026-02-06 12:26:03 [INFO]: Attempting to upload Buffer (4747053 bytes) to storage at path 'audio/podcast_podcast_5dbf658e-b1e6-476d-8030-c891178f5d9e.mp3'
+2026-02-06 12:26:03 [INFO]: Uploading with content type: audio/mpeg
+2026-02-06 12:26:04 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:26:04 [ERROR]: [Redis] Connection error:
+2026-02-06 12:26:04 [DEBUG]: [AUTH] Redis cache write error for user 6a363289-f2a0-4449-b84c-6731dda75d97: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:04 [DEBUG]: [AUTH] Redis cache write error for user c4f7523a-f965-433b-826f-2d9c498a4dfa: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:04 [DEBUG]: [AUTH] Redis cache write error for user d5b99cc7-2f1c-4d97-a2ad-5cea1e6092d0: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:04 [DEBUG]: [AUTH] Redis cache write error for user f97e7b36-65b8-4f23-8318-4e44900a27c8: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:04 [DEBUG]: [AUTH] Redis cache write error for user abf2b014-7f57-408d-adc1-3fe30d863092: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:04 [DEBUG]: [AUTH] Redis cache write error for user 632abe0f-1599-4a0a-acda-5444a9a76767: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:04 [DEBUG]: [AUTH] Redis cache write error for user 0e15d1a6-40e6-4151-b0f7-461d2c94d253: ERR max requests limit exceeded. Limit: 500000, Usage: 500000. See https://upstash.com/docs/redis/troubleshooting/max_requests_limit for details
+2026-02-06 12:26:04 [INFO]: GET /job/job_1770380616131_u333mbkf9 200 455ms
+2026-02-06 12:26:04 [INFO]: GET /job/job_1770380616128_bvvjub7fz 200 467ms
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:56 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:56 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:56 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:33:57 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:33:57 [ERROR]: [Redis] Connection error:
+2026-02-06 12:33:57 [WARN]: [Redis] Connection closed
+2026-02-06 12:33:57 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:38:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:38:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:38:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:38:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:42:59 [ERROR]: [Redis] Connection error:
+2026-02-06 12:42:59 [WARN]: [Redis] Connection closed
+2026-02-06 12:42:59 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:42:59 [INFO]: Still waiting for MFA Job job_1770380729671_bybs8kpcl8j (Status: pending)...
+2026-02-06 12:42:59 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:00 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:00 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:00 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:00 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:00 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:00 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:00 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:01 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:01 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:01 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:01 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:02 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:02 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:02 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:02 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:02 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:03 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:03 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:03 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:03 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:04 [INFO]: Still waiting for MFA Job job_1770380703475_4v4260yakx4 (Status: pending)...
+2026-02-06 12:43:04 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:04 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:04 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:04 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:04 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:04 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:04 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:05 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:05 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:05 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:05 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:06 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:06 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:06 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:06 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:07 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:07 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:07 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:07 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:07 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:07 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:07 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:08 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:08 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:08 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:08 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:09 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:09 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:09 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:09 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:10 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:10 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:10 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:10 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:10 [INFO]: Still waiting for MFA Job job_1770380710613_3rs66mhje14 (Status: pending)...
+2026-02-06 12:43:10 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:11 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:11 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:11 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:11 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:11 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:11 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:11 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:12 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:12 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:12 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:12 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:13 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:13 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:13 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:13 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:14 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:14 [INFO]: Still waiting for MFA Job job_1770380713697_z4875lbqq7 (Status: pending)...
+2026-02-06 12:43:14 [INFO]: Still waiting for MFA Job job_1770380803841_3ho8bquv5ju (Status: pending)...
+2026-02-06 12:43:14 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:14 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:14 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:14 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:15 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:15 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:15 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:15 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:15 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:15 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:15 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:16 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:16 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:16 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:16 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:17 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:17 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:17 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:17 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:18 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:18 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:18 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:18 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:18 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:19 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:19 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:19 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:19 [INFO]: Still waiting for MFA Job job_1770380629696_nvm9n58t0tp (Status: pending)...
+2026-02-06 12:43:19 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:19 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:19 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:19 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:19 [INFO]: Still waiting for MFA Job job_1770380629565_wuow75oz3u (Status: pending)...
+2026-02-06 12:43:20 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:20 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:20 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:20 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:21 [INFO]: Still waiting for MFA Job job_1770380630642_4lqucmoo9zi (Status: pending)...
+2026-02-06 12:43:21 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:21 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:21 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:21 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:22 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:22 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:22 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:22 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:22 [INFO]: Still waiting for MFA Job job_1770380632601_yffcab10wk (Status: pending)...
+2026-02-06 12:43:22 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:23 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:23 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:23 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:23 [INFO]: Still waiting for MFA Job job_1770380723521_mu15s0oeypo (Status: pending)...
+2026-02-06 12:43:23 [INFO]: Still waiting for MFA Job job_1770380633640_v62gs4yikb (Status: pending)...
+2026-02-06 12:43:23 [INFO]: Still waiting for MFA Job job_1770380633659_vnmiah17f6n (Status: pending)...
+2026-02-06 12:43:23 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:23 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:23 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:23 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:24 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:24 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:24 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:24 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:25 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:25 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:25 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:25 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:26 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:26 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:26 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:26 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:26 [INFO]: Still waiting for MFA Job job_1770380636013_ovsc8iuneea (Status: pending)...
+2026-02-06 12:43:26 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:27 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:27 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:27 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:27 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:27 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:27 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:27 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:28 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:28 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:28 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:28 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:29 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:29 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:29 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:29 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:30 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:30 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:30 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:30 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:30 [INFO]: Still waiting for MFA Job job_1770380730786_dee23sicq6u (Status: pending)...
+2026-02-06 12:43:30 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:31 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:31 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:31 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:31 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:31 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:31 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:31 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:32 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:32 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:32 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:32 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:33 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:33 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:33 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:33 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:34 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:34 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:34 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:34 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:34 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:35 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:35 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:35 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:35 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:35 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:35 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:35 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:35 [INFO]: Still waiting for MFA Job job_1770380765616_2f9py60e3dy (Status: pending)...
+2026-02-06 12:43:36 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:36 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:36 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:36 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:37 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:37 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:37 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:37 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:37 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:38 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:38 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:38 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:38 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:39 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:39 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:39 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:39 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:39 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:39 [WARN]: [Redis] Connection closed
+Menu
+2026-02-06 12:43:39 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:40 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:40 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:40 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:40 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:41 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:41 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:41 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:41 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:41 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:42 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:42 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:42 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:42 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:43 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:43 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:43 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:43 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:43 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:43 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:43 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:44 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:44 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:44 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:44 [INFO]: [Redis] Attempting to reconnect...
+2026-02-06 12:43:45 [INFO]: 🔗 [Redis] Connected successfully
+2026-02-06 12:43:45 [ERROR]: [Redis] Connection error:
+2026-02-06 12:43:45 [WARN]: [Redis] Connection closed
+2026-02-06 12:43:45 [INFO]: [Redis] Attempting to reconnect...

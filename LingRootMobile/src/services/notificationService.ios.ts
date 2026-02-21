@@ -5,7 +5,10 @@ import { getVocabulary } from './api';
 import { ReminderSettingsService, ReminderSettings } from './reminderSettingsService';
 import PushNotification from 'react-native-push-notification';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createVocabularyNotification } from './userService';
+import { createVocabularyNotification, deleteScheduledVocabularyReminders, getNotificationUnreadCount } from './userService';
+
+// Storage key for scheduled notifications (iOS fireDate parsing workaround)
+const SCHEDULED_NOTIFICATIONS_KEY = 'scheduled_vocabulary_notifications';
 
 // iOS: Early configure and native listener preserved
 try {
@@ -134,10 +137,24 @@ class NotificationService {
     return NotificationService.instance;
   }
 
-  private async rescheduleDailyReminders(): Promise<void> {
+  private async rescheduleDailyReminders(force = false): Promise<void> {
+    console.log('🚀 [iOS Notifications] rescheduleDailyReminders called (force:', force, ')');
+
+    // If not forced and future notifications exist, skip rescheduling
+    if (!force) {
+      try {
+        const existingNotifications = await this.getScheduledNotifications();
+        const futureNotifications = existingNotifications.filter(n => n.fireDate > new Date());
+        if (futureNotifications.length > 0) {
+          console.log(`⏭️ [iOS Notifications] Skipping reschedule - ${futureNotifications.length} future notifications exist`);
+          return;
+        }
+      } catch {}
+    }
+
     const nowMs = Date.now();
     if (nowMs - this.lastRescheduleAt < 750) {
-      console.log('⚠️ [iOS Notifications] Skipping reschedule - too soon');
+      console.log('⚠️ [iOS Notifications] Skipping reschedule - too soon (last was', nowMs - this.lastRescheduleAt, 'ms ago)');
       return;
     }
     if (this.rescheduleRunning) {
@@ -147,6 +164,7 @@ class NotificationService {
     }
     this.rescheduleRunning = true;
     this.lastRescheduleAt = nowMs;
+    console.log('✅ [iOS Notifications] Starting reschedule process');
 
     try {
       console.log('🔄 [iOS Notifications] Canceling all existing notifications');
@@ -168,6 +186,14 @@ class NotificationService {
       try { PushNotificationIOS.cancelAllLocalNotifications(); } catch {}
       try { PushNotificationIOS.removeAllPendingNotificationRequests(); } catch {}
       try { PushNotificationIOS.removeAllDeliveredNotifications(); } catch {}
+
+      // Also clear backend scheduled vocabulary reminders to avoid duplicates
+      try {
+        const deleted = await deleteScheduledVocabularyReminders();
+        console.log(`🗑️ [iOS Notifications] Deleted ${deleted} backend reminders`);
+      } catch (e) {
+        console.log('[iOS Notifications] Failed to delete backend reminders:', e);
+      }
 
       // Wait for iOS to process cancellations before scheduling new ones
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -200,9 +226,10 @@ class NotificationService {
         return;
       }
       const times = ReminderSettingsService.calculateNotificationTimes(settings, unlearned.length);
+      console.log('🕐 [iOS Notifications] Calculated times:', times.map(t => t.toLocaleString('tr-TR')));
       const selected = this.pickWordsForSlots(unlearned, words as any, times.length);
 
-      console.log(`📅 [iOS Notifications] Scheduling ${times.length} notifications`);
+      console.log(`📅 [iOS Notifications] Scheduling ${times.length} notifications for ${selected.length} words`);
 
       const lang = await this.getLanguage();
       
@@ -223,41 +250,50 @@ class NotificationService {
             title,
             body,
             sound: 'default',
-            badge: 1,
             userInfo: { wordId: word?.id?.toString() || '' },
             fireDate: when,
             repeats: false,
           });
-
-          // Also save to backend notifications table
-          if (word?.id) {
-            createVocabularyNotification(
-              word.id.toString(),
-              word.word,
-              word.definition
-            ).catch(() => {});
-          }
         } catch {
           PushNotificationIOS.scheduleLocalNotification({
             alertTitle: title,
             alertBody: body,
             soundName: 'default',
-            applicationIconBadgeNumber: 1,
             userInfo: { wordId: word?.id?.toString() || '' },
             fireDate: when.toISOString(),
           });
+        }
 
-          // Also save to backend notifications table
-          if (word?.id) {
-            createVocabularyNotification(
+        // Save to backend for Notifications screen display
+        if (word?.id) {
+          try {
+            await createVocabularyNotification(
               word.id.toString(),
               word.word,
-              word.definition
-            ).catch(() => {});
+              word.definition,
+              when.toISOString() // scheduledFor - will only show after this time
+            );
+          } catch (e) {
+            console.log('[iOS Notifications] Backend save failed:', e);
           }
         }
       }
-      
+
+      // Save scheduled notifications to AsyncStorage for reliable time display
+      const scheduledList = times.map((when, i) => ({
+        id: `lingroot_${when.getTime()}_${i}`,
+        fireDate: when.toISOString(),
+        word: selected[i]?.word || '',
+        definition: selected[i]?.definition || '',
+        wordId: selected[i]?.id?.toString() || '',
+      }));
+      try {
+        await AsyncStorage.setItem(SCHEDULED_NOTIFICATIONS_KEY, JSON.stringify(scheduledList));
+        console.log(`💾 [iOS Notifications] Saved ${scheduledList.length} notifications to AsyncStorage`);
+      } catch (e) {
+        console.log('[iOS Notifications] AsyncStorage save failed:', e);
+      }
+
       console.log(`✅ [iOS Notifications] Successfully scheduled ${times.length} notifications`);
 
       // Verify scheduled notifications
@@ -274,7 +310,7 @@ class NotificationService {
       // Silently fail - don't show alert to user
     } finally {
       this.rescheduleRunning = false;
-      if (this.rescheduleQueued) { this.rescheduleQueued = false; setTimeout(() => { this.rescheduleDailyReminders().catch(() => {}); }, 150); }
+      if (this.rescheduleQueued) { this.rescheduleQueued = false; setTimeout(() => { this.rescheduleDailyReminders(force).catch(() => {}); }, 150); }
     }
   }
 
@@ -322,14 +358,14 @@ class NotificationService {
     }
   }
 
-  public async setupPeriodicVocabularyNotifications(): Promise<void> {
+  public async setupPeriodicVocabularyNotifications(force = false): Promise<void> {
     await this.initialize();
-    await this.rescheduleDailyReminders();
+    await this.rescheduleDailyReminders(force);
   }
 
-  public async setupSmartVocabularyNotifications(): Promise<void> {
+  public async setupSmartVocabularyNotifications(force = false): Promise<void> {
     await this.initialize();
-    await this.rescheduleDailyReminders();
+    await this.rescheduleDailyReminders(force);
   }
 
   public async stopVocabularyReminders(): Promise<void> {
@@ -351,6 +387,12 @@ class NotificationService {
     try { PushNotificationIOS.removeAllPendingNotificationRequests(); } catch {}
     try { PushNotificationIOS.removeAllDeliveredNotifications(); } catch {}
 
+    // Clear AsyncStorage
+    try {
+      await AsyncStorage.removeItem(SCHEDULED_NOTIFICATIONS_KEY);
+      console.log('🗑️ [iOS Notifications] Cleared AsyncStorage scheduled notifications');
+    } catch {}
+
     // Wait for iOS to process
     await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -359,12 +401,6 @@ class NotificationService {
       const remaining = await this.getScheduledNotifications();
       console.log(`✅ [iOS Notifications] After stop: ${remaining.length} notifications remaining`);
     } catch {}
-
-    const lang = await this.getLanguage();
-    Alert.alert(
-      lang === 'tr' ? 'Bildirimler Durduruldu' : 'Notifications Stopped',
-      lang === 'tr' ? 'Tüm kelime hatırlatmaları iptal edildi.' : 'All vocabulary reminders have been cancelled.'
-    );
   }
 
   public async scheduleVocabularyNotification(word: VocabularyWord): Promise<void> {
@@ -377,7 +413,6 @@ class NotificationService {
         ? `${word.word} - ${word.definition || 'Tanım yok'}`
         : `${word.word} - ${word.definition || 'No definition'}`,
       soundName: 'default',
-      applicationIconBadgeNumber: 1,
       userInfo: { wordId: word.id?.toString() || '' },
     });
     PushNotificationIOS.scheduleLocalNotification({
@@ -386,19 +421,9 @@ class NotificationService {
         ? `Kelime: ${word.word} - ${word.definition || 'Tanım yok'}`
         : `Word: ${word.word} - ${word.definition || 'No definition'}`,
       soundName: 'default',
-      applicationIconBadgeNumber: 1,
       userInfo: { wordId: word.id?.toString() || '' },
       fireDate: new Date(Date.now() + 3000).toISOString(),
     });
-
-    // Also save to backend notifications table
-    if (word.id) {
-      createVocabularyNotification(
-        word.id.toString(),
-        word.word,
-        word.definition
-      ).catch(() => {});
-    }
   }
 
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {
@@ -445,16 +470,66 @@ class NotificationService {
   }
 
   public async getScheduledNotifications(): Promise<Array<{ id: string; title: string; body: string; fireDate: Date; wordId?: string }>> {
+    // Read from AsyncStorage for reliable time display (iOS fireDate parsing workaround)
+    try {
+      const stored = await AsyncStorage.getItem(SCHEDULED_NOTIFICATIONS_KEY);
+      if (stored) {
+        const list = JSON.parse(stored);
+        const lang = await this.getLanguage();
+        const now = new Date();
+        const notifications = list
+          .map((item: { id: string; fireDate: string; word: string; definition: string; wordId: string }) => ({
+            id: item.id,
+            title: lang === 'tr' ? '📚 LingRoot Hatırlatma' : '📚 LingRoot Reminder',
+            body: lang === 'tr'
+              ? `Kelime: ${item.word}${item.definition ? ' — ' + item.definition : ''}`
+              : `Word: ${item.word}${item.definition ? ' — ' + item.definition : ''}`,
+            fireDate: new Date(item.fireDate),
+            wordId: item.wordId,
+          }))
+          .filter((n: { fireDate: Date }) => n.fireDate > now) // Filter out past notifications
+          .sort((a: { fireDate: Date }, b: { fireDate: Date }) => a.fireDate.getTime() - b.fireDate.getTime());
+
+        console.log(`📋 [iOS Notifications] Loaded ${notifications.length} scheduled notifications from AsyncStorage`);
+        return notifications;
+      }
+    } catch (e) {
+      console.log('[iOS Notifications] AsyncStorage read failed:', e);
+    }
+
+    // Fallback: try to read from iOS (may have incorrect times)
     return new Promise((resolve) => {
       try {
         PushNotificationIOS.getPendingNotificationRequests((requests) => {
-          const notifications = requests.map((req: any) => ({
-            id: req.id || req.identifier || '',
-            title: req.title || req.alertTitle || '',
-            body: req.body || req.alertBody || '',
-            fireDate: req.fireDate ? new Date(req.fireDate) : new Date(),
-            wordId: req.userInfo?.wordId || undefined,
-          }));
+          console.log('📋 [iOS Notifications] Raw pending requests (fallback):', JSON.stringify(requests.slice(0, 3), null, 2));
+          const notifications = requests.map((req: any) => {
+            // iOS may return fireDate as Date object, ISO string, or timestamp
+            let fireDate: Date;
+            if (req.fireDate instanceof Date) {
+              fireDate = req.fireDate;
+            } else if (typeof req.fireDate === 'string') {
+              fireDate = new Date(req.fireDate);
+            } else if (typeof req.fireDate === 'number') {
+              fireDate = new Date(req.fireDate);
+            } else if (req.trigger?.timestamp) {
+              // iOS 10+ trigger-based notifications
+              fireDate = new Date(req.trigger.timestamp * 1000);
+            } else if (req.trigger?.dateComponents) {
+              // iOS date components trigger
+              const dc = req.trigger.dateComponents;
+              fireDate = new Date(dc.year || new Date().getFullYear(), (dc.month || 1) - 1, dc.day || 1, dc.hour || 0, dc.minute || 0, dc.second || 0);
+            } else {
+              console.log('⚠️ [iOS Notifications] Unknown fireDate format:', req);
+              fireDate = new Date();
+            }
+            return {
+              id: req.id || req.identifier || '',
+              title: req.title || req.alertTitle || '',
+              body: req.body || req.alertBody || '',
+              fireDate,
+              wordId: req.userInfo?.wordId || undefined,
+            };
+          });
           // Sort by fireDate ascending
           notifications.sort((a, b) => a.fireDate.getTime() - b.fireDate.getTime());
           resolve(notifications);
@@ -481,15 +556,47 @@ class NotificationService {
         title: lang === 'tr' ? '🎵 Ses Oluşturuldu!' : '🎵 Audio Created!',
         body: audioData.title || (lang === 'tr' ? 'Sesiniz hazır. Dinlemek için tıklayın.' : 'Your audio is ready. Tap to listen.'),
         sound: 'default',
-        badge: 1,
-        userInfo: { 
+        userInfo: {
           type: 'audio_created',
           audioData: JSON.stringify(audioData)
         },
       });
+      // Sync badge after showing notification
+      await this.syncBadgeWithBackend();
     } catch (error) {
       console.error('[NotificationService iOS] Error showing audio notification:', error);
     }
+  }
+
+  /**
+   * Update the app icon badge number
+   */
+  public updateBadgeCount(count: number): void {
+    try {
+      PushNotificationIOS.setApplicationIconBadgeNumber(count);
+      console.log(`🔢 [iOS Notifications] Badge updated to ${count}`);
+    } catch (error) {
+      console.error('[NotificationService iOS] Error updating badge:', error);
+    }
+  }
+
+  /**
+   * Sync badge count with backend unread notifications
+   */
+  public async syncBadgeWithBackend(): Promise<void> {
+    try {
+      const unreadCount = await getNotificationUnreadCount();
+      this.updateBadgeCount(unreadCount);
+    } catch (error) {
+      console.error('[NotificationService iOS] Error syncing badge:', error);
+    }
+  }
+
+  /**
+   * Clear the app icon badge
+   */
+  public clearBadge(): void {
+    this.updateBadgeCount(0);
   }
 }
 

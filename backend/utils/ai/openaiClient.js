@@ -1,6 +1,7 @@
 const logger = require('../common/logger.js');
 const fs = require('fs');
 const path = require('path');
+const { notifyAIError, AI_PROVIDERS, detectErrorType, AI_ERROR_TYPES } = require('../notifications/aiErrorNotifier.js');
 
 /**
  * OpenAI Client for Chat and Embeddings
@@ -124,6 +125,21 @@ class OpenAIClient {
           status: response.status,
           error: errorData
         });
+        // Notify admin for 4xx errors (billing, auth, quota issues)
+        if (response.status >= 400 && response.status < 500) {
+          notifyAIError({
+            provider: AI_PROVIDERS.OPENAI_CHAT,
+            method: 'generateChatCompletion',
+            error: new Error(errorData.error?.message || `HTTP ${response.status}`),
+            httpStatus: response.status,
+            context: {
+              model,
+              messageCount: messages.length,
+              errorCode: errorData.error?.code,
+              errorType: errorData.error?.type
+            }
+          }).catch(e => logger.warn('[OPENAI_CLIENT] Failed to send error notification:', e.message));
+        }
         throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
 
@@ -207,6 +223,21 @@ class OpenAIClient {
           status: response.status,
           error: errorData
         });
+        // Notify admin for 4xx errors (billing, auth, quota issues)
+        if (response.status >= 400 && response.status < 500) {
+          notifyAIError({
+            provider: AI_PROVIDERS.OPENAI_CHAT,
+            method: 'generateChatCompletionStream',
+            error: new Error(errorData.error?.message || `HTTP ${response.status}`),
+            httpStatus: response.status,
+            context: {
+              model,
+              messageCount: messages.length,
+              errorCode: errorData.error?.code,
+              errorType: errorData.error?.type
+            }
+          }).catch(e => logger.warn('[OPENAI_CLIENT] Failed to send error notification:', e.message));
+        }
         throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
 
@@ -304,6 +335,21 @@ class OpenAIClient {
           status: response.status,
           error: errorData
         });
+        // Notify admin for 4xx errors (billing, auth, quota issues)
+        if (response.status >= 400 && response.status < 500) {
+          notifyAIError({
+            provider: AI_PROVIDERS.OPENAI_CHAT,
+            method: 'generateEmbedding',
+            error: new Error(errorData.error?.message || `HTTP ${response.status}`),
+            httpStatus: response.status,
+            context: {
+              model: this.embeddingModel,
+              inputCount: texts.length,
+              errorCode: errorData.error?.code,
+              errorType: errorData.error?.type
+            }
+          }).catch(e => logger.warn('[OPENAI_CLIENT] Failed to send error notification:', e.message));
+        }
         throw new Error(`OpenAI Embedding API error: ${response.status}`);
       }
 
