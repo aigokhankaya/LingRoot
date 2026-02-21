@@ -429,7 +429,11 @@ const TopicTreeScreenContent: React.FC = () => {
       const ttsResponse = await ttsService.processTextToSpeechAsync(request);
 
       if (ttsResponse.success) {
-        setSuccessEstimatedTime(ttsResponse.estimatedTime || '2-5 minutes');
+        const rawTime = ttsResponse.estimatedTime || '2-5 minutes';
+        const localizedTime = language === 'tr'
+          ? rawTime.replace('minutes', 'dakika').replace('minute', 'dakika')
+          : rawTime;
+        setSuccessEstimatedTime(localizedTime);
         setShowSuccessAlert(true);
         // Lock zaten aktif, devam etsin
 

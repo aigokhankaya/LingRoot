@@ -289,7 +289,18 @@ const GEMINI_SPEAKERS = {
   'Fenrir': { gender: 'male', style: 'warm, conversational' },
   'Orus': { gender: 'male', style: 'clear, neutral' },
   'Puck': { gender: 'male', style: 'friendly, casual' },
-  'Achilles': { gender: 'male', style: 'strong, confident' },
+  'Achird': { gender: 'male', style: 'friendly, warm' },
+};
+
+// Legacy voice name mapping (for backwards compatibility with old saved preferences)
+const LEGACY_VOICE_MAPPING = {
+  'Achilles': 'Achird', // Achilles was never a valid Gemini voice, Achird is the correct name
+};
+
+// Normalize speaker ID (handle legacy/invalid names)
+const normalizeSpeakerId = (speakerId) => {
+  if (!speakerId || typeof speakerId !== 'string') return speakerId;
+  return LEGACY_VOICE_MAPPING[speakerId] || speakerId;
 };
 
 // Podcast style to prompt mapping - enhanced for natural speech
@@ -1347,13 +1358,17 @@ async function createGoogleTTSPodcast(options) {
     logger.info(`[GOOGLE-PODCAST] Script generated: ${scriptResult.turns.length} turns (Using turn-based sync)`);
 
     // Determine final speaker IDs (UI override > script-derived personalities > defaults)
+    // Normalize legacy voice names first (e.g., "Achilles" -> "Achird")
+    const normalizedHostId = normalizeSpeakerId(hostSpeakerId);
+    const normalizedGuestId = normalizeSpeakerId(guestSpeakerId);
+
     const isValidGeminiSpeaker = (id) => typeof id === 'string' && !!GEMINI_SPEAKERS[id];
-    let finalHostSpeakerId = isValidGeminiSpeaker(hostSpeakerId)
-      ? hostSpeakerId
+    let finalHostSpeakerId = isValidGeminiSpeaker(normalizedHostId)
+      ? normalizedHostId
       : (isValidGeminiSpeaker(scriptResult.speakerAId) ? scriptResult.speakerAId : DEFAULT_SPEAKER_A);
 
-    let finalGuestSpeakerId = isValidGeminiSpeaker(guestSpeakerId)
-      ? guestSpeakerId
+    let finalGuestSpeakerId = isValidGeminiSpeaker(normalizedGuestId)
+      ? normalizedGuestId
       : (isValidGeminiSpeaker(scriptResult.speakerBId) ? scriptResult.speakerBId : DEFAULT_SPEAKER_B);
 
     // Avoid same voice for both speakers
