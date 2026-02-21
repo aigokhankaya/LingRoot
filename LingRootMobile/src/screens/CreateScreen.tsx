@@ -495,7 +495,11 @@ const CreateScreenContent: React.FC = () => {
 
         if (response.success) {
           setSelectedFile(null);
-          setSuccessAlertEstimatedTime(response.estimatedTime || '2-5 minutes');
+          const rawTime = response.estimatedTime || '2-5 minutes';
+          const localizedTime = language === 'tr'
+            ? rawTime.replace('minutes', 'dakika').replace('minute', 'dakika')
+            : rawTime;
+          setSuccessAlertEstimatedTime(localizedTime);
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
         } else {
@@ -541,7 +545,11 @@ const CreateScreenContent: React.FC = () => {
             setSelectedChapterText('');
           }
 
-          setSuccessAlertEstimatedTime(response.estimatedTime || '2-5 minutes');
+          const rawTime2 = response.estimatedTime || '2-5 minutes';
+          const localizedTime2 = language === 'tr'
+            ? rawTime2.replace('minutes', 'dakika').replace('minute', 'dakika')
+            : rawTime2;
+          setSuccessAlertEstimatedTime(localizedTime2);
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
 
