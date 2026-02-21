@@ -8,9 +8,10 @@ const {
 } = require('../controllers/parameterController');
 const { setCacheHeaders } = require('../middleware/cacheHeaders');
 const { redisCache } = require('../middleware/redisCache');
+const { hybridCache } = require('../middleware/hybridCache');
 
-// Get all parameters
-router.get('/', setCacheHeaders(1800), redisCache('params:all', 3600), getAllParameters);
+// Get all parameters - L1: 300s, L2: 86400s (24 hours, params rarely change)
+router.get('/', setCacheHeaders(1800), hybridCache('params:all', 86400, 300), getAllParameters);
 
 // Get specific parameter
 router.get('/:key', setCacheHeaders(1800), getParameter);

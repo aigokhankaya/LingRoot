@@ -3,11 +3,13 @@ const logger = require('../utils/common/logger.js');
 
 /**
  * Get all notifications for a user
+ * Filters out scheduled notifications that haven't fired yet (scheduledFor > now)
  */
 const getNotifications = async (req, res) => {
     try {
         const userId = req.user.id;
         const { limit = 20, offset = 0, unreadOnly = false } = req.query;
+        const now = new Date().toISOString();
 
         // Build query
         let query = supabase
@@ -28,10 +30,26 @@ const getNotifications = async (req, res) => {
             throw error;
         }
 
-        // Get unread count separately
-        const { count: unreadCount, error: countError } = await supabase
+        // Filter out notifications with scheduledFor in the future
+        // These are vocabulary reminders that haven't fired yet
+        const filteredNotifications = notifications ? notifications.filter(n => {
+            if (n.data?.scheduledFor) {
+                return new Date(n.data.scheduledFor) <= new Date(now);
+            }
+            return true; // Show notifications without scheduledFor
+        }) : [];
+
+        // DEBUG: Log filtering info
+        const futureCount = (notifications || []).filter(n => n.data?.scheduledFor && new Date(n.data.scheduledFor) > new Date(now)).length;
+        if (futureCount > 0 || notifications?.length !== filteredNotifications.length) {
+            logger.info(`[NOTIFICATION] User ${userId}: ${notifications?.length || 0} total, ${filteredNotifications.length} shown, ${futureCount} scheduled for future`);
+        }
+
+        // Get unread count - also need to filter by scheduledFor
+        // First get all unread, then filter in memory
+        const { data: allUnread, error: countError } = await supabase
             .from('notifications')
-            .select('*', { count: 'exact', head: true })
+            .select('data')
             .eq('user_id', userId)
             .eq('is_read', false);
 
@@ -39,26 +57,42 @@ const getNotifications = async (req, res) => {
             logger.error('[NOTIFICATION] Supabase error fetching unread count:', countError);
         }
 
-        // Map snake_case database fields to camelCase for frontend compatibility (if needed)
-        // Or keep snake_case if frontend expects it (based on sequelize model, front expects camelCase)
-        const mappedNotifications = notifications.map(n => ({
-            id: n.id,
-            userId: n.user_id,
-            title: n.title,
-            message: n.body,  // DB'de body, API'de message olarak dön
-            type: n.type,
-            isRead: n.is_read,
-            link: n.link,
-            metadata: n.data || n.metadata,
-            createdAt: n.created_at,
-            readAt: n.read_at
-        }));
+        // Filter unread count by scheduledFor as well
+        const filteredUnreadCount = allUnread ? allUnread.filter(n => {
+            if (n.data?.scheduledFor) {
+                return new Date(n.data.scheduledFor) <= new Date(now);
+            }
+            return true;
+        }).length : 0;
+
+        // Map snake_case database fields to camelCase for frontend compatibility
+        const mappedNotifications = filteredNotifications.map(n => {
+            // For vocabulary reminders, use scheduledFor as createdAt (when notification was actually shown)
+            // This ensures each notification displays its own scheduled time, not the batch creation time
+            let displayTime = n.created_at;
+            if (n.type === 'vocabulary_reminder' && n.data?.scheduledFor) {
+                displayTime = n.data.scheduledFor;
+            }
+
+            return {
+                id: n.id,
+                userId: n.user_id,
+                title: n.title,
+                message: n.body,  // DB'de body, API'de message olarak dön
+                type: n.type,
+                isRead: n.is_read,
+                link: n.link,
+                metadata: n.data || n.metadata,
+                createdAt: displayTime,
+                readAt: n.read_at
+            };
+        });
 
         res.json({
             success: true,
             data: mappedNotifications,
-            total: count,
-            unreadCount: unreadCount || 0,
+            total: filteredNotifications.length,
+            unreadCount: filteredUnreadCount,
             limit: parseInt(limit),
             offset: parseInt(offset)
         });
@@ -74,14 +108,17 @@ const getNotifications = async (req, res) => {
 
 /**
  * Get unread notification count
+ * Excludes scheduled notifications that haven't fired yet
  */
 const getUnreadCount = async (req, res) => {
     try {
         const userId = req.user.id;
+        const now = new Date().toISOString();
 
-        const { count: unreadCount, error } = await supabase
+        // Get all unread notifications with data field
+        const { data: allUnread, error } = await supabase
             .from('notifications')
-            .select('*', { count: 'exact', head: true })
+            .select('data')
             .eq('user_id', userId)
             .eq('is_read', false);
 
@@ -90,9 +127,17 @@ const getUnreadCount = async (req, res) => {
             throw error;
         }
 
+        // Filter out notifications with scheduledFor in the future
+        const filteredUnreadCount = allUnread ? allUnread.filter(n => {
+            if (n.data?.scheduledFor) {
+                return new Date(n.data.scheduledFor) <= new Date(now);
+            }
+            return true;
+        }).length : 0;
+
         res.json({
             success: true,
-            unreadCount: unreadCount || 0
+            unreadCount: filteredUnreadCount
         });
     } catch (error) {
         logger.error('[NOTIFICATION] Error fetching unread count:', error);
@@ -374,18 +419,26 @@ const getNotificationHistory = async (req, res) => {
             throw error;
         }
 
-        const mappedNotifications = notifications.map(n => ({
-            id: n.id,
-            userId: n.user_id,
-            title: n.title,
-            message: n.body,  // DB'de body, API'de message olarak dön
-            type: n.type,
-            isRead: n.is_read,
-            link: n.link,
-            metadata: n.data || n.metadata,
-            createdAt: n.created_at,
-            user: n.users // Supabase returns the relation as 'users' object/array
-        }));
+        const mappedNotifications = notifications.map(n => {
+            // For vocabulary reminders, use scheduledFor as createdAt (when notification was actually shown)
+            let displayTime = n.created_at;
+            if (n.type === 'vocabulary_reminder' && n.data?.scheduledFor) {
+                displayTime = n.data.scheduledFor;
+            }
+
+            return {
+                id: n.id,
+                userId: n.user_id,
+                title: n.title,
+                message: n.body,  // DB'de body, API'de message olarak dön
+                type: n.type,
+                isRead: n.is_read,
+                link: n.link,
+                metadata: n.data || n.metadata,
+                createdAt: displayTime,
+                user: n.users // Supabase returns the relation as 'users' object/array
+            };
+        });
 
         res.json({
             success: true,
@@ -441,11 +494,14 @@ const deleteNotificationAdmin = async (req, res) => {
  *
  * DUPLICATE PREVENTION: Skips creation if same user+word notification
  * was already created in the last 24 hours
+ *
+ * SCHEDULED VISIBILITY: If scheduledFor is provided, the notification
+ * will only appear in getNotifications after that time has passed
  */
 const createVocabularyReminder = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { wordId, word, definition } = req.body;
+        const { wordId, word, definition, scheduledFor } = req.body;
 
         if (!word) {
             return res.status(400).json({
@@ -454,33 +510,42 @@ const createVocabularyReminder = async (req, res) => {
             });
         }
 
-        // Check for duplicate: same user + word + vocabulary_reminder in last 24 hours
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        // Check for duplicate: same user + word + same scheduledFor time
+        // This allows the same word to be scheduled at different times
         const bodyToCheck = definition ? `${word} — ${definition}` : word;
 
-        const { data: existingNotif, error: checkError } = await supabase
-            .from('notifications')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('type', 'vocabulary_reminder')
-            .eq('body', bodyToCheck)
-            .gte('created_at', twentyFourHoursAgo)
-            .limit(1)
-            .maybeSingle();
+        if (scheduledFor) {
+            // If scheduledFor provided, check if exact same notification exists
+            const { data: existingNotif, error: checkError } = await supabase
+                .from('notifications')
+                .select('id, data')
+                .eq('user_id', userId)
+                .eq('type', 'vocabulary_reminder')
+                .eq('body', bodyToCheck);
 
-        if (checkError) {
-            logger.warn('[NOTIFICATION] Error checking for duplicate:', checkError);
-            // Continue with creation anyway
+            if (checkError) {
+                logger.warn('[NOTIFICATION] Error checking for duplicate:', checkError);
+                // Continue with creation anyway
+            }
+
+            // Check if any existing notification has the same scheduledFor
+            const hasSameScheduledFor = existingNotif?.some(n =>
+                n.data?.scheduledFor === scheduledFor
+            );
+
+            if (hasSameScheduledFor) {
+                return res.json({
+                    success: true,
+                    message: 'Bildirim zaten mevcut (duplicate skipped)',
+                    skipped: true
+                });
+            }
         }
 
-        // If duplicate exists, skip creation
-        if (existingNotif) {
-            return res.json({
-                success: true,
-                message: 'Bildirim zaten mevcut (duplicate skipped)',
-                skipped: true
-            });
-        }
+        // Build data object with wordId and scheduledFor
+        const dataObj = {};
+        if (wordId) dataObj.wordId = wordId;
+        if (scheduledFor) dataObj.scheduledFor = scheduledFor;
 
         const { error } = await supabase
             .from('notifications')
@@ -490,7 +555,7 @@ const createVocabularyReminder = async (req, res) => {
                 body: bodyToCheck,
                 type: 'vocabulary_reminder',
                 is_read: false,
-                data: wordId ? { wordId } : null,
+                data: Object.keys(dataObj).length > 0 ? dataObj : null,
                 created_at: new Date().toISOString()
             }]);
 
@@ -513,6 +578,78 @@ const createVocabularyReminder = async (req, res) => {
     }
 };
 
+/**
+ * Delete only FUTURE scheduled vocabulary reminder notifications for current user
+ * Called before rescheduling to avoid duplicates
+ * Preserves notifications whose scheduledFor time has passed (user should see these)
+ */
+const deleteScheduledVocabularyReminders = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const now = new Date().toISOString();
+
+        // First, get all unread vocabulary reminders
+        const { data: allReminders, error: fetchError } = await supabase
+            .from('notifications')
+            .select('id, data')
+            .eq('user_id', userId)
+            .eq('type', 'vocabulary_reminder')
+            .eq('is_read', false);
+
+        if (fetchError) {
+            logger.error('[NOTIFICATION] Error fetching vocabulary reminders:', fetchError);
+            throw fetchError;
+        }
+
+        // Filter to only those scheduled for the future
+        const futureReminders = (allReminders || []).filter(n => {
+            if (n.data?.scheduledFor) {
+                return new Date(n.data.scheduledFor) > new Date(now);
+            }
+            // If no scheduledFor, don't delete (preserve legacy notifications)
+            return false;
+        });
+
+        if (futureReminders.length === 0) {
+            return res.json({
+                success: true,
+                message: 'Silinecek gelecek zamanlanmış bildirim yok',
+                deletedCount: 0
+            });
+        }
+
+        const idsToDelete = futureReminders.map(n => n.id);
+
+        const { data, error } = await supabase
+            .from('notifications')
+            .delete()
+            .in('id', idsToDelete)
+            .select('id');
+
+        if (error) {
+            logger.error('[NOTIFICATION] Error deleting scheduled vocabulary reminders:', error);
+            throw error;
+        }
+
+        const deletedCount = data?.length || 0;
+        const preservedCount = (allReminders?.length || 0) - futureReminders.length;
+        logger.info(`[NOTIFICATION] Deleted ${deletedCount} FUTURE vocabulary reminders, preserved ${preservedCount} past/current for user ${userId}`);
+
+        res.json({
+            success: true,
+            message: `${deletedCount} zamanlanmış kelime bildirimi silindi`,
+            deletedCount
+        });
+    } catch (error) {
+        logger.error('[NOTIFICATION] Error in deleteScheduledVocabularyReminders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Bildirimler silinirken hata oluştu',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     // User functions
     getNotifications,
@@ -522,6 +659,7 @@ module.exports = {
     deleteNotification,
     deleteReadNotifications,
     createVocabularyReminder,
+    deleteScheduledVocabularyReminders,
     // Admin functions
     sendNotification,
     getNotificationHistory,

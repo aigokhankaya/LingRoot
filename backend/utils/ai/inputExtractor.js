@@ -207,9 +207,10 @@ async function extractFromWebLink(url) {
  * @param {number} targetDurationMinutes - Optional target duration in minutes
  * @param {string} mood - Optional mood for content generation
  * @param {object} topicContext - Optional topic hierarchy context {hierarchy: string, rootTopic: string}
+ * @param {string} userId - Optional user ID for error notification
  * @returns {{englishText: string, translatedText: string}} - İngilizce içerik (TTS için) ve çevrilmiş içerik (kayıt için)
  */
-async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger, targetDurationMinutes = null, mood = null, topicContext = null) {
+async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger, targetDurationMinutes = null, mood = null, topicContext = null, userId = null) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
@@ -221,7 +222,7 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
         // OPTIMIZED: Single LLM call for both English and translated content
         // Pass targetDurationMinutes to control content length based on desired audio duration
         // Pass topicContext for parent-aware content generation
-        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger, targetDurationMinutes, mood, [], topicContext);
+        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger, targetDurationMinutes, mood, [], topicContext, userId);
 
         if (targetDurationMinutes) {
             logger.info(`[OPTIMIZED] Duration target: ${targetDurationMinutes} minutes`);
@@ -252,7 +253,7 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
  * Text tipi için: Doğrudan metni döndürür.
  * File, weblink ve chapter tipleri için ilgili extraction fonksiyonlarını çağırır.
  */
-async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger, targetDurationMinutes = null, options = {}) {
+async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger, targetDurationMinutes = null, options = {}, userId = null) {
     logger.info(`Extracting text for input type: ${inputType}`);
     switch (inputType) {
         case "text":
@@ -270,7 +271,7 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
                 const inputLanguage = detectedLanguage === 'tr' || detectedLanguage === 'tr-TR' ? 'Turkish' : 'English';
                 const mood = options.mood || null;
                 const topicContext = options.topicContext || null;
-                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger, targetDurationMinutes, mood, topicContext);
+                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger, targetDurationMinutes, mood, topicContext, userId);
                 if (!narration || !narration.englishText) {
                     logger.error("OpenAI could not generate narration from topic. User should provide a more descriptive topic.");
                     return null;

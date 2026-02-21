@@ -10,6 +10,7 @@
  */
 
 const logger = require('../common/logger.js');
+const { notifyAIError, AI_PROVIDERS } = require('../notifications/aiErrorNotifier.js');
 
 // OpenAI TTS API endpoint
 const TTS_API_URL = 'https://api.openai.com/v1/audio/speech';
@@ -127,6 +128,20 @@ async function synthesizeWithOpenAI(options) {
 
                 // Don't retry on client errors (4xx) except rate limits (429)
                 if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                    // Notify admin immediately for billing/auth errors
+                    notifyAIError({
+                        provider: AI_PROVIDERS.OPENAI_TTS,
+                        method: 'synthesizeWithOpenAI',
+                        error: new Error(errorData.error?.message || `HTTP ${response.status}`),
+                        httpStatus: response.status,
+                        context: {
+                            voice: validVoice,
+                            model: validModel,
+                            textLength: text.length,
+                            errorCode: errorData.error?.code,
+                            errorType: errorData.error?.type
+                        }
+                    }).catch(e => logger.warn('[OPENAI_TTS] Failed to send error notification:', e.message));
                     throw new Error(`OpenAI TTS API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
                 }
 
@@ -175,6 +190,20 @@ async function synthesizeWithOpenAI(options) {
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
                 logger.error(`❌ OpenAI TTS synthesis failed after ${attempt} attempts: ${error.message}`);
+                // Notify admin of OpenAI TTS failure after all retries
+                notifyAIError({
+                    provider: AI_PROVIDERS.OPENAI_TTS,
+                    method: 'synthesizeWithOpenAI',
+                    error: error,
+                    context: {
+                        voice: validVoice,
+                        model: validModel,
+                        speed: validSpeed,
+                        textLength: text.length,
+                        attempt,
+                        maxRetries
+                    }
+                }).catch(e => logger.warn('[OPENAI_TTS] Failed to send error notification:', e.message));
                 throw error;
             }
         }

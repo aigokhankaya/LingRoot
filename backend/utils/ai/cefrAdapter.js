@@ -5,6 +5,7 @@ const logger = require('../common/logger.js'); // Import Winston logger
 const fs = require("fs");
 const path = require("path");
 const { logApiCost, calculateOpenAiCost } = require('../infra/costTracker.js');
+const { notifyAIError, AI_PROVIDERS, detectErrorType, AI_ERROR_TYPES, isCriticalError, createUserFacingError, USER_FACING_ERROR_TYPES } = require('../notifications/aiErrorNotifier.js');
 
 // Initialize OpenAI client
 // Ensure OPENAI_API_KEY is set in the environment (.env file)
@@ -111,6 +112,40 @@ async function adaptToCEFR(text, level, requestLogger, userId) {
             }
         } catch (error) {
             logger.error(`An error occurred during OpenAI API call: ${error.message}`);
+
+            // Detect error type and check if critical
+            const errorType = detectErrorType(error, error.status || error.response?.status);
+            const critical = isCriticalError(errorType);
+
+            // Notify admin of OpenAI error in CEFR adaptation
+            notifyAIError({
+                provider: AI_PROVIDERS.OPENAI_CHAT,
+                method: 'adaptToCEFR',
+                error: error,
+                httpStatus: error.status || error.response?.status,
+                userId: userId,
+                context: {
+                    level,
+                    model,
+                    chunkIndex: i,
+                    totalChunks: chunks.length,
+                    chunkLength: chunks[i]?.length || 0,
+                    errorType,
+                    critical
+                }
+            }).catch(e => logger.warn('[CEFR_ADAPTER] Failed to send error notification:', e.message));
+
+            // For critical errors (billing, API key, quota), throw to stop processing
+            if (critical) {
+                logger.error(`[CEFR_ADAPTER] Critical error detected (${errorType}), stopping processing`);
+                const userErrorType = errorType === AI_ERROR_TYPES.RATE_LIMIT
+                    ? USER_FACING_ERROR_TYPES.TEMPORARY_ERROR
+                    : USER_FACING_ERROR_TYPES.AI_SERVICE_ERROR;
+                throw createUserFacingError(userErrorType, error.message, errorType === AI_ERROR_TYPES.RATE_LIMIT);
+            }
+
+            // For non-critical errors (rate limit after retries, network issues), use fallback
+            logger.warn(`[CEFR_ADAPTER] Non-critical error, using original text as fallback`);
             adaptedChunks.push(chunks[i]);
         }
     }

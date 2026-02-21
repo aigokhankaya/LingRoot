@@ -79,25 +79,47 @@ export class ReminderSettingsService {
     const currentMinute = now.getMinutes();
     const currentTimeInMinutes = currentHour * 60 + currentMinute;
     const startTimeInMinutes = startHour * 60 + startMinute;
-    const endTimeInMinutes = endHour * 60 + endMinute;
+    let endTimeInMinutes = endHour * 60 + endMinute;
+
+    // Handle overnight time range (e.g., 23:00 - 00:00 or 22:00 - 02:00)
+    const isOvernightRange = endTimeInMinutes <= startTimeInMinutes;
+    if (isOvernightRange) {
+      // Add 24 hours to end time for calculation purposes
+      endTimeInMinutes += 24 * 60;
+    }
 
     // Determine the target day and time window
     let targetDate = new Date(now);
     let effectiveStartTime: Date;
     let effectiveEndTime: Date;
 
+    // Adjust current time for overnight comparison
+    let adjustedCurrentTime = currentTimeInMinutes;
+    if (isOvernightRange && currentTimeInMinutes < startTimeInMinutes) {
+      // If it's past midnight and we're in an overnight range, add 24 hours
+      adjustedCurrentTime += 24 * 60;
+    }
+
     // Case 1: Current time is before start time → schedule for today, full window
-    if (currentTimeInMinutes < startTimeInMinutes) {
+    if (adjustedCurrentTime < startTimeInMinutes) {
       effectiveStartTime = new Date(targetDate);
       effectiveStartTime.setHours(startHour, startMinute, 0, 0);
       effectiveEndTime = new Date(targetDate);
       effectiveEndTime.setHours(endHour, endMinute, 0, 0);
+      // If overnight range, end time is next day
+      if (isOvernightRange) {
+        effectiveEndTime.setDate(effectiveEndTime.getDate() + 1);
+      }
     }
     // Case 2: Current time is within the window → schedule from now to end
-    else if (currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutes) {
+    else if (adjustedCurrentTime >= startTimeInMinutes && adjustedCurrentTime < endTimeInMinutes) {
       effectiveStartTime = new Date(now.getTime() + 60000); // now + 1 minute
       effectiveEndTime = new Date(targetDate);
       effectiveEndTime.setHours(endHour, endMinute, 0, 0);
+      // If overnight range and we're still before midnight, end time is next day
+      if (isOvernightRange && currentTimeInMinutes >= startTimeInMinutes) {
+        effectiveEndTime.setDate(effectiveEndTime.getDate() + 1);
+      }
     }
     // Case 3: Current time is past end time → schedule for tomorrow, full window
     else {
@@ -106,6 +128,10 @@ export class ReminderSettingsService {
       effectiveStartTime.setHours(startHour, startMinute, 0, 0);
       effectiveEndTime = new Date(targetDate);
       effectiveEndTime.setHours(endHour, endMinute, 0, 0);
+      // If overnight range, end time is the day after tomorrow
+      if (isOvernightRange) {
+        effectiveEndTime.setDate(effectiveEndTime.getDate() + 1);
+      }
     }
 
     // Calculate total duration

@@ -51,8 +51,8 @@ router.get('/test-db', contentController.testSupabaseConnection);
 router.get('/count', authenticate, contentController.getContentCount);
 router.get('/audio-count', authenticate, contentController.getContentCount);
 
-// Content history routes
-router.get('/history', authenticate, contentLimiter, redisCache('content:history', 120), contentController.getContentHistory);
+// Content history routes (600s cache - 10 minutes)
+router.get('/history', authenticate, contentLimiter, redisCache('content:history', 600), contentController.getContentHistory);
 router.get('/history/:id', authenticate, contentLimiter, contentController.getContentById);
 router.delete('/history/:id', authenticate, contentLimiter, contentController.deleteContent);
 

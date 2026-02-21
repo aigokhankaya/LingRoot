@@ -1,0 +1,174 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: backend/tests/load/scenarios/production-50vu.js
+        output: -
+
+     scenarios: (100.00%) 2 scenarios, 15 max VUs, 20m30s max duration (incl. graceful stop):
+              * podcast_production: 5 iterations shared among 5 VUs (maxDuration: 20m0s, exec: podcastFlow, gracefulStop: 30s)
+              * tts_production: 10 iterations shared among 10 VUs (maxDuration: 20m0s, exec: ttsFlow, gracefulStop: 30s)
+
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 9] Podcast: Logging in as loadtest-0039@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 3] Podcast: Logging in as loadtest-0033@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 4] TTS: Logging in as loadtest-0004@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 13] Podcast: Logging in as loadtest-0043@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 12] Podcast: Logging in as loadtest-0042@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 11] TTS: Logging in as loadtest-0011@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 6] Podcast: Logging in as loadtest-0036@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 1] TTS: Logging in as loadtest-0001@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 14] TTS: Logging in as loadtest-0014@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 15] TTS: Logging in as loadtest-0015@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 8] TTS: Logging in as loadtest-0008@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 2] TTS: Logging in as loadtest-0002@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 10] TTS: Logging in as loadtest-0010@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 5] TTS: Logging in as loadtest-0005@loadtest.lingroot.com" source=console
+time="2026-02-07T22:26:24+03:00" level=info msg="[VU 7] TTS: Logging in as loadtest-0007@loadtest.lingroot.com" source=console
+
+running (00m01.0s), 15/15 VUs, 0 complete and 0 interrupted iterations
+podcast_production   [   0% ] 5 VUs   00m01.0s/20m0s  0/5 shared iters
+tts_production       [   0% ] 10 VUs  00m01.0s/20m0s  00/10 shared iters
+
+running (00m02.0s), 15/15 VUs, 0 complete and 0 interrupted iterations
+podcast_production   [   0% ] 5 VUs   00m02.0s/20m0s  0/5 shared iters
+tts_production       [   0% ] 10 VUs  00m02.0s/20m0s  00/10 shared iters
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 10] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 2] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 4] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 13] Podcast: Creating job for topic \"Renewable energy sources\"..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 11] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 5] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 8] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 15] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 12] Podcast: Creating job for topic \"Renewable energy sources\"..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 7] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 1] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 9] Podcast: Creating job for topic \"Climate change effects\"..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 14] TTS: Creating job..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 3] Podcast: Creating job for topic \"Climate change effects\"..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 6] Podcast: Creating job for topic \"Healthy eating habits\"..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 10] TTS: Job job_1770492386862_vb0wn8obc created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 2] TTS: Job job_1770492386864_6oc74mk88 created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 4] TTS: Job job_1770492386984_hnt2dwn59 created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 8] TTS: Job job_1770492386988_tms94oy3g created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 15] TTS: Job job_1770492386991_cfzh9i9z1 created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 13] Podcast: Job job_1770492386986_a6jxumd6o created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 11] TTS: Job job_1770492386990_odhvayz5r created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 7] TTS: Job job_1770492386992_p3j4df810 created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 1] TTS: Job job_1770492387002_8xu4szjsz created, polling..." source=console
+time="2026-02-07T22:26:26+03:00" level=info msg="[VU 12] Podcast: Job job_1770492387005_c7zhidx4u created, polling..." source=console
+time="2026-02-07T22:26:27+03:00" level=info msg="[VU 9] Podcast: Job job_1770492387008_yg2fyra6g created, polling..." source=console
+time="2026-02-07T22:26:27+03:00" level=info msg="[VU 14] TTS: Job job_1770492387251_7eyg4wgfo created, polling..." source=console
+time="2026-02-07T22:26:27+03:00" level=info msg="[VU 6] Podcast: Job job_1770492387253_ixz54aqr4 created, polling..." source=console
+time="2026-02-07T22:26:27+03:00" level=info msg="[VU 5] TTS: Job job_1770492387256_oe1vzllev created, polling..." source=console
+time="2026-02-07T22:26:27+03:00" level=info msg="[VU 3] Podcast: Job job_1770492387254_q0kc0flbr created, polling..." source=console
+
+running (00m03.0s), 15/15 VUs, 0 complete and 0 interrupted iterations
+podcast_production   [   0% ] 5 VUs   00m03.0s/20m0s  0/5 shared iters
+tts_production       [   0% ] 10 VUs  00m03.0s/20m0s  00/10 shared iters
+
+running (00m04.0s), 15/15 VUs, 0 complete and 0 interrupted iterations
+podcast_production   [   0% ] 5 VUs   00m04.0s/20m0s  0/5 shared iters
+tts_production       [   0% ] 10 VUs  00m04.0s/20m0s  00/10 shared iters
+
+running (00m05.0s), 15/15 VUs, 0 complete and 0 interrupted iterations
+podcast_production   [   0% ] 5 VUs   00m05.0s/20m0s  0/5 shared iters
+tts_production       [   0% ] 10 VUs  00m05.0s/20m0s  00/10 shared iters
+
+running (00m06.0s), 15/15 VUs, 0 complete and 0 interrupted iterations
+podcast_production   [   0% ] 5 VUs   00m06.0s/20m0s  0/5 shared iters
+tts_production       [   0% ] 10 VUs  00m06.0s/20m0s  00/10 shared iters
+
+running (00m07.0s), 15/15 VUs, 0 complete and 0 interrupted iterations
+podcast_production   [   0% ] 5 VUs   00m07.0s/20m0s  0/5 shared iters
+tts_production       [   0% ] 10 VUs  00m07.0s/20m0s  00/10 shared iters
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 10] TTS Job job_1770492386862_vb0wn8obc completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492386862_vb0wn8obc\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":10}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 2] TTS Job job_1770492386864_6oc74mk88 completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492386864_6oc74mk88\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":2}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 9] PODCAST Job job_1770492387008_yg2fyra6g failed: createGoogleTTSPodcast failed to save to contenthistory" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"podcast\",\"jobId\":\"job_1770492387008_yg2fyra6g\",\"status\":\"failed\",\"duration_sec\":5,\"vu\":9}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 12] PODCAST Job job_1770492387005_c7zhidx4u failed: createGoogleTTSPodcast failed to save to contenthistory" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"podcast\",\"jobId\":\"job_1770492387005_c7zhidx4u\",\"status\":\"failed\",\"duration_sec\":5,\"vu\":12}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 13] PODCAST Job job_1770492386986_a6jxumd6o failed: createGoogleTTSPodcast failed to save to contenthistory" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"podcast\",\"jobId\":\"job_1770492386986_a6jxumd6o\",\"status\":\"failed\",\"duration_sec\":5,\"vu\":13}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 8] TTS Job job_1770492386988_tms94oy3g completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492386988_tms94oy3g\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":8}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 15] TTS Job job_1770492386991_cfzh9i9z1 completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492386991_cfzh9i9z1\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":15}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 4] TTS Job job_1770492386984_hnt2dwn59 completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492386984_hnt2dwn59\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":4}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 11] TTS Job job_1770492386990_odhvayz5r completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492386990_odhvayz5r\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":11}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 1] TTS Job job_1770492387002_8xu4szjsz completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492387002_8xu4szjsz\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":1}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 7] TTS Job job_1770492386992_p3j4df810 completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492386992_p3j4df810\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":7}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 3] PODCAST Job job_1770492387254_q0kc0flbr failed: createGoogleTTSPodcast failed to save to contenthistory" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"podcast\",\"jobId\":\"job_1770492387254_q0kc0flbr\",\"status\":\"failed\",\"duration_sec\":5,\"vu\":3}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 6] PODCAST Job job_1770492387253_ixz54aqr4 failed: createGoogleTTSPodcast failed to save to contenthistory" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"podcast\",\"jobId\":\"job_1770492387253_ixz54aqr4\",\"status\":\"failed\",\"duration_sec\":5,\"vu\":6}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 14] TTS Job job_1770492387251_7eyg4wgfo completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492387251_7eyg4wgfo\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":14}" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[VU 5] TTS Job job_1770492387256_oe1vzllev completed in 5s" source=console
+time="2026-02-07T22:26:32+03:00" level=info msg="[JOB_DETAIL] {\"type\":\"tts\",\"jobId\":\"job_1770492387256_oe1vzllev\",\"status\":\"completed\",\"duration_sec\":5,\"vu\":5}" source=console
+
+
+  █ THRESHOLDS 
+
+    http_req_failed
+    ✓ 'rate<0.20' rate=0.00%
+
+    job_completion_time
+    ✓ 'p(95)<600000' p(95)=5189.3
+
+    podcast_completion_time
+    ✓ 'p(95)<600000' p(95)=5131.8
+
+    tts_completion_time
+    ✓ 'p(95)<180000' p(95)=5189.55
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 30      3.815054/s
+    checks_succeeded...: 100.00% 30 out of 30
+    checks_failed......: 0.00%   0 out of 30
+
+    ✓ login status 200
+    ✓ login has token
+
+    CUSTOM
+    job_completion_time............: avg=5144.4   min=5092    med=5146     max=5190  p(90)=5184.6 p(95)=5189.3 
+    jobs_completed.................: 10     1.271685/s
+    jobs_failed....................: 5      0.635842/s
+    podcast_completion_time........: avg=5108     min=5092    med=5102     max=5138  p(90)=5125.6 p(95)=5131.8 
+    tts_completed..................: 10     1.271685/s
+    tts_completion_time............: avg=5162.6   min=5144    med=5157.5   max=5190  p(90)=5189.1 p(95)=5189.55
+
+    HTTP
+    http_req_duration..............: avg=808.46ms min=91.71ms med=204.12ms max=2.06s p(90)=2.03s  p(95)=2.04s  
+      { expected_response:true }...: avg=808.46ms min=91.71ms med=204.12ms max=2.06s p(90)=2.03s  p(95)=2.04s  
+    http_req_failed................: 0.00%  0 out of 45
+    http_reqs......................: 45     5.722581/s
+
+    EXECUTION
+    iteration_duration.............: avg=7.62s    min=7.43s   med=7.57s    max=7.86s p(90)=7.82s  p(95)=7.84s  
+    iterations.....................: 15     1.907527/s
+    vus............................: 15     min=15      max=15
+    vus_max........................: 15     min=15      max=15
+
+    NETWORK
+    data_received..................: 311 kB 40 kB/s
+    data_sent......................: 83 kB  11 kB/s
+
+
+
+
+running (00m07.9s), 00/15 VUs, 15 complete and 0 interrupted iterations
+podcast_production ✓ [ 100% ] 5 VUs   00m07.8s/20m0s  5/5 shared iters
+tts_production     ✓ [ 100% ] 10 VUs  00m07.9s/20m0s  10/10 shared iters

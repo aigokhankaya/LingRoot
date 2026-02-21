@@ -3,7 +3,7 @@ import type { VocabularyWord } from './api';
 import { getVocabulary } from './api';
 import { ReminderSettingsService, ReminderSettings } from './reminderSettingsService';
 import PushNotification from 'react-native-push-notification';
-import { createVocabularyNotification } from './userService';
+import { createVocabularyNotification, deleteScheduledVocabularyReminders } from './userService';
 
 class NotificationService {
   private static instance: NotificationService;
@@ -184,7 +184,21 @@ class NotificationService {
     return source.slice(0, actualCount);
   }
 
-  private async rescheduleDailyReminders(): Promise<void> {
+  private async rescheduleDailyReminders(force = false): Promise<void> {
+    console.log('🚀 [Android Notifications] rescheduleDailyReminders called (force:', force, ')');
+
+    // If not forced and future notifications exist, skip rescheduling
+    if (!force) {
+      try {
+        const existingNotifications = await this.getScheduledNotifications();
+        const futureNotifications = existingNotifications.filter(n => n.fireDate > new Date());
+        if (futureNotifications.length > 0) {
+          console.log(`⏭️ [Android Notifications] Skipping reschedule - ${futureNotifications.length} future notifications exist`);
+          return;
+        }
+      } catch {}
+    }
+
     const nowMs = Date.now();
     if (nowMs - this.lastRescheduleAt < 750) return;
     if (this.rescheduleRunning) { this.rescheduleQueued = true; return; }
@@ -207,6 +221,14 @@ class NotificationService {
         PushNotification.cancelAllLocalNotifications();
         PushNotification.removeAllDeliveredNotifications?.();
       } catch {}
+
+      // Also clear backend scheduled vocabulary reminders to avoid duplicates
+      try {
+        const deleted = await deleteScheduledVocabularyReminders();
+        console.log(`🗑️ [Android Notifications] Deleted ${deleted} backend reminders`);
+      } catch (e) {
+        console.log('[Android Notifications] Failed to delete backend reminders:', e);
+      }
 
       // Wait for Android to process cancellations
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -259,18 +281,23 @@ class NotificationService {
             // No repeatType - one-time notifications only
           });
           this.scheduledCount += 1;
-
-          // Also save to backend notifications table
-          if (word?.id) {
-            createVocabularyNotification(
-              word.id.toString(),
-              word.word,
-              word.definition
-            ).catch(() => {});
-          }
         } catch (schedErr) {
           console.warn('[Notification] Schedule error:', schedErr);
           // Silent error handling
+        }
+
+        // Save to backend for Notifications screen display
+        if (word?.id) {
+          try {
+            await createVocabularyNotification(
+              word.id.toString(),
+              word.word,
+              word.definition,
+              when.toISOString() // scheduledFor - will only show after this time
+            );
+          } catch (e) {
+            console.log('[Android Notifications] Backend save failed:', e);
+          }
         }
       }
       console.log(`✅ [Android Notifications] Successfully scheduled ${times.length} notifications`);
@@ -289,20 +316,20 @@ class NotificationService {
       // Silently fail - don't show alert to user
     } finally {
       this.rescheduleRunning = false;
-      if (this.rescheduleQueued) { this.rescheduleQueued = false; setTimeout(() => { this.rescheduleDailyReminders().catch(() => {}); }, 150); }
+      if (this.rescheduleQueued) { this.rescheduleQueued = false; setTimeout(() => { this.rescheduleDailyReminders(force).catch(() => {}); }, 150); }
     }
   }
 
-  public async setupPeriodicVocabularyNotifications(): Promise<void> {
+  public async setupPeriodicVocabularyNotifications(force = false): Promise<void> {
     await this.initialize();
     if (!this.hasPermission) return;
-    await this.rescheduleDailyReminders();
+    await this.rescheduleDailyReminders(force);
   }
 
-  public async setupSmartVocabularyNotifications(): Promise<void> {
+  public async setupSmartVocabularyNotifications(force = false): Promise<void> {
     await this.initialize();
     if (!this.hasPermission) return;
-    await this.rescheduleDailyReminders();
+    await this.rescheduleDailyReminders(force);
   }
 
   public async stopVocabularyReminders(): Promise<void> {
@@ -322,8 +349,6 @@ class NotificationService {
       // Verify
       const remaining = await this.getScheduledNotifications();
       console.log(`✅ [Android Notifications] After stop: ${remaining.length} notifications remaining`);
-
-      Alert.alert('Bildirimler Durduruldu', 'Tüm kelime hatırlatmaları iptal edildi.');
     } catch {}
   }
 
@@ -350,15 +375,6 @@ class NotificationService {
     });
     // Immediate + backup
     this.scheduledCount += 2;
-
-    // Also save to backend notifications table
-    if (word.id) {
-      createVocabularyNotification(
-        word.id.toString(),
-        word.word,
-        word.definition
-      ).catch(() => {});
-    }
   }
 
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {

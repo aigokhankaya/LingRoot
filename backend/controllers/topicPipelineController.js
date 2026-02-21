@@ -178,7 +178,10 @@ exports.processTopicToEnglishText = async (req, res) => {
         level,
         null, // requestLogger
         null, // targetDurationMinutes
-        mood  // user selected mood
+        mood,  // user selected mood
+        [],   // forbiddenOpenings
+        null, // topicContext
+        req.user?.id // userId for error notification
       );
 
       if (bilingualResult && bilingualResult.englishText && bilingualResult.translatedText) {
