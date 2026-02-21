@@ -111,6 +111,26 @@ async function sendPushNotification(userId, notification) {
         }
       }
 
+      // Get unread notification count for badge
+      let badgeCount = 1;
+      try {
+        const { count, error: countError } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('is_read', false);
+
+        logger.info(`[PushNotification] 🔢 Badge count query result: count=${count}, error=${countError ? countError.message : 'none'}`);
+
+        if (!countError && typeof count === 'number') {
+          badgeCount = count;
+        }
+      } catch (badgeError) {
+        logger.warn('[PushNotification] Error fetching badge count:', badgeError);
+      }
+
+      logger.info(`[PushNotification] 🔢 Final badge count for APNS: ${badgeCount}`);
+
       const message = {
         tokens: registrationTokens,
         notification: {
@@ -120,9 +140,14 @@ async function sendPushNotification(userId, notification) {
         data: dataPayload,
         // Add APNS config for iOS background/alert handling priority
         apns: {
+          headers: {
+            'apns-priority': '10',
+          },
           payload: {
             aps: {
               sound: 'default',
+              badge: badgeCount,
+              'mutable-content': 1,
               alert: {
                 title: notification.title,
                 body: notification.body,

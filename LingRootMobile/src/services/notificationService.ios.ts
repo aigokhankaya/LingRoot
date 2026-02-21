@@ -10,19 +10,32 @@ import { createVocabularyNotification, deleteScheduledVocabularyReminders, getNo
 // Storage key for scheduled notifications (iOS fireDate parsing workaround)
 const SCHEDULED_NOTIFICATIONS_KEY = 'scheduled_vocabulary_notifications';
 
+// Event name for badge updates (used by ProfileScreen)
+export const NOTIFICATION_BADGE_UPDATE_EVENT = 'notificationBadgeUpdate';
+
 // iOS: Early configure and native listener preserved
 try {
   PushNotification.configure({
-    onNotification: (notification: any) => {
+    onNotification: async (notification: any) => {
       try {
         const userInfo = notification?.userInfo || notification?.data || {};
-        
+
+        // Sync badge with backend when any notification is received
+        try {
+          const svc = NotificationService.getInstance?.();
+          if (svc) {
+            await svc.syncBadgeWithBackend();
+          }
+        } catch (badgeError) {
+          console.error('[NotificationService iOS] Error syncing badge on notification:', badgeError);
+        }
+
         // Handle audio creation notification
         if (userInfo.type === 'audio_created') {
-          const audioData = typeof userInfo.audioData === 'string' 
-            ? JSON.parse(userInfo.audioData) 
+          const audioData = typeof userInfo.audioData === 'string'
+            ? JSON.parse(userInfo.audioData)
             : userInfo.audioData;
-          
+
           const svc = NotificationService.getInstance?.();
           if (svc && audioData) {
             const cb = (svc as any).responseCallback as ((data: string) => void) | null;
@@ -30,13 +43,13 @@ try {
           }
           return;
         }
-        
+
         // Handle support message notification
         if (userInfo.type === 'support_message') {
           try {
             const raw = userInfo.payload || userInfo.supportData;
-            const supportData = typeof raw === 'string' 
-              ? JSON.parse(raw) 
+            const supportData = typeof raw === 'string'
+              ? JSON.parse(raw)
               : raw;
 
             const svc = NotificationService.getInstance?.();
@@ -49,7 +62,7 @@ try {
           }
           return;
         }
-        
+
         // Handle vocabulary word notification
         const wordId = userInfo.wordId || userInfo?.item?.wordId;
         if (wordId) {
@@ -232,24 +245,35 @@ class NotificationService {
       console.log(`📅 [iOS Notifications] Scheduling ${times.length} notifications for ${selected.length} words`);
 
       const lang = await this.getLanguage();
-      
+
+      // Get current unread count for badge calculation
+      let currentUnreadCount = 0;
+      try {
+        currentUnreadCount = await getNotificationUnreadCount();
+      } catch {
+        // Default to 0 if fetch fails
+      }
+
       for (let i = 0; i < times.length; i++) {
         const when = times[i];
         const word = selected[i];
         const title = lang === 'tr' ? '📚 LingRoot Hatırlatma' : '📚 LingRoot Reminder';
-        const body = word 
+        const body = word
           ? (lang === 'tr' ? `Kelime: ${word.word}${word.definition ? ' — ' + word.definition : ''}` : `Word: ${word.word}${word.definition ? ' — ' + word.definition : ''}`)
           : (lang === 'tr' ? 'Günün kelimelerini tekrar et!' : 'Review today\'s words!');
         const requestId = `lingroot_${when.getTime()}_${i}`;
-        
-        console.log(`⏰ [iOS Notifications] Scheduling #${i + 1} at ${when.toLocaleString('tr-TR')}`);
-        
+        // Badge: current unread + notifications scheduled so far (including this one)
+        const badgeNumber = currentUnreadCount + i + 1;
+
+        console.log(`⏰ [iOS Notifications] Scheduling #${i + 1} at ${when.toLocaleString('tr-TR')} with badge ${badgeNumber}`);
+
         try {
           PushNotificationIOS.addNotificationRequest({
             id: requestId,
             title,
             body,
             sound: 'default',
+            badge: badgeNumber,
             userInfo: { wordId: word?.id?.toString() || '' },
             fireDate: when,
             repeats: false,
@@ -259,6 +283,7 @@ class NotificationService {
             alertTitle: title,
             alertBody: body,
             soundName: 'default',
+            applicationIconBadgeNumber: badgeNumber,
             userInfo: { wordId: word?.id?.toString() || '' },
             fireDate: when.toISOString(),
           });
@@ -582,11 +607,15 @@ class NotificationService {
 
   /**
    * Sync badge count with backend unread notifications
+   * Also emits event for ProfileScreen badge update
    */
   public async syncBadgeWithBackend(): Promise<void> {
     try {
       const unreadCount = await getNotificationUnreadCount();
       this.updateBadgeCount(unreadCount);
+      // Emit event for ProfileScreen menu badge update
+      DeviceEventEmitter.emit(NOTIFICATION_BADGE_UPDATE_EVENT, { count: unreadCount });
+      console.log(`📢 [iOS Notifications] Badge update event emitted: ${unreadCount}`);
     } catch (error) {
       console.error('[NotificationService iOS] Error syncing badge:', error);
     }

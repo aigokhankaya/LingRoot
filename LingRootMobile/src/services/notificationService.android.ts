@@ -1,9 +1,12 @@
-import { Alert, Platform, PermissionsAndroid } from 'react-native';
+import { Alert, Platform, PermissionsAndroid, DeviceEventEmitter } from 'react-native';
 import type { VocabularyWord } from './api';
 import { getVocabulary } from './api';
 import { ReminderSettingsService, ReminderSettings } from './reminderSettingsService';
 import PushNotification from 'react-native-push-notification';
-import { createVocabularyNotification, deleteScheduledVocabularyReminders } from './userService';
+import { createVocabularyNotification, deleteScheduledVocabularyReminders, getNotificationUnreadCount } from './userService';
+
+// Event name for badge updates (used by ProfileScreen)
+export const NOTIFICATION_BADGE_UPDATE_EVENT = 'notificationBadgeUpdate';
 
 class NotificationService {
   private static instance: NotificationService;
@@ -65,11 +68,18 @@ class NotificationService {
     if (this.isConfigured) return;
     try {
       PushNotification.configure({
-        onNotification: (notification: any) => {
+        onNotification: async (notification: any) => {
           try {
             console.log('[NotificationService][Android] onNotification:', notification);
             const userInfo = notification?.userInfo || notification?.data || {};
-            
+
+            // Sync badge with backend when any notification is received
+            try {
+              await this.syncBadgeWithBackend();
+            } catch (badgeError) {
+              console.error('[NotificationService][Android] Error syncing badge on notification:', badgeError);
+            }
+
             // Handle audio creation notification
             if (userInfo.type === 'audio_created') {
               const audioData = typeof userInfo.audioData === 'string'
@@ -460,7 +470,7 @@ class NotificationService {
         playSound: true,
         soundName: 'default',
         // iOS ekstra verileri userInfo üzerinden alıyor
-        userInfo: { 
+        userInfo: {
           type: 'audio_created',
           audioData: JSON.stringify(audioData)
         } as any,
@@ -470,9 +480,42 @@ class NotificationService {
           audioData: JSON.stringify(audioData)
         } as any,
       } as any);
+      // Sync badge after showing notification
+      await this.syncBadgeWithBackend();
     } catch (error) {
       console.error('[NotificationService] Error showing audio notification:', error);
     }
+  }
+
+  /**
+   * Sync badge count with backend unread notifications
+   * Also emits event for ProfileScreen badge update
+   */
+  public async syncBadgeWithBackend(): Promise<void> {
+    try {
+      const unreadCount = await getNotificationUnreadCount();
+      // Android doesn't have native app icon badge support like iOS,
+      // but we emit the event for ProfileScreen menu badge update
+      DeviceEventEmitter.emit(NOTIFICATION_BADGE_UPDATE_EVENT, { count: unreadCount });
+      console.log(`📢 [Android Notifications] Badge update event emitted: ${unreadCount}`);
+    } catch (error) {
+      console.error('[NotificationService][Android] Error syncing badge:', error);
+    }
+  }
+
+  /**
+   * Update badge count (Android - only emits event, no native badge)
+   */
+  public updateBadgeCount(count: number): void {
+    DeviceEventEmitter.emit(NOTIFICATION_BADGE_UPDATE_EVENT, { count });
+    console.log(`🔢 [Android Notifications] Badge update event emitted: ${count}`);
+  }
+
+  /**
+   * Clear badge (Android - only emits event with count 0)
+   */
+  public clearBadge(): void {
+    this.updateBadgeCount(0);
   }
 }
 
