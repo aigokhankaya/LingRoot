@@ -8,6 +8,7 @@ try {
   // Native module not available
 }
 import { registerDeviceToken } from './userService';
+import NotificationService from './notificationService';
 
 console.log('[PushToken] pushTokenService module loaded');
 
@@ -109,5 +110,64 @@ export function setupPushTokenRefreshListener(): void {
     refreshListenerAttached = true;
   } catch (error) {
     console.error('[PushToken] Failed to attach onTokenRefresh listener:', error);
+  }
+}
+
+/**
+ * Setup Firebase Messaging listeners for remote push notifications.
+ * This handles badge updates when FCM notifications arrive.
+ * @returns Cleanup function to remove listeners
+ */
+export function setupFirebaseMessagingListeners(): () => void {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    return () => {};
+  }
+
+  console.log('[FCM] Setting up Firebase messaging listeners');
+
+  // Foreground: remote notification received while app is open
+  const unsubscribeOnMessage = messaging().onMessage(async (remoteMessage) => {
+    console.log('[FCM] Foreground message received:', remoteMessage.notification?.title);
+    try {
+      await NotificationService.syncBadgeWithBackend();
+    } catch (error) {
+      console.error('[FCM] Error syncing badge on foreground message:', error);
+    }
+  });
+
+  // Background -> Foreground: notification tapped while app was in background
+  const unsubscribeOnNotificationOpened = messaging().onNotificationOpenedApp(async (remoteMessage) => {
+    console.log('[FCM] Notification opened from background:', remoteMessage.notification?.title);
+    try {
+      await NotificationService.syncBadgeWithBackend();
+    } catch (error) {
+      console.error('[FCM] Error syncing badge on notification open:', error);
+    }
+  });
+
+  return () => {
+    console.log('[FCM] Cleaning up Firebase messaging listeners');
+    unsubscribeOnMessage();
+    unsubscribeOnNotificationOpened();
+  };
+}
+
+/**
+ * Check if the app was opened from a notification when it was completely closed (cold start).
+ * Should be called once when the app initializes.
+ */
+export async function checkInitialNotification(): Promise<void> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    return;
+  }
+
+  try {
+    const initialNotification = await messaging().getInitialNotification();
+    if (initialNotification) {
+      console.log('[FCM] App opened from quit state via notification:', initialNotification.notification?.title);
+      await NotificationService.syncBadgeWithBackend();
+    }
+  } catch (error) {
+    console.error('[FCM] Error checking initial notification:', error);
   }
 }

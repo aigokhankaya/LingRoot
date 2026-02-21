@@ -411,3 +411,17 @@
  4. [ ] FAZ 2 degisikliklerini uygula                                                                  
  5. [ ] Sonuclari dokumente et                                                                         
                                    
+
+
+
+
+
+
+                                   7. Test Senaryoları                                                                                 │
+│                                                                                                     │
+│ - OpenAI API key yanlış → süreç durur, admin email + user push gönderilir                           │
+│ - Rate limit (429) → retry yapılır, 3. denemede admin email                                         │
+│ - Google TTS hatası → süreç durur, user push gönderilir                                             │
+│ - Network hatası → user push "geçici sorun" mesajıyla gönderilir                                    │
+│ - Mevcut başarılı akış bozulmadı                                                                    │
+│                                      

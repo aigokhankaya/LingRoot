@@ -11,6 +11,7 @@ import {
   Modal,
   Linking,
   Platform,
+  DeviceEventEmitter,
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -19,7 +20,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import NotificationService from '../services/notificationService';
+import NotificationService, { NOTIFICATION_BADGE_UPDATE_EVENT } from '../services/notificationService';
 import { getNotificationUnreadCount } from '../services/userService';
 import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
@@ -59,6 +60,18 @@ const ProfileScreenContent: React.FC = () => {
   useEffect(() => {
     loadUnreadCount();
   }, [loadUnreadCount]);
+
+  // Listen for real-time badge updates from push notifications
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(
+      NOTIFICATION_BADGE_UPDATE_EVENT,
+      ({ count }: { count: number }) => {
+        console.log(`📬 [ProfileScreen] Badge update received: ${count}`);
+        setUnreadNotificationCount(count);
+      }
+    );
+    return () => subscription.remove();
+  }, []);
 
   // Refresh when screen comes into focus
   useFocusEffect(
