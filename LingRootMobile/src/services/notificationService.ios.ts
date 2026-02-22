@@ -19,15 +19,19 @@ try {
     onNotification: async (notification: any) => {
       try {
         const userInfo = notification?.userInfo || notification?.data || {};
+        const isRemote = notification?.remote === true;
 
-        // Sync badge with backend when any notification is received
-        try {
-          const svc = NotificationService.getInstance?.();
-          if (svc) {
-            await svc.syncBadgeWithBackend();
+        // Only sync badge for REMOTE notifications to avoid duplicates
+        // Local notifications (like audio_created) are already handled elsewhere
+        if (isRemote) {
+          try {
+            const svc = NotificationService.getInstance?.();
+            if (svc) {
+              await svc.syncBadgeWithBackend();
+            }
+          } catch (badgeError) {
+            console.error('[NotificationService iOS] Error syncing badge on notification:', badgeError);
           }
-        } catch (badgeError) {
-          console.error('[NotificationService iOS] Error syncing badge on notification:', badgeError);
         }
 
         // Handle audio creation notification
@@ -586,8 +590,8 @@ class NotificationService {
           audioData: JSON.stringify(audioData)
         },
       });
-      // Sync badge after showing notification
-      await this.syncBadgeWithBackend();
+      // Badge sync handled by Firebase onMessage listener for remote notifications
+      // No need to call here - prevents duplicate sync calls
     } catch (error) {
       console.error('[NotificationService iOS] Error showing audio notification:', error);
     }

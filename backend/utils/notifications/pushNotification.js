@@ -112,18 +112,29 @@ async function sendPushNotification(userId, notification) {
       }
 
       // Get unread notification count for badge
+      // Only count notifications that are already active (data.scheduledFor <= now or null)
+      // Note: scheduledFor is stored inside data JSON field, not as a separate column
       let badgeCount = 1;
       try {
-        const { count, error: countError } = await supabase
+        const now = new Date().toISOString();
+        const { data: allUnread, error: countError } = await supabase
           .from('notifications')
-          .select('*', { count: 'exact', head: true })
+          .select('data')
           .eq('user_id', userId)
           .eq('is_read', false);
 
-        logger.info(`[PushNotification] 🔢 Badge count query result: count=${count}, error=${countError ? countError.message : 'none'}`);
-
-        if (!countError && typeof count === 'number') {
-          badgeCount = count;
+        if (!countError && Array.isArray(allUnread)) {
+          // Filter out notifications with scheduledFor in the future
+          const filteredCount = allUnread.filter(n => {
+            if (n.data?.scheduledFor) {
+              return new Date(n.data.scheduledFor) <= new Date(now);
+            }
+            return true; // Include notifications without scheduledFor
+          }).length;
+          badgeCount = filteredCount;
+          logger.info(`[PushNotification] 🔢 Badge count: ${badgeCount} (filtered from ${allUnread.length} unread)`);
+        } else {
+          logger.info(`[PushNotification] 🔢 Badge count query error: ${countError ? countError.message : 'none'}`);
         }
       } catch (badgeError) {
         logger.warn('[PushNotification] Error fetching badge count:', badgeError);
