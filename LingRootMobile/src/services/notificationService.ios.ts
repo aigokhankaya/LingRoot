@@ -10,6 +10,9 @@ import { createVocabularyNotification, deleteScheduledVocabularyReminders, getNo
 // Storage key for scheduled notifications (iOS fireDate parsing workaround)
 const SCHEDULED_NOTIFICATIONS_KEY = 'scheduled_vocabulary_notifications';
 
+// Storage key for tracking daily scheduled count (local limit tracking)
+const DAILY_SCHEDULED_COUNT_KEY = 'daily_vocabulary_scheduled';
+
 // Event name for badge updates (used by ProfileScreen)
 export const NOTIFICATION_BADGE_UPDATE_EVENT = 'notificationBadgeUpdate';
 
@@ -145,6 +148,26 @@ class NotificationService {
     }
   }
 
+  private async getTodayScheduledCount(): Promise<number> {
+    try {
+      const stored = await AsyncStorage.getItem(DAILY_SCHEDULED_COUNT_KEY);
+      if (!stored) return 0;
+      const data = JSON.parse(stored);
+      const today = new Date().toDateString();
+      if (data.date !== today) return 0; // Different day, reset
+      return data.count || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  private async setTodayScheduledCount(count: number): Promise<void> {
+    try {
+      const today = new Date().toDateString();
+      await AsyncStorage.setItem(DAILY_SCHEDULED_COUNT_KEY, JSON.stringify({ date: today, count }));
+    } catch {}
+  }
+
   private constructor() {}
 
   public static getInstance(): NotificationService {
@@ -167,6 +190,20 @@ class NotificationService {
           return;
         }
       } catch {}
+    }
+
+    // Check if daily limit has been reached (prevents duplicate notifications when app opens after reminders fired)
+    if (!force) {
+      try {
+        const settings = await ReminderSettingsService.getSettings();
+        const todayCount = await this.getTodayScheduledCount();
+        if (todayCount >= settings.wordsPerDay) {
+          console.log(`⏭️ [iOS Notifications] Skipping reschedule - daily limit reached (${todayCount}/${settings.wordsPerDay})`);
+          return;
+        }
+      } catch (e) {
+        console.log('⚠️ [iOS Notifications] Could not check daily limit, continuing with schedule');
+      }
     }
 
     const nowMs = Date.now();
@@ -323,6 +360,10 @@ class NotificationService {
         console.log('[iOS Notifications] AsyncStorage save failed:', e);
       }
 
+      // Save today's scheduled count for daily limit tracking
+      await this.setTodayScheduledCount(times.length);
+      console.log(`📊 [iOS Notifications] Daily scheduled count set to ${times.length}`);
+
       console.log(`✅ [iOS Notifications] Successfully scheduled ${times.length} notifications`);
 
       // Verify scheduled notifications
@@ -421,6 +462,10 @@ class NotificationService {
       await AsyncStorage.removeItem(SCHEDULED_NOTIFICATIONS_KEY);
       console.log('🗑️ [iOS Notifications] Cleared AsyncStorage scheduled notifications');
     } catch {}
+
+    // Reset daily scheduled count when reminders are stopped
+    await this.setTodayScheduledCount(0);
+    console.log('🔄 [iOS Notifications] Daily scheduled count reset to 0');
 
     // Wait for iOS to process
     await new Promise(resolve => setTimeout(resolve, 300));

@@ -650,6 +650,45 @@ const deleteScheduledVocabularyReminders = async (req, res) => {
     }
 };
 
+/**
+ * Get today's vocabulary reminder count (already sent/shown)
+ * Used by mobile to check if daily limit has been reached before rescheduling
+ */
+const getTodayVocabularyCount = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const now = new Date();
+
+        // Get all vocabulary reminders for this user
+        const { data: reminders, error } = await supabase
+            .from('notifications')
+            .select('data')
+            .eq('user_id', userId)
+            .eq('type', 'vocabulary_reminder');
+
+        if (error) {
+            logger.error('[NOTIFICATION] Error fetching vocabulary reminders for count:', error);
+            throw error;
+        }
+
+        // Filter: scheduledFor is today AND scheduledFor <= now (already fired)
+        const todayCount = (reminders || []).filter(n => {
+            if (!n.data?.scheduledFor) return false;
+            const scheduledDate = new Date(n.data.scheduledFor);
+            return scheduledDate >= today && scheduledDate < tomorrow && scheduledDate <= now;
+        }).length;
+
+        res.json({ success: true, count: todayCount });
+    } catch (error) {
+        logger.error('[NOTIFICATION] Error getting today vocabulary count:', error);
+        res.status(500).json({ success: false, count: 0 });
+    }
+};
+
 module.exports = {
     // User functions
     getNotifications,
@@ -660,6 +699,7 @@ module.exports = {
     deleteReadNotifications,
     createVocabularyReminder,
     deleteScheduledVocabularyReminders,
+    getTodayVocabularyCount,
     // Admin functions
     sendNotification,
     getNotificationHistory,
