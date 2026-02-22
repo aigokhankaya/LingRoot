@@ -126,23 +126,18 @@ export function setupFirebaseMessagingListeners(): () => void {
   console.log('[FCM] Setting up Firebase messaging listeners');
 
   // Foreground: remote notification received while app is open
+  // NOTE: Badge sync is handled by global onNotification handler in notificationService.ios.ts
+  // We only log here to avoid duplicate sync calls
   const unsubscribeOnMessage = messaging().onMessage(async (remoteMessage) => {
     console.log('[FCM] Foreground message received:', remoteMessage.notification?.title);
-    try {
-      await NotificationService.syncBadgeWithBackend();
-    } catch (error) {
-      console.error('[FCM] Error syncing badge on foreground message:', error);
-    }
+    // Badge sync handled by PushNotification.configure onNotification handler
   });
 
   // Background -> Foreground: notification tapped while app was in background
+  // NOTE: Badge sync is handled by global onNotification handler in notificationService.ios.ts
   const unsubscribeOnNotificationOpened = messaging().onNotificationOpenedApp(async (remoteMessage) => {
     console.log('[FCM] Notification opened from background:', remoteMessage.notification?.title);
-    try {
-      await NotificationService.syncBadgeWithBackend();
-    } catch (error) {
-      console.error('[FCM] Error syncing badge on notification open:', error);
-    }
+    // Badge sync handled by PushNotification.configure onNotification handler
   });
 
   return () => {
@@ -165,7 +160,7 @@ export async function checkInitialNotification(): Promise<void> {
     const initialNotification = await messaging().getInitialNotification();
     if (initialNotification) {
       console.log('[FCM] App opened from quit state via notification:', initialNotification.notification?.title);
-      await NotificationService.syncBadgeWithBackend();
+      // Badge sync handled at app startup in App.tsx - no need to call here
     }
   } catch (error) {
     console.error('[FCM] Error checking initial notification:', error);

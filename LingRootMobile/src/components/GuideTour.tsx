@@ -566,28 +566,32 @@ export const TourProvider: React.FC<{
   children: React.ReactNode;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   maskPath?: (args: any) => string;
-}> = ({ tooltip, children, maskPath }) => (
-  <CopilotProvider
-    overlay="svg"
-    animated={true}
-    backdropColor="rgba(0, 0, 0, 0.7)"
-    tooltipComponent={tooltip as unknown as React.ComponentType<TooltipProps>}
-    stepNumberComponent={() => null}
-    verticalOffset={Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0}
-    svgMaskPath={(maskPath || roundedMaskPath) as unknown as (args: Record<string, unknown>) => string}
-    margin={16}
-    arrowColor={COLORS.brandTeal}
-    tooltipStyle={{
-      backgroundColor: 'transparent',
-      borderRadius: 0,
-      paddingTop: 0,
-      paddingHorizontal: 0,
-      overflow: 'visible' as const,
-    }}
-  >
-    {children}
-  </CopilotProvider>
-);
+  verticalOffset?: number;
+}> = ({ tooltip, children, maskPath, verticalOffset }) => {
+  const defaultOffset = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0;
+  return (
+    <CopilotProvider
+      overlay="svg"
+      animated={true}
+      backdropColor="rgba(0, 0, 0, 0.7)"
+      tooltipComponent={tooltip as unknown as React.ComponentType<TooltipProps>}
+      stepNumberComponent={() => null}
+      verticalOffset={verticalOffset ?? defaultOffset}
+      svgMaskPath={(maskPath || roundedMaskPath) as unknown as (args: Record<string, unknown>) => string}
+      margin={16}
+      arrowColor={COLORS.brandTeal}
+      tooltipStyle={{
+        backgroundColor: 'transparent',
+        borderRadius: 0,
+        paddingTop: 0,
+        paddingHorizontal: 0,
+        overflow: 'visible' as const,
+      }}
+    >
+      {children}
+    </CopilotProvider>
+  );
+};
 
 // ---- Tour completion hook ----
 export function useGuideTour(storageKey: string = HOME_TOUR_KEY) {
@@ -653,8 +657,10 @@ export function useTourAutoStart(
         if (scrollViewRef?.current) {
           scrollViewRef.current.scrollTo({ y: 0, animated: false });
         }
-        // Pass scrollViewRef to copilot so it auto-scrolls to each step
-        start(undefined, scrollViewRef?.current ?? undefined);
+        // Wait for layout to update after scroll, then start tour
+        setTimeout(() => {
+          start(undefined, scrollViewRef?.current ?? undefined);
+        }, 150);
       }, delay);
       return () => clearTimeout(timer);
     }

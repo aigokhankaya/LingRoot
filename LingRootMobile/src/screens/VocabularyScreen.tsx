@@ -11,8 +11,8 @@ import {
   FlatList,
   useWindowDimensions,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,12 +34,13 @@ import { ReminderSettingsService } from '../services/reminderSettingsService';
 import NotificationService from '../services/notificationService';
 import { COLORS } from '../theme/colors';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+import { useCopilot } from 'react-native-copilot';
 import {
   TourProvider,
   VocabularyTooltip,
   VOCABULARY_TOUR_STEPS,
   VOCABULARY_TOUR_KEY,
-  useTourAutoStart,
+  useGuideTour,
   roundedMaskPath,
 } from '../components/GuideTour';
 
@@ -75,7 +76,32 @@ function VocabularyScreenContent({ navigation, route }: any) {
   });
   const [isReminderModalVisible, setIsReminderModalVisible] = useState(false);
 
-  useTourAutoStart(VOCABULARY_TOUR_KEY, 1000, scrollViewRef);
+  // Guide tour — wait for data to load so layout is stable before measuring
+  const { start: startTour, copilotEvents } = useCopilot();
+  const { shouldShow: shouldShowTour, markCompleted: markTourCompleted } = useGuideTour(VOCABULARY_TOUR_KEY);
+  const dataReady = !isLoading;
+
+  useEffect(() => {
+    const handler = () => { if (shouldShowTour) markTourCompleted(); };
+    copilotEvents.on('stop', handler);
+    return () => { copilotEvents.off('stop', handler); };
+  }, [copilotEvents, shouldShowTour, markTourCompleted]);
+
+  useEffect(() => {
+    if (shouldShowTour && dataReady) {
+      // Scroll to top before starting tour so all elements are visible
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: false });
+      }
+      const timer = setTimeout(
+        // Don't pass scrollView ref to prevent copilot from auto-scrolling
+        () => startTour(undefined, null),
+        500,
+      );
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldShowTour, dataReady]);
 
   // CEFR Seviyeleri Konfigürasyonu
   const wordLevels = {
@@ -431,7 +457,7 @@ function VocabularyScreenContent({ navigation, route }: any) {
   // Auth loading state
   if (!user) {
     return (
-      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={styles.container} >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#374151" />
@@ -588,7 +614,7 @@ function VocabularyScreenContent({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.container} >
       <ScrollView
         ref={scrollViewRef}
         style={styles.content}
@@ -820,7 +846,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   contentContainer: {
-    paddingTop: 100,
+    paddingTop: 70,
     paddingBottom: 120,
   },
   sectionTitle: {
@@ -830,6 +856,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statsContainer: {
+    marginTop: 16,
     marginBottom: 24,
   },
   statsHeader: {
