@@ -12,6 +12,9 @@ router.get('/', notificationController.getNotifications);
 // Get unread notification count
 router.get('/unread-count', notificationController.getUnreadCount);
 
+// Get today's vocabulary reminder count (for daily limit check)
+router.get('/today-vocabulary-count', notificationController.getTodayVocabularyCount);
+
 // Mark a specific notification as read
 router.put('/:id/read', notificationController.markAsRead);
 

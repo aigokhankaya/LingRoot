@@ -309,3 +309,17 @@ export async function deleteScheduledVocabularyReminders(): Promise<number> {
     const response = await client.http.delete('/api/notifications/vocabulary-reminders/scheduled');
     return response.data?.deletedCount || 0;
 }
+
+/**
+ * Get today's vocabulary reminder count (already sent/shown)
+ * Used to check if daily limit has been reached before rescheduling
+ */
+export async function getTodayVocabularyReminderCount(): Promise<number> {
+    const client = await getApiClientAsync();
+    try {
+        const response = await client.http.get('/api/notifications/today-vocabulary-count');
+        return response.data?.count || 0;
+    } catch {
+        return 0;
+    }
+}
