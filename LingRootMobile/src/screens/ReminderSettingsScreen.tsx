@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -131,7 +132,7 @@ const ReminderSettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Header Info */}
         <View style={styles.headerInfo}>
           <Icon name="notifications-active" size={48} color={COLORS.primary} />
@@ -303,7 +304,7 @@ const ReminderSettingsScreen: React.FC = () => {
                 <Icon name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.timeList}>
+            <ScrollView style={styles.timeList} contentContainerStyle={styles.timeListContent} nestedScrollEnabled>
               {allTimeOptions.map((time) => (
                 <TouchableOpacity
                   key={time}
@@ -348,7 +349,7 @@ const ReminderSettingsScreen: React.FC = () => {
                 <Icon name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.timeList}>
+            <ScrollView style={styles.timeList} contentContainerStyle={styles.timeListContent} nestedScrollEnabled>
               {allTimeOptions.map((time) => (
                 <TouchableOpacity
                   key={time}
@@ -384,9 +385,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  content: {
+  scrollView: {
     flex: 1,
-    paddingTop: 44,
+  },
+  scrollContent: {
+    paddingTop: 100,
     paddingBottom: 100,
   },
   loadingContainer: {
@@ -611,7 +614,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    maxHeight: '70%',
+    maxHeight: Dimensions.get('window').height * 0.7,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -628,6 +631,10 @@ const styles = StyleSheet.create({
   },
   timeList: {
     flexGrow: 1,
+    flexShrink: 1,
+  },
+  timeListContent: {
+    paddingBottom: 40,
   },
   timeOption: {
     flexDirection: 'row',
