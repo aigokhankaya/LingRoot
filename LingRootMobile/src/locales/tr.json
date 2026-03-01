@@ -2,6 +2,8 @@
   "profile": {
     "title": "Profil",
     "accountSettings": "Hesap Ayarları", 
+    "updated": "Profil bilgileriniz güncellendi.",
+    "updateFailed": "Profil güncellenemedi.",
     "language": "Uygulama Dili",
     "audioHistory": "Ses Geçmişi",
     "membership": "Üyelik",

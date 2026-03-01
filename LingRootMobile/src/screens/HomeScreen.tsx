@@ -56,6 +56,7 @@ const HomeScreenContent: React.FC = () => {
     loading: true,
   });
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
+  const [activePlanName, setActivePlanName] = useState<string | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState(true);
   const [recentTracks, setRecentTracks] = useState<AudioTrack[]>([]);
 
@@ -272,11 +273,13 @@ const HomeScreenContent: React.FC = () => {
         (refreshedData) => {
           console.log('[HomeScreen] Background refresh received, updating UI');
           setPlanFeatures(refreshedData.features);
+          setActivePlanName(refreshedData.plan_name);
         }
       );
       console.log('[HomeScreen] DEBUG - Plan features from API:', JSON.stringify(result, null, 2));
       console.log('[HomeScreen] DEBUG - homepage_features:', JSON.stringify(result.features?.homepage_features, null, 2));
       setPlanFeatures(result.features);
+      setActivePlanName(result.plan_name);
     } catch (error) {
       console.error('Error loading plan features:', error);
     } finally {
@@ -385,9 +388,40 @@ const HomeScreenContent: React.FC = () => {
     }
   };
 
-  const displayName = user?.user_metadata?.full_name?.split(' ')[0] ||
+  const displayName = user?.full_name?.split(' ')[0] ||
     user?.email?.split('@')[0] ||
     (language === 'tr' ? 'Kullanıcı' : 'User');
+
+  const getPlanBadgeConfig = () => {
+    const normalizedPlan = (activePlanName || '').toLowerCase();
+
+    if (normalizedPlan.includes('gold')) {
+      return {
+        label: 'Gold',
+        backgroundColor: '#FFF7ED',
+        borderColor: '#FDBA74',
+        textColor: '#C2410C',
+      };
+    }
+
+    if (normalizedPlan.includes('platin') || normalizedPlan.includes('platinum')) {
+      return {
+        label: 'Platin',
+        backgroundColor: '#EEF2FF',
+        borderColor: '#A5B4FC',
+        textColor: '#4338CA',
+      };
+    }
+
+    return {
+      label: 'Free',
+      backgroundColor: '#ECFDF5',
+      borderColor: '#86EFAC',
+      textColor: '#15803D',
+    };
+  };
+
+  const planBadge = getPlanBadgeConfig();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -412,6 +446,21 @@ const HomeScreenContent: React.FC = () => {
             <View style={styles.headerLeft}>
               <Text style={styles.greeting}>{getGreeting()},</Text>
               <Text style={styles.userName}>{displayName}</Text>
+            </View>
+            <View style={styles.headerCenter}>
+              <View
+                style={[
+                  styles.planBadge,
+                  {
+                    backgroundColor: planBadge.backgroundColor,
+                    borderColor: planBadge.borderColor,
+                  },
+                ]}
+              >
+                <Text style={[styles.planBadgeText, { color: planBadge.textColor }]}>
+                  {planBadge.label}
+                </Text>
+              </View>
             </View>
             <View style={styles.statsRow}>
               {/* Audio Count */}
@@ -735,6 +784,11 @@ const styles = StyleSheet.create({
   headerLeft: {
     flex: 1,
   },
+  headerCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
   greeting: {
     fontSize: 16,
     fontWeight: '600',
@@ -746,6 +800,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.slate900,
     letterSpacing: -0.5,
+  },
+  planBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  planBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   statsRow: {
     flexDirection: 'row',
