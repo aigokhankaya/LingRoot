@@ -43,17 +43,25 @@ const DURATION_OPTIONS = [
   { value: 10, label: '10 dk', description: '~1500\nkelime' },
 ];
 
-const GEMINI_PODCAST_SPEAKERS = [
-  { value: 'Aoede', label: 'Aoede (F)' },
-  { value: 'Kore', label: 'Kore (F)' },
-  { value: 'Leda', label: 'Leda (F)' },
-  { value: 'Callirrhoe', label: 'Callirrhoe (F)' },
-  { value: 'Zephyr', label: 'Zephyr (F)' },
-  { value: 'Charon', label: 'Charon (M)' },
-  { value: 'Fenrir', label: 'Fenrir (M)' },
-  { value: 'Orus', label: 'Orus (M)' },
-  { value: 'Puck', label: 'Puck (M)' },
-  { value: 'Achilles', label: 'Achilles (M)' },
+type PodcastSpeakerGender = 'F' | 'M';
+
+interface PodcastSpeakerOption {
+  value: string;
+  gender: PodcastSpeakerGender;
+  order: number;
+}
+
+const GEMINI_PODCAST_SPEAKERS: PodcastSpeakerOption[] = [
+  { value: 'Aoede', gender: 'F', order: 1 },
+  { value: 'Kore', gender: 'F', order: 2 },
+  { value: 'Leda', gender: 'F', order: 3 },
+  { value: 'Callirrhoe', gender: 'F', order: 4 },
+  { value: 'Zephyr', gender: 'F', order: 5 },
+  { value: 'Charon', gender: 'M', order: 1 },
+  { value: 'Fenrir', gender: 'M', order: 2 },
+  { value: 'Orus', gender: 'M', order: 3 },
+  { value: 'Puck', gender: 'M', order: 4 },
+  { value: 'Achilles', gender: 'M', order: 5 },
 ];
 
 export const PodcastConfigPanel = forwardRef<PodcastConfigPanelRef, PodcastConfigPanelProps>(({
@@ -93,7 +101,16 @@ export const PodcastConfigPanel = forwardRef<PodcastConfigPanelRef, PodcastConfi
 
   const getGeminiSpeakerLabel = (value?: string) => {
     const found = GEMINI_PODCAST_SPEAKERS.find(s => s.value === value);
-    return found?.label || value || '';
+    if (!found) {
+      return value || '';
+    }
+
+    if (language === 'tr') {
+      const genderLabel = found.gender === 'F' ? 'K' : 'E';
+      return `Ses ${found.order} (${genderLabel})`;
+    }
+
+    return `Voice ${found.order} (${found.gender})`;
   };
 
   const handleCreate = () => {
@@ -166,7 +183,7 @@ export const PodcastConfigPanel = forwardRef<PodcastConfigPanelRef, PodcastConfi
                   </TouchableOpacity>
                 </View>
                 <ScrollView style={styles.voiceList} keyboardShouldPersistTaps="handled">
-                  {GEMINI_PODCAST_SPEAKERS.filter(s => s.label.includes('(F)')).map((opt) => (
+                  {GEMINI_PODCAST_SPEAKERS.filter(s => s.gender === 'F').map((opt) => (
                     <TouchableOpacity
                       key={`host_${opt.value}`}
                       style={[styles.voiceItem, podcastHostSpeakerId === opt.value && styles.voiceItemActive]}
@@ -176,7 +193,7 @@ export const PodcastConfigPanel = forwardRef<PodcastConfigPanelRef, PodcastConfi
                       }}
                     >
                       <View style={styles.voiceItemInfo}>
-                        <Text style={styles.voiceItemName}>{opt.label}</Text>
+                        <Text style={styles.voiceItemName}>{getGeminiSpeakerLabel(opt.value)}</Text>
                       </View>
                       {podcastHostSpeakerId === opt.value && (
                         <Icon name="check" size={20} color={COLORS.primary} />
@@ -205,7 +222,7 @@ export const PodcastConfigPanel = forwardRef<PodcastConfigPanelRef, PodcastConfi
                   </TouchableOpacity>
                 </View>
                 <ScrollView style={styles.voiceList} keyboardShouldPersistTaps="handled">
-                  {GEMINI_PODCAST_SPEAKERS.filter(s => s.label.includes('(M)')).map((opt) => (
+                  {GEMINI_PODCAST_SPEAKERS.filter(s => s.gender === 'M').map((opt) => (
                     <TouchableOpacity
                       key={`guest_${opt.value}`}
                       style={[styles.voiceItem, podcastGuestSpeakerId === opt.value && styles.voiceItemActive]}
@@ -215,7 +232,7 @@ export const PodcastConfigPanel = forwardRef<PodcastConfigPanelRef, PodcastConfi
                       }}
                     >
                       <View style={styles.voiceItemInfo}>
-                        <Text style={styles.voiceItemName}>{opt.label}</Text>
+                        <Text style={styles.voiceItemName}>{getGeminiSpeakerLabel(opt.value)}</Text>
                       </View>
                       {podcastGuestSpeakerId === opt.value && (
                         <Icon name="check" size={20} color={COLORS.primary} />

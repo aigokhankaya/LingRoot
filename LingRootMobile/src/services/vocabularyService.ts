@@ -32,17 +32,19 @@ export async function getVocabulary(): Promise<VocabularyWord[]> {
     const client = await getApiClientAsync();
     const response = await client.vocabulary.getUserWords(1, 1000);
 
-    // Transform UserWord to VocabularyWord format if needed
+    // Support both legacy api-client shape and current backend shape.
     return response.data.map(word => ({
         id: parseInt(word.id, 10) || 0,
         word: word.word,
-        definition: (word as any).definition || '',
+        definition: (word as any).definition || (word as any).meaning || '',
         level: (word as any).level || 'B1',
-        is_learned: word.mastery >= 80,
-        example_sentence: (word as any).example || '',
-        example_sentence_turkish: (word as any).translation || '',
-        original_sentence: '',
-        created_at: (word as any).createdAt || new Date().toISOString(),
+        is_learned: typeof (word as any).is_learned === 'boolean'
+            ? (word as any).is_learned
+            : word.mastery >= 80,
+        example_sentence: (word as any).example_sentence || (word as any).example || '',
+        example_sentence_turkish: (word as any).example_sentence_turkish || (word as any).translation || '',
+        original_sentence: (word as any).original_sentence || '',
+        created_at: (word as any).created_at || (word as any).createdAt || new Date().toISOString(),
     }));
 }
 
@@ -203,5 +205,4 @@ export async function getVocabularyStats(): Promise<{
         reviewsToday: 0,
     };
 }
-
 

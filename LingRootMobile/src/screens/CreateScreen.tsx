@@ -103,6 +103,18 @@ const CreateScreenContent: React.FC = () => {
   const [errorAlertAction, setErrorAlertAction] = useState<{ label: string; onPress: () => void } | null>(null);
   const [errorAlertType, setErrorAlertType] = useState<'error' | 'success' | 'info'>('error');
 
+  const normalizeEstimatedTime = (value?: string) => {
+    const fallback = language === 'tr' ? '10-15 dakika' : '10-15 minutes';
+    const baseValue = value || fallback;
+    const normalizedValue = baseValue.replace(/2\s*[–-]\s*5/g, '10-15');
+
+    if (language === 'tr') {
+      return normalizedValue.replace('minutes', 'dakika').replace('minute', 'dakika');
+    }
+
+    return normalizedValue;
+  };
+
   const showError = (title: string, message: string, action?: { label: string; onPress: () => void }) => {
     setErrorAlertTitle(title);
     setErrorAlertMessage(message);
@@ -495,10 +507,7 @@ const CreateScreenContent: React.FC = () => {
 
         if (response.success) {
           setSelectedFile(null);
-          const rawTime = response.estimatedTime || '2-5 minutes';
-          const localizedTime = language === 'tr'
-            ? rawTime.replace('minutes', 'dakika').replace('minute', 'dakika')
-            : rawTime;
+          const localizedTime = normalizeEstimatedTime(response.estimatedTime);
           setSuccessAlertEstimatedTime(localizedTime);
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
@@ -545,10 +554,7 @@ const CreateScreenContent: React.FC = () => {
             setSelectedChapterText('');
           }
 
-          const rawTime2 = response.estimatedTime || '2-5 minutes';
-          const localizedTime2 = language === 'tr'
-            ? rawTime2.replace('minutes', 'dakika').replace('minute', 'dakika')
-            : rawTime2;
+          const localizedTime2 = normalizeEstimatedTime(response.estimatedTime);
           setSuccessAlertEstimatedTime(localizedTime2);
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
@@ -686,7 +692,7 @@ const CreateScreenContent: React.FC = () => {
         const resp = response as { success?: boolean; estimatedTime?: string; message?: string };
 
         if (resp?.success) {
-          const estimated = resp.estimatedTime || (language === 'tr' ? '2-5 dakika' : '2-5 minutes');
+          const estimated = normalizeEstimatedTime(resp.estimatedTime);
           setSuccessAlertEstimatedTime(estimated);
           setShowSuccessAlert(true);
           return;

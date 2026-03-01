@@ -82,15 +82,29 @@ const AccountSettingsScreen: React.FC = () => {
   };
   const saveLabel = withFallback('common.save', 'Kaydet', 'Save');
   const savingLabel = withFallback('common.saving', 'Kaydediliyor...', 'Saving...');
+  const profileUpdatedMessage = withFallback('profile.updated', 'Profil bilgileriniz guncellendi.', 'Your profile has been updated.');
+  const profileUpdateFailedMessage = withFallback('profile.updateFailed', 'Profil guncellenemedi.', 'Profile could not be updated.');
 
   const onSave = async () => {
     if (!fullName.trim()) {
-      Alert.alert(t('common.error'), t('register.errors.fullNameRequired'));
+      showAlert(
+        t('common.error'),
+        t('register.errors.fullNameRequired'),
+        [{ text: 'OK', style: 'default' }],
+        'error-outline',
+        '#EF4444'
+      );
       return;
     }
     const local = extractTRLocalDigits(phone);
     if (phone.trim() && local.length !== 10) {
-      Alert.alert(t('common.error'), 'Lütfen geçerli bir telefon numarası girin');
+      showAlert(
+        t('common.error'),
+        language === 'tr' ? 'Lutfen gecerli bir telefon numarasi girin' : 'Please enter a valid phone number',
+        [{ text: 'OK', style: 'default' }],
+        'error-outline',
+        '#EF4444'
+      );
       return;
     }
 
@@ -103,9 +117,21 @@ const AccountSettingsScreen: React.FC = () => {
       await updateUserProfile(payload);
       // Keep phone input as formatted version after save
       if (normalizedPhone) setPhone(formatTRPhone(normalizedPhone));
-      Alert.alert(t('common.success'), t('profile.updated'));
+      showAlert(
+        t('common.success'),
+        profileUpdatedMessage,
+        [{ text: 'OK', style: 'default' }],
+        'check-circle',
+        COLORS.primary
+      );
     } catch (e: any) {
-      Alert.alert(t('notifications.error'), e.message || t('profile.updateFailed'));
+      showAlert(
+        t('notifications.error'),
+        e.message || profileUpdateFailedMessage,
+        [{ text: 'OK', style: 'default' }],
+        'error-outline',
+        '#EF4444'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -521,4 +547,3 @@ const styles = StyleSheet.create({
 });
 
 export default React.memo(AccountSettingsScreen);
-

@@ -96,6 +96,8 @@ const NotificationsScreen: React.FC = () => {
   };
 
   const handleNotificationPress = async (notification: NotificationItem) => {
+    const localizedContent = getLocalizedNotificationContent(notification);
+
     // 1. Mark as read (background, no await)
     if (!notification.isRead) {
       markNotificationAsRead(notification.id).catch(() => {});
@@ -114,7 +116,7 @@ const NotificationsScreen: React.FC = () => {
         if (notification.metadata?.mp3_url) {
           const track: AudioTrack = {
             id: notification.metadata.audioId || notification.id,
-            title: notification.metadata.title || notification.title,
+            title: notification.metadata.title || localizedContent.title,
             url: notification.metadata.mp3_url,
             mp3_url: notification.metadata.mp3_url,
             level: (notification.metadata.level as CEFRLevel) || 'B1',
@@ -200,6 +202,8 @@ const NotificationsScreen: React.FC = () => {
         return 'check-circle';
       case 'warning':
         return 'warning';
+      case 'tts_failed':
+      case 'content_failed':
       case 'error':
         return 'error';
       default:
@@ -217,10 +221,48 @@ const NotificationsScreen: React.FC = () => {
         return '#22c55e';
       case 'warning':
         return '#f59e0b';
+      case 'tts_failed':
+      case 'content_failed':
       case 'error':
         return COLORS.danger;
       default:
         return COLORS.brandTeal;
+    }
+  };
+
+  const getLocalizedNotificationContent = (notification: NotificationItem) => {
+    const message = notification.message || '';
+
+    switch (notification.type) {
+      case 'audio_created':
+        return {
+          title: language === 'tr' ? 'Ses Dosyanız Hazır!' : 'Your Audio Is Ready!',
+          message: language === 'tr' ? 'Dinlemek için tıklayın.' : 'Tap to listen.',
+        };
+
+      case 'tts_failed':
+      case 'content_failed':
+        return {
+          title: language === 'tr' ? 'Ses Oluşturulamadı' : 'Audio Could Not Be Created',
+          message:
+            message === 'Bir hata oluştu. Lütfen tekrar deneyin.' || message === 'An error occurred. Please try again.'
+              ? (language === 'tr'
+                ? 'Bir hata oluştu. Lütfen tekrar deneyin.'
+                : 'An error occurred. Please try again.')
+              : message,
+        };
+
+      case 'vocabulary_reminder':
+        return {
+          title: language === 'tr' ? 'Kelime Hatırlatıcısı' : 'Vocabulary Reminder',
+          message,
+        };
+
+      default:
+        return {
+          title: notification.title,
+          message,
+        };
     }
   };
 
@@ -243,29 +285,33 @@ const NotificationsScreen: React.FC = () => {
     });
   };
 
-  const renderNotification = ({ item }: { item: NotificationItem }) => (
-    <TouchableOpacity
-      style={[styles.notificationItem, !item.isRead && styles.notificationUnread]}
-      onPress={() => handleNotificationPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: `${getTypeColor(item.type)}15` }]}>
-        <Icon name={getTypeIcon(item.type)} size={22} color={getTypeColor(item.type)} />
-      </View>
-      <View style={styles.notificationContent}>
-        <View style={styles.notificationHeader}>
-          <Text style={[styles.notificationTitle, !item.isRead && styles.notificationTitleUnread]} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={styles.notificationDate}>{formatDate(item.createdAt)}</Text>
+  const renderNotification = ({ item }: { item: NotificationItem }) => {
+    const localizedContent = getLocalizedNotificationContent(item);
+
+    return (
+      <TouchableOpacity
+        style={[styles.notificationItem, !item.isRead && styles.notificationUnread]}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.iconContainer, { backgroundColor: `${getTypeColor(item.type)}15` }]}>
+          <Icon name={getTypeIcon(item.type)} size={22} color={getTypeColor(item.type)} />
         </View>
-        <Text style={styles.notificationMessage} numberOfLines={2}>
-          {item.message}
-        </Text>
-      </View>
-      {!item.isRead && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
+        <View style={styles.notificationContent}>
+          <View style={styles.notificationHeader}>
+            <Text style={[styles.notificationTitle, !item.isRead && styles.notificationTitleUnread]} numberOfLines={1}>
+              {localizedContent.title}
+            </Text>
+            <Text style={styles.notificationDate}>{formatDate(item.createdAt)}</Text>
+          </View>
+          <Text style={styles.notificationMessage} numberOfLines={2}>
+            {localizedContent.message}
+          </Text>
+        </View>
+        {!item.isRead && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>

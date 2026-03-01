@@ -494,7 +494,7 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
   if (appleSub) {
     const { data, error: fetchError } = await supabase
       .from('users')
-      .select("id, email, role, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
+      .select("id, email, role, isverified, password, verificationtoken, resetpasswordtoken, firstname, lastname, created_at, updated_at")
       .eq("password", `apple-oauth:${appleSub}`)
       .maybeSingle();
 
@@ -509,7 +509,7 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
   if (!existingUser && normalizedEmail) {
     const { data, error: fetchError } = await supabase
       .from('users')
-      .select("id, email, role, isverified, password, verificationtoken, resetpasswordtoken, created_at, updated_at")
+      .select("id, email, role, isverified, password, verificationtoken, resetpasswordtoken, firstname, lastname, created_at, updated_at")
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
@@ -537,6 +537,35 @@ const appleLoginService = async (credential, rememberMe = false, providedEmail =
         .update({ password: `apple-oauth:${appleSub}`, updated_at: new Date().toISOString() })
         .eq('id', existingUser.id);
       logger.info('[APPLE_LOGIN_SERVICE] Migrated user password to include Apple sub', { id: existingUser.id });
+    }
+
+    // Update user name if current name is "Apple User" or empty and providedName is available
+    // Apple only provides name on FIRST login, so this helps fix existing "Apple User" entries
+    if (providedName && providedName !== 'Apple User') {
+      const currentName = `${existingUser.firstname || ''} ${existingUser.lastname || ''}`.trim();
+
+      // Update if current name is "Apple User", "Apple", or empty
+      if (!currentName || currentName === 'Apple User' || currentName === 'Apple') {
+        const nameParts = providedName.split(' ');
+        const newFirstName = sanitizeName(nameParts[0]) || existingUser.firstname;
+        const newLastName = sanitizeName(nameParts.slice(1).join(' ')) || existingUser.lastname;
+
+        await supabase
+          .from('users')
+          .update({
+            firstname: newFirstName,
+            lastname: newLastName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingUser.id);
+
+        existingUser.firstname = newFirstName;
+        existingUser.lastname = newLastName;
+        logger.info('[APPLE_LOGIN_SERVICE] Updated user name from Apple User to real name', {
+          id: existingUser.id,
+          newName: `${newFirstName} ${newLastName}`.trim()
+        });
+      }
     }
 
     user = existingUser;

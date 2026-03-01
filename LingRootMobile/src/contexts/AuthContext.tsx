@@ -63,18 +63,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           [umd.firstname, umd.lastname].filter(Boolean).join(' ')
         )?.toString().trim();
 
-        // Transform Supabase user to our User type
-        const appUser: User = {
-          id: authUser.id,
-          email: authUser.email!,
-          full_name: (builtFullName && builtFullName.length > 0) ? builtFullName : (authUser.email?.split('@')[0] || ''),
-          avatar_url: umd.avatar_url,
-          membership_level: umd.membership_level || 'free',
-          role: umd.role,
-          created_at: authUser.created_at,
-          updated_at: authUser.updated_at || authUser.created_at,
-        };
-        setUser(appUser);
+        setUser((prevUser) => {
+          const resolvedFullName = (
+            builtFullName && builtFullName.length > 0
+              ? builtFullName
+              : prevUser?.id === authUser.id && prevUser.full_name
+                ? prevUser.full_name
+                : (authUser.email?.split('@')[0] || '')
+          );
+
+          // Transform Supabase user to our User type without clobbering
+          // richer backend-derived profile data such as full_name.
+          const appUser: User = {
+            id: authUser.id,
+            email: authUser.email!,
+            full_name: resolvedFullName,
+            avatar_url: umd.avatar_url || prevUser?.avatar_url,
+            membership_level: umd.membership_level || prevUser?.membership_level || 'free',
+            role: umd.role || prevUser?.role,
+            created_at: prevUser?.id === authUser.id
+              ? (prevUser.created_at || authUser.created_at)
+              : authUser.created_at,
+            updated_at: authUser.updated_at || prevUser?.updated_at || authUser.created_at,
+          };
+
+          return appUser;
+        });
 
         // Start notification reminders after user login
         try {
