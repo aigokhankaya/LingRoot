@@ -1,5 +1,8 @@
 const { supabase } = require('../utils/storage/supabaseClient.js');
 const logger = require('../utils/common/logger.js');
+const { sendRealtimePushNotification } = require('../utils/notifications/pushNotification.js');
+
+const getNotificationLink = (notification) => notification.link ?? notification.data?.link ?? null;
 
 /**
  * Get all notifications for a user
@@ -81,7 +84,7 @@ const getNotifications = async (req, res) => {
                 message: n.body,  // DB'de body, API'de message olarak dön
                 type: n.type,
                 isRead: n.is_read,
-                link: n.link,
+                link: getNotificationLink(n),
                 metadata: n.data || n.metadata,
                 createdAt: displayTime,
                 readAt: n.read_at
@@ -313,6 +316,7 @@ const deleteReadNotifications = async (req, res) => {
 const sendNotification = async (req, res) => {
     try {
         const { userId, title, message, type = 'info', link } = req.body;
+        logger.info(`[NOTIFICATION][ADMIN] Send request received: target=${userId}, type=${type}, hasLink=${Boolean(link)}`);
 
         if (!title || !message) {
             return res.status(400).json({
@@ -322,6 +326,13 @@ const sendNotification = async (req, res) => {
         }
 
         let resultCount = 0;
+        const notificationData = link ? { link } : null;
+        const notificationPayload = {
+            title,
+            body: message,
+            type,
+            data: link ? { link } : {}
+        };
 
         if (userId === 'all') {
             // Get all verified users
@@ -339,7 +350,7 @@ const sendNotification = async (req, res) => {
                     title,
                     body: message,  // API'den message gelir, DB'ye body olarak yaz
                     type,
-                    link,
+                    data: notificationData,
                     is_read: false,
                     created_at: new Date().toISOString()
                 }));
@@ -349,6 +360,12 @@ const sendNotification = async (req, res) => {
                 for (let i = 0; i < notificationsToCreate.length; i += chunkSize) {
                     const chunk = notificationsToCreate.slice(i, i + chunkSize);
                     await supabase.from('notifications').insert(chunk);
+
+                    await Promise.allSettled(
+                        chunk.map((notification) =>
+                            sendRealtimePushNotification(notification.user_id, notificationPayload)
+                        )
+                    );
                 }
 
                 resultCount = users.length;
@@ -368,7 +385,7 @@ const sendNotification = async (req, res) => {
                     title,
                     body: message,  // API'den message gelir, DB'ye body olarak yaz
                     type,
-                    link,
+                    data: notificationData,
                     is_read: false,
                     created_at: new Date().toISOString()
                 }]);
@@ -384,13 +401,18 @@ const sendNotification = async (req, res) => {
                 throw error;
             }
 
+            await sendRealtimePushNotification(userId, notificationPayload);
+
             res.json({
                 success: true,
                 message: 'Bildirim gönderildi'
             });
         }
     } catch (error) {
-        logger.error('[NOTIFICATION] Error sending notification:', error);
+        logger.error(`[NOTIFICATION][ADMIN] Error sending notification: ${error.message}`);
+        if (error.stack) {
+            logger.error(error.stack);
+        }
         res.status(500).json({
             success: false,
             message: 'Bildirim gönderilirken hata oluştu',
@@ -407,10 +429,10 @@ const getNotificationHistory = async (req, res) => {
         const { limit = 50, offset = 0 } = req.query;
 
         // Fetch notifications with user data
-        // Supabase select with relation: *, users:user_id(id, firstName, lastName, email)
+        // users table stores firstname/lastname in snake-less lowercase columns
         const { data: notifications, error, count } = await supabase
             .from('notifications')
-            .select('*, users:user_id(id, firstName, lastName, email)', { count: 'exact' })
+            .select('*, users:user_id(id, firstname, lastname, email)', { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
@@ -433,10 +455,15 @@ const getNotificationHistory = async (req, res) => {
                 message: n.body,  // DB'de body, API'de message olarak dön
                 type: n.type,
                 isRead: n.is_read,
-                link: n.link,
+                link: getNotificationLink(n),
                 metadata: n.data || n.metadata,
                 createdAt: displayTime,
-                user: n.users // Supabase returns the relation as 'users' object/array
+                user: n.users ? {
+                    id: n.users.id,
+                    firstName: n.users.firstName || n.users.firstname || '',
+                    lastName: n.users.lastName || n.users.lastname || '',
+                    email: n.users.email
+                } : undefined
             };
         });
 

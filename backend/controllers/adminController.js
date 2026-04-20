@@ -467,6 +467,8 @@ exports.getAllUsers = async (req, res) => {
       return {
         id: user.id,
         name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'N/A',
+        firstName: user.firstname || '',
+        lastName: user.lastname || '',
         email: user.email,
         status: user.isverified ? 'aktif' : 'pasif',
         package: packageName,
