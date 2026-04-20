@@ -37,6 +37,7 @@ interface UserItem {
     firstName: string;
     lastName: string;
     email: string;
+    name?: string;
 }
 
 const typeIcons = {
@@ -67,6 +68,8 @@ export default function NotificationsPage() {
     const [link, setLink] = useState('');
     const [sendToAll, setSendToAll] = useState(true);
     const [selectedUserId, setSelectedUserId] = useState('');
+    const [userSearch, setUserSearch] = useState('');
+    const [showUserSuggestions, setShowUserSuggestions] = useState(false);
 
     // Users list for dropdown
     const [users, setUsers] = useState<UserItem[]>([]);
@@ -104,11 +107,23 @@ export default function NotificationsPage() {
         checkAuth();
     }, [router]);
 
-    const fetchUsers = async () => {
+    const formatUserLabel = (user: UserItem) => {
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || '';
+        return fullName ? `${fullName} (${user.email})` : user.email;
+    };
+
+    const fetchUsers = async (search: string = '') => {
         setUsersLoading(true);
         try {
             const token = localStorage.getItem('lingroot_token');
-            const res = await fetch('/api/admin/users', {
+            const query = new URLSearchParams({
+                limit: '20',
+            });
+            if (search.trim()) {
+                query.set('search', search.trim());
+            }
+
+            const res = await fetch(`/api/admin/users?${query.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -121,6 +136,16 @@ export default function NotificationsPage() {
             setUsersLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (loading || sendToAll || selectedUserId) return;
+
+        const timeout = setTimeout(() => {
+            fetchUsers(userSearch);
+        }, 250);
+
+        return () => clearTimeout(timeout);
+    }, [loading, sendToAll, selectedUserId, userSearch]);
 
     const fetchHistory = async () => {
         setHistoryLoading(true);
@@ -172,9 +197,20 @@ export default function NotificationsPage() {
                 })
             });
 
-            const data = await res.json();
+            let data: any = null;
+            const rawBody = await res.text();
+            try {
+                data = rawBody ? JSON.parse(rawBody) : null;
+            } catch {
+                data = { message: rawBody };
+            }
+
             if (!res.ok || !data.success) {
-                throw new Error(data.message || 'Bildirim gönderilemedi');
+                throw new Error(
+                    data?.error ||
+                    data?.message ||
+                    `Bildirim gönderilemedi (HTTP ${res.status})`
+                );
             }
 
             setSuccess(data.message || 'Bildirim başarıyla gönderildi');
@@ -182,6 +218,9 @@ export default function NotificationsPage() {
             setMessage('');
             setLink('');
             setType('info');
+            setSelectedUserId('');
+            setUserSearch('');
+            setShowUserSuggestions(false);
             fetchHistory();
         } catch (e: any) {
             setError(e.message || 'Bildirim gönderilirken hata oluştu');
@@ -221,6 +260,19 @@ export default function NotificationsPage() {
         if (diffHours < 24) return `${diffHours} saat önce`;
         if (diffDays < 7) return `${diffDays} gün önce`;
         return date.toLocaleDateString('tr-TR');
+    };
+
+    const handleUserSearchChange = (value: string) => {
+        setUserSearch(value);
+        setSelectedUserId('');
+        setShowUserSuggestions(true);
+    };
+
+    const handleUserSelect = (user: UserItem) => {
+        setSelectedUserId(user.id);
+        setUserSearch(formatUserLabel(user));
+        setShowUserSuggestions(false);
+        setError(null);
     };
 
     if (loading) {
@@ -358,23 +410,64 @@ export default function NotificationsPage() {
 
                             {!sendToAll && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="userId">Kullanıcı Seç</Label>
-                                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Kullanıcı seçin" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {usersLoading ? (
-                                                <div className="p-2 text-center text-gray-500">Yükleniyor...</div>
-                                            ) : (
-                                                users.map((user) => (
-                                                    <SelectItem key={user.id} value={user.id}>
-                                                        {user.firstName} {user.lastName} ({user.email})
-                                                    </SelectItem>
-                                                ))
-                                            )}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="userSearch">Kullanıcı Ara</Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="userSearch"
+                                            value={userSearch}
+                                            onChange={(e) => handleUserSearchChange(e.target.value)}
+                                            onFocus={() => setShowUserSuggestions(true)}
+                                            onBlur={() => {
+                                                window.setTimeout(() => setShowUserSuggestions(false), 150);
+                                            }}
+                                            placeholder="İsim veya e-posta ile ara"
+                                        />
+
+                                        {showUserSuggestions && (
+                                            <div className="absolute z-20 mt-2 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+                                                <ScrollArea className="max-h-64">
+                                                    {usersLoading ? (
+                                                        <div className="p-3 text-sm text-gray-500">Yükleniyor...</div>
+                                                    ) : users.length > 0 ? (
+                                                        <div className="py-1">
+                                                            {users.map((user) => (
+                                                                <button
+                                                                    key={user.id}
+                                                                    type="button"
+                                                                    onClick={() => handleUserSelect(user)}
+                                                                    className="flex w-full items-start justify-between gap-3 px-3 py-2 text-left hover:bg-gray-50"
+                                                                >
+                                                                    <div className="min-w-0">
+                                                                        <div className="truncate text-sm font-medium text-gray-900">
+                                                                            {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || 'İsimsiz Kullanıcı'}
+                                                                        </div>
+                                                                        <div className="truncate text-xs text-gray-500">
+                                                                            {user.email}
+                                                                        </div>
+                                                                    </div>
+                                                                    {selectedUserId === user.id && (
+                                                                        <Badge variant="secondary" className="shrink-0">
+                                                                            Seçili
+                                                                        </Badge>
+                                                                    )}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="p-3 text-sm text-gray-500">
+                                                            Kullanıcı bulunamadı
+                                                        </div>
+                                                    )}
+                                                </ScrollArea>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {selectedUserId && (
+                                        <p className="text-xs text-emerald-600">
+                                            Seçili kullanıcı: {userSearch}
+                                        </p>
+                                    )}
                                 </div>
                             )}
 

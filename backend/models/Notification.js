@@ -16,27 +16,25 @@ const Notification = sequelize.define('Notification', {
         type: DataTypes.STRING(255),
         allowNull: false
     },
-    message: {
+    body: {
         type: DataTypes.TEXT,
-        allowNull: false
+        allowNull: false,
+        field: 'body'
     },
     type: {
-        type: DataTypes.ENUM('info', 'success', 'warning', 'error'),
-        defaultValue: 'info'
+        type: DataTypes.STRING,
+        defaultValue: 'general'
     },
     isRead: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
         field: 'is_read'
     },
-    link: {
-        type: DataTypes.STRING(500),
-        allowNull: true
-    },
-    metadata: {
+    data: {
         type: DataTypes.JSONB,
         allowNull: true,
-        defaultValue: {}
+        defaultValue: {},
+        field: 'data'
     }
 }, {
     tableName: 'notifications',
