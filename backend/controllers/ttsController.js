@@ -18,6 +18,7 @@ const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require('../utils/aud
 const { uploadToSupabase } = require('../utils/storage/storageUploader.js');
 const { analyzeAndAdjustTimings } = require('../utils/audio/audioAnalyzer.js');
 const { mfaAligner } = require('../utils/audio/mfaAligner.js');
+const jobQueue = require('../utils/infra/jobQueue.js');
 const { extractDailyUsagePatterns } = require('../utils/content/dailyPatternExtractor.js');
 const tmp = require("tmp");
 const { logStep } = require('../utils/common/stepLogger.js');
@@ -112,6 +113,11 @@ const { getTtsProvider, getDefaultVoiceForProvider } = voiceModelService;
  */
 const processTtsRequest = async (req, res) => {
   const requestId = uuidv4();
+  const appendJobDebug = async (entry) => {
+    if (req._jobId) {
+      jobQueue.appendDebug(req._jobId, entry);
+    }
+  };
   const processingStartTime = Date.now();
   let stepSequence = 1;
   logger.info(`[${requestId}] Received TTS request.`);
@@ -165,6 +171,12 @@ const processTtsRequest = async (req, res) => {
       inputPreview: (req.body?.input || '').toString().slice(0, 80)
     };
     logger.debug(`[${requestId}] [INCOMING TTS PARAMS]`, logBody);
+    await appendJobDebug({
+      stage: 'tts-request',
+      requestId,
+      ...logBody,
+      inputLength: typeof req.body?.input === 'string' ? req.body.input.length : 0,
+    });
   } catch (e) {
     logger.warn(`[${requestId}] Could not log incoming params: ${e.message}`);
   }
@@ -447,7 +459,7 @@ const processTtsRequest = async (req, res) => {
     // Enforce subscription usage limits before heavy operations
     try {
       const userId = req.user?.id;
-      if (userId) {
+      if (userId && !req._skipUsageLimit) {
         const limitState = await checkLimits(userId);
         // If user has no active plan or subscription expired, block TTS
         if (!limitState?.hasPlan) {
@@ -1390,6 +1402,7 @@ const processTtsRequest = async (req, res) => {
                 uniqueId,
               }
               : null,
+            onDebugLine: appendJobDebug,
           }
         );
 
@@ -1474,7 +1487,7 @@ const processTtsRequest = async (req, res) => {
 
     // Post-process: check limits and deactivate subscription if exceeded
     try {
-      const stateAfter = await checkLimits(req.user?.id);
+      const stateAfter = req._skipUsageLimit ? null : await checkLimits(req.user?.id);
       if (stateAfter?.hasPlan && stateAfter.isExceeded) {
         logger.warn(`[${requestId}] Usage exceeded after TTS generation. Deactivating active subscription.`);
         const { data: activeSub } = await supabase
@@ -1700,31 +1713,33 @@ const processTtsRequest = async (req, res) => {
 
         // Free Trial için ses oluşturma sayacını artır
         try {
-          const { data: activeSub, error: subError } = await supabase
-            .from('subscriptions')
-            .select('id, plantype, audio_creation_count')
-            .eq('user_id', userId)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (subError) {
-            logger.warn(`[${requestId}] Error fetching subscription for counter update:`, subError.message);
-          } else if (activeSub && activeSub.plantype === 'Free Trial') {
-            const currentCount = Number(activeSub.audio_creation_count || 0);
-            const { error: updateError } = await supabase
+          if (!req._skipUsageLimit) {
+            const { data: activeSub, error: subError } = await supabase
               .from('subscriptions')
-              .update({
-                audio_creation_count: currentCount + 1,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', activeSub.id);
+              .select('id, plantype, audio_creation_count')
+              .eq('user_id', userId)
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
 
-            if (updateError) {
-              logger.warn(`[${requestId}] Failed to update Free Trial counter:`, updateError.message);
-            } else {
-              logger.debug(`[${requestId}] 🎯 Free Trial counter updated: ${currentCount} -> ${currentCount + 1}`);
+            if (subError) {
+              logger.warn(`[${requestId}] Error fetching subscription for counter update:`, subError.message);
+            } else if (activeSub && activeSub.plantype === 'Free Trial') {
+              const currentCount = Number(activeSub.audio_creation_count || 0);
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .update({
+                  audio_creation_count: currentCount + 1,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', activeSub.id);
+
+              if (updateError) {
+                logger.warn(`[${requestId}] Failed to update Free Trial counter:`, updateError.message);
+              } else {
+                logger.debug(`[${requestId}] 🎯 Free Trial counter updated: ${currentCount} -> ${currentCount + 1}`);
+              }
             }
           }
         } catch (counterErr) {
@@ -1825,8 +1840,33 @@ const processTtsRequest = async (req, res) => {
       adaptedText: adaptedText || '',
       cleanText: cleanTextForDisplay, // Temiz text ayrı field olarak da gönder
       daily_usage_patterns: dailyUsagePatterns, // Günlük kullanım kalıpları
-      detected_mood: detectedMood
+      detected_mood: detectedMood,
+      debug_info: {
+        request_id: requestId,
+        input_type: inputType,
+        input_length: typeof req.body?.input === 'string' ? req.body.input.length : 0,
+        translated_text_length: (translatedText || translationResult || '').length,
+        adapted_text_length: (adaptedText || '').length,
+        words_count: Array.isArray(words) ? words.length : 0,
+        timepoints_count: Array.isArray(timepoints) ? timepoints.length : 0,
+        clean_words_count: allCleanWords.length,
+        original_words_count: allOriginalWords.length,
+        audio_segments: audioSegments.length,
+        estimated_duration: totalRealDuration,
+        real_duration: actualTotalDuration,
+        timing_source: mfaWordTimings ? 'MFA' : 'TTS',
+        timing_accuracy: mfaWordTimings ? 'high' : 'estimated',
+        drift_corrected: analysisResult.driftDetected || false,
+        drift_amount: analysisResult.driftAmount || 0,
+        drift_percentage: analysisResult.driftPercentage || 0,
+      }
     };
+
+    await appendJobDebug({
+      stage: 'tts-response',
+      requestId,
+      debugInfo: responseData.debug_info,
+    });
 
     // DEBUG: Final response'u kontrol et
     logger.debug(`🔍 RESPONSE DEBUG - Timepoints in response: ${responseData.timepoints?.length || 0}`);

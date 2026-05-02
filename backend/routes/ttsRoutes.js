@@ -28,6 +28,10 @@ const { limiters } = require('../utils/infra/concurrencyLimiter.js');
 const jobQueue = require('../utils/infra/jobQueue.js');
 const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/notifications/pushNotification.js');
 const { notifyAIError, AI_PROVIDERS } = require('../utils/notifications/aiErrorNotifier.js');
+const {
+  markStartGenerationCompleted,
+  validateStartGenerationRequest,
+} = require('../utils/onboarding/startGeneration.js');
 
 // Helper function to write podcast-specific logs
 const podcastLogPath = path.join(__dirname, '../logs/podcast_logs.log');
@@ -44,6 +48,120 @@ const os = require('os');
 const { mfaAligner } = require('../utils/audio/mfaAligner.js');
 
 const router = express.Router();
+const START_TEXT_VOICE = 'lr_gb_chirp3hd_sulafat';
+const START_TOPIC_VOICE = 'lr_gb_chirp3hd_sulafat';
+const START_PODCAST_HOST = 'Kore';
+const START_PODCAST_GUEST = 'Puck';
+
+function isGeminiQuotaError(error) {
+  const message = error?.response?.data?.error?.message || error?.message || '';
+  return (
+    typeof message === 'string' &&
+    (
+      message.includes('Quota exceeded') ||
+      message.includes('RESOURCE_EXHAUSTED') ||
+      message.includes('global_generate_content_requests_per_minute_per_project_per_base_model')
+    )
+  );
+}
+
+async function createPodcastWithOptionalFallback(params) {
+  const {
+    topic,
+    level,
+    duration,
+    body,
+    userId,
+    podcastType,
+  } = params;
+
+  if (podcastType === 'new') {
+    try {
+      logger.info('[PODCAST] Using Podcast V2 (separated speaker processing)');
+      return await createPodcastV2({
+        topic,
+        level,
+        duration,
+        styleType: body.styleType,
+        personalityA: body.personalityA,
+        personalityB: body.personalityB,
+        hostSpeakerId: body.hostSpeakerId,
+        guestSpeakerId: body.guestSpeakerId,
+        includeHumor: body.includeHumor,
+        includeFiller: body.includeFiller,
+        userId,
+      });
+    } catch (error) {
+      if (!isGeminiQuotaError(error)) {
+        throw error;
+      }
+
+      logger.warn('[PODCAST] Podcast V2 quota exceeded, falling back to legacy podcast system');
+    }
+  } else {
+    logger.info('[PODCAST] Using legacy podcast system');
+  }
+
+  return createGoogleTTSPodcast({
+    topic,
+    level,
+    duration,
+    styleType: body.styleType,
+    voiceChoice: body.voiceChoice,
+    personalityA: body.personalityA,
+    personalityB: body.personalityB,
+    hostSpeakerId: body.hostSpeakerId,
+    guestSpeakerId: body.guestSpeakerId,
+    includeHumor: body.includeHumor,
+    includeFiller: body.includeFiller,
+    userId,
+  });
+}
+
+async function prepareStartGenerationPayload(userId, requestBody, kind) {
+  const requestedType = requestBody?.startGenerationType;
+  if (!requestedType) {
+    return { requestBody, startGenerationType: null };
+  }
+
+  const validation = await validateStartGenerationRequest(userId, requestedType);
+  if (!validation.allowed) {
+    const error = new Error(validation.message);
+    error.statusCode = 400;
+    error.code = validation.code;
+    error.progress = validation.progress;
+    error.nextType = validation.nextType;
+    throw error;
+  }
+
+  const nextBody = { ...requestBody, startGenerationType: validation.type };
+
+  if (kind === 'tts') {
+    if (validation.type === 'text') {
+      nextBody.type = 'text';
+      nextBody.voice = START_TEXT_VOICE;
+      nextBody.voiceName = START_TEXT_VOICE;
+    }
+
+    if (validation.type === 'topic') {
+      nextBody.type = 'subject';
+      nextBody.voice = START_TOPIC_VOICE;
+      nextBody.voiceName = START_TOPIC_VOICE;
+    }
+  }
+
+  if (kind === 'podcast') {
+    nextBody.duration = 2;
+    nextBody.ttsProvider = 'google';
+    nextBody.hostSpeakerId = START_PODCAST_HOST;
+    nextBody.guestSpeakerId = START_PODCAST_GUEST;
+  }
+
+  return {
+    requestBody: nextBody,
+    startGenerationType: validation.type,
+  };
+}
 
 // Define allowed MIME types for file uploads
 const allowedMimeTypes = [
@@ -125,7 +243,8 @@ router.post(
       }
 
       // Capture request data before response is sent
-      const requestBody = req.body;
+      const prepared = await prepareStartGenerationPayload(userId, req.body || {}, 'tts');
+      const requestBody = prepared.requestBody;
       const file = req.file;
       const token = req.headers.authorization ? req.headers.authorization.split(' ')[1] : null;
 
@@ -135,6 +254,7 @@ router.post(
         type: 'tts',
         requestBody,
         file: file ? { originalname: file.originalname, mimetype: file.mimetype } : null,
+        startGenerationType: prepared.startGenerationType,
       });
 
       logger.info(`[AsyncTTS] Job ${job.id} created for user ${userId}, queuePosition: ${job.queuePosition}`);
@@ -192,6 +312,9 @@ router.post(
             file: file || null,
             user: { id: userId },
             _skipConcurrencyCheck: true, // Slot already acquired at route level
+            _skipUsageLimit: Boolean(prepared.startGenerationType),
+            _startGenerationType: prepared.startGenerationType,
+            _jobId: job.id,
             headers: {
               'content-type': file ? 'multipart/form-data' : 'application/json',
               'authorization': token ? `Bearer ${token}` : 'Bearer worker-internal-token'
@@ -240,6 +363,9 @@ router.post(
 
           // Send push notification
           try {
+            if (prepared.startGenerationType) {
+              await markStartGenerationCompleted(userId, prepared.startGenerationType);
+            }
             await sendPushNotification(userId, {
               title: '🎵 Ses Dosyanız Hazır!',
               body: 'Dinlemek için tıklayın.',
@@ -313,7 +439,13 @@ router.post(
 
     } catch (error) {
       logger.error(`[AsyncTTS] Error creating job:`, error);
-      res.status(500).json({ success: false, message: 'Failed to start audio processing' });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        code: error.code,
+        message: error.message || 'Failed to start audio processing',
+        progress: error.progress,
+        nextType: error.nextType,
+      });
     }
   },
   (error, req, res, next) => {
@@ -353,6 +485,7 @@ router.get("/job/active", authenticate, (req, res) => {
       updatedAt: job.updatedAt,
       result: job.result,
       error: job.error,
+      debugLogs: job.debugLogs || [],
     },
   });
 });
@@ -382,6 +515,8 @@ router.get("/job/:jobId", authenticate, (req, res) => {
       updatedAt: job.updatedAt,
       result: job.result,
       error: job.error
+      ,
+      debugLogs: job.debugLogs || [],
     }
   });
 });
@@ -456,40 +591,14 @@ router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) =>
       podcastType: PODCAST_TYPE
     });
 
-    // Route to appropriate podcast system based on PODCAST_TYPE env variable
-    let result;
-    if (PODCAST_TYPE === 'new') {
-      logger.info('[PODCAST] Using Podcast V2 (separated speaker processing)');
-      result = await createPodcastV2({
-        topic,
-        level,
-        duration,
-        styleType: body.styleType,
-        personalityA: body.personalityA,
-        personalityB: body.personalityB,
-        hostSpeakerId: body.hostSpeakerId,
-        guestSpeakerId: body.guestSpeakerId,
-        includeHumor: body.includeHumor,
-        includeFiller: body.includeFiller,
-        userId: req.user?.id
-      });
-    } else {
-      logger.info('[PODCAST] Using legacy podcast system');
-      result = await createGoogleTTSPodcast({
-        topic,
-        level,
-        duration,
-        styleType: body.styleType,
-        voiceChoice: body.voiceChoice,
-        personalityA: body.personalityA,
-        personalityB: body.personalityB,
-        hostSpeakerId: body.hostSpeakerId,
-        guestSpeakerId: body.guestSpeakerId,
-        includeHumor: body.includeHumor,
-        includeFiller: body.includeFiller,
-        userId: req.user?.id
-      });
-    }
+    const result = await createPodcastWithOptionalFallback({
+      topic,
+      level,
+      duration,
+      body,
+      userId: req.user?.id,
+      podcastType: PODCAST_TYPE,
+    });
 
     return res.json({
       success: true,
@@ -530,7 +639,8 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
       });
     }
 
-    const body = req.body || {};
+    const prepared = await prepareStartGenerationPayload(userId, req.body || {}, 'podcast');
+    const body = prepared.requestBody || {};
     const rawTopic = body.topic;
     const topic = typeof rawTopic === 'string' ? rawTopic.trim() : '';
 
@@ -558,6 +668,7 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
       guestSpeakerId: body.guestSpeakerId,
       includeHumor: body.includeHumor,
       includeFiller: body.includeFiller,
+      startGenerationType: prepared.startGenerationType,
     });
 
     logger.info(`[AsyncPodcast] Job ${job.id} created for user ${userId}, queuePosition: ${job.queuePosition}`, { topic, level, duration });
@@ -609,40 +720,14 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
         jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
         logger.info(`[AsyncPodcast] Job ${job.id} got slot, processing (waited: ${globalSlot.waited}ms, podcastType: ${PODCAST_TYPE})`);
 
-        // Route to appropriate podcast system based on PODCAST_TYPE env variable
-        let result;
-        if (PODCAST_TYPE === 'new') {
-          logger.info(`[AsyncPodcast] Job ${job.id} using Podcast V2 (separated speaker processing)`);
-          result = await createPodcastV2({
-            topic,
-            level,
-            duration,
-            styleType: body.styleType,
-            personalityA: body.personalityA,
-            personalityB: body.personalityB,
-            hostSpeakerId: body.hostSpeakerId,
-            guestSpeakerId: body.guestSpeakerId,
-            includeHumor: body.includeHumor,
-            includeFiller: body.includeFiller,
-            userId
-          });
-        } else {
-          logger.info(`[AsyncPodcast] Job ${job.id} using legacy podcast system`);
-          result = await createGoogleTTSPodcast({
-            topic,
-            level,
-            duration,
-            styleType: body.styleType,
-            voiceChoice: body.voiceChoice,
-            personalityA: body.personalityA,
-            personalityB: body.personalityB,
-            hostSpeakerId: body.hostSpeakerId,
-            guestSpeakerId: body.guestSpeakerId,
-            includeHumor: body.includeHumor,
-            includeFiller: body.includeFiller,
-            userId
-          });
-        }
+        const result = await createPodcastWithOptionalFallback({
+          topic,
+          level,
+          duration,
+          body,
+          userId,
+          podcastType: PODCAST_TYPE,
+        });
 
         if (result && result.mp3_url) {
           // Try to use the contenthistory_id from createGoogleTTSPodcast or content_id from V2
@@ -666,6 +751,9 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
 
           // Send push notification - keep payload small to avoid FCM "message too big" error
           // Use 'audio_created' type so iOS notification handler can process it (same as TTS)
+          if (prepared.startGenerationType) {
+            await markStartGenerationCompleted(userId, prepared.startGenerationType);
+          }
           await sendPushNotification(userId, {
             title: '🎙️ Podcast Hazır!',
             body: 'Podcast\'iniz hazır. Dinlemek için tıklayın.',
@@ -756,7 +844,13 @@ router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, r
     });
   } catch (error) {
     logger.error(`[AsyncPodcast] Error creating job:`, error);
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      code: error.code,
+      message: error.message,
+      progress: error.progress,
+      nextType: error.nextType,
+    });
   }
 });
 

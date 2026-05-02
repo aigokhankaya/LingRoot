@@ -115,17 +115,27 @@ class MFAAligner {
       return generateMockTimestamps(transcript);
     }
 
-    const { debug = null } = options;
+    const { debug = null, onDebugLine = null } = options;
     const transcriptText = transcript == null ? '' : String(transcript);
+
+    const emitDebug = async (payload) => {
+      if (typeof onDebugLine === 'function') {
+        try {
+          await onDebugLine(payload);
+        } catch { }
+      }
+    };
 
     // Circuit Breaker Check
     if (!this.isRemoteMFAAllowed()) {
       logger.info(`⏭️ [MFA] Skipping remote MFA - circuit breaker is open`);
+      await emitDebug({ stage: 'mfa-skipped', message: 'Remote MFA skipped because circuit breaker is open' });
       return []; // Return empty alignments
     }
 
     try {
       logger.info(`🌐 Calling Remote MFA Service: ${this.serviceUrl}`);
+      await emitDebug({ stage: 'mfa-start', serviceUrl: this.serviceUrl, locale, transcriptLength: transcriptText.length });
 
       // Prepare Form Data
       const audioBuffer = await fs.readFile(audioPath);
@@ -147,6 +157,7 @@ class MFAAligner {
 
       // Call "align-async" to avoid timeouts (524 error)
       logger.info(`🚀 Starting Async MFA Job at ${this.serviceUrl}/api/mfa/align-async`);
+      await emitDebug({ stage: 'mfa-submit', endpoint: `${this.serviceUrl}/api/mfa/align-async` });
 
       const startResponse = await axios.post(`${this.serviceUrl}/api/mfa/align-async`, formData, {
         headers,
@@ -161,6 +172,7 @@ class MFAAligner {
 
       const jobId = startResponse.data.jobId;
       logger.info(`⏳ MFA Job Started: ${jobId}. Waiting for completion...`);
+      await emitDebug({ stage: 'mfa-job-started', jobId });
 
       // Poll for result
       const POLLING_INTERVAL = 5000; // 5s
@@ -186,6 +198,7 @@ class MFAAligner {
               if (count === 0) {
                 logger.warn(`⚠️ MFA Job completed but returned 0 timepoints.`);
               }
+              await emitDebug({ stage: 'mfa-completed', jobId, alignedWords: count });
               return words;
             } else if (jobData.status === 'failed') {
               throw new Error(jobData.error || 'Async MFA job returned failed status');
@@ -203,6 +216,7 @@ class MFAAligner {
             throw new Error(`MFA Job ${jobId} not found during polling`);
           }
           logger.warn(`⚠️ MFA Polling warning: ${pollErr.message}`);
+          await emitDebug({ stage: 'mfa-poll-warning', jobId, message: pollErr.message });
         }
       }
 
@@ -212,6 +226,7 @@ class MFAAligner {
       const msg = error.message || String(error);
       this.recordRemoteMFAFailure(msg);
       logger.error(`❌ Remote MFA failed: ${msg}`);
+      await emitDebug({ stage: 'mfa-error', message: msg });
 
       // If client debug enabled
       if (debug) {

@@ -1,5 +1,6 @@
 const { supabase } = require('../utils/storage/supabaseClient.js');
 const logger = require('../utils/common/logger.js');
+const { getInitialFreeTrialEndDate } = require('../utils/subscription/freeTrial.js');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
@@ -107,6 +108,7 @@ const assignFreeTrialPlan = async (userId) => {
       return;
     }
 
+    const freeTrialStartDate = new Date().toISOString();
     const { data: newSub, error: subErr } = await supabase
       .from('subscriptions')
       .insert([{
@@ -115,8 +117,8 @@ const assignFreeTrialPlan = async (userId) => {
         stripepriceid: trialPlan.id,
         status: 'active',
         audio_creation_count: 0,
-        startdate: new Date().toISOString(),
-        enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
+        startdate: freeTrialStartDate,
+        enddate: getInitialFreeTrialEndDate(freeTrialStartDate),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }])

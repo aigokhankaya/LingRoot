@@ -28,6 +28,7 @@ import * as bookService from '../services/bookService';
 import { submitContent } from '../services/contentService';
 import { getMyPlanFeatures, PlanFeatures, getUsageSummary } from '../services/subscriptionService';
 import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
+import { getEnvironmentConfig } from '../services/environmentConfig';
 import { CopilotStep, walkthroughable } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
@@ -102,6 +103,10 @@ const CreateScreenContent: React.FC = () => {
   const [errorAlertMessage, setErrorAlertMessage] = useState('');
   const [errorAlertAction, setErrorAlertAction] = useState<{ label: string; onPress: () => void } | null>(null);
   const [errorAlertType, setErrorAlertType] = useState<'error' | 'success' | 'info'>('error');
+  const [debugJobId, setDebugJobId] = useState<string | null>(null);
+  const [debugJobSnapshot, setDebugJobSnapshot] = useState<any>(null);
+  const [isTestEnv, setIsTestEnv] = useState(false);
+  const debugPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const normalizeEstimatedTime = (value?: string) => {
     const fallback = language === 'tr' ? '10-15 dakika' : '10-15 minutes';
@@ -130,6 +135,48 @@ const CreateScreenContent: React.FC = () => {
       setErrorAlertType('error');
     }
     setShowErrorAlert(true);
+  };
+
+  useEffect(() => {
+    getEnvironmentConfig().then((config) => {
+      setIsTestEnv(config.environment === 'test');
+    }).catch(() => { });
+  }, []);
+
+  const stopDebugPolling = () => {
+    if (debugPollRef.current) {
+      clearInterval(debugPollRef.current);
+      debugPollRef.current = null;
+    }
+  };
+
+  const fetchDebugJob = async (jobId: string) => {
+    try {
+      const res = await ttsService.getJobStatus(jobId);
+      const job = res?.job;
+      if (job) {
+        setDebugJobSnapshot(job);
+        if (job.status === 'completed' || job.status === 'failed') {
+          stopDebugPolling();
+        }
+      }
+    } catch (error: any) {
+      setDebugJobSnapshot({
+        id: jobId,
+        status: 'debug_fetch_failed',
+        error: error?.message || 'Debug job fetch failed',
+      });
+      stopDebugPolling();
+    }
+  };
+
+  const startDebugPolling = (jobId: string) => {
+    setDebugJobId(jobId);
+    stopDebugPolling();
+    fetchDebugJob(jobId);
+    debugPollRef.current = setInterval(() => {
+      fetchDebugJob(jobId);
+    }, 3000);
   };
 
   useFocusEffect(
@@ -171,6 +218,11 @@ const CreateScreenContent: React.FC = () => {
 
       // Ekrana her odaklanıldığında aktif job durumunu kontrol et
       checkActiveJob();
+      ttsService.getActiveTtsJob().then((res) => {
+        if (res?.hasActiveJob && res.job?.id) {
+          startDebugPolling(res.job.id);
+        }
+      }).catch(() => { });
 
       // Firebase Analytics: Screen View
       AnalyticsHelper.logScreenView('Create', 'CreateScreen');
@@ -223,6 +275,12 @@ const CreateScreenContent: React.FC = () => {
       };
     }, [route.params?.mode, language, checkActiveJob, unlockTtsJob])
   );
+
+  useEffect(() => {
+    return () => {
+      stopDebugPolling();
+    };
+  }, []);
   // --- Suggestion Mode State ---
   const [suggestion, setSuggestion] = useState('');
   const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
@@ -506,6 +564,9 @@ const CreateScreenContent: React.FC = () => {
         const response = await ttsService.processFileToSpeechAsync(formData);
 
         if (response.success) {
+          if (response.jobId) {
+            startDebugPolling(response.jobId);
+          }
           setSelectedFile(null);
           const localizedTime = normalizeEstimatedTime(response.estimatedTime);
           setSuccessAlertEstimatedTime(localizedTime);
@@ -546,6 +607,9 @@ const CreateScreenContent: React.FC = () => {
         const response = await ttsService.processTextToSpeechAsync(request);
 
         if (response.success) {
+          if (response.jobId) {
+            startDebugPolling(response.jobId);
+          }
           if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
             setInputText('');
           } else if (mode === 'book') {
@@ -692,6 +756,9 @@ const CreateScreenContent: React.FC = () => {
         const resp = response as { success?: boolean; estimatedTime?: string; message?: string };
 
         if (resp?.success) {
+          if ((resp as any).jobId) {
+            startDebugPolling((resp as any).jobId);
+          }
           const estimated = normalizeEstimatedTime(resp.estimatedTime);
           setSuccessAlertEstimatedTime(estimated);
           setShowSuccessAlert(true);
@@ -1251,6 +1318,33 @@ const CreateScreenContent: React.FC = () => {
         </TouchableOpacity>
         </WalkthroughableView>
         </CopilotStep>
+
+        {isTestEnv && debugJobSnapshot && (
+          <View style={styles.debugCard}>
+            <Text style={styles.debugTitle}>Debug Job</Text>
+            <Text style={styles.debugMeta}>jobId: {debugJobId || debugJobSnapshot.id || '-'}</Text>
+            <Text style={styles.debugMeta}>status: {debugJobSnapshot.status || '-'}</Text>
+            {debugJobSnapshot.error ? (
+              <Text style={styles.debugError}>error: {String(debugJobSnapshot.error)}</Text>
+            ) : null}
+            <ScrollView style={styles.debugScroll} nestedScrollEnabled>
+              <Text selectable style={styles.debugText}>
+                {JSON.stringify(
+                  {
+                    progress: debugJobSnapshot.progress,
+                    queuePosition: debugJobSnapshot.queuePosition,
+                    resultDebug: debugJobSnapshot.result?.debug_info || null,
+                    resultMessage: debugJobSnapshot.result?.message || null,
+                    debugLogs: debugJobSnapshot.debugLogs || [],
+                    fullError: debugJobSnapshot.error || null,
+                  },
+                  null,
+                  2
+                )}
+              </Text>
+            </ScrollView>
+          </View>
+        )}
       </ScrollView>
 
       {/* Success Alert Modal */}
@@ -1675,6 +1769,41 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     marginLeft: 10,
+  },
+  debugCard: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: COLORS.slate900,
+  },
+  debugTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  debugMeta: {
+    marginTop: 6,
+    fontSize: 12,
+    color: COLORS.slate300,
+  },
+  debugError: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#fca5a5',
+  },
+  debugScroll: {
+    maxHeight: 260,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+  },
+  debugText: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#dbeafe',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   textInputDisabled: {
     backgroundColor: COLORS.slate50,
