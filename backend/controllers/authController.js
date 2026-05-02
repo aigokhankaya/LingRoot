@@ -10,6 +10,7 @@ const { v4: uuidv4 } = require('uuid');
 const { sendRegistrationNotification } = require('../utils/notifications/registrationNotifier.js');
 const { sendMail } = require('../utils/notifications/mailer.js');
 const { googleLoginService, facebookLoginService, appleLoginService } = require('../services/oauthService.js');
+const { getInitialFreeTrialEndDate } = require('../utils/subscription/freeTrial.js');
 
 // Dummy hash for constant-time comparison when user is not found (timing attack prevention)
 const DUMMY_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
@@ -313,6 +314,7 @@ exports.register = async (req, res) => {
       } else if (!trialPlan) {
         logger.error('[REGISTER] Free Trial plan not found in database');
       } else {
+        const freeTrialStartDate = new Date().toISOString();
         const { data: newSub, error: subErr } = await supabase
           .from('subscriptions')
           .insert([
@@ -322,8 +324,8 @@ exports.register = async (req, res) => {
               stripepriceid: trialPlan.id, // Link to subscription_plans for features
               status: 'active',
               audio_creation_count: 0,
-              startdate: new Date().toISOString(),
-              enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
+              startdate: freeTrialStartDate,
+              enddate: getInitialFreeTrialEndDate(freeTrialStartDate),
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             },
@@ -1048,6 +1050,7 @@ exports.verifyEmail = async (req, res) => {
 
         if (!existingSub) {
           // Trial süresiz - sadece 3 ses oluşturma hakkı
+          const freeTrialStartDate = new Date().toISOString();
           const { data: newSub, error: subError } = await supabase
             .from('subscriptions')
             .insert([
@@ -1056,8 +1059,8 @@ exports.verifyEmail = async (req, res) => {
                 plantype: 'Free Trial',
                 stripepriceid: trialPlan.id, // Link to subscription_plans for features
                 status: 'active',
-                startdate: new Date().toISOString(),
-                enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
+                startdate: freeTrialStartDate,
+                enddate: getInitialFreeTrialEndDate(freeTrialStartDate),
                 audio_creation_count: 0,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()

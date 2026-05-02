@@ -35,6 +35,7 @@ class JobQueue {
       data: jobData,
       result: null,
       error: null,
+      debugLogs: [],
       progress: 0,
       queuePosition // User-facing queue position info
     };
@@ -43,6 +44,33 @@ class JobQueue {
     this.activeJobsByUser.set(userId, jobId);
     logger.info(`[JobQueue] Created job ${jobId} for user ${userId}, queuePosition: ${queuePosition}`);
 
+    return job;
+  }
+
+  appendDebug(jobId, entry) {
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      logger.warn(`[JobQueue] Job ${jobId} not found for debug append`);
+      return null;
+    }
+
+    const logEntry = {
+      ts: new Date().toISOString(),
+      ...(entry && typeof entry === 'object' ? entry : { message: String(entry || '') }),
+    };
+
+    if (!Array.isArray(job.debugLogs)) {
+      job.debugLogs = [];
+    }
+
+    job.debugLogs.push(logEntry);
+
+    if (job.debugLogs.length > 100) {
+      job.debugLogs = job.debugLogs.slice(-100);
+    }
+
+    job.updatedAt = new Date().toISOString();
+    this.jobs.set(jobId, job);
     return job;
   }
 

@@ -62,6 +62,59 @@
     "bookSearch": "Kitaplardan Ara",
     "bookSearchDesc": "Başlığa, yazara veya genel terime göre kitap ara"
   },
+  "startOnboarding": {
+    "heroTitle": "İngilizce dinleyerek öğrenmeye başla",
+    "heroSubtitle": "Seviyene uygun ilk içeriklerini oluştur",
+    "benefits": {
+      "levelBased": "Seviyene uygun İngilizce",
+      "naturalVoice": "Doğal seslendirme",
+      "learnByListening": "Dinleyerek öğrenme"
+    },
+    "progressSuffix": "tamamlandı — sadece 3 adım kaldı",
+    "progressStates": {
+      "zero": "Başlamak için ilk içeriğini oluştur",
+      "one": "Harika! 2 adım kaldı",
+      "two": "Son adım — neredeyse hazır!"
+    },
+    "choose": "Devam etmek için bir seçenek seç",
+    "startSelect": "Başlamak için seç",
+    "completeStep": "Bu adımı tamamla",
+    "completed": "Tamamlandı",
+    "waiting": "Ses oluşturma işlemi devam ediyor. Hazır olduğunda ayrıca bildirim alacaksınız.",
+    "levelTitle": "Seviye seç",
+    "levelRequired": "Lütfen bir seviye seçin.",
+    "create": "Oluştur",
+    "text": {
+      "title": "Metinden Ses",
+      "description": "Bir cümle ya da kısa bir paragraf gir.",
+      "placeholder": "Örnek: Her sabah kahvemi hazırladıktan sonra pencerenin yanına oturup on dakika İngilizce podcast dinliyorum. Bazı kelimeleri ilk anda kaçırsam da aynı konuyu tekrar dinlediğimde cümleleri daha rahat anlamaya başlıyorum. Bu yöntem hem kelime bilgimi geliştiriyor hem de konuşma ritmine alışmama yardımcı oluyor.",
+      "helper": "Metnin İngilizce seslendirilir",
+      "cta": "Metin gir ve oluştur",
+      "visualLabel": "Metin",
+      "microGuide": "Metnin İngilizce seslendirilir",
+      "completedTitle": "Metinden Ses adımı tamamlandı"
+    },
+    "podcast": {
+      "title": "Podcast",
+      "description": "Bir konu gir. 2 dakikalık konuşma oluştur.",
+      "placeholder": "Örnek: Uzaktan çalışmanın avantajları ve zorlukları",
+      "helper": "En az 5 karakter girin",
+      "cta": "Konu gir ve podcast oluştur",
+      "visualLabel": "İki kişi konuşur (2 dk)",
+      "microGuide": "2 kişi karşılıklı konuşur",
+      "completedTitle": "Podcast adımı tamamlandı"
+    },
+    "topic": {
+      "title": "Konu Anlatımı",
+      "description": "Bir konu gir. Tek anlatıcılı içerik oluştur.",
+      "placeholder": "Örnek: Elektrikli arabaların çalışma prensibi",
+      "helper": "En az 5 karakter girin",
+      "cta": "Konu anlatımı oluştur",
+      "visualLabel": "Tek kişi anlatır",
+      "microGuide": "Tek kişi anlatır",
+      "completedTitle": "Konu Anlatımı adımı tamamlandı"
+    }
+  },
   "vocabulary": {
     "title": "Kelime Listesi",
     "headerTitle": "Kelime Listeleri",

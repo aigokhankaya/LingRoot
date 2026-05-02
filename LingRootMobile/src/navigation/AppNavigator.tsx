@@ -28,7 +28,7 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
-import HomeScreen from '../screens/HomeScreen';
+import HomeGateScreen from '../screens/HomeGateScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -325,7 +325,7 @@ const MainTabsContent = () => {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeGateScreen}
         options={{
           tabBarLabel: t('home.title'),
           headerTitle: t('home.title')

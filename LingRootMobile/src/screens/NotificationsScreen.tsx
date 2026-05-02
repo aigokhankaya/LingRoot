@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
@@ -22,7 +22,7 @@ import {
   deleteReadNotifications,
 } from '../services/userService';
 import { COLORS } from '../theme/colors';
-import type { RootStackParamList, AudioTrack, CEFRLevel } from '../types';
+import type { RootStackParamList } from '../types';
 import NotificationService from '../services/notificationService';
 
 interface NotificationItem {
@@ -113,19 +113,34 @@ const NotificationsScreen: React.FC = () => {
     // 2. Navigate based on notification type
     switch (notification.type) {
       case 'audio_created':
-        if (notification.metadata?.mp3_url) {
-          const track: AudioTrack = {
-            id: notification.metadata.audioId || notification.id,
-            title: notification.metadata.title || localizedContent.title,
-            url: notification.metadata.mp3_url,
-            mp3_url: notification.metadata.mp3_url,
-            level: (notification.metadata.level as CEFRLevel) || 'B1',
-            duration: typeof notification.metadata.duration === 'number'
-              ? notification.metadata.duration
-              : 0,
-            created_at: notification.createdAt,
-          };
-          navigation.navigate('AudioPlayer', { track, highlightMode: 'word' });
+        if (notification.metadata?.audioId || notification.metadata?.mp3_url) {
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'Main',
+                  state: {
+                    routes: [
+                      {
+                        name: 'Library',
+                        params: {
+                          notificationAudio: {
+                            ...notification.metadata,
+                            id: notification.metadata.audioId || notification.id,
+                            audioId: notification.metadata.audioId || notification.id,
+                            title: notification.metadata.title || localizedContent.title,
+                            mp3_url: notification.metadata.mp3_url,
+                            created_at: notification.createdAt,
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            })
+          );
         }
         break;
 

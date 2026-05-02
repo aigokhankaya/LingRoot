@@ -245,6 +245,7 @@ export async function createPodcastAsync(params: {
     personalityB?: string;
     includeHumor?: boolean;
     includeFiller?: boolean;
+    startGenerationType?: string;
 }): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
     const client = await getApiClientAsync();
     try {
@@ -261,6 +262,7 @@ export async function createPodcastAsync(params: {
             personalityB: params.personalityB,
             includeHumor: params.includeHumor,
             includeFiller: params.includeFiller,
+            startGenerationType: params.startGenerationType,
         }, {
             timeout: 30000,
         });

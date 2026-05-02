@@ -62,6 +62,59 @@
     "bookSearch": "Search Books",
     "bookSearchDesc": "Search by title, author, or general term"
   },
+  "startOnboarding": {
+    "heroTitle": "Start learning English by listening",
+    "heroSubtitle": "Create your first level-based content",
+    "benefits": {
+      "levelBased": "Level-based English",
+      "naturalVoice": "Natural voiceover",
+      "learnByListening": "Learn by listening"
+    },
+    "progressSuffix": "completed — only 3 steps left",
+    "progressStates": {
+      "zero": "Create your first content to begin",
+      "one": "Great! 2 steps left",
+      "two": "Final step — almost ready!"
+    },
+    "choose": "Choose an option to continue",
+    "startSelect": "Choose to start",
+    "completeStep": "Complete this step",
+    "completed": "Completed",
+    "waiting": "Audio creation is in progress. You will also receive a notification when it is ready.",
+    "levelTitle": "Choose a level",
+    "levelRequired": "Please select a level.",
+    "create": "Create",
+    "text": {
+      "title": "Text to Speech",
+      "description": "Enter a sentence or a short paragraph.",
+      "placeholder": "Example: After I make my coffee in the morning, I sit by the window and listen to an English podcast for ten minutes. Even if I miss some words at first, I start understanding the sentences much better when I listen to the same topic again. This habit improves my vocabulary and helps me get used to the rhythm of spoken English.",
+      "helper": "Your text will be voiced in English",
+      "cta": "Enter text and create",
+      "visualLabel": "Text",
+      "microGuide": "Your text will be voiced in English",
+      "completedTitle": "Text step completed"
+    },
+    "podcast": {
+      "title": "Podcast",
+      "description": "Enter a topic. Create a 2-minute conversation.",
+      "placeholder": "Example: The advantages and challenges of working remotely",
+      "helper": "Enter at least 5 characters",
+      "cta": "Enter a topic and create podcast",
+      "visualLabel": "Two people speak (2 min)",
+      "microGuide": "2 people talk to each other",
+      "completedTitle": "Podcast step completed"
+    },
+    "topic": {
+      "title": "Topic Narration",
+      "description": "Enter a topic. Create a single-speaker narration.",
+      "placeholder": "Example: How electric cars work",
+      "helper": "Enter at least 5 characters",
+      "cta": "Create topic narration",
+      "visualLabel": "Single speaker narration",
+      "microGuide": "One person explains the topic",
+      "completedTitle": "Topic narration step completed"
+    }
+  },
   "vocabulary": {
     "title": "Vocabulary",
     "headerTitle": "Vocabulary Lists",

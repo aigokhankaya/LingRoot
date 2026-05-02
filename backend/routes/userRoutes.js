@@ -3,6 +3,7 @@ const { getUserInterests, updateUserInterests } = require('../controllers/intere
 const { authenticate } = require('../middleware/authMiddleware');
 const { supabase } = require('../utils/storage/supabaseClient.js');
 const logger = require('../utils/common/logger.js');
+const { getStartGenerationState } = require('../utils/onboarding/startGeneration.js');
 
 const router = express.Router();
 
@@ -23,6 +24,16 @@ router.get('/user-settings', authenticate, async (req, res) => {
     return res.json({ success: true, data: data || { default_voice: null, settings: {} } });
   } catch (e) {
     logger.error('Unexpected error fetching user settings:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.get('/user-settings/start-progress', authenticate, async (req, res) => {
+  try {
+    const { progress } = await getStartGenerationState(req.user.id);
+    return res.json({ success: true, data: progress });
+  } catch (e) {
+    logger.error('Unexpected error fetching start generation progress:', e);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
