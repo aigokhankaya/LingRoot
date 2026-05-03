@@ -13,6 +13,7 @@ const axios = require('axios');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { runWithModelRateLimit } = require('../infra/modelRateLimiter.js');
 
 // Google TTS Client
 let ttsClient;
@@ -345,6 +346,36 @@ const ALLOWED_GEMINI_TTS_MODELS = new Set([
   'gemini-2.5-pro-tts',
 ]);
 
+async function sendGeminiTtsRequest({
+  requestBody,
+  accessToken,
+  projectId,
+  model,
+  taskName,
+  metadata = {},
+  timeout = 180000,
+}) {
+  return runWithModelRateLimit({
+    provider: 'vertex',
+    model,
+    taskName,
+    metadata,
+    maxExecutionMs: timeout,
+    fn: () => axios.post(
+      'https://texttospeech.googleapis.com/v1/text:synthesize',
+      requestBody,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'x-goog-user-project': projectId,
+          'Content-Type': 'application/json',
+        },
+        timeout,
+      }
+    ),
+  });
+}
+
 /**
  * Generate podcast script using OpenAI
  * @param {Object} options - Generation options
@@ -361,6 +392,7 @@ async function generatePodcastScript(options) {
     includeHumor = true,
     includeFiller = true,
     userId = null,
+    disableSpeakerValidation = false,
   } = options;
 
   // Calculate approximate word count based on duration (150 words per minute average)
@@ -381,6 +413,9 @@ async function generatePodcastScript(options) {
   }
 
   logger.info(`[GOOGLE-PODCAST] Using voices - A: ${speakerAInfo.speakerId} (${speakerAInfo.gender}), B: ${speakerBInfo.speakerId} (${speakerBInfo.gender})`);
+  if (disableSpeakerValidation) {
+    logger.info('[GOOGLE-PODCAST] Speaker validation disabled; preserving GPT speaker assignments as-is');
+  }
 
   // CEFR seviyelerine göre dil kuralları
   const CEFR_LANGUAGE_RULES = {
@@ -642,8 +677,10 @@ OUTPUT FORMAT (JSON):
 
       logger.info(`[GOOGLE-PODCAST] Generated total ${allTurns.length} turns for ${duration}-minute podcast`);
 
-      // Apply speaker assignment validation and correction for long podcasts
-      const { turns: correctedTurns, corrections } = validateAndCorrectSpeakerAssignments(allTurns);
+      // Optional: preserve GPT speaker assignments as-is when caller requires strict turn ownership.
+      const { turns: correctedTurns, corrections } = disableSpeakerValidation
+        ? { turns: allTurns, corrections: [] }
+        : validateAndCorrectSpeakerAssignments(allTurns);
 
       // Also correct turns_original to match corrected turns
       let correctedTurnsOriginal = allTurnsOriginal;
@@ -690,8 +727,10 @@ OUTPUT FORMAT (JSON):
 
     logger.info(`[GOOGLE-PODCAST] Generated script with ${scriptData.turns?.length || 0} turns`);
 
-    // Apply speaker assignment validation and correction
-    const { turns: correctedTurns, corrections } = validateAndCorrectSpeakerAssignments(scriptData.turns || []);
+    // Optional: preserve GPT speaker assignments as-is when caller requires strict turn ownership.
+    const { turns: correctedTurns, corrections } = disableSpeakerValidation
+      ? { turns: scriptData.turns || [], corrections: [] }
+      : validateAndCorrectSpeakerAssignments(scriptData.turns || []);
 
     // Also correct turns_original to match corrected turns
     let correctedTurnsOriginal = scriptData.turns_original || [];
@@ -889,18 +928,21 @@ async function synthesizeMultiSpeakerPodcast(options) {
         let lastError;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            const response = await axios.post(
-              `https://texttospeech.googleapis.com/v1/text:synthesize`,
+            const response = await sendGeminiTtsRequest({
               requestBody,
-              {
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'x-goog-user-project': projectId,
-                  'Content-Type': 'application/json',
-                },
-                timeout: 180000, // Increased from 120s to 180s for large chunks
-              }
-            );
+              accessToken,
+              projectId,
+              model,
+              taskName: 'podcast-legacy-chunked-synthesis',
+              metadata: {
+                userId,
+                speakerAId,
+                speakerBId,
+                chunkIndex: i,
+                chunkCount: chunks.length,
+              },
+              timeout: 180000,
+            });
 
             if (!response.data || !response.data.audioContent) {
               throw new Error('No audio content received from Gemini-TTS (chunked)');
@@ -982,18 +1024,20 @@ async function synthesizeMultiSpeakerPodcast(options) {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         // Use v1 endpoint for Gemini TTS multi-speaker support
-        const response = await axios.post(
-          `https://texttospeech.googleapis.com/v1/text:synthesize`,
+        const response = await sendGeminiTtsRequest({
           requestBody,
-          {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'x-goog-user-project': projectId,
-              'Content-Type': 'application/json',
-            },
-            timeout: 180000, // Increased from 120s to 180s
-          }
-        );
+          accessToken,
+          projectId,
+          model,
+          taskName: 'podcast-legacy-multi-speaker-synthesis',
+          metadata: {
+            userId,
+            speakerAId,
+            speakerBId,
+            turnCount: turns.length,
+          },
+          timeout: 180000,
+        });
 
         if (!response.data || !response.data.audioContent) {
           throw new Error('No audio content received from Gemini-TTS');
@@ -1118,8 +1162,9 @@ async function synthesizeMultiSpeakerPodcast(options) {
  * @param {string} speakerBId - Speaker B voice ID
  * @returns {Promise<Object>} Audio content and metadata
  */
-async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
+async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId, options = {}) {
   const { mergeAudioSegmentsToBuffer } = require('./audioMerger.js');
+  const { skipGeminiPerTurn = false } = options;
 
   logger.info('[GOOGLE-PODCAST] Using fallback separate synthesis method');
   logger.info(`[GOOGLE-PODCAST] Fallback requested speaker IDs (Gemini) - Host: ${speakerAId}, Guest: ${speakerBId}`);
@@ -1129,7 +1174,8 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
 
   // Prefer a per-turn Gemini-TTS call so the selected speaker IDs still apply.
   // If this fails, we will fall back to classic Google TTS (Neural2) as a last resort.
-  try {
+  if (!skipGeminiPerTurn) {
+    try {
     const auth = new GoogleAuth({
       keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -1173,18 +1219,20 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
       };
 
       // Use v1 endpoint for Gemini TTS multi-speaker support
-      const response = await axios.post(
-        `https://texttospeech.googleapis.com/v1/text:synthesize`,
+      const response = await sendGeminiTtsRequest({
         requestBody,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'x-goog-user-project': projectId,
-            'Content-Type': 'application/json',
-          },
-          timeout: 180000, // Increased from 120s to 180s
-        }
-      );
+        accessToken,
+        projectId,
+        model: 'gemini-2.5-flash-tts',
+        taskName: 'podcast-legacy-fallback-per-turn',
+        metadata: {
+          speakerAId,
+          speakerBId,
+          turnIndex: i,
+          turnSpeaker: turn.speaker,
+        },
+        timeout: 180000,
+      });
 
       if (!response.data || !response.data.audioContent) {
         throw new Error('No audio content received from Gemini-TTS (fallback per-turn)');
@@ -1208,15 +1256,19 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
       fallbackUsed: true,
       fallbackMode: 'gemini-per-turn',
     };
-  } catch (geminiPerTurnErr) {
-    const errMsg = geminiPerTurnErr.response?.data?.error?.message || geminiPerTurnErr.message;
-    const errCode = geminiPerTurnErr.response?.data?.error?.code || geminiPerTurnErr.code || 'UNKNOWN';
-    const errStatus = geminiPerTurnErr.response?.status || 'N/A';
-    logger.warn(`[GOOGLE-PODCAST] Gemini per-turn fallback failed: [${errCode}] ${errMsg} (HTTP ${errStatus})`);
-    logger.warn('[GOOGLE-PODCAST] Switching to Neural2 fallback as last resort...');
-    if (geminiPerTurnErr.response?.data) {
-      logger.debug(`[GOOGLE-PODCAST] Gemini per-turn error response: ${JSON.stringify(geminiPerTurnErr.response.data)}`);
     }
+    catch (geminiPerTurnErr) {
+      const errMsg = geminiPerTurnErr.response?.data?.error?.message || geminiPerTurnErr.message;
+      const errCode = geminiPerTurnErr.response?.data?.error?.code || geminiPerTurnErr.code || 'UNKNOWN';
+      const errStatus = geminiPerTurnErr.response?.status || 'N/A';
+      logger.warn(`[GOOGLE-PODCAST] Gemini per-turn fallback failed: [${errCode}] ${errMsg} (HTTP ${errStatus})`);
+      logger.warn('[GOOGLE-PODCAST] Switching to Neural2 fallback as last resort...');
+      if (geminiPerTurnErr.response?.data) {
+        logger.debug(`[GOOGLE-PODCAST] Gemini per-turn error response: ${JSON.stringify(geminiPerTurnErr.response.data)}`);
+      }
+    }
+  } else {
+    logger.warn('[GOOGLE-PODCAST] Skipping Gemini per-turn fallback and switching directly to Neural2 fallback');
   }
 
   const { synthesizeWithGoogle } = require('./googleTTS.js');
@@ -1335,6 +1387,8 @@ async function createGoogleTTSPodcast(options) {
     includeFiller = true,
     ttsModel,
     userId = null,
+    disableSpeakerValidation = false,
+    forceNeural2Fallback = false,
   } = options;
 
   // Load test mock: skip real podcast creation pipeline
@@ -1346,6 +1400,9 @@ async function createGoogleTTSPodcast(options) {
   }
 
   logger.info(`[GOOGLE-PODCAST] Creating podcast - Topic: "${topic}", Level: ${level}, Duration: ${duration}min`);
+  if (forceNeural2Fallback) {
+    logger.warn('[GOOGLE-PODCAST] Force Neural2 fallback enabled; skipping Gemini synthesis layers');
+  }
 
   try {
     let topicForScript = topic;
@@ -1374,6 +1431,7 @@ async function createGoogleTTSPodcast(options) {
       includeHumor,
       includeFiller,
       userId,
+      disableSpeakerValidation,
     });
 
     if (!scriptResult.turns || scriptResult.turns.length === 0) {
@@ -1441,14 +1499,21 @@ async function createGoogleTTSPodcast(options) {
       : null;
 
 
-    const audioResult = await synthesizeMultiSpeakerPodcast({
-      turns: turnsForTts,
-      speakerAId: finalHostSpeakerId,
-      speakerBId: finalGuestSpeakerId,
-      stylePrompt: stylePrompt,
-      model: requestedModel,
-      userId,
-    });
+    const audioResult = forceNeural2Fallback
+      ? await synthesizeFallbackPodcast(
+        turnsForTts,
+        finalHostSpeakerId,
+        finalGuestSpeakerId,
+        { skipGeminiPerTurn: true }
+      )
+      : await synthesizeMultiSpeakerPodcast({
+        turns: turnsForTts,
+        speakerAId: finalHostSpeakerId,
+        speakerBId: finalGuestSpeakerId,
+        stylePrompt: stylePrompt,
+        model: requestedModel,
+        userId,
+      });
 
     // Step 3: Upload audio to storage
     const fileName = `podcast_${uuidv4()}.mp3`;

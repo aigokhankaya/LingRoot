@@ -326,6 +326,37 @@ VERTEX_TTS_MAX_EXECUTION_MS=180000
 VERTEX_TTS_COOLDOWN_BASE_MS=10000
 ```
 
+Anlamları:
+
+- `VERTEX_TTS_MAX_CONCURRENCY=2`
+  - Aynı anda en fazla kaç `gemini-2.5-flash-tts` isteğinin aktif çalışabileceğini belirler.
+  - `2` demek, üçüncü ve sonraki işler queue'da bekler.
+
+- `VERTEX_TTS_MIN_SPACING_MS=1500`
+  - Aynı model için iki request başlangıcı arasında bırakılacak minimum süreyi milisaniye cinsinden belirler.
+  - `1500` demek, yeni bir Gemini TTS çağrısı en erken 1.5 saniye sonra başlatılır.
+
+- `VERTEX_TTS_MAX_WAIT_MS=120000`
+  - Bir işin queue içinde en fazla ne kadar bekleyebileceğini belirler.
+  - `120000` demek, iş 2 dakika içinde çalışmaya başlamazsa `MODEL_RATE_LIMIT_WAIT_TIMEOUT` hatası alır.
+
+- `VERTEX_TTS_MAX_EXECUTION_MS=180000`
+  - Tek bir dış API çağrısının en fazla ne kadar süre çalışabileceğini belirler.
+  - `180000` demek, bir Gemini TTS çağrısı 3 dakikayı aşarsa `MODEL_RATE_LIMIT_EXECUTION_TIMEOUT` olarak sonlandırılır.
+
+- `VERTEX_TTS_COOLDOWN_BASE_MS=10000`
+  - İlk `429 quota exceeded` sonrası uygulanacak temel cooldown süresini belirler.
+  - `10000` demek, ilk rate-limit sonrası model 10 saniye boyunca yeni iş başlatmaz.
+  - Ardışık `429` durumlarında bu süre katlanarak artar: `10s -> 20s -> 40s`.
+
+Pratik etkileri:
+
+- `max concurrency` arttıkça throughput artar ama quota riski yükselir.
+- `min spacing` arttıkça request patlaması azalır ama toplam süre uzar.
+- `max wait` çok düşük olursa queue altında daha sık timeout görülür.
+- `max execution` çok düşük olursa yavaş ama geçerli TTS çağrıları gereksiz kesilebilir.
+- `cooldown base` çok düşük olursa sistem `429` sonrası tekrar hızlı saldırır; çok yüksek olursa recovery yavaşlar.
+
 Hardcode yerine env tercih edilmeli.
 
 ## Testing Plan
