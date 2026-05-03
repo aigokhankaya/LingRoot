@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -58,8 +58,24 @@ const typeColors: Record<string, string> = {
     error: 'text-red-500 bg-red-100'
 };
 
+const MESSAGE_COLORS = [
+    { label: 'Varsayılan', value: '' },
+    { label: 'Mavi', value: '#2563EB' },
+    { label: 'Yeşil', value: '#16A34A' },
+    { label: 'Kırmızı', value: '#DC2626' },
+    { label: 'Turuncu', value: '#EA580C' },
+    { label: 'Mor', value: '#7C3AED' },
+];
+
+const MESSAGE_SIZES = [
+    { label: 'Small', value: 'small' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'Large', value: 'large' },
+];
+
 export default function NotificationsPage() {
     const router = useRouter();
+    const messageRef = useRef<HTMLTextAreaElement | null>(null);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -279,6 +295,75 @@ export default function NotificationsPage() {
         setError(null);
     };
 
+    const updateMessageWithSelection = (
+        transform: (selectedText: string, currentValue: string, selectionStart: number, selectionEnd: number) => {
+            nextValue: string;
+            nextSelectionStart: number;
+            nextSelectionEnd: number;
+        }
+    ) => {
+        const textarea = messageRef.current;
+        if (!textarea) {
+            return;
+        }
+
+        const selectionStart = textarea.selectionStart ?? message.length;
+        const selectionEnd = textarea.selectionEnd ?? message.length;
+        const selectedText = message.slice(selectionStart, selectionEnd);
+        const result = transform(selectedText, message, selectionStart, selectionEnd);
+
+        setMessage(result.nextValue);
+
+        requestAnimationFrame(() => {
+            textarea.focus();
+            textarea.setSelectionRange(result.nextSelectionStart, result.nextSelectionEnd);
+        });
+    };
+
+    const wrapSelection = (prefix: string, suffix: string, placeholder: string) => {
+        updateMessageWithSelection((selectedText, currentValue, selectionStart, selectionEnd) => {
+            const content = selectedText || placeholder;
+            const replacement = `${prefix}${content}${suffix}`;
+            const nextValue = `${currentValue.slice(0, selectionStart)}${replacement}${currentValue.slice(selectionEnd)}`;
+            const contentStart = selectionStart + prefix.length;
+            return {
+                nextValue,
+                nextSelectionStart: contentStart,
+                nextSelectionEnd: contentStart + content.length,
+            };
+        });
+    };
+
+    const prefixLines = (prefixBuilder: (line: string, index: number) => string, fallbackText: string) => {
+        updateMessageWithSelection((selectedText, currentValue, selectionStart, selectionEnd) => {
+            const content = selectedText || fallbackText;
+            const lines = content.split('\n');
+            const replacement = lines.map(prefixBuilder).join('\n');
+            const nextValue = `${currentValue.slice(0, selectionStart)}${replacement}${currentValue.slice(selectionEnd)}`;
+            return {
+                nextValue,
+                nextSelectionStart: selectionStart,
+                nextSelectionEnd: selectionStart + replacement.length,
+            };
+        });
+    };
+
+    const wrapWithTag = (tag: string, value: string, placeholder: string) => {
+        updateMessageWithSelection((selectedText, currentValue, selectionStart, selectionEnd) => {
+            const content = selectedText || placeholder;
+            const openTag = value ? `[${tag}=${value}]` : `[${tag}]`;
+            const closeTag = `[/${tag}]`;
+            const replacement = `${openTag}${content}${closeTag}`;
+            const nextValue = `${currentValue.slice(0, selectionStart)}${replacement}${currentValue.slice(selectionEnd)}`;
+            const contentStart = selectionStart + openTag.length;
+            return {
+                nextValue,
+                nextSelectionStart: contentStart,
+                nextSelectionEnd: contentStart + content.length,
+            };
+        });
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -350,33 +435,88 @@ export default function NotificationsPage() {
 
                             <div className="space-y-2">
                                 <Label htmlFor="message">Mesaj *</Label>
+                                <div className="flex flex-wrap gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2">
+                                    <Button type="button" variant="outline" size="sm" onClick={() => wrapSelection('## ', '', 'Başlık')}>
+                                        Başlık
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => wrapSelection('**', '**', 'kalın metin')}>
+                                        Kalın
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => wrapSelection('*', '*', 'italik metin')}>
+                                        İtalik
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => prefixLines((line) => `- ${line}`, 'Madde 1\nMadde 2')}>
+                                        Liste
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => prefixLines((line, index) => `${index + 1}. ${line}`, 'Adım 1\nAdım 2')}>
+                                        Numaralı
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => prefixLines((line) => `> ${line}`, 'Vurgulu not')}>
+                                        Alıntı
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => wrapWithTag('align', 'left', 'Sola hizalı metin')}>
+                                        Sola
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => wrapWithTag('align', 'center', 'Ortalanmış metin')}>
+                                        Ortala
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => wrapWithTag('align', 'right', 'Sağa hizalı metin')}>
+                                        Sağa
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => wrapWithTag('align', 'justify', 'Yaslanmış metin')}>
+                                        Yasla
+                                    </Button>
+                                    <Select
+                                        className="h-9 w-[140px] bg-white"
+                                        defaultValue=""
+                                        onValueChange={(value) => {
+                                            if (value) {
+                                                wrapWithTag('color', value, 'Renkli metin');
+                                            }
+                                        }}
+                                    >
+                                        <option value="" disabled>Yazı rengi</option>
+                                        {MESSAGE_COLORS.filter((item) => item.value).map((item) => (
+                                            <option key={item.value} value={item.value}>
+                                                {item.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                    <Select
+                                        className="h-9 w-[140px] bg-white"
+                                        defaultValue=""
+                                        onValueChange={(value) => {
+                                            if (value) {
+                                                wrapWithTag('size', value, 'Boyutlu metin');
+                                            }
+                                        }}
+                                    >
+                                        <option value="" disabled>Yazı boyutu</option>
+                                        {MESSAGE_SIZES.map((item) => (
+                                            <option key={item.value} value={item.value}>
+                                                {item.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </div>
                                 <Textarea
                                     id="message"
+                                    ref={messageRef}
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
-                                    placeholder="Bildirim mesajı"
+                                    placeholder={'## Başlık\nKısa açıklama\n\n- Önemli madde\n- Diğer madde\n\n> Vurgulu not'}
                                     rows={4}
                                 />
+                                <p className="text-xs text-gray-500">
+                                    Markdown benzeri biçimlendirme desteklenir. Kalın, italik, başlık, liste, alıntı, hizalama, yazı rengi ve yazı boyutu mobilde aynı biçimde gösterilir.
+                                </p>
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="type">Tip</Label>
                                 <Select value={type} onValueChange={(v) => setType(v as 'general_announcement' | 'campaign_notice')}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Bildirim tipi" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="general_announcement">
-                                            <span className="flex items-center gap-2">
-                                                <Info className="w-4 h-4 text-blue-500" /> Genel Duyurular
-                                            </span>
-                                        </SelectItem>
-                                        <SelectItem value="campaign_notice">
-                                            <span className="flex items-center gap-2">
-                                                <Bell className="w-4 h-4 text-pink-500" /> Kampanya Bildirimi
-                                            </span>
-                                        </SelectItem>
-                                    </SelectContent>
+                                    <option value="general_announcement">Genel Duyurular</option>
+                                    <option value="campaign_notice">Kampanya Bildirimi</option>
                                 </Select>
                             </div>
 

@@ -12,6 +12,7 @@ import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
 import BlurHeader from '../components/BlurHeader';
 import KeyboardToggleOverlay from '../components/KeyboardToggleOverlay';
+import FormattedNotificationMessage from '../components/notifications/FormattedNotificationMessage';
 import perfLog from '../utils/performanceLogger';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -573,12 +574,12 @@ const notificationModalStyles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.3,
   },
-  message: {
+  messageContainer: {
+    width: '100%',
     marginTop: 12,
-    fontSize: 15,
-    lineHeight: 24,
+  },
+  message: {
     color: COLORS.slate600,
-    textAlign: 'center',
   },
   linkBox: {
     width: '100%',
@@ -1318,9 +1319,12 @@ const AppNavigator = () => {
               {activeNotificationDetail?.title || (language === 'tr' ? 'Bildirim' : 'Notification')}
             </Text>
 
-            <Text style={notificationModalStyles.message}>
-              {activeNotificationDetail?.message || ''}
-            </Text>
+            <FormattedNotificationMessage
+              message={activeNotificationDetail?.message || ''}
+              style={notificationModalStyles.messageContainer}
+              paragraphStyle={notificationModalStyles.message}
+              centered
+            />
 
             {activeNotificationDetail?.link ? (
               <TouchableOpacity
