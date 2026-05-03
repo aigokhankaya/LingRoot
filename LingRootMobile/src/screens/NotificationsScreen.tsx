@@ -25,6 +25,7 @@ import {
 import { COLORS } from '../theme/colors';
 import type { RootStackParamList } from '../types';
 import NotificationService from '../services/notificationService';
+import { stripNotificationFormatting } from '../components/notifications/FormattedNotificationMessage';
 
 interface NotificationItem {
   id: string;
@@ -267,6 +268,7 @@ const NotificationsScreen: React.FC = () => {
 
   const getLocalizedNotificationContent = (notification: NotificationItem) => {
     const message = notification.message || '';
+    const plainMessage = stripNotificationFormatting(message);
 
     switch (notification.type) {
       case 'audio_created':
@@ -284,19 +286,19 @@ const NotificationsScreen: React.FC = () => {
               ? (language === 'tr'
                 ? 'Bir hata oluştu. Lütfen tekrar deneyin.'
                 : 'An error occurred. Please try again.')
-              : message,
+              : plainMessage,
         };
 
       case 'vocabulary_reminder':
         return {
           title: language === 'tr' ? 'Kelime Hatırlatıcısı' : 'Vocabulary Reminder',
-          message,
+          message: plainMessage,
         };
 
       default:
         return {
           title: notification.title,
-          message,
+          message: plainMessage,
         };
     }
   };

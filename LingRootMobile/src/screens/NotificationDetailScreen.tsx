@@ -11,6 +11,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { COLORS } from '../theme/colors';
+import FormattedNotificationMessage from '../components/notifications/FormattedNotificationMessage';
 
 const TYPE_LABELS: Record<string, string> = {
   general_announcement: 'Genel Duyurular',
@@ -91,7 +92,12 @@ const NotificationDetailScreen: React.FC = () => {
           </View>
 
           <Text style={styles.title}>{params.title || 'Bildirim'}</Text>
-          <Text style={styles.message}>{params.message || ''}</Text>
+          <FormattedNotificationMessage
+            message={params.message || ''}
+            style={styles.messageContainer}
+            paragraphStyle={styles.message}
+            centered
+          />
 
           {resolvedLink ? (
             <TouchableOpacity style={styles.linkSection} onPress={handleOpenLink} activeOpacity={0.8}>
@@ -178,12 +184,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.3,
   },
-  message: {
+  messageContainer: {
+    width: '100%',
     marginTop: 12,
-    fontSize: 15,
-    lineHeight: 24,
+  },
+  message: {
     color: COLORS.slate600,
-    textAlign: 'center',
   },
   linkSection: {
     width: '100%',
