@@ -51,7 +51,7 @@ const router = express.Router();
 const START_TEXT_VOICE = 'lr_gb_chirp3hd_sulafat';
 const START_TOPIC_VOICE = 'lr_gb_chirp3hd_sulafat';
 const START_PODCAST_HOST = 'Kore';
-const START_PODCAST_GUEST = 'Puck';
+const START_PODCAST_GUEST = 'Charon';
 
 function isGeminiQuotaError(error) {
   const message = error?.response?.data?.error?.message || error?.message || '';
@@ -96,7 +96,7 @@ async function createPodcastWithOptionalFallback(params) {
         throw error;
       }
 
-      logger.warn('[PODCAST] Podcast V2 quota exceeded, falling back to legacy podcast system');
+      logger.warn('[PODCAST] Podcast V2 quota exceeded, falling back directly to Neural2 legacy podcast flow with speaker validation disabled');
     }
   } else {
     logger.info('[PODCAST] Using legacy podcast system');
@@ -115,6 +115,8 @@ async function createPodcastWithOptionalFallback(params) {
     includeHumor: body.includeHumor,
     includeFiller: body.includeFiller,
     userId,
+    disableSpeakerValidation: podcastType === 'new',
+    forceNeural2Fallback: podcastType === 'new',
   });
 }
 

@@ -53,6 +53,7 @@ const STYLE_PROMPTS = {
  */
 async function createPodcastV2(options) {
   const startTime = Date.now();
+  const limiterJobId = uuidv4();
   const {
     topic,
     level = 'B1',
@@ -88,6 +89,7 @@ async function createPodcastV2(options) {
       includeHumor,
       includeFiller,
       userId,
+      disableSpeakerValidation: true,
     });
 
     if (!scriptResult.turns || scriptResult.turns.length === 0) {
@@ -115,11 +117,13 @@ async function createPodcastV2(options) {
         model,
         stylePrompt,
         userId,
+        jobId: limiterJobId,
       }),
       synthesizeSpeakerTurns(grouped.guestTurns, normalizedGuestId, 'Guest', {
         model,
         stylePrompt,
         userId,
+        jobId: limiterJobId,
       }),
     ]);
 

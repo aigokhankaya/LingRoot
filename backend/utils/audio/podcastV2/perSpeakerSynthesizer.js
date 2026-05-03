@@ -7,6 +7,7 @@ const { GoogleAuth } = require('google-auth-library');
 const axios = require('axios');
 const logger = require('../../common/logger.js');
 const { notifyAIError, AI_PROVIDERS } = require('../../notifications/aiErrorNotifier.js');
+const { runWithModelRateLimit } = require('../../infra/modelRateLimiter.js');
 
 // Gemini TTS configuration
 const GEMINI_TTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
@@ -47,6 +48,7 @@ async function synthesizeSingleTurn(text, speakerId, speakerAlias, options = {})
     projectId,
     model = DEFAULT_MODEL,
     stylePrompt = 'Speak naturally and conversationally.',
+    metadata = {},
   } = options;
 
   // Use text directly for single-speaker synthesis
@@ -84,18 +86,29 @@ async function synthesizeSingleTurn(text, speakerId, speakerAlias, options = {})
     try {
       const requestBody = buildRequestBody(usePrompt);
 
-      const response = await axios.post(
-        GEMINI_TTS_ENDPOINT,
-        requestBody,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'x-goog-user-project': projectId,
-            'Content-Type': 'application/json',
-          },
-          timeout: 60000,
-        }
-      );
+      const response = await runWithModelRateLimit({
+        provider: 'vertex',
+        model,
+        taskName: 'podcast-v2-turn-synthesis',
+        metadata: {
+          speakerId,
+          speakerAlias,
+          ...metadata,
+        },
+        maxExecutionMs: 60000,
+        fn: () => axios.post(
+          GEMINI_TTS_ENDPOINT,
+          requestBody,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'x-goog-user-project': projectId,
+              'Content-Type': 'application/json',
+            },
+            timeout: 60000,
+          }
+        ),
+      });
 
       if (!response.data || !response.data.audioContent) {
         throw new Error('No audio content received from Gemini TTS');
@@ -155,6 +168,7 @@ async function synthesizeSpeakerTurns(speakerTurns, speakerId, speakerAlias, opt
     model = DEFAULT_MODEL,
     stylePrompt = 'Speak naturally and conversationally.',
     userId = null,
+    jobId = null,
   } = options;
 
   logger.info(`[PODCAST-V2] Synthesizing ${speakerTurns.length} turns for ${speakerAlias} (${speakerId})`);
@@ -179,6 +193,11 @@ async function synthesizeSpeakerTurns(speakerTurns, speakerId, speakerAlias, opt
           projectId,
           model,
           stylePrompt,
+          metadata: {
+            userId,
+            jobId,
+            turnIndex: turn.originalIndex,
+          },
         }
       );
 

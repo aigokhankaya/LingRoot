@@ -38,7 +38,7 @@ export async function createStartPodcastAudio(topic: string, level: CEFRLevel) {
     duration: 2,
     ttsProvider: 'google',
     hostSpeakerId: 'Kore',
-    guestSpeakerId: 'Puck',
+    guestSpeakerId: 'Charon',
     startGenerationType: 'podcast' as any,
   } as any);
 }
