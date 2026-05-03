@@ -18,6 +18,9 @@ router.get('/today-vocabulary-count', notificationController.getTodayVocabularyC
 // Mark a specific notification as read
 router.put('/:id/read', notificationController.markAsRead);
 
+// Mark a specific notification as opened/clicked
+router.post('/:id/open', notificationController.markAsOpened);
+
 // Mark all notifications as read
 router.put('/read-all', notificationController.markAllAsRead);
 

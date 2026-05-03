@@ -38,6 +38,69 @@ router.get('/user-settings/start-progress', authenticate, async (req, res) => {
   }
 });
 
+router.put('/user-settings/notification-permission', authenticate, async (req, res) => {
+  try {
+    const {
+      granted = false,
+      status = 'unknown',
+      can_receive_remote = false,
+      platform = 'unknown',
+    } = req.body || {};
+
+    const { data: existing, error: readError } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (readError && readError.details !== 'The result contains 0 rows') {
+      logger.error('Error reading settings for notification permission:', readError);
+      return res.status(500).json({ success: false, message: 'Bildirim izin durumu kaydedilemedi' });
+    }
+
+    let settingsObj = {};
+    try {
+      settingsObj = existing?.settings && typeof existing.settings === 'string'
+        ? JSON.parse(existing.settings)
+        : (existing?.settings || {});
+    } catch {
+      settingsObj = {};
+    }
+
+    const notificationPermission = {
+      granted: Boolean(granted),
+      status: typeof status === 'string' ? status : 'unknown',
+      can_receive_remote: Boolean(can_receive_remote),
+      platform: typeof platform === 'string' ? platform : 'unknown',
+      updated_at: new Date().toISOString(),
+    };
+
+    const newSettings = {
+      ...(settingsObj || {}),
+      notification_permission: notificationPermission,
+    };
+
+    const { data, error: upsertError } = await supabase
+      .from('user_settings')
+      .upsert({ user_id: req.user.id, settings: newSettings }, { onConflict: 'user_id' })
+      .select('settings')
+      .single();
+
+    if (upsertError) {
+      logger.error('Error saving notification permission:', upsertError);
+      return res.status(500).json({ success: false, message: 'Bildirim izin durumu kaydedilemedi' });
+    }
+
+    return res.json({
+      success: true,
+      data: data?.settings?.notification_permission || notificationPermission,
+    });
+  } catch (e) {
+    logger.error('Unexpected error saving notification permission:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Book favorites stored inside user_settings.settings JSON as settings.favorite_books: number[] | string[]
 router.get('/user-book-favorites', authenticate, async (req, res) => {
   try {

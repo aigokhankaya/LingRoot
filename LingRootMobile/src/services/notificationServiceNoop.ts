@@ -45,6 +45,20 @@ class NotificationServiceNoop {
   public async getStatus(): Promise<{ isInitialized: boolean; hasPermission: boolean; scheduledCount: number }> {
     return { isInitialized: false, hasPermission: false, scheduledCount: 0 };
   }
+
+  public async getPermissionSnapshot(): Promise<{
+    granted: boolean;
+    status: string;
+    can_receive_remote: boolean;
+    platform: string;
+  }> {
+    return {
+      granted: false,
+      status: 'unknown',
+      can_receive_remote: false,
+      platform: Platform.OS,
+    };
+  }
 }
 
 export default NotificationServiceNoop.getInstance();

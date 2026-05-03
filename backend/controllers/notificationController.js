@@ -4,6 +4,20 @@ const { sendRealtimePushNotification } = require('../utils/notifications/pushNot
 
 const getNotificationLink = (notification) => notification.link ?? notification.data?.link ?? null;
 
+const buildOpenTrackingData = (data = {}, source = 'unknown') => {
+    const nextOpenCount = Number(data.open_count || 0) + 1;
+    const openedAt = new Date().toISOString();
+
+    return {
+        ...data,
+        was_opened: true,
+        opened_at: data.opened_at || openedAt,
+        last_opened_at: openedAt,
+        last_opened_source: source,
+        open_count: nextOpenCount,
+    };
+};
+
 /**
  * Get all notifications for a user
  * Filters out scheduled notifications that haven't fired yet (scheduledFor > now)
@@ -200,6 +214,79 @@ const markAsRead = async (req, res) => {
 };
 
 /**
+ * Mark a notification as opened/clicked by the user.
+ * This is separate from simple "read" state and tracks actual taps.
+ */
+const markAsOpened = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+        const source = typeof req.body?.source === 'string' && req.body.source.trim()
+            ? req.body.source.trim()
+            : 'unknown';
+
+        logger.info(`[NOTIFICATION][OPEN] Request received: user=${userId}, notification=${id}, source=${source}`);
+
+        const { data: notification, error: fetchError } = await supabase
+            .from('notifications')
+            .select('id, is_read, read_at, data')
+            .eq('id', id)
+            .eq('user_id', userId)
+            .single();
+
+        if (fetchError || !notification) {
+            logger.warn(`[NOTIFICATION][OPEN] Notification not found: user=${userId}, notification=${id}, source=${source}`);
+            return res.status(404).json({
+                success: false,
+                message: 'Bildirim bulunamadı'
+            });
+        }
+
+        const updatePayload = {
+            data: buildOpenTrackingData(notification.data || {}, source),
+            is_read: true,
+        };
+
+        if (!notification.read_at) {
+            updatePayload.read_at = new Date().toISOString();
+        }
+
+        const { data: updatedNotification, error: updateError } = await supabase
+            .from('notifications')
+            .update(updatePayload)
+            .eq('id', id)
+            .eq('user_id', userId)
+            .select('id, is_read, read_at, data')
+            .single();
+
+        if (updateError) {
+            logger.error('[NOTIFICATION] Supabase error marking opened:', updateError);
+            throw updateError;
+        }
+
+        logger.info(`[NOTIFICATION][OPEN] Saved: user=${userId}, notification=${id}, source=${source}, open_count=${updatedNotification?.data?.open_count}`);
+
+        return res.json({
+            success: true,
+            message: 'Bildirim açıldı olarak işaretlendi',
+            data: {
+                id: updatedNotification.id,
+                isRead: updatedNotification.is_read,
+                readAt: updatedNotification.read_at,
+                metadata: updatedNotification.data || {},
+            }
+        });
+    } catch (error) {
+        logger.error('[NOTIFICATION] Error marking notification as opened:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Bildirim açılma bilgisi kaydedilemedi',
+            error: error.message
+        });
+    }
+};
+
+/**
  * Mark all notifications as read
  */
 const markAllAsRead = async (req, res) => {
@@ -359,11 +446,23 @@ const sendNotification = async (req, res) => {
                 const chunkSize = 100;
                 for (let i = 0; i < notificationsToCreate.length; i += chunkSize) {
                     const chunk = notificationsToCreate.slice(i, i + chunkSize);
-                    await supabase.from('notifications').insert(chunk);
+                    const { data: insertedChunk, error: insertError } = await supabase
+                        .from('notifications')
+                        .insert(chunk)
+                        .select('id, user_id, data');
+
+                    if (insertError) throw insertError;
 
                     await Promise.allSettled(
-                        chunk.map((notification) =>
-                            sendRealtimePushNotification(notification.user_id, notificationPayload)
+                        chunk.map((notification, index) =>
+                            sendRealtimePushNotification(notification.user_id, {
+                                ...notificationPayload,
+                                data: {
+                                    ...notificationPayload.data,
+                                    ...(insertedChunk?.[index]?.data || {}),
+                                    notificationId: insertedChunk?.[index]?.id,
+                                }
+                            })
                         )
                     );
                 }
@@ -378,7 +477,7 @@ const sendNotification = async (req, res) => {
             });
         } else {
             // Send to specific user
-            const { error } = await supabase
+            const { data: insertedNotification, error } = await supabase
                 .from('notifications')
                 .insert([{
                     user_id: userId,
@@ -388,7 +487,9 @@ const sendNotification = async (req, res) => {
                     data: notificationData,
                     is_read: false,
                     created_at: new Date().toISOString()
-                }]);
+                }])
+                .select('id, data')
+                .single();
 
             if (error) {
                 // Check if user exists error
@@ -401,7 +502,14 @@ const sendNotification = async (req, res) => {
                 throw error;
             }
 
-            await sendRealtimePushNotification(userId, notificationPayload);
+            await sendRealtimePushNotification(userId, {
+                ...notificationPayload,
+                data: {
+                    ...notificationPayload.data,
+                    ...(insertedNotification?.data || {}),
+                    notificationId: insertedNotification?.id,
+                }
+            });
 
             res.json({
                 success: true,
@@ -721,6 +829,7 @@ module.exports = {
     getNotifications,
     getUnreadCount,
     markAsRead,
+    markAsOpened,
     markAllAsRead,
     deleteNotification,
     deleteReadNotifications,

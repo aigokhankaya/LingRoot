@@ -172,6 +172,12 @@ export type RootStackParamList = {
   TtsProviderSettings: undefined;
   TopicTree: undefined;
   Notifications: undefined;
+  NotificationDetail: {
+    title: string;
+    message: string;
+    type: string;
+    link?: string;
+  };
   AudioPlayer: { track: AudioTrack; highlightMode?: 'word' | 'sentence' };
 };
 
