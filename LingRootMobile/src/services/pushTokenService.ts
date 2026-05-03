@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // Lazy-load expo-constants to avoid crash when native module is not linked
 let Constants: Record<string, unknown> | null = null;
 try {
@@ -13,6 +14,7 @@ import NotificationService from './notificationService';
 console.log('[PushToken] pushTokenService module loaded');
 
 let refreshListenerAttached = false;
+const OPENED_NOTIFICATION_STORAGE_KEY = 'lingroot_opened_notification_payload';
 
 function forwardRemoteMessageToNotificationService(remoteMessage: any): void {
   try {
@@ -67,6 +69,93 @@ function forwardRemoteMessageToNotificationService(remoteMessage: any): void {
     svc.pendingAudioPayload = payload;
   } catch (error) {
     console.error('[FCM] Failed to forward remote message to notification service:', error);
+  }
+}
+
+function extractRemoteMessageEnvelope(remoteMessage: any): { kind: 'callback' | 'word'; value: string } | null {
+  try {
+    const remoteData = remoteMessage?.data || {};
+    const remoteType = remoteData?.type;
+
+    if (remoteData?.audioData) {
+      const audioData = typeof remoteData.audioData === 'string'
+        ? JSON.parse(remoteData.audioData)
+        : remoteData.audioData;
+      if (audioData) {
+        return {
+          kind: 'callback',
+          value: JSON.stringify({ type: 'audio_created', data: audioData }),
+        };
+      }
+    }
+
+    if (remoteData?.payload && remoteType === 'support_message') {
+      const supportData = typeof remoteData.payload === 'string'
+        ? JSON.parse(remoteData.payload)
+        : remoteData.payload;
+      if (supportData) {
+        return {
+          kind: 'callback',
+          value: JSON.stringify({ type: 'support_message', data: supportData }),
+        };
+      }
+    }
+
+    if (remoteData?.payload && remoteType) {
+      const genericData = typeof remoteData.payload === 'string'
+        ? JSON.parse(remoteData.payload)
+        : remoteData.payload;
+      if (genericData) {
+        return {
+          kind: 'callback',
+          value: JSON.stringify({ type: remoteType, data: genericData }),
+        };
+      }
+    }
+
+    if (remoteData?.wordId) {
+      return {
+        kind: 'word',
+        value: String(remoteData.wordId),
+      };
+    }
+  } catch (error) {
+    console.error('[FCM] Failed to extract remote message envelope:', error);
+  }
+
+  return null;
+}
+
+async function persistOpenedRemoteMessage(remoteMessage: any): Promise<void> {
+  try {
+    const envelope = extractRemoteMessageEnvelope(remoteMessage);
+    if (!envelope) {
+      return;
+    }
+
+    await AsyncStorage.setItem(OPENED_NOTIFICATION_STORAGE_KEY, JSON.stringify(envelope));
+  } catch (error) {
+    console.error('[FCM] Failed to persist opened remote message:', error);
+  }
+}
+
+export async function consumeStoredOpenedNotificationPayload(): Promise<{ kind: 'callback' | 'word'; value: string } | null> {
+  try {
+    const raw = await AsyncStorage.getItem(OPENED_NOTIFICATION_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    await AsyncStorage.removeItem(OPENED_NOTIFICATION_STORAGE_KEY);
+    const parsed = JSON.parse(raw);
+    if (!parsed || (parsed.kind !== 'callback' && parsed.kind !== 'word') || typeof parsed.value !== 'string') {
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error('[FCM] Failed to consume stored opened notification payload:', error);
+    return null;
   }
 }
 
@@ -193,6 +282,7 @@ export function setupFirebaseMessagingListeners(): () => void {
   // NOTE: Badge sync is handled by global onNotification handler in notificationService.ios.ts
   const unsubscribeOnNotificationOpened = messaging().onNotificationOpenedApp(async (remoteMessage) => {
     console.log('[FCM] Notification opened from background:', remoteMessage.notification?.title);
+    await persistOpenedRemoteMessage(remoteMessage);
     forwardRemoteMessageToNotificationService(remoteMessage);
   });
 
@@ -216,6 +306,7 @@ export async function checkInitialNotification(): Promise<void> {
     const initialNotification = await messaging().getInitialNotification();
     if (initialNotification) {
       console.log('[FCM] App opened from quit state via notification:', initialNotification.notification?.title);
+      await persistOpenedRemoteMessage(initialNotification);
       forwardRemoteMessageToNotificationService(initialNotification);
     }
   } catch (error) {
