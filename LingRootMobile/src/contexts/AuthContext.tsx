@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import secureStorage from '../services/secureStorage';
 import NotificationService from '../services/notificationService';
+import { syncNotificationPermissionToBackend } from '../services/notificationPermissionSync';
 import { registerPushTokenWithBackend, setupPushTokenRefreshListener } from '../services/pushTokenService';
 import {
   signInWithGoogle,
@@ -35,6 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isBootstrappingRef = useRef(true);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     // Configure Google Sign-In on app start
@@ -124,6 +127,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       subscription?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    syncNotificationPermissionToBackend(true);
+
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        syncNotificationPermissionToBackend();
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [user]);
 
   const checkAuthState = async () => {
     try {

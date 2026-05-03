@@ -25,6 +25,7 @@ const {
     sendNotification,
     getNotifications,
     getNotificationHistory,
+    markAsOpened,
 } = require('../controllers/notificationController.js');
 
 const createRes = () => {
@@ -41,7 +42,15 @@ describe('notificationController', () => {
     });
 
     test('sendNotification stores link inside data payload for a specific user', async () => {
-        const insert = jest.fn().mockResolvedValue({ error: null });
+        const single = jest.fn().mockResolvedValue({
+            data: {
+                id: 'notif-1',
+                data: { link: '/dashboard' },
+            },
+            error: null,
+        });
+        const select = jest.fn(() => ({ single }));
+        const insert = jest.fn(() => ({ select }));
         supabase.from.mockReturnValue({
             insert,
         });
@@ -73,7 +82,7 @@ describe('notificationController', () => {
         expect(sendRealtimePushNotification).toHaveBeenCalledWith(
             'user-1',
             expect.objectContaining({
-                data: { link: '/dashboard' },
+                data: { link: '/dashboard', notificationId: 'notif-1' },
             })
         );
         expect(res.json).toHaveBeenCalledWith({
@@ -179,6 +188,72 @@ describe('notificationController', () => {
                     }),
                 }),
             ],
+        }));
+    });
+
+    test('markAsOpened tracks open metadata and marks notification as read', async () => {
+        const singleFetch = jest.fn().mockResolvedValue({
+            data: {
+                id: 'notif-1',
+                is_read: false,
+                read_at: null,
+                data: { link: '/dashboard', open_count: 1 },
+            },
+            error: null,
+        });
+        const eqFetchUser = jest.fn(() => ({ single: singleFetch }));
+        const eqFetchId = jest.fn(() => ({ eq: eqFetchUser }));
+
+        const singleUpdate = jest.fn().mockResolvedValue({
+            data: {
+                id: 'notif-1',
+                is_read: true,
+                read_at: '2026-05-03T10:00:00.000Z',
+                data: {
+                    link: '/dashboard',
+                    was_opened: true,
+                    open_count: 2,
+                    last_opened_source: 'list',
+                },
+            },
+            error: null,
+        });
+        const selectUpdate = jest.fn(() => ({ single: singleUpdate }));
+        const eqUpdateUser = jest.fn(() => ({ select: selectUpdate }));
+        const eqUpdateId = jest.fn(() => ({ eq: eqUpdateUser }));
+        const update = jest.fn(() => ({ eq: eqUpdateId }));
+
+        supabase.from
+            .mockReturnValueOnce({ select: jest.fn(() => ({ eq: eqFetchId })) })
+            .mockReturnValueOnce({ update });
+
+        const req = {
+            user: { id: 'user-1' },
+            params: { id: 'notif-1' },
+            body: { source: 'list' },
+        };
+        const res = createRes();
+
+        await markAsOpened(req, res);
+
+        expect(update).toHaveBeenCalledWith(expect.objectContaining({
+            is_read: true,
+            data: expect.objectContaining({
+                was_opened: true,
+                open_count: 2,
+                last_opened_source: 'list',
+            }),
+        }));
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            data: expect.objectContaining({
+                id: 'notif-1',
+                isRead: true,
+                metadata: expect.objectContaining({
+                    was_opened: true,
+                    open_count: 2,
+                }),
+            }),
         }));
     });
 });

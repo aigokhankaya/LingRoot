@@ -14,6 +14,62 @@ console.log('[PushToken] pushTokenService module loaded');
 
 let refreshListenerAttached = false;
 
+function forwardRemoteMessageToNotificationService(remoteMessage: any): void {
+  try {
+    const remoteData = remoteMessage?.data || {};
+    const remoteType = remoteData?.type;
+    const svc: any = NotificationService;
+    const callback = svc?.responseCallback || null;
+
+    let payload: string | null = null;
+
+    if (remoteData?.audioData) {
+      const audioData = typeof remoteData.audioData === 'string'
+        ? JSON.parse(remoteData.audioData)
+        : remoteData.audioData;
+      if (audioData) {
+        payload = JSON.stringify({ type: 'audio_created', data: audioData });
+      }
+    } else if (remoteData?.payload && remoteType === 'support_message') {
+      const supportData = typeof remoteData.payload === 'string'
+        ? JSON.parse(remoteData.payload)
+        : remoteData.payload;
+      if (supportData) {
+        payload = JSON.stringify({ type: 'support_message', data: supportData });
+      }
+    } else if (remoteData?.payload && remoteType) {
+      const genericData = typeof remoteData.payload === 'string'
+        ? JSON.parse(remoteData.payload)
+        : remoteData.payload;
+      if (genericData) {
+        payload = JSON.stringify({ type: remoteType, data: genericData });
+      }
+    } else if (remoteData?.wordId) {
+      const wordId = String(remoteData.wordId);
+      if (callback) {
+        callback(wordId);
+      } else {
+        svc.pendingWordId = wordId;
+      }
+      return;
+    }
+
+    if (!payload) {
+      return;
+    }
+
+    if (callback) {
+      callback(payload);
+      return;
+    }
+
+    svc.pendingRemotePayload = payload;
+    svc.pendingAudioPayload = payload;
+  } catch (error) {
+    console.error('[FCM] Failed to forward remote message to notification service:', error);
+  }
+}
+
 async function getAppVersion(): Promise<string | null> {
   try {
     const anyConstants: any = Constants;
@@ -137,7 +193,7 @@ export function setupFirebaseMessagingListeners(): () => void {
   // NOTE: Badge sync is handled by global onNotification handler in notificationService.ios.ts
   const unsubscribeOnNotificationOpened = messaging().onNotificationOpenedApp(async (remoteMessage) => {
     console.log('[FCM] Notification opened from background:', remoteMessage.notification?.title);
-    // Badge sync handled by PushNotification.configure onNotification handler
+    forwardRemoteMessageToNotificationService(remoteMessage);
   });
 
   return () => {
@@ -160,7 +216,7 @@ export async function checkInitialNotification(): Promise<void> {
     const initialNotification = await messaging().getInitialNotification();
     if (initialNotification) {
       console.log('[FCM] App opened from quit state via notification:', initialNotification.notification?.title);
-      // Badge sync handled at app startup in App.tsx - no need to call here
+      forwardRemoteMessageToNotificationService(initialNotification);
     }
   } catch (error) {
     console.error('[FCM] Error checking initial notification:', error);

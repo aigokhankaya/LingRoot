@@ -47,6 +47,7 @@ async function sendRealtimePushNotification(userId, notification) {
     if (notification.data) {
       if (notification.type === 'audio_created' || notification.type === 'audio_failed') {
         const {
+          notificationId,
           jobId,
           audioId,
           mp3_url,
@@ -56,6 +57,7 @@ async function sendRealtimePushNotification(userId, notification) {
         } = notification.data || {};
 
         dataPayload.audioData = JSON.stringify({
+          notificationId,
           jobId,
           audioId,
           mp3_url,
@@ -64,7 +66,12 @@ async function sendRealtimePushNotification(userId, notification) {
           duration,
         });
       } else {
-        dataPayload.payload = JSON.stringify(notification.data);
+        dataPayload.payload = JSON.stringify({
+          ...(notification.data || {}),
+          title: notification.title,
+          message: notification.body,
+          type: notification.type || 'general',
+        });
       }
     }
 
@@ -230,7 +237,13 @@ async function sendPushNotification(userId, notification) {
 
     logger.info(`[PushNotification] Notification stored successfully:`, data);
 
-    await sendRealtimePushNotification(userId, notification);
+    await sendRealtimePushNotification(userId, {
+      ...notification,
+      data: {
+        ...(notification.data || {}),
+        notificationId: data.id,
+      },
+    });
 
     return { success: true, data };
   } catch (error) {

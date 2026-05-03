@@ -16,6 +16,13 @@ const DAILY_SCHEDULED_COUNT_KEY = 'daily_vocabulary_scheduled';
 // Event name for badge updates (used by ProfileScreen)
 export const NOTIFICATION_BADGE_UPDATE_EVENT = 'notificationBadgeUpdate';
 
+export type NotificationPermissionSnapshot = {
+  granted: boolean;
+  status: 'authorized' | 'denied' | 'unknown';
+  can_receive_remote: boolean;
+  platform: 'ios';
+};
+
 // iOS: Early configure and native listener preserved
 try {
   PushNotification.configure({
@@ -46,7 +53,9 @@ try {
           const svc = NotificationService.getInstance?.();
           if (svc && audioData) {
             const cb = (svc as any).responseCallback as ((data: string) => void) | null;
-            if (cb) cb(JSON.stringify({ type: 'audio_created', data: audioData }));
+            const payload = JSON.stringify({ type: 'audio_created', data: audioData });
+            if (cb) cb(payload);
+            else (svc as any).pendingRemotePayload = payload;
           }
           return;
         }
@@ -62,10 +71,34 @@ try {
             const svc = NotificationService.getInstance?.();
             if (svc && supportData) {
               const cb = (svc as any).responseCallback as ((data: string) => void) | null;
-              if (cb) cb(JSON.stringify({ type: 'support_message', data: supportData }));
+              const payload = JSON.stringify({ type: 'support_message', data: supportData });
+              if (cb) cb(payload);
+              else (svc as any).pendingRemotePayload = payload;
             }
           } catch (e) {
             console.error('[NotificationService iOS] Error handling support_message notification:', e);
+          }
+          return;
+        }
+
+        if (userInfo.payload) {
+          try {
+            const genericData = typeof userInfo.payload === 'string'
+              ? JSON.parse(userInfo.payload)
+              : userInfo.payload;
+
+            const svc = NotificationService.getInstance?.();
+            if (svc && genericData) {
+              const cb = (svc as any).responseCallback as ((data: string) => void) | null;
+              const payload = JSON.stringify({ type: userInfo.type || 'general', data: genericData });
+              if (cb) {
+                cb(payload);
+              } else {
+                (svc as any).pendingRemotePayload = payload;
+              }
+            }
+          } catch (e) {
+            console.error('[NotificationService iOS] Error handling generic notification payload:', e);
           }
           return;
         }
@@ -133,6 +166,7 @@ class NotificationService {
   private isInitialized = false;
   private hasPermission = false;
   private pendingWordId: string | null = null;
+  private pendingRemotePayload: string | null = null;
   private responseCallback: ((wordId: string) => void) | null = null;
   private rescheduleRunning = false;
   private rescheduleQueued = false;
@@ -502,6 +536,13 @@ class NotificationService {
 
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {
     this.responseCallback = navigationCallback;
+    if (this.pendingRemotePayload && navigationCallback) {
+      const payload = this.pendingRemotePayload;
+      this.pendingRemotePayload = null;
+      try {
+        navigationCallback(payload);
+      } catch {}
+    }
     if (Platform.OS === 'ios') {
       PushNotificationIOS.addEventListener('notification', (notification: any) => {
         const wordId = notification.userInfo?.wordId;
@@ -520,6 +561,7 @@ class NotificationService {
     notificationTapListener = null;
     this.responseCallback = null;
     this.pendingWordId = null;
+    this.pendingRemotePayload = null;
   }
 
   public consumePendingWordId(): string | null { const id = this.pendingWordId; this.pendingWordId = null; return id; }
@@ -541,6 +583,30 @@ class NotificationService {
       const pending = await this.getScheduledNotifications();
       return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: pending.length };
     } catch { return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: 0 }; }
+  }
+
+  public async getPermissionSnapshot(): Promise<NotificationPermissionSnapshot> {
+    return new Promise((resolve) => {
+      try {
+        PushNotificationIOS.checkPermissions((permissions: any) => {
+          const granted = !!(permissions?.alert || permissions?.badge || permissions?.sound);
+          this.hasPermission = granted;
+          resolve({
+            granted,
+            status: granted ? 'authorized' : 'denied',
+            can_receive_remote: granted,
+            platform: 'ios',
+          });
+        });
+      } catch {
+        resolve({
+          granted: this.hasPermission,
+          status: this.hasPermission ? 'authorized' : 'unknown',
+          can_receive_remote: this.hasPermission,
+          platform: 'ios',
+        });
+      }
+    });
   }
 
   public async getScheduledNotifications(): Promise<Array<{ id: string; title: string; body: string; fireDate: Date; wordId?: string }>> {

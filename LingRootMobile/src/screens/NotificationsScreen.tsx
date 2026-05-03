@@ -17,6 +17,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import {
   getAllNotifications,
   getNotificationUnreadCount,
+  markNotificationAsOpened,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteReadNotifications,
@@ -32,6 +33,7 @@ interface NotificationItem {
   type: string;
   isRead: boolean;
   createdAt: string;
+  link?: string | null;
   metadata?: {
     wordId?: string;
     audioId?: string;
@@ -97,6 +99,7 @@ const NotificationsScreen: React.FC = () => {
 
   const handleNotificationPress = async (notification: NotificationItem) => {
     const localizedContent = getLocalizedNotificationContent(notification);
+    markNotificationAsOpened(notification.id, 'list').catch(() => { });
 
     // 1. Mark as read (background, no await)
     if (!notification.isRead) {
@@ -151,7 +154,16 @@ const NotificationsScreen: React.FC = () => {
         break;
 
       default:
-        // No action for other notification types
+        navigation.navigate('NotificationDetail', {
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          link: typeof notification.link === 'string'
+            ? notification.link
+            : typeof notification.metadata?.link === 'string'
+            ? notification.metadata.link
+            : undefined,
+        });
         break;
     }
   };
@@ -213,6 +225,10 @@ const NotificationsScreen: React.FC = () => {
         return 'school';
       case 'audio_created':
         return 'volume-up';
+      case 'general_announcement':
+        return 'campaign';
+      case 'campaign_notice':
+        return 'local-offer';
       case 'success':
         return 'check-circle';
       case 'warning':
@@ -232,6 +248,10 @@ const NotificationsScreen: React.FC = () => {
         return '#8b5cf6'; // violet-500 for learning
       case 'audio_created':
         return COLORS.brandTeal;
+      case 'general_announcement':
+        return '#2563eb';
+      case 'campaign_notice':
+        return '#db2777';
       case 'success':
         return '#22c55e';
       case 'warning':

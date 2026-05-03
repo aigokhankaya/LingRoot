@@ -71,6 +71,16 @@ export async function updateNotificationSettings(settings: any): Promise<void> {
     await client.http.put('/api/users/notification-settings', settings);
 }
 
+export async function updateNotificationPermission(data: {
+    granted: boolean;
+    status: string;
+    can_receive_remote: boolean;
+    platform: string;
+}): Promise<void> {
+    const client = await getApiClientAsync();
+    await client.http.put('/api/user-settings/notification-permission', data);
+}
+
 /**
  * Check API connectivity/health
  */
@@ -230,6 +240,21 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
         try {
             await client.http.post(`/api/tts/notifications/${notificationId}/read`);
         } catch { }
+    }
+}
+
+export async function markNotificationAsOpened(
+    notificationId: string,
+    source: 'list' | 'push' | 'cold_start' | 'unknown' = 'unknown'
+): Promise<void> {
+    const client = await getApiClientAsync();
+    try {
+        console.log('[NotificationOpen] Sending open event:', { notificationId, source });
+        await client.http.post(`/api/notifications/${notificationId}/open`, { source });
+        console.log('[NotificationOpen] Open event saved:', { notificationId, source });
+    } catch {
+        console.log('[NotificationOpen] Open event failed:', { notificationId, source });
+        // Non-blocking tracking event
     }
 }
 

@@ -8,6 +8,13 @@ import { createVocabularyNotification, deleteScheduledVocabularyReminders, getNo
 // Event name for badge updates (used by ProfileScreen)
 export const NOTIFICATION_BADGE_UPDATE_EVENT = 'notificationBadgeUpdate';
 
+export type NotificationPermissionSnapshot = {
+  granted: boolean;
+  status: 'granted' | 'denied' | 'unknown';
+  can_receive_remote: boolean;
+  platform: 'android';
+};
+
 class NotificationService {
   private static instance: NotificationService;
   private isInitialized = false;
@@ -124,6 +131,29 @@ class NotificationService {
                 }
               } catch (e) {
                 console.error('[NotificationService][Android] Error handling support_message notification:', e);
+              }
+              return;
+            }
+
+            if (userInfo.payload) {
+              try {
+                const genericData = typeof userInfo.payload === 'string'
+                  ? JSON.parse(userInfo.payload)
+                  : userInfo.payload;
+
+                if (!genericData) {
+                  return;
+                }
+
+                const payload = JSON.stringify({ type: userInfo.type || 'general', data: genericData });
+
+                if (this.responseCallback) {
+                  this.responseCallback(payload);
+                } else {
+                  this.pendingAudioPayload = payload;
+                }
+              } catch (e) {
+                console.error('[NotificationService][Android] Error handling generic notification payload:', e);
               }
               return;
             }
@@ -430,6 +460,29 @@ class NotificationService {
       const pending = await this.getScheduledNotifications();
       return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: pending.length };
     } catch { return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: this.scheduledCount }; }
+  }
+
+  public async getPermissionSnapshot(): Promise<NotificationPermissionSnapshot> {
+    try {
+      const apiLevel = Number(Platform.Version) || 0;
+      const granted = apiLevel >= 33
+        ? await PermissionsAndroid.check('android.permission.POST_NOTIFICATIONS' as any)
+        : true;
+      this.hasPermission = granted;
+      return {
+        granted,
+        status: granted ? 'granted' : 'denied',
+        can_receive_remote: granted,
+        platform: 'android',
+      };
+    } catch {
+      return {
+        granted: this.hasPermission,
+        status: this.hasPermission ? 'granted' : 'unknown',
+        can_receive_remote: this.hasPermission,
+        platform: 'android',
+      };
+    }
   }
 
   public async getScheduledNotifications(): Promise<Array<{ id: string; title: string; body: string; fireDate: Date; wordId?: string }>> {

@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { View, TouchableOpacity, Text, StyleSheet, Animated, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Animated, ActivityIndicator, Modal, Linking } from 'react-native';
 import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
@@ -16,7 +16,7 @@ import perfLog from '../utils/performanceLogger';
 
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
-import { getUnreadNotifications, markNotificationAsRead } from '../services/userService';
+import { getUnreadNotifications, markNotificationAsOpened, markNotificationAsRead } from '../services/userService';
 import { setupFirebaseMessagingListeners, checkInitialNotification } from '../services/pushTokenService';
 
 import { useLanguage } from '../contexts/LanguageContext';
@@ -49,6 +49,7 @@ const TtsProviderSettingsScreenLazy = React.lazy(() => import('../screens/TtsPro
 const LiroScreenLazy = React.lazy(() => import('../screens/LiroScreen'));
 const AudioPlayerScreenLazy = React.lazy(() => import('../screens/AudioPlayerScreen'));
 const NotificationsScreenLazy = React.lazy(() => import('../screens/NotificationsScreen'));
+const NotificationDetailScreenLazy = React.lazy(() => import('../screens/NotificationDetailScreen'));
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -507,6 +508,136 @@ const splashStyles = StyleSheet.create({
   },
 });
 
+const notificationModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.58)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 22,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.18,
+    shadowRadius: 34,
+    elevation: 18,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconShell: {
+    marginTop: 4,
+    marginBottom: 18,
+  },
+  iconGradient: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(39, 190, 170, 0.12)',
+  },
+  typeBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.brandTeal,
+  },
+  title: {
+    marginTop: 16,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '800',
+    color: COLORS.slate900,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  message: {
+    marginTop: 12,
+    fontSize: 15,
+    lineHeight: 24,
+    color: COLORS.slate600,
+    textAlign: 'center',
+  },
+  linkBox: {
+    width: '100%',
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  linkText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#2563EB',
+    textDecorationLine: 'underline',
+  },
+  primaryButton: {
+    marginTop: 22,
+    width: '100%',
+    backgroundColor: COLORS.brandTeal,
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+});
+
+const normalizeNotificationLink = (link?: string): string => {
+  if (!link) {
+    return '';
+  }
+
+  const trimmed = link.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const resolved = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : trimmed.startsWith('/')
+      ? `https://www.lingroot.com${trimmed}`
+      : `https://${trimmed}`;
+
+  return encodeURI(resolved);
+};
+
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
   const { t, language } = useLanguage();
@@ -515,6 +646,42 @@ const AppNavigator = () => {
   const [initialWordId, setInitialWordId] = useState<string | null>(null);
   const [initialAudioNotification, setInitialAudioNotification] = useState<any | null>(null);
   const [initialSupportNotification, setInitialSupportNotification] = useState<any | null>(null);
+  const [activeNotificationDetail, setActiveNotificationDetail] = useState<{
+    title: string;
+    message: string;
+    type: string;
+    link?: string;
+  } | null>(null);
+
+  const openNotificationDetailModal = (notificationData: any) => {
+    setActiveNotificationDetail({
+      title: notificationData?.title || (language === 'tr' ? 'Bildirim' : 'Notification'),
+      message: notificationData?.message || '',
+      type: notificationData?.type || 'general_announcement',
+      link: typeof notificationData?.link === 'string' ? notificationData.link : undefined,
+    });
+  };
+
+  const closeNotificationDetailModal = () => {
+    setActiveNotificationDetail(null);
+  };
+
+  const handleOpenNotificationLink = async () => {
+    if (!activeNotificationDetail?.link) {
+      return;
+    }
+
+    const resolvedLink = normalizeNotificationLink(activeNotificationDetail.link);
+
+    try {
+      const canOpen = await Linking.canOpenURL(resolvedLink);
+      if (canOpen) {
+        await Linking.openURL(resolvedLink);
+      }
+    } catch {
+      // Ignore link open failures
+    }
+  };
 
   // Store navigation ref globally for direct access from notification service
   useEffect(() => {
@@ -558,6 +725,7 @@ const AppNavigator = () => {
 
         const isAudioNotification = parsed && parsed.type === 'audio_created' && parsed.data;
         const isSupportNotification = parsed && parsed.type === 'support_message' && parsed.data;
+        const isGenericNotification = parsed && parsed.data && !isAudioNotification && !isSupportNotification;
 
         const navigateToAudioFromNotification = (audioData: any) => {
           try {
@@ -611,8 +779,22 @@ const AppNavigator = () => {
           }
         };
 
+        const navigateToGenericNotification = (notificationData: any) => {
+          try {
+            openNotificationDetailModal(notificationData);
+          } catch (e) {
+            console.error('Navigation error (generic notification):', e);
+          }
+        };
+
         if (navReady) {
           if (isAudioNotification) {
+            if (parsed?.data?.notificationId) {
+              console.log('[AppNav][Notification] Marking audio notification opened from push:', parsed.data.notificationId);
+              markNotificationAsOpened(String(parsed.data.notificationId), 'push').catch(() => { });
+            } else {
+              console.log('[AppNav][Notification] Audio notification missing notificationId:', parsed?.data);
+            }
             console.log('[AppNav][Notification] Navigating to Library with audio data:', {
               keys: parsed && parsed.data ? Object.keys(parsed.data) : [],
               audioId: parsed?.data?.audioId,
@@ -620,8 +802,23 @@ const AppNavigator = () => {
             });
             navigateToAudioFromNotification(parsed.data);
           } else if (isSupportNotification) {
+            if (parsed?.data?.notificationId) {
+              console.log('[AppNav][Notification] Marking support notification opened from push:', parsed.data.notificationId);
+              markNotificationAsOpened(String(parsed.data.notificationId), 'push').catch(() => { });
+            } else {
+              console.log('[AppNav][Notification] Support notification missing notificationId:', parsed?.data);
+            }
             console.log('[AppNav][Notification] Navigating to Support Chat with data:', parsed.data);
             navigateToSupportFromNotification(parsed.data);
+          } else if (isGenericNotification) {
+            if (parsed?.data?.notificationId) {
+              console.log('[AppNav][Notification] Marking generic notification opened from push:', parsed.data.notificationId, parsed.data);
+              markNotificationAsOpened(String(parsed.data.notificationId), 'push').catch(() => { });
+            } else {
+              console.log('[AppNav][Notification] Generic notification missing notificationId:', parsed?.data);
+            }
+            console.log('[AppNav][Notification] Generic notification opened:', parsed.data);
+            navigateToGenericNotification(parsed.data);
           } else {
             const wordId = parsed ? (parsed.wordId || data) : data;
             navigateToVocabularyFromNotification(String(wordId));
@@ -633,6 +830,12 @@ const AppNavigator = () => {
           } else if (isSupportNotification) {
             console.log('[AppNav][Notification] Nav not ready, caching initial support notification');
             setInitialSupportNotification(parsed.data);
+          } else if (isGenericNotification) {
+            console.log('[AppNav][Notification] Caching generic notification for cold start buffer:', parsed?.data);
+            setInitialSupportNotification({
+              __generic: true,
+              ...parsed.data,
+            });
           } else {
             const wordId = parsed ? (parsed.wordId || data) : data;
             setInitialWordId(String(wordId));
@@ -647,10 +850,87 @@ const AppNavigator = () => {
             const PushNotificationIOS = require('@react-native-community/push-notification-ios').default;
             const initial = await PushNotificationIOS.getInitialNotification();
             const data: any = initial?.getData ? initial.getData() : null;
-            const initialWordId = data?.wordId ?? data?.userInfo?.wordId;
+            const userInfo = data?.userInfo || data || {};
+            console.log('[AppNav][ColdStart][iOSNative] Raw initial notification:', data);
+            console.log('[AppNav][ColdStart][iOSNative] Parsed userInfo:', userInfo);
+
+            const audioRaw = userInfo?.audioData;
+            const supportRaw = userInfo?.payload || userInfo?.supportData;
+            const initialWordId = userInfo?.wordId ?? userInfo?.item?.wordId;
+
+            if (audioRaw) {
+              const audioData = typeof audioRaw === 'string' ? JSON.parse(audioRaw) : audioRaw;
+              if (audioData) {
+                setInitialAudioNotification(audioData);
+                return;
+              }
+            }
+
+            if (supportRaw && userInfo?.type === 'support_message') {
+              const supportData = typeof supportRaw === 'string' ? JSON.parse(supportRaw) : supportRaw;
+              if (supportData) {
+                setInitialSupportNotification(supportData);
+                return;
+              }
+            }
+
+            if (supportRaw && userInfo?.type && userInfo?.type !== 'support_message') {
+              const genericData = typeof supportRaw === 'string' ? JSON.parse(supportRaw) : supportRaw;
+              console.log('[AppNav][ColdStart][iOSNative] Generic payload:', genericData);
+              if (genericData) {
+                setInitialSupportNotification({
+                  __generic: true,
+                  ...genericData,
+                });
+                return;
+              }
+            }
+
             if (initialWordId) {
               const wordId = String(initialWordId);
               setInitialWordId(wordId);
+              return;
+            }
+
+            const messaging = require('@react-native-firebase/messaging').default;
+            const initialRemoteMessage = await messaging().getInitialNotification();
+            const remoteData = initialRemoteMessage?.data || {};
+            const remoteType = remoteData?.type;
+            console.log('[AppNav][ColdStart][FCM] Initial remote message:', initialRemoteMessage);
+            console.log('[AppNav][ColdStart][FCM] Remote data:', remoteData);
+
+            if (remoteData?.audioData) {
+              const audioData = typeof remoteData.audioData === 'string'
+                ? JSON.parse(remoteData.audioData)
+                : remoteData.audioData;
+              if (audioData) {
+                setInitialAudioNotification(audioData);
+                return;
+              }
+            }
+
+            if (remoteData?.payload && remoteType === 'support_message') {
+              const supportData = typeof remoteData.payload === 'string'
+                ? JSON.parse(remoteData.payload)
+                : remoteData.payload;
+              if (supportData) {
+                setInitialSupportNotification(supportData);
+                return;
+              }
+            }
+
+            if (remoteData?.payload && remoteType && remoteType !== 'support_message') {
+              const genericData = typeof remoteData.payload === 'string'
+                ? JSON.parse(remoteData.payload)
+                : remoteData.payload;
+              console.log('[AppNav][ColdStart][FCM] Generic payload:', genericData);
+              if (genericData) {
+                setInitialSupportNotification({
+                  __generic: true,
+                  ...genericData,
+                });
+                return;
+              }
             }
           } catch (e) {
             // Silent error handling
@@ -672,8 +952,25 @@ const AppNavigator = () => {
     if (!user || !navReady || !navigationRef.current) return;
 
     // 1) Support notification pending while nav was not ready
+    if (initialSupportNotification?.__generic) {
+      try {
+        if (initialSupportNotification.notificationId) {
+          markNotificationAsOpened(String(initialSupportNotification.notificationId), 'cold_start').catch(() => { });
+        }
+        openNotificationDetailModal(initialSupportNotification);
+      } catch (e) {
+        console.error('Navigation error (initial generic notification):', e);
+      } finally {
+        setInitialSupportNotification(null);
+      }
+      return;
+    }
+
     if (initialSupportNotification) {
       try {
+        if (initialSupportNotification.notificationId) {
+          markNotificationAsOpened(String(initialSupportNotification.notificationId), 'cold_start').catch(() => { });
+        }
         navigationRef.current.navigate('Chat', {
           conversationId: initialSupportNotification.conversationId,
         });
@@ -688,6 +985,9 @@ const AppNavigator = () => {
     // 2) Audio notification pending while nav was not ready
     if (initialAudioNotification) {
       try {
+        if (initialAudioNotification.notificationId) {
+          markNotificationAsOpened(String(initialAudioNotification.notificationId), 'cold_start').catch(() => { });
+        }
         navigationRef.current.dispatch(
           CommonActions.reset({
             index: 0,
@@ -732,7 +1032,7 @@ const AppNavigator = () => {
       );
       setInitialWordId(null);
     }
-  }, [user, navReady, initialWordId, initialAudioNotification]);
+  }, [user, navReady, initialWordId, initialAudioNotification, initialSupportNotification, language]);
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -932,12 +1232,97 @@ const AppNavigator = () => {
                   gestureEnabled: true,
                 }}
               />
+              <Stack.Screen
+                name="NotificationDetail"
+                component={withLazy(NotificationDetailScreenLazy)}
+                options={{
+                  headerShown: false,
+                  presentation: 'modal',
+                  gestureEnabled: true,
+                }}
+              />
             </>
           ) : (
             <Stack.Screen name="Auth" component={AuthStack} />
           )}
         </Stack.Navigator>
       </NavigationContainer>
+      <Modal
+        visible={Boolean(activeNotificationDetail)}
+        transparent
+        animationType="fade"
+        onRequestClose={closeNotificationDetailModal}
+      >
+        <TouchableOpacity
+          style={notificationModalStyles.overlay}
+          activeOpacity={1}
+          onPress={closeNotificationDetailModal}
+        >
+          <TouchableOpacity
+            style={notificationModalStyles.card}
+            activeOpacity={1}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <TouchableOpacity
+              onPress={closeNotificationDetailModal}
+              style={notificationModalStyles.closeButton}
+              activeOpacity={0.85}
+            >
+              <Icon name="close" size={20} color={COLORS.slate700} />
+            </TouchableOpacity>
+
+            <View style={notificationModalStyles.iconShell}>
+              <LinearGradient
+                colors={[COLORS.brandTeal, '#0D9488']}
+                style={notificationModalStyles.iconGradient}
+              >
+                <Icon name="notifications-active" size={28} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+
+            <View style={notificationModalStyles.typeBadge}>
+              <Text style={notificationModalStyles.typeBadgeText}>
+                {activeNotificationDetail?.type === 'campaign_notice'
+                  ? 'Kampanya Bildirimi'
+                  : activeNotificationDetail?.type === 'general_announcement'
+                    ? 'Genel Duyurular'
+                    : activeNotificationDetail?.type || (language === 'tr' ? 'Bildirim' : 'Notification')}
+              </Text>
+            </View>
+
+            <Text style={notificationModalStyles.title}>
+              {activeNotificationDetail?.title || (language === 'tr' ? 'Bildirim' : 'Notification')}
+            </Text>
+
+            <Text style={notificationModalStyles.message}>
+              {activeNotificationDetail?.message || ''}
+            </Text>
+
+            {activeNotificationDetail?.link ? (
+              <TouchableOpacity
+                style={notificationModalStyles.linkBox}
+                onPress={handleOpenNotificationLink}
+                activeOpacity={0.85}
+              >
+                <Icon name="link" size={18} color="#2563EB" />
+                <Text style={notificationModalStyles.linkText} numberOfLines={2}>
+                  {activeNotificationDetail.link}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              style={notificationModalStyles.primaryButton}
+              onPress={closeNotificationDetailModal}
+              activeOpacity={0.85}
+            >
+              <Text style={notificationModalStyles.primaryButtonText}>
+                {language === 'tr' ? 'Tamam' : 'OK'}
+              </Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
       <KeyboardToggleOverlay />
     </View>
   );

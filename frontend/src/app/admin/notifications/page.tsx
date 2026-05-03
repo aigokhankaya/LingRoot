@@ -20,7 +20,7 @@ interface NotificationItem {
     userId: string;
     title: string;
     message: string;
-    type: 'info' | 'success' | 'warning' | 'error';
+    type: string;
     isRead: boolean;
     link?: string | null;
     createdAt: string;
@@ -41,6 +41,8 @@ interface UserItem {
 }
 
 const typeIcons = {
+    general_announcement: Info,
+    campaign_notice: Bell,
     info: Info,
     success: CheckCircle,
     warning: AlertTriangle,
@@ -48,6 +50,8 @@ const typeIcons = {
 };
 
 const typeColors = {
+    general_announcement: 'text-blue-500 bg-blue-100',
+    campaign_notice: 'text-pink-500 bg-pink-100',
     info: 'text-blue-500 bg-blue-100',
     success: 'text-emerald-500 bg-emerald-100',
     warning: 'text-amber-500 bg-amber-100',
@@ -64,7 +68,7 @@ export default function NotificationsPage() {
     // Form state
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
-    const [type, setType] = useState<'info' | 'success' | 'warning' | 'error'>('info');
+    const [type, setType] = useState<'general_announcement' | 'campaign_notice'>('general_announcement');
     const [link, setLink] = useState('');
     const [sendToAll, setSendToAll] = useState(true);
     const [selectedUserId, setSelectedUserId] = useState('');
@@ -217,7 +221,7 @@ export default function NotificationsPage() {
             setTitle('');
             setMessage('');
             setLink('');
-            setType('info');
+            setType('general_announcement');
             setSelectedUserId('');
             setUserSearch('');
             setShowUserSuggestions(false);
@@ -357,29 +361,19 @@ export default function NotificationsPage() {
 
                             <div className="space-y-2">
                                 <Label htmlFor="type">Tip</Label>
-                                <Select value={type} onValueChange={(v) => setType(v as any)}>
+                                <Select value={type} onValueChange={(v) => setType(v as 'general_announcement' | 'campaign_notice')}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Bildirim tipi" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="info">
+                                        <SelectItem value="general_announcement">
                                             <span className="flex items-center gap-2">
-                                                <Info className="w-4 h-4 text-blue-500" /> Bilgi
+                                                <Info className="w-4 h-4 text-blue-500" /> Genel Duyurular
                                             </span>
                                         </SelectItem>
-                                        <SelectItem value="success">
+                                        <SelectItem value="campaign_notice">
                                             <span className="flex items-center gap-2">
-                                                <CheckCircle className="w-4 h-4 text-emerald-500" /> Başarı
-                                            </span>
-                                        </SelectItem>
-                                        <SelectItem value="warning">
-                                            <span className="flex items-center gap-2">
-                                                <AlertTriangle className="w-4 h-4 text-amber-500" /> Uyarı
-                                            </span>
-                                        </SelectItem>
-                                        <SelectItem value="error">
-                                            <span className="flex items-center gap-2">
-                                                <AlertCircle className="w-4 h-4 text-red-500" /> Hata
+                                                <Bell className="w-4 h-4 text-pink-500" /> Kampanya Bildirimi
                                             </span>
                                         </SelectItem>
                                     </SelectContent>
