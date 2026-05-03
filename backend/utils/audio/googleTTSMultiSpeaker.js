@@ -327,6 +327,19 @@ const PERSONALITY_SPEAKERS = {
 const DEFAULT_SPEAKER_A = 'Kore';   // Female - Host
 const DEFAULT_SPEAKER_B = 'Charon'; // Male - Guest
 
+const GEMINI_TO_NEURAL2_FALLBACK = {
+  Kore: 'en-US-Neural2-F',
+  Aoede: 'en-GB-Neural2-C',
+  Leda: 'en-US-Neural2-C',
+  Zephyr: 'en-US-Neural2-F',
+  Callirrhoe: 'en-US-Neural2-F',
+  Charon: 'en-US-Neural2-J',
+  Fenrir: 'en-US-Neural2-D',
+  Orus: 'en-US-Neural2-J',
+  Puck: 'en-GB-Neural2-B',
+  Achird: 'en-US-Neural2-D',
+};
+
 const ALLOWED_GEMINI_TTS_MODELS = new Set([
   'gemini-2.5-flash-tts',
   'gemini-2.5-pro-tts',
@@ -1208,10 +1221,33 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
 
   const { synthesizeWithGoogle } = require('./googleTTS.js');
 
+  const resolveNeural2FallbackVoice = (speakerId, speakerRole) => {
+    const normalizedSpeakerId = normalizeSpeakerId(speakerId);
+    const mappedVoice = GEMINI_TO_NEURAL2_FALLBACK[normalizedSpeakerId];
+
+    if (mappedVoice) {
+      return mappedVoice;
+    }
+
+    const inferredGender = GEMINI_SPEAKERS[normalizedSpeakerId]?.gender;
+    if (inferredGender === 'female') {
+      return 'en-US-Neural2-F';
+    }
+    if (inferredGender === 'male') {
+      return 'en-US-Neural2-J';
+    }
+
+    return speakerRole === 'A' ? 'en-US-Neural2-F' : 'en-US-Neural2-J';
+  };
+
+  logger.info(
+    `[GOOGLE-PODCAST] Neural2 fallback voice map - Host: ${speakerAId} -> ${resolveNeural2FallbackVoice(speakerAId, 'A')}, Guest: ${speakerBId} -> ${resolveNeural2FallbackVoice(speakerBId, 'B')}`
+  );
+
   for (const turn of turns) {
     const voiceName = turn.speaker === 'A'
-      ? `en-US-Neural2-C` // Female voice for Host
-      : `en-US-Neural2-D`; // Male voice for Guest
+      ? resolveNeural2FallbackVoice(speakerAId, 'A')
+      : resolveNeural2FallbackVoice(speakerBId, 'B');
 
     try {
       const result = await synthesizeWithGoogle({

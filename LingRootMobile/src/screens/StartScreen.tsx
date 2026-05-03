@@ -29,7 +29,7 @@ import {
 } from '../services/startOnboardingService';
 
 const LEVELS: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-const STEP_ORDER: StartGenerationType[] = ['text', 'podcast', 'topic'];
+const STEP_ORDER: StartGenerationType[] = ['podcast', 'topic', 'text'];
 
 type Props = {
   progress: StartGenerationProgress;
@@ -185,12 +185,6 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
       setIsTestEnv(config.environment === 'test');
     }).catch(() => { });
   }, []);
-
-  useEffect(() => {
-    if (!expandedCard && firstIncomplete) {
-      setExpandedCard(firstIncomplete);
-    }
-  }, [expandedCard, firstIncomplete]);
 
   useEffect(() => {
     if (!firstIncomplete) {

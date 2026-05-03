@@ -63,12 +63,12 @@
     "bookSearchDesc": "Search by title, author, or general term"
   },
   "startOnboarding": {
-    "heroTitle": "Start learning English by listening",
+    "heroTitle": "Start practicing English by listening",
     "heroSubtitle": "Create your first level-based content",
     "benefits": {
       "levelBased": "Level-based English",
       "naturalVoice": "Natural voiceover",
-      "learnByListening": "Learn by listening"
+      "learnByListening": "Practice by listening"
     },
     "progressSuffix": "completed — only 3 steps left",
     "progressStates": {

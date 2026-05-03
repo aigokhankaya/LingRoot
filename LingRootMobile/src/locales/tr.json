@@ -63,12 +63,12 @@
     "bookSearchDesc": "Başlığa, yazara veya genel terime göre kitap ara"
   },
   "startOnboarding": {
-    "heroTitle": "İngilizce dinleyerek öğrenmeye başla",
+    "heroTitle": "İngilizce dinleyerek pratik yapmaya başla",
     "heroSubtitle": "Seviyene uygun ilk içeriklerini oluştur",
     "benefits": {
       "levelBased": "Seviyene uygun İngilizce",
       "naturalVoice": "Doğal seslendirme",
-      "learnByListening": "Dinleyerek öğrenme"
+      "learnByListening": "Dinleyerek pratik"
     },
     "progressSuffix": "tamamlandı — sadece 3 adım kaldı",
     "progressStates": {
