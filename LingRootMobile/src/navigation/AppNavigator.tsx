@@ -17,7 +17,7 @@ import perfLog from '../utils/performanceLogger';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
 import { getUnreadNotifications, markNotificationAsOpened, markNotificationAsRead } from '../services/userService';
-import { setupFirebaseMessagingListeners, checkInitialNotification } from '../services/pushTokenService';
+import { setupFirebaseMessagingListeners, checkInitialNotification, consumeStoredOpenedNotificationPayload } from '../services/pushTokenService';
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
@@ -691,8 +691,6 @@ const AppNavigator = () => {
   // Setup Firebase messaging listeners for remote push notifications (FCM)
   // This ensures badge updates when remote notifications arrive
   useEffect(() => {
-    if (!user) return;
-
     // Setup listeners for foreground and background->foreground transitions
     const unsubscribeMessaging = setupFirebaseMessagingListeners();
 
@@ -702,10 +700,36 @@ const AppNavigator = () => {
     return () => {
       unsubscribeMessaging();
     };
-  }, [user]);
+  }, []);
 
   useEffect(() => {
-    if (user && navigationRef.current) {
+    (async () => {
+      try {
+        const storedPayload = await consumeStoredOpenedNotificationPayload();
+        if (!storedPayload) {
+          return;
+        }
+
+        if (storedPayload.kind === 'word') {
+          setInitialWordId(storedPayload.value);
+          return;
+        }
+
+        const svc: any = NotificationService;
+        if (svc?.responseCallback) {
+          svc.responseCallback(storedPayload.value);
+        } else {
+          svc.pendingRemotePayload = storedPayload.value;
+          svc.pendingAudioPayload = storedPayload.value;
+        }
+      } catch {
+        // Ignore stored payload restore failures
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (navigationRef.current) {
       try {
         (NotificationService as any).initialize?.();
       } catch {
@@ -945,7 +969,7 @@ const AppNavigator = () => {
         }
       };
     }
-  }, [user, navReady]);
+  }, [navReady, language]);
 
   // When navigation becomes ready or user logs in, consume any pending notification and navigate
   useEffect(() => {
