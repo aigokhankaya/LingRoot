@@ -40,7 +40,7 @@ interface UserItem {
     name?: string;
 }
 
-const typeIcons = {
+const typeIcons: Record<string, typeof Info> = {
     general_announcement: Info,
     campaign_notice: Bell,
     info: Info,
@@ -49,7 +49,7 @@ const typeIcons = {
     error: AlertCircle
 };
 
-const typeColors = {
+const typeColors: Record<string, string> = {
     general_announcement: 'text-blue-500 bg-blue-100',
     campaign_notice: 'text-pink-500 bg-pink-100',
     info: 'text-blue-500 bg-blue-100',
