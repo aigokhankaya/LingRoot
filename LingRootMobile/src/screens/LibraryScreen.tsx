@@ -30,6 +30,11 @@ import {
   LIBRARY_TOUR_KEY,
   useTourAutoStart,
 } from '../components/GuideTour';
+import {
+  normalizeDialogueSegments,
+  normalizeTimepoints,
+  normalizeWords,
+} from '../utils/timepoints';
 
 const WalkthroughableView = walkthroughable(View);
 
@@ -148,14 +153,19 @@ const LibraryScreenContent: React.FC = () => {
               source = {
                 ...audioData,
                 ...backendData,
-                words: Array.isArray(words) ? words : (audioData.words || []),
-                timepoints: Array.isArray(timepoints) ? timepoints : (audioData.timepoints || []),
+                words: normalizeWords(Array.isArray(words) ? words : audioData.words),
+                timepoints: normalizeTimepoints(Array.isArray(timepoints) ? timepoints : audioData.timepoints),
+                dialogue_segments: normalizeDialogueSegments(
+                  backendData.dialogue_segments || audioData.dialogue_segments
+                ),
                 original_turkish:
                   backendData.original_turkish ||
                   backendData.input ||
                   audioData.original_turkish ||
                   '',
                 mp3_url: backendData.mp3_url || audioData.mp3_url || audioData.url,
+                timing_source: backendData.timing_source || audioData.timing_source,
+                timing_accuracy: backendData.timing_accuracy || audioData.timing_accuracy,
               };
 
               console.log('[Library][Notification] Hydrated audio data from backend:', {
@@ -192,8 +202,11 @@ const LibraryScreenContent: React.FC = () => {
           adapted_text: source.adapted_text,
           original_turkish: source.original_turkish || '',
           mp3_url: source.mp3_url || source.url,
-          timepoints: Array.isArray(source.timepoints) ? source.timepoints : [],
-          words: Array.isArray(source.words) ? source.words : [],
+          timepoints: normalizeTimepoints(source.timepoints),
+          words: normalizeWords(source.words),
+          dialogue_segments: normalizeDialogueSegments(source.dialogue_segments),
+          timing_source: source.timing_source,
+          timing_accuracy: source.timing_accuracy,
         };
 
         console.log('[Library][Notification] Created track from notification:', {
@@ -311,8 +324,11 @@ const LibraryScreenContent: React.FC = () => {
             adapted_text: item.adapted_text,
             original_turkish: item.input || '',
             mp3_url: item.mp3_url,
-            timepoints: item.timepoints ?? [],
-            words: item.words ?? [],
+            timepoints: normalizeTimepoints(item.timepoints),
+            words: normalizeWords(item.words),
+            dialogue_segments: normalizeDialogueSegments(item.dialogue_segments),
+            timing_source: item.timing_source,
+            timing_accuracy: item.timing_accuracy,
           };
 
           return track;
@@ -468,8 +484,11 @@ const LibraryScreenContent: React.FC = () => {
             adapted_text: item.adapted_text,
             original_turkish: item.original_turkish || item.input,
             mp3_url: item.mp3_url || item.url,
-            timepoints: Array.isArray(item.timepoints) ? item.timepoints : undefined,
-            words: Array.isArray(item.words) ? item.words : undefined,
+            timepoints: normalizeTimepoints(item.timepoints),
+            words: normalizeWords(item.words),
+            dialogue_segments: normalizeDialogueSegments(item.dialogue_segments),
+            timing_source: item.timing_source,
+            timing_accuracy: item.timing_accuracy,
           } as AudioTrack));
           // Favori ID'lerini de güncelle
           setFavoriteIds(mapped.map(t => t.id));
@@ -671,25 +690,11 @@ const LibraryScreenContent: React.FC = () => {
 
   // Lazy-parse words/timepoints for a single track (called on playback)
   const parseTrackData = (track: AudioTrack): AudioTrack => {
-    let words: any = track.words;
-    let timepoints: any = track.timepoints;
-
-    try {
-      if (typeof words === 'string') {
-        words = JSON.parse(words);
-      }
-    } catch { }
-
-    try {
-      if (typeof timepoints === 'string') {
-        timepoints = JSON.parse(timepoints);
-      }
-    } catch { }
-
     return {
       ...track,
-      words: Array.isArray(words) ? words : [],
-      timepoints: Array.isArray(timepoints) ? timepoints : [],
+      words: normalizeWords(track.words),
+      timepoints: normalizeTimepoints(track.timepoints),
+      dialogue_segments: normalizeDialogueSegments(track.dialogue_segments),
     };
   };
 

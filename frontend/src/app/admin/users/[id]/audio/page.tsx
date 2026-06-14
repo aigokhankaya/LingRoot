@@ -199,6 +199,12 @@ export default function UserAudioHistoryPage() {
                   <th className="px-3 py-2 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600" onClick={() => handleSort('timepoints_count')}>
                     Timepoints Count <SortIcon field="timepoints_count" />
                   </th>
+                  <th className="px-3 py-2 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600" onClick={() => handleSort('timing_source')}>
+                    Timing Source <SortIcon field="timing_source" />
+                  </th>
+                  <th className="px-3 py-2 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600" onClick={() => handleSort('timing_accuracy')}>
+                    Timing Accuracy <SortIcon field="timing_accuracy" />
+                  </th>
                   <th className="px-3 py-2 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600" onClick={() => handleSort('openai_total_tokens')}>
                     OpenAI Tokens (in/out/total) <SortIcon field="openai_total_tokens" />
                   </th>
@@ -249,6 +255,8 @@ export default function UserAudioHistoryPage() {
                     <td className="px-3 py-2 max-w-md truncate text-gray-700 dark:text-gray-300" title={row.adapted_text || ''}>{row.adapted_text}</td>
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-200">{row.words_count ?? '—'}</td>
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-200">{row.timepoints_count ?? '—'}</td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-200">{row.timing_source || '—'}</td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-200">{row.timing_accuracy || '—'}</td>
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-200">
                       {row.openai_prompt_tokens ?? 0}/{row.openai_completion_tokens ?? 0}/{row.openai_total_tokens ?? 0}
                     </td>
@@ -266,7 +274,7 @@ export default function UserAudioHistoryPage() {
                 ))}
                 {data.length === 0 && (
                   <tr>
-                    <td colSpan={18} className="px-3 py-6 text-center text-gray-500">Kayıt bulunamadı.</td>
+                    <td colSpan={20} className="px-3 py-6 text-center text-gray-500">Kayıt bulunamadı.</td>
                   </tr>
                 )}
               </tbody>
@@ -300,5 +308,4 @@ export default function UserAudioHistoryPage() {
     </>
   );
 }
-
 

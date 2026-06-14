@@ -10,6 +10,7 @@
 const logger = require('../../common/logger.js');
 const { v4: uuidv4 } = require('uuid');
 const { supabase } = require('../../storage/supabaseClient.js');
+const { insertWithSchemaFallback } = require('../../storage/schemaCacheFallback.js');
 
 // Import V2 modules
 const { groupTurnsBySpeaker } = require('./turnGrouper.js');
@@ -26,6 +27,11 @@ const { generatePodcastScript } = require('../googleTTSMultiSpeaker.js');
 // Default speaker IDs
 const DEFAULT_HOST_SPEAKER = 'Kore';
 const DEFAULT_GUEST_SPEAKER = 'Charon';
+const TIMING_ACCURACY_BY_PROVIDER = {
+  mfa: 'forced_alignment_word_timestamp',
+  groq: 'asr_word_timestamp',
+  tts: 'estimated_word_timing',
+};
 
 // Legacy voice name mapping (for backwards compatibility with old saved preferences)
 const LEGACY_VOICE_MAPPING = {
@@ -45,6 +51,10 @@ const STYLE_PROMPTS = {
   'educational': 'Speak with enthusiasm when explaining concepts. Sound patient and encouraging with genuine curiosity.',
   'casual': 'Speak very naturally and relaxed, like chatting with a close friend. Use casual intonation and show genuine reactions.',
 };
+
+function logPodcastHighlightType(highlightType, details = {}) {
+  logger.info(`[PODCAST-V2] HIGHLIGHT_TYPE=${highlightType}`, details);
+}
 
 /**
  * Main entry point for Podcast V2
@@ -188,6 +198,21 @@ async function createPodcastV2(options) {
     // ========== Step 8: Merge Timing Data ==========
     logger.info('[PODCAST-V2] Step 8: Merging timing data...');
     const timingData = mergeTimingData(offsetData);
+    const dominantTimingSource = Object.entries(timingData.sourceCounts || {}).sort((left, right) => right[1] - left[1])[0]?.[0] || 'tts';
+    const timingSource = dominantTimingSource === 'groq_whisper' ? 'GROQ_WHISPER' : dominantTimingSource.toUpperCase();
+    const timingAccuracy = TIMING_ACCURACY_BY_PROVIDER[dominantTimingSource === 'groq_whisper' ? 'groq' : dominantTimingSource] || 'estimated_word_timing';
+    const highlightType = timingSource === 'GROQ_WHISPER'
+      ? 'groq'
+      : (timingSource === 'MFA' ? 'MFA' : 'fallback');
+
+    logPodcastHighlightType(highlightType, {
+      timingSource,
+      timingAccuracy,
+      dominantTimingSource,
+      hostAlignmentProvider: hostAligned.alignmentProvider,
+      guestAlignmentProvider: guestAligned.alignmentProvider,
+      podcastFlow: 'v2',
+    });
 
     const timingValidation = validateMergedData(timingData);
     if (!timingValidation.valid) {
@@ -248,6 +273,8 @@ async function createPodcastV2(options) {
           words: JSON.stringify(timingData.words),
           timepoints: JSON.stringify(timingData.timepoints),
           dialogue_segments: JSON.stringify(timingData.dialogueSegments),
+          timing_source: timingSource,
+          timing_accuracy: timingAccuracy,
           tts_provider: 'google-gemini',
           tts_voice_name: model,
           audio_duration_seconds: Math.round(mergedDuration || timingData.totalDuration),
@@ -262,16 +289,20 @@ async function createPodcastV2(options) {
           total_cost_usd: totalCostUsd,
         };
 
-        const { data, error } = await supabase
-          .from('contenthistory')
-          .insert(insertData)
-          .select();
+        const { data, error, removedColumns } = await insertWithSchemaFallback(
+          supabase,
+          'contenthistory',
+          insertData
+        );
 
         if (error) {
           logger.error(`[PODCAST-V2] Database error: ${error.message}`);
         } else if (data && data.length > 0) {
           contentHistoryId = data[0].id;
           logger.info(`[PODCAST-V2] Saved to contenthistory: ${contentHistoryId}`);
+          if (removedColumns.length > 0) {
+            logger.warn(`[PODCAST-V2] contenthistory insert succeeded after removing schema-missing columns: ${removedColumns.join(', ')}`);
+          }
         }
 
         // Log costs
@@ -317,6 +348,8 @@ async function createPodcastV2(options) {
       transcript: transcript,
       dialogue: dialogueText,
       dialogue_segments: timingData.dialogueSegments,
+      words: timingData.words,
+      timepoints: timingData.timepoints,
       turns: turns,
       turns_original: turnsOriginal,
       title: scriptResult.title,
@@ -325,6 +358,8 @@ async function createPodcastV2(options) {
       duration_seconds: Math.round(mergedDuration || timingData.totalDuration),
       file_name: fileName,
       content_id: contentHistoryId,
+      timing_source: timingSource,
+      timing_accuracy: timingAccuracy,
       version: 'v2',
       processing_time_seconds: parseFloat(elapsed),
       stats: {
@@ -333,6 +368,8 @@ async function createPodcastV2(options) {
         total_words: timingData.words.length,
         mfa_host_success: hostAligned.mfaSuccess,
         mfa_guest_success: guestAligned.mfaSuccess,
+        host_alignment_provider: hostAligned.alignmentProvider,
+        guest_alignment_provider: guestAligned.alignmentProvider,
       },
     };
   } catch (error) {

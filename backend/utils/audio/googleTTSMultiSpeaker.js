@@ -14,6 +14,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { runWithModelRateLimit } = require('../infra/modelRateLimiter.js');
+const { getAlignmentProvider } = require('./alignmentProvider.js');
+const { groqWhisperAligner } = require('./groqWhisperAligner.js');
+const { insertWithSchemaFallback } = require('../storage/schemaCacheFallback.js');
 
 // Google TTS Client
 let ttsClient;
@@ -327,6 +330,10 @@ const PERSONALITY_SPEAKERS = {
 // Default speaker pairs for clear voice distinction (female + male)
 const DEFAULT_SPEAKER_A = 'Kore';   // Female - Host
 const DEFAULT_SPEAKER_B = 'Charon'; // Male - Guest
+
+function logPodcastHighlightType(highlightType, details = {}) {
+  logger.info(`[GOOGLE-PODCAST] HIGHLIGHT_TYPE=${highlightType}`, details);
+}
 
 const GEMINI_TO_NEURAL2_FALLBACK = {
   Kore: 'en-US-Neural2-F',
@@ -1523,10 +1530,14 @@ async function createGoogleTTSPodcast(options) {
     let timepoints = null;
     let dialogueSegments = null;
     let vttUrl = null;
-    const useMFAAlignment = process.env.USE_MFA_ALIGNMENT === 'true';
+    const alignmentProvider = getAlignmentProvider();
+    const useMFAAlignment = alignmentProvider === 'mfa';
+    const useGroqAlignment = alignmentProvider === 'groq';
+    let timingSource = 'TTS';
+    let timingAccuracy = 'estimated_word_timing';
     const mfaDebugEnabled = process.env.MFA_DEBUG_DUMP === 'true';
 
-    logger.info(`[GOOGLE-PODCAST] MFA alignment enabled: ${useMFAAlignment}`);
+    logger.info(`[GOOGLE-PODCAST] Alignment provider resolved: ${alignmentProvider}`);
     if (mfaDebugEnabled) {
       logger.info(`[GOOGLE-PODCAST] MFA debug dump enabled (file id will be: google_podcast_${fileName.replace(/\.mp3$/i, '')})`);
     }
@@ -1536,8 +1547,7 @@ async function createGoogleTTSPodcast(options) {
       wordsForTiming = fallbackWords.length > 0 ? fallbackWords : wordsForTiming;
     }
 
-    if (useMFAAlignment && audioUrl && (audioResult.dialogueText || audioResult.transcript)) {
-      const { mfaAligner } = require('./mfaAligner.js');
+    if ((useMFAAlignment || useGroqAlignment) && audioUrl && (audioResult.dialogueText || audioResult.transcript)) {
       const { execSync } = require('child_process');
       try {
         // Save as MP3 first, then convert to WAV for MFA (same as text mode)
@@ -1585,82 +1595,100 @@ async function createGoogleTTSPodcast(options) {
         const audioStats = await fs.promises.stat(tempAudioPath);
         logger.info(`[GOOGLE-PODCAST] MFA input - Audio size: ${audioStats.size} bytes, Transcript length: ${mfaTranscript.length} chars, Words: ${mfaTranscript.split(/\s+/).length}`);
 
-        const mfaWordTimings = await mfaAligner.generateWordTimestamps(
-          tempAudioPath,
-          mfaTranscript,
-          locale,
-          {
-            debug: mfaDebugEnabled
-              ? {
-                id: `google_podcast_${fileName.replace(/\.mp3$/i, '')}`,
-                source: 'googleTTSMultiSpeaker',
-                fileName,
-                fallbackUsed: audioResult.fallbackUsed || false,
-                fallbackMode: audioResult.fallbackMode || null,
-              }
-              : null,
-          }
-        );
+        let alignmentWordTimings = null;
+        if (useMFAAlignment) {
+          alignmentWordTimings = await mfaAligner.generateWordTimestamps(
+            tempAudioPath,
+            mfaTranscript,
+            locale,
+            {
+              debug: mfaDebugEnabled
+                ? {
+                  id: `google_podcast_${fileName.replace(/\.mp3$/i, '')}`,
+                  source: 'googleTTSMultiSpeaker',
+                  fileName,
+                  fallbackUsed: audioResult.fallbackUsed || false,
+                  fallbackMode: audioResult.fallbackMode || null,
+                }
+                : null,
+            }
+          );
+          timingSource = 'MFA';
+          timingAccuracy = 'forced_alignment_word_timestamp';
+        } else if (useGroqAlignment) {
+          const groqResult = await groqWhisperAligner.generateWordTimestamps(
+            tempAudioPath,
+            mfaTranscript,
+            {
+              audioDurationSeconds: audioResult.audioDurationSeconds || null,
+            }
+          );
+          alignmentWordTimings = groqResult.timings;
+          timingSource = 'GROQ_WHISPER';
+          timingAccuracy = 'asr_word_timestamp';
+        }
 
-        logger.info(`[GOOGLE-PODCAST] MFA output timings: ${Array.isArray(mfaWordTimings) ? mfaWordTimings.length : 'non-array'}`);
-        if (Array.isArray(mfaWordTimings) && mfaWordTimings.length > 0) {
-          logger.info(`[GOOGLE-PODCAST] MFA sample timing[0]: ${JSON.stringify(mfaWordTimings[0])}`);
+        logger.info(`[GOOGLE-PODCAST] ${timingSource} output timings: ${Array.isArray(alignmentWordTimings) ? alignmentWordTimings.length : 'non-array'}`);
+        if (Array.isArray(alignmentWordTimings) && alignmentWordTimings.length > 0) {
+          logger.info(`[GOOGLE-PODCAST] ${timingSource} sample timing[0]: ${JSON.stringify(alignmentWordTimings[0])}`);
         }
 
         // Cleanup temp files (both MP3 and WAV)
         await fs.promises.unlink(tempMp3Path).catch(() => { });
         await fs.promises.unlink(tempWavPath).catch(() => { });
 
-        if (Array.isArray(mfaWordTimings) && mfaWordTimings.length > 0) {
-          wordsForTiming = mfaWordTimings.map(t => t.word);
-          timepoints = mfaWordTimings.map((timing, index) => ({
+        if (Array.isArray(alignmentWordTimings) && alignmentWordTimings.length > 0) {
+          wordsForTiming = alignmentWordTimings.map(t => t.word);
+          timepoints = alignmentWordTimings.map((timing, index) => ({
             word: timing.word,
             timeSeconds: timing.startTime,
             endTimeSeconds: timing.endTime,
             index,
             hasRealTiming: true,
-            source: 'mfa',
+            source: useGroqAlignment ? 'groq_whisper' : 'mfa',
           }));
 
           // MFA-based speaker correction (Phase 2 of hybrid approach)
           // Analyze pauses to detect and correct speaker assignment errors
-          try {
-            const mfaServiceUrl = process.env.MFA_SERVICE_URL || 'http://localhost:3002';
-            const speakerCorrectionResponse = await axios.post(
-              `${mfaServiceUrl}/mfa/correct-speakers`,
-              {
-                wordTimings: mfaWordTimings.map(t => ({
-                  word: t.word,
-                  startTime: t.startTime,
-                  endTime: t.endTime
-                })),
-                turns: turnsForTts
-              },
-              { timeout: 10000 }
-            );
+          if (useMFAAlignment) {
+            try {
+              const mfaServiceUrl = process.env.MFA_SERVICE_URL || 'http://localhost:3002';
+              const speakerCorrectionResponse = await axios.post(
+                `${mfaServiceUrl}/mfa/correct-speakers`,
+                {
+                  wordTimings: alignmentWordTimings.map(t => ({
+                    word: t.word,
+                    startTime: t.startTime,
+                    endTime: t.endTime
+                  })),
+                  turns: turnsForTts
+                },
+                { timeout: 10000 }
+              );
 
-            if (speakerCorrectionResponse.data?.success && speakerCorrectionResponse.data?.corrections?.length > 0) {
-              const mfaCorrections = speakerCorrectionResponse.data.corrections;
-              logger.info(`[GOOGLE-PODCAST] MFA Speaker Correction: ${mfaCorrections.length} additional corrections from pause analysis`);
+              if (speakerCorrectionResponse.data?.success && speakerCorrectionResponse.data?.corrections?.length > 0) {
+                const mfaCorrections = speakerCorrectionResponse.data.corrections;
+                logger.info(`[GOOGLE-PODCAST] MFA Speaker Correction: ${mfaCorrections.length} additional corrections from pause analysis`);
 
-              // Apply corrections to turns and turns_original
-              for (const correction of mfaCorrections) {
-                if (turnsForTts[correction.turnIndex]) {
-                  turnsForTts[correction.turnIndex].speaker = correction.correctedSpeaker;
+                // Apply corrections to turns and turns_original
+                for (const correction of mfaCorrections) {
+                  if (turnsForTts[correction.turnIndex]) {
+                    turnsForTts[correction.turnIndex].speaker = correction.correctedSpeaker;
+                  }
+                  if (turnsOriginalForSave && turnsOriginalForSave[correction.turnIndex]) {
+                    turnsOriginalForSave[correction.turnIndex].speaker = correction.correctedSpeaker;
+                  }
                 }
-                if (turnsOriginalForSave && turnsOriginalForSave[correction.turnIndex]) {
-                  turnsOriginalForSave[correction.turnIndex].speaker = correction.correctedSpeaker;
+
+                // Log summary
+                const summary = speakerCorrectionResponse.data.summary;
+                if (summary) {
+                  logger.info(`[GOOGLE-PODCAST] MFA Pause Analysis: ${summary.significantPauses} significant pauses detected, ${summary.totalCorrections} corrections applied`);
                 }
               }
-
-              // Log summary
-              const summary = speakerCorrectionResponse.data.summary;
-              if (summary) {
-                logger.info(`[GOOGLE-PODCAST] MFA Pause Analysis: ${summary.significantPauses} significant pauses detected, ${summary.totalCorrections} corrections applied`);
-              }
+            } catch (speakerCorrectionErr) {
+              logger.warn(`[GOOGLE-PODCAST] MFA speaker correction skipped: ${speakerCorrectionErr.message}`);
             }
-          } catch (speakerCorrectionErr) {
-            logger.warn(`[GOOGLE-PODCAST] MFA speaker correction skipped: ${speakerCorrectionErr.message}`);
           }
 
           try {
@@ -1688,7 +1716,7 @@ async function createGoogleTTSPodcast(options) {
                 .filter(Boolean);
             };
 
-            const mfaNorm = (mfaWordTimings || []).map(t => normalizeToken(t?.word));
+            const mfaNorm = (alignmentWordTimings || []).map(t => normalizeToken(t?.word));
             const turns = audioResult.turns || [];
 
             // Word count validation: compare script word count vs MFA word count
@@ -1717,7 +1745,7 @@ async function createGoogleTTSPodcast(options) {
                 if (mfaNorm[i] !== first) continue;
 
                 // Skip if this position's timestamp would break monotonicity
-                if (prevEndTime != null && mfaWordTimings[i]?.startTime < prevEndTime) {
+                if (prevEndTime != null && alignmentWordTimings[i]?.startTime < prevEndTime) {
                   continue;
                 }
 
@@ -1778,7 +1806,7 @@ async function createGoogleTTSPodcast(options) {
                 endWordIndex = best.endIndex;
               } else {
                 // Improved fallback: use proportional positioning based on turn index
-                const totalWords = mfaWordTimings.length;
+                const totalWords = alignmentWordTimings.length;
                 const turnProgress = lineIndex / Math.max(1, turns.length - 1);
                 const estimatedStart = Math.floor(turnProgress * totalWords * 0.9);
                 const approxCount = tokens.length;
@@ -1789,8 +1817,8 @@ async function createGoogleTTSPodcast(options) {
                 fallbackCount++;
               }
 
-              const startTimeSeconds = mfaWordTimings[startWordIndex]?.startTime ?? null;
-              const endTimeSeconds = mfaWordTimings[endWordIndex]?.endTime ?? null;
+              const startTimeSeconds = alignmentWordTimings[startWordIndex]?.startTime ?? null;
+              const endTimeSeconds = alignmentWordTimings[endWordIndex]?.endTime ?? null;
               const speaker = turn?.speaker === 'A' ? 'Host' : 'Guest';
 
               // Monotonicity check: ensure timestamps always increase
@@ -1813,7 +1841,7 @@ async function createGoogleTTSPodcast(options) {
                 }
               }
 
-              cursor = Math.min(mfaWordTimings.length, (endWordIndex != null ? endWordIndex + 1 : cursor));
+              cursor = Math.min(alignmentWordTimings.length, (endWordIndex != null ? endWordIndex + 1 : cursor));
 
               if (usedFallback) {
                 logger.warn(`[GOOGLE-PODCAST] dialogue_segments fallback used for lineIndex=${lineIndex} tokens=${tokens.length} cursorNow=${cursor}`);
@@ -1831,22 +1859,27 @@ async function createGoogleTTSPodcast(options) {
             logger.warn(`[GOOGLE-PODCAST] Failed to compute dialogue segments from MFA: ${segErr.message}`);
           }
 
-          const vttContent = createWordLevelVTTFromTimings(mfaWordTimings);
+          const vttContent = createWordLevelVTTFromTimings(alignmentWordTimings);
           const vttFileName = `${fileName.replace(/\.mp3$/i, '')}.vtt`;
           vttUrl = await uploadPodcastVtt(vttContent, vttFileName);
         } else {
-          logger.warn(`[GOOGLE-PODCAST] MFA returned empty or invalid timepoints: ${JSON.stringify(mfaWordTimings)}`);
+          logger.warn(`[GOOGLE-PODCAST] ${timingSource} returned empty or invalid timepoints`);
+          timingSource = 'TTS';
+          timingAccuracy = 'estimated_word_timing';
         }
-      } catch (mfaErr) {
-        logger.error('[GOOGLE-PODCAST] MFA alignment FAILED (caught exception):', {
-          message: mfaErr.message,
-          stack: mfaErr.stack,
-          code: mfaErr.code
+      } catch (alignmentErr) {
+        logger.error('[GOOGLE-PODCAST] Alignment FAILED (caught exception):', {
+          provider: alignmentProvider,
+          message: alignmentErr.message,
+          stack: alignmentErr.stack,
+          code: alignmentErr.code
         });
         // Do not throw, continue without alignment
+        timingSource = 'TTS';
+        timingAccuracy = 'estimated_word_timing';
       }
     } else {
-      logger.info(`[GOOGLE-PODCAST] Skipping MFA alignment. Conditions: useMFA=${useMFAAlignment}, audioUrl=${!!audioUrl}, hasText=${!!(audioResult.dialogueText || audioResult.transcript)}`);
+      logger.info(`[GOOGLE-PODCAST] Skipping alignment. Conditions: provider=${alignmentProvider}, audioUrl=${!!audioUrl}, hasText=${!!(audioResult.dialogueText || audioResult.transcript)}`);
     }
 
     // Step 4: Calculate audio duration
@@ -1876,6 +1909,17 @@ async function createGoogleTTSPodcast(options) {
     }
 
     const estimatedDuration = audioDurationSeconds;
+    const highlightType = timingSource === 'GROQ_WHISPER'
+      ? 'groq'
+      : (timingSource === 'MFA' ? 'MFA' : 'fallback');
+
+    logPodcastHighlightType(highlightType, {
+      timingSource,
+      timingAccuracy,
+      provider: alignmentProvider,
+      fallbackUsed: audioResult.fallbackUsed || false,
+      podcastFlow: 'legacy',
+    });
 
     // Step 5: Save to contenthistory if user is authenticated
     let contentHistoryId = null;
@@ -1923,6 +1967,8 @@ async function createGoogleTTSPodcast(options) {
             return null;
           })(),
           dialogue_segments: Array.isArray(dialogueSegments) && dialogueSegments.length > 0 ? JSON.stringify(dialogueSegments) : null,
+          timing_source: timingSource,
+          timing_accuracy: timingAccuracy,
           tts_provider: 'google-gemini',
           tts_voice_name: requestedModel,
           audio_duration_seconds: estimatedDuration,
@@ -1970,16 +2016,20 @@ async function createGoogleTTSPodcast(options) {
           metadata: { duration_seconds: estimatedDuration },
         });
 
-        const { data, error } = await supabase
-          .from('contenthistory')
-          .insert(insertData)
-          .select();
+        const { data, error, removedColumns } = await insertWithSchemaFallback(
+          supabase,
+          'contenthistory',
+          insertData
+        );
 
         if (error) {
           logger.error(`[GOOGLE-PODCAST] Database error saving to contenthistory: ${error.message}`, { code: error.code, details: error.details, hint: error.hint });
         } else if (data && data.length > 0) {
           contentHistoryId = data[0].id;
           logger.info(`[GOOGLE-PODCAST] Saved to contenthistory: ${contentHistoryId}`);
+          if (removedColumns.length > 0) {
+            logger.warn(`[GOOGLE-PODCAST] contenthistory insert succeeded after removing schema-missing columns: ${removedColumns.join(', ')}`);
+          }
         } else {
           logger.warn('[GOOGLE-PODCAST] Insert returned no data');
         }
@@ -2019,6 +2069,8 @@ async function createGoogleTTSPodcast(options) {
       fallback_mode: audioResult.fallbackMode || null,
       words: wordsForTiming || null,
       timepoints: timepoints || null,
+      timing_source: timingSource,
+      timing_accuracy: timingAccuracy,
       costs: {
         openai_tokens: scriptResult.usage?.total_tokens || 0,
       },

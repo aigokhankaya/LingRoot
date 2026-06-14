@@ -42,6 +42,11 @@ import {
 import { VoiceSelectionPanel } from '../components/create/VoiceSelectionPanel';
 import { BookSearchView } from '../components/create/BookSearchView';
 import { PodcastConfigPanel, PodcastConfig, PodcastConfigPanelRef } from '../components/create/PodcastConfigPanel';
+import {
+  normalizeDialogueSegments,
+  normalizeTimepoints,
+  normalizeWords,
+} from '../utils/timepoints';
 
 const WalkthroughableView = walkthroughable(View);
 
@@ -797,6 +802,9 @@ const CreateScreenContent: React.FC = () => {
         message?: string;
         timepoints?: unknown;
         words?: unknown;
+        dialogue_segments?: unknown;
+        timing_source?: string;
+        timing_accuracy?: string;
         topic?: string;
         transcript?: string;
         duration_seconds?: number | string;
@@ -823,30 +831,14 @@ const CreateScreenContent: React.FC = () => {
         );
       }
 
-      // Podcast başarılı oluşturulduktan sonra, içeriği contenthistory tablosuna kaydet (web tarafındaki submitContent fallback'ine benzer)
-      let timepoints: unknown = resp?.timepoints;
-      let words: unknown = resp?.words;
-
       const topicForTrack = resp?.topic || config.topic.trim();
       const transcriptForTrack =
         resp?.transcript ||
         resp?.message ||
         config.topic.trim();
-
-      try {
-        if (typeof timepoints === 'string') {
-          timepoints = JSON.parse(timepoints);
-        }
-      } catch { }
-
-      try {
-        if (typeof words === 'string') {
-          words = JSON.parse(words);
-        }
-      } catch { }
-
-      const safeTimepoints = Array.isArray(timepoints) ? timepoints : [];
-      const safeWords = Array.isArray(words) ? words : [];
+      const safeTimepoints = normalizeTimepoints(resp?.timepoints);
+      const safeWords = normalizeWords(resp?.words);
+      const safeDialogueSegments = normalizeDialogueSegments(resp?.dialogue_segments);
 
       // Podcast içeriğini contenthistory'ye kaydederken varsa MFA timepoints/words'ü de gönder
       try {
@@ -901,6 +893,9 @@ const CreateScreenContent: React.FC = () => {
         mp3_url: audioUrl,
         timepoints: safeTimepoints,
         words: safeWords,
+        dialogue_segments: safeDialogueSegments,
+        timing_source: resp?.timing_source,
+        timing_accuracy: resp?.timing_accuracy,
       };
 
       // Navigate to AudioPlayer screen instead of using modal

@@ -9,6 +9,8 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../../common/logger.js');
 const { mfaAligner } = require('../mfaAligner.js');
+const { groqWhisperAligner } = require('../groqWhisperAligner.js');
+const { getAlignmentProvider } = require('../alignmentProvider.js');
 const { mergeAudioSegmentsToBuffer } = require('../audioMerger.js');
 
 /**
@@ -20,6 +22,7 @@ const { mergeAudioSegmentsToBuffer } = require('../audioMerger.js');
  */
 async function alignSpeakerSegments(speakerData, locale = 'en-US') {
   const { segments, speakerAlias } = speakerData;
+  const alignmentProvider = getAlignmentProvider();
 
   if (!segments || segments.length === 0) {
     logger.info(`[PODCAST-V2] No segments to align for ${speakerAlias}`);
@@ -27,10 +30,12 @@ async function alignSpeakerSegments(speakerData, locale = 'en-US') {
       alignedSegments: [],
       speakerAlias,
       mfaSuccess: false,
+      alignmentProvider,
+      alignmentSuccess: false,
     };
   }
 
-  logger.info(`[PODCAST-V2] Aligning ${segments.length} segments for ${speakerAlias}`);
+  logger.info(`[PODCAST-V2] Aligning ${segments.length} segments for ${speakerAlias} with provider=${alignmentProvider}`);
 
   // Strategy: Merge all speaker segments into one audio, run MFA once, then split timings
   const audioBuffers = segments.map(s => s.audioBuffer);
@@ -54,6 +59,10 @@ async function alignSpeakerSegments(speakerData, locale = 'en-US') {
     cumulativeWordCount += segment.wordCount;
   }
 
+  if (alignmentProvider === 'tts') {
+    return createFallbackAlignment(segments, segmentBoundaries, speakerAlias, 'tts');
+  }
+
   // Merge audio for this speaker
   let mergedAudioBuffer;
   try {
@@ -73,40 +82,51 @@ async function alignSpeakerSegments(speakerData, locale = 'en-US') {
     // Build concatenated transcript for MFA
     const fullTranscript = segments.map(s => s.text).join(' ');
 
-    // Run MFA alignment
-    let mfaWordTimings;
+    // Run provider-specific alignment
+    let providerWordTimings;
     try {
-      mfaWordTimings = await mfaAligner.generateWordTimestamps(
-        tempAudioPath,
-        fullTranscript,
-        locale,
-        { debug: false }
-      );
-    } catch (mfaErr) {
-      logger.warn(`[PODCAST-V2] MFA alignment failed for ${speakerAlias}: ${mfaErr.message}`);
-      // Return segments without MFA timings - will use duration-based estimation
-      return createFallbackAlignment(segments, segmentBoundaries, speakerAlias);
+      if (alignmentProvider === 'mfa') {
+        providerWordTimings = await mfaAligner.generateWordTimestamps(
+          tempAudioPath,
+          fullTranscript,
+          locale,
+          { debug: false }
+        );
+      } else if (alignmentProvider === 'groq') {
+        const groqResult = await groqWhisperAligner.generateWordTimestamps(
+          tempAudioPath,
+          fullTranscript,
+          { audioDurationSeconds: cumulativeDuration }
+        );
+        providerWordTimings = groqResult.timings;
+      }
+    } catch (alignmentErr) {
+      logger.warn(`[PODCAST-V2] ${alignmentProvider} alignment failed for ${speakerAlias}: ${alignmentErr.message}`);
+      return createFallbackAlignment(segments, segmentBoundaries, speakerAlias, alignmentProvider);
     }
 
-    if (!mfaWordTimings || mfaWordTimings.length === 0) {
-      logger.warn(`[PODCAST-V2] MFA returned empty timings for ${speakerAlias}`);
-      return createFallbackAlignment(segments, segmentBoundaries, speakerAlias);
+    if (!providerWordTimings || providerWordTimings.length === 0) {
+      logger.warn(`[PODCAST-V2] ${alignmentProvider} returned empty timings for ${speakerAlias}`);
+      return createFallbackAlignment(segments, segmentBoundaries, speakerAlias, alignmentProvider);
     }
 
-    logger.info(`[PODCAST-V2] MFA returned ${mfaWordTimings.length} word timings for ${speakerAlias}`);
+    logger.info(`[PODCAST-V2] ${alignmentProvider} returned ${providerWordTimings.length} word timings for ${speakerAlias}`);
 
-    // Split MFA timings back to individual segments
+    // Split provider timings back to individual segments
     const alignedSegments = splitTimingsToSegments(
       segments,
       segmentBoundaries,
-      mfaWordTimings
+      providerWordTimings,
+      alignmentProvider
     );
 
     return {
       alignedSegments,
       speakerAlias,
-      mfaSuccess: true,
-      mfaWordCount: mfaWordTimings.length,
+      mfaSuccess: alignmentProvider === 'mfa',
+      alignmentProvider,
+      alignmentSuccess: true,
+      alignmentWordCount: providerWordTimings.length,
     };
   } finally {
     // Cleanup temp file
@@ -119,16 +139,17 @@ async function alignSpeakerSegments(speakerData, locale = 'en-US') {
 }
 
 /**
- * Split MFA timings back to individual segments based on word boundaries
+ * Split provider timings back to individual segments based on word boundaries
  * @param {Array} segments - Original segments
  * @param {Array} segmentBoundaries - Pre-calculated boundaries
- * @param {Array} mfaWordTimings - MFA output
+ * @param {Array} providerWordTimings - Provider output
+ * @param {string} alignmentProvider - Active alignment provider
  * @returns {Array} Segments with word timings attached
  */
-function splitTimingsToSegments(segments, segmentBoundaries, mfaWordTimings) {
+function splitTimingsToSegments(segments, segmentBoundaries, providerWordTimings, alignmentProvider = 'mfa') {
   const alignedSegments = [];
 
-  // Normalize MFA words for matching
+  // Normalize provider words for matching
   const normalizeWord = (w) => {
     return (w || '')
       .normalize('NFKD')
@@ -138,7 +159,7 @@ function splitTimingsToSegments(segments, segmentBoundaries, mfaWordTimings) {
       .trim();
   };
 
-  let mfaIndex = 0;
+  let providerIndex = 0;
 
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
@@ -152,22 +173,23 @@ function splitTimingsToSegments(segments, segmentBoundaries, mfaWordTimings) {
     for (const word of segmentWords) {
       const normalizedWord = normalizeWord(word);
 
-      // Look ahead in MFA timings to find a match
+      // Look ahead in provider timings to find a match
       let found = false;
-      for (let lookAhead = 0; lookAhead < 5 && mfaIndex + lookAhead < mfaWordTimings.length; lookAhead++) {
-        const mfaTiming = mfaWordTimings[mfaIndex + lookAhead];
-        const normalizedMfa = normalizeWord(mfaTiming.word);
+      for (let lookAhead = 0; lookAhead < 5 && providerIndex + lookAhead < providerWordTimings.length; lookAhead++) {
+        const providerTiming = providerWordTimings[providerIndex + lookAhead];
+        const normalizedProvider = normalizeWord(providerTiming.word);
 
-        if (normalizedMfa === normalizedWord || normalizedWord.includes(normalizedMfa) || normalizedMfa.includes(normalizedWord)) {
+        if (normalizedProvider === normalizedWord || normalizedWord.includes(normalizedProvider) || normalizedProvider.includes(normalizedWord)) {
           // Convert global speaker audio timing to segment-local timing
           // by subtracting the segment's start time in the merged speaker audio
           segmentTimings.push({
             word: word,
-            startTime: mfaTiming.startTime - boundary.startTime,
-            endTime: mfaTiming.endTime - boundary.startTime,
-            mfaWord: mfaTiming.word,
+            startTime: providerTiming.startTime - boundary.startTime,
+            endTime: providerTiming.endTime - boundary.startTime,
+            providerWord: providerTiming.word,
+            source: alignmentProvider === 'groq' ? 'groq_whisper' : 'mfa',
           });
-          mfaIndex += lookAhead + 1;
+          providerIndex += lookAhead + 1;
           matchedWords++;
           found = true;
           break;
@@ -181,6 +203,7 @@ function splitTimingsToSegments(segments, segmentBoundaries, mfaWordTimings) {
           startTime: null,
           endTime: null,
           interpolated: true,
+          source: alignmentProvider === 'groq' ? 'groq_whisper' : 'mfa',
         });
       }
     }
@@ -290,7 +313,7 @@ function interpolateMissingTimings(timings, segmentStart, segmentEnd) {
  * @param {string} speakerAlias - Speaker identifier
  * @returns {Object} Fallback aligned data
  */
-function createFallbackAlignment(segments, segmentBoundaries, speakerAlias) {
+function createFallbackAlignment(segments, segmentBoundaries, speakerAlias, requestedProvider = 'tts') {
   logger.info(`[PODCAST-V2] Creating fallback alignment for ${speakerAlias}`);
 
   const alignedSegments = segments.map((segment, i) => {
@@ -306,6 +329,7 @@ function createFallbackAlignment(segments, segmentBoundaries, speakerAlias) {
       endTime: (j + 1) * wordDuration,
       interpolated: true,
       fallback: true,
+      source: 'tts',
     }));
 
     return {
@@ -322,6 +346,8 @@ function createFallbackAlignment(segments, segmentBoundaries, speakerAlias) {
     alignedSegments,
     speakerAlias,
     mfaSuccess: false,
+    alignmentProvider: requestedProvider,
+    alignmentSuccess: false,
     fallbackUsed: true,
   };
 }

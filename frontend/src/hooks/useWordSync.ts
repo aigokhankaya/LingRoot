@@ -1,17 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-
-interface Timepoint {
-  timeSeconds: number;
-  endTimeSeconds?: number;
-  word?: string;
-  markName?: string;
-}
-
-interface WordTimestamp {
-  word: string;
-  startTime: number;
-  endTime: number;
-}
+import {
+  Timepoint,
+  WordTimestamp,
+  createAlignedWordTimestamps,
+  createLinearWordTimestamps
+} from '../utils/timepoints';
 
 interface UseWordSyncProps {
   audioUrl: string;
@@ -76,132 +69,6 @@ const findCurrentWordIndex = (wordTimestamps: WordTimestamp[], currentTime: numb
 
   // Hiçbir kelime aralığında değilse
   return -1;
-};
-
-// Normalize: lowercase, strip everything except letters, digits, apostrophe
-const normalizeWord = (word: string): string =>
-  word.toLowerCase().replace(/[^a-z0-9']/g, '');
-
-// Backend timepoints'lerden fuzzy-aligned word timestamps oluşturma
-// MFA kelime sayısı ile display kelime sayısı farklı olabilir (em/en dash split, ellipsis vb.)
-// Bu fonksiyon two-pointer greedy alignment ile doğru eşleşmeyi sağlar
-const createOptimizedWordTimestamps = (timepoints: Timepoint[], words: string[], offsetMs: number = 100): WordTimestamp[] => {
-  // Güvenlik kontrolleri
-  if (!timepoints) {
-    console.warn('⚠️ [TIMEPOINTS ERROR] timepoints is null/undefined');
-    return [];
-  }
-
-  if (!Array.isArray(timepoints)) {
-    console.warn('⚠️ [TIMEPOINTS ERROR] timepoints is not an array:', typeof timepoints, timepoints);
-    return [];
-  }
-
-  if (timepoints.length === 0) {
-    console.warn('⚠️ [TIMEPOINTS ERROR] timepoints array is empty');
-    return [];
-  }
-
-  const offsetSeconds = offsetMs / 1000;
-
-  // Word count mismatch uyarısı — alignment drift göstergesi
-  if (words.length !== timepoints.length) {
-    console.warn(
-      `⚠️ [WORD SYNC] Word count mismatch — display: ${words.length}, MFA timepoints: ${timepoints.length}. Fuzzy alignment active.`
-    );
-  }
-
-  const result: WordTimestamp[] = [];
-  let tpIdx = 0;
-
-  for (let i = 0; i < words.length; i++) {
-    const displayWord = words[i];
-    const cleanDisplay = normalizeWord(displayWord);
-
-    // Pure punctuation (e.g., standalone "—") → interpolate from neighbors
-    if (cleanDisplay === '') {
-      const prevEnd = result.length > 0 ? result[result.length - 1].endTime : 0;
-      result.push({ word: displayWord, startTime: prevEnd, endTime: prevEnd });
-      continue;
-    }
-
-    // MFA ran out of words → interpolate remaining display words
-    if (tpIdx >= timepoints.length) {
-      const prevEnd = result.length > 0 ? result[result.length - 1].endTime : 0;
-      result.push({ word: displayWord, startTime: prevEnd, endTime: prevEnd + 0.3 });
-      continue;
-    }
-
-    const tp = timepoints[tpIdx];
-    if (!tp || typeof tp !== 'object') {
-      console.warn(`⚠️ [TIMEPOINT ERROR] Invalid timepoint at index ${tpIdx}:`, tp);
-      const prevEnd = result.length > 0 ? result[result.length - 1].endTime : 0;
-      result.push({ word: displayWord, startTime: prevEnd, endTime: prevEnd + 0.3 });
-      tpIdx++;
-      continue;
-    }
-
-    const tpWord = normalizeWord(tp.word || '');
-
-    if (tpWord === cleanDisplay) {
-      // Direct 1:1 match
-      const startTime = tp.timeSeconds || 0;
-      const endTime = tp.endTimeSeconds || (startTime + 0.5);
-      result.push({ word: displayWord, startTime, endTime });
-      tpIdx++;
-    } else if (cleanDisplay.length > tpWord.length && cleanDisplay.startsWith(tpWord)) {
-      // Display word encompasses multiple MFA words (e.g., "well—known" → "well" + "known")
-      const startTime = tp.timeSeconds || 0;
-      let consumed = tpWord;
-      tpIdx++;
-
-      while (tpIdx < timepoints.length) {
-        const nextTp = timepoints[tpIdx];
-        const nextNorm = normalizeWord(nextTp?.word || '');
-        if (nextNorm && cleanDisplay.startsWith(consumed + nextNorm)) {
-          consumed += nextNorm;
-          tpIdx++;
-          if (consumed === cleanDisplay) break;
-        } else {
-          break;
-        }
-      }
-
-      const endTime = timepoints[tpIdx - 1]?.endTimeSeconds || (startTime + 0.5);
-      result.push({ word: displayWord, startTime, endTime });
-    } else {
-      // No exact match — use current timepoint as best guess, advance both pointers
-      const startTime = tp.timeSeconds || 0;
-      const endTime = tp.endTimeSeconds || (startTime + 0.5);
-      result.push({ word: displayWord, startTime, endTime });
-      tpIdx++;
-    }
-  }
-
-  // Apply offset
-  if (offsetSeconds !== 0) {
-    for (const wt of result) {
-      wt.startTime = Math.max(0, wt.startTime - offsetSeconds);
-      wt.endTime = Math.max(wt.startTime + 0.1, wt.endTime - offsetSeconds);
-    }
-  }
-
-  return result;
-};
-
-// Fallback linear timestamps oluşturma
-const createLinearWordTimestamps = (words: string[], duration: number): WordTimestamp[] => {
-  if (!words || words.length === 0 || !duration) {
-    return [];
-  }
-
-  const timePerWord = duration / words.length;
-
-  return words.map((word, index) => ({
-    word,
-    startTime: index * timePerWord,
-    endTime: (index + 1) * timePerWord
-  }));
 };
 
 export const useWordSync = ({
@@ -428,7 +295,7 @@ export const useWordSync = ({
       });
 
       // Minimal offset uygula (sadece küçük TTS padding kompensasyonu)
-      calculatedTimestamps = createOptimizedWordTimestamps(timepoints, words, 0);
+      calculatedTimestamps = createAlignedWordTimestamps(timepoints, words, 0);
       console.log('🎯 [TIMESTAMPS DEBUG] Using Backend Optimized Timepoints with minimal offset');
     } else {
       console.log('📏 [TIMESTAMPS DEBUG] Invalid/missing timepoints, using fallback:', {

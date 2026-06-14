@@ -18,6 +18,8 @@ const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require('../utils/aud
 const { uploadToSupabase } = require('../utils/storage/storageUploader.js');
 const { analyzeAndAdjustTimings } = require('../utils/audio/audioAnalyzer.js');
 const { mfaAligner } = require('../utils/audio/mfaAligner.js');
+const { groqWhisperAligner } = require('../utils/audio/groqWhisperAligner.js');
+const { getAlignmentProvider } = require('../utils/audio/alignmentProvider.js');
 const jobQueue = require('../utils/infra/jobQueue.js');
 const { extractDailyUsagePatterns } = require('../utils/content/dailyPatternExtractor.js');
 const tmp = require("tmp");
@@ -97,6 +99,10 @@ const cleanupTempFile = (filePath) => {
       // Log error but don't fail the request just for cleanup failure
     }
   }
+};
+
+const logHighlightType = (requestId, highlightType, details = {}) => {
+  logger.info(`[${requestId}] HIGHLIGHT_TYPE=${highlightType}`, details);
 };
 
 // getTtsProvider ve getDefaultVoiceForProvider voiceModelService'e taşındı
@@ -254,6 +260,7 @@ const processTtsRequest = async (req, res) => {
 
       if (cachedAudio) {
         logger.info(`[${requestId}] 🎯 CACHE HIT: Found existing audio for chapter ${chapterId} level ${level}`);
+        logHighlightType(requestId, 'fallback', { reason: 'chapter_audio_cache' });
         return res.json({
           success: true,
           mp3_url: cachedAudio.mp3_url,
@@ -1028,6 +1035,7 @@ const processTtsRequest = async (req, res) => {
 
           // RETURN CHAPTER CACHED RESULT IMMEDIATELY!
           logger.debug(`[${requestId}] [TTS] Using chapter cache return`);
+          logHighlightType(requestId, 'fallback', { reason: 'chapter_cache' });
           return res.status(200).json({
             success: true,
             message: adaptedText,
@@ -1083,6 +1091,7 @@ const processTtsRequest = async (req, res) => {
 
         // RETURN CONTENT CACHED RESULT IMMEDIATELY!
         logger.debug(`[${requestId}] [TTS] Using content cache return`);
+        logHighlightType(requestId, 'fallback', { reason: 'content_cache' });
         return res.status(200).json({
           success: true,
           message: adaptedText,
@@ -1367,22 +1376,36 @@ const processTtsRequest = async (req, res) => {
 
     logger.debug(`[${requestId}] Optimized VTT created - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Clean words: ${allCleanWords.length}, Original words: ${allOriginalWords.length}`);
 
-    // --- Step 9: Forced Alignment (High-Accuracy Word Timestamps) ---
+    // --- Step 9: Alignment Provider (MFA > Groq Whisper > TTS estimated fallback) ---
     let mfaWordTimings = null;
-    const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
+    let groqWordTimings = null;
+    let alignmentSource = 'tts';
+    let alignmentAccuracy = 'estimated';
+    let alignmentMetadata = null;
+    const alignmentProvider = getAlignmentProvider();
+    const useMFA = alignmentProvider === 'mfa';
     const mfaDebugEnabled = process.env.MFA_DEBUG_DUMP === 'true';
 
     if (mfaDebugEnabled) {
       logger.debug(`[${requestId}] Alignment debug dump enabled (file id will be: text_${requestId}_${uniqueId})`);
     }
 
+    logger.info(`[${requestId}] Alignment provider selected: ${alignmentProvider}`);
+    await appendJobDebug({
+      stage: 'alignment-provider',
+      provider: alignmentProvider,
+      useMFA,
+      audioAlignmentProvider: process.env.AUDIO_ALIGNMENT_PROVIDER || null,
+    });
+
     if (useMFA) {
       const alignStartTime = Date.now();
+      let tempAudioPath = null;
       try {
         logger.debug(`[${requestId}] 🎯 Starting MFA alignment for high-accuracy timestamps...`);
 
         // Save merged audio to temp file for MFA processing
-        const tempAudioPath = path.join(os.tmpdir(), `mfa_audio_${uniqueId}.mp3`);
+        tempAudioPath = path.join(os.tmpdir(), `mfa_audio_${uniqueId}.mp3`);
         await fs.promises.writeFile(tempAudioPath, mergedAudioBuffer);
 
         // Detect locale from voice name (e.g., en-US-*, en-GB-*)
@@ -1410,6 +1433,13 @@ const processTtsRequest = async (req, res) => {
         await fs.promises.unlink(tempAudioPath).catch(() => { });
 
         const alignElapsed = Math.round((Date.now() - alignStartTime) / 1000);
+        alignmentSource = 'mfa';
+        alignmentAccuracy = 'high';
+        alignmentMetadata = {
+          provider: 'mfa',
+          latencyMs: Date.now() - alignStartTime,
+          wordCount: Array.isArray(mfaWordTimings) ? mfaWordTimings.length : 0,
+        };
         logger.info(`[${requestId}] ✅ MFA alignment complete - ${mfaWordTimings.length} words aligned`);
         logger.debug(`[${requestId}] ⏱️ MFA running time: ${alignElapsed} seconds`);
         logger.debug(`[${requestId}] 🔍 MFA sample timing:`, mfaWordTimings.slice(0, 3));
@@ -1418,6 +1448,77 @@ const processTtsRequest = async (req, res) => {
         const alignElapsed = Math.round((Date.now() - alignStartTime) / 1000);
         logger.warn(`[${requestId}] ⚠️ MFA alignment failed after ${alignElapsed} seconds, falling back to TTS timepoints: ${mfaError.message}`);
         // Continue with TTS timepoints if MFA fails
+        await appendJobDebug({
+          stage: 'mfa-fallback',
+          message: mfaError.message,
+          elapsedSeconds: alignElapsed,
+        });
+      } finally {
+        if (tempAudioPath) {
+          await fs.promises.unlink(tempAudioPath).catch(() => { });
+        }
+      }
+    } else if (alignmentProvider === 'groq') {
+      const alignStartTime = Date.now();
+      let tempAudioPath = null;
+      try {
+        logger.debug(`[${requestId}] 🎙️ Starting Groq Whisper alignment...`);
+
+        tempAudioPath = path.join(os.tmpdir(), `groq_whisper_audio_${uniqueId}.mp3`);
+        await fs.promises.writeFile(tempAudioPath, mergedAudioBuffer);
+
+        const referenceWords = Array.isArray(allOriginalWords) && allOriginalWords.length > 0
+          ? allOriginalWords
+          : adaptedText.split(/\s+/).filter(Boolean);
+
+        const groqResult = await groqWhisperAligner.generateWordTimestamps(
+          tempAudioPath,
+          referenceWords,
+          {
+            audioDurationSeconds: actualTotalDuration,
+          }
+        );
+
+        groqWordTimings = groqResult.timings;
+        alignmentSource = 'groq_whisper';
+        alignmentAccuracy = 'asr_word_timestamp';
+        alignmentMetadata = {
+          provider: 'groq',
+          model: groqResult.model,
+          language: groqResult.language,
+          latencyMs: groqResult.latencyMs,
+          metrics: groqResult.metrics,
+        };
+
+        logger.info(`[${requestId}] ✅ Groq Whisper alignment complete - ${groqWordTimings.length} words aligned`, alignmentMetadata);
+        await appendJobDebug({
+          stage: 'groq-whisper-complete',
+          ...alignmentMetadata,
+        });
+      } catch (groqError) {
+        const alignElapsed = Math.round((Date.now() - alignStartTime) / 1000);
+        logger.warn(`[${requestId}] ⚠️ Groq Whisper alignment failed after ${alignElapsed} seconds, falling back to TTS timepoints: ${groqError.message}`, {
+          code: groqError.code,
+          metrics: groqError.metrics,
+          failureReasons: groqError.failureReasons,
+        });
+        alignmentMetadata = {
+          provider: 'groq',
+          failed: true,
+          latencyMs: Date.now() - alignStartTime,
+          errorCode: groqError.code || null,
+          failureReasons: groqError.failureReasons || [],
+          metrics: groqError.metrics || null,
+        };
+        await appendJobDebug({
+          stage: 'groq-whisper-fallback',
+          message: groqError.message,
+          ...alignmentMetadata,
+        });
+      } finally {
+        if (tempAudioPath) {
+          await fs.promises.unlink(tempAudioPath).catch(() => { });
+        }
       }
     }
 
@@ -1453,7 +1554,7 @@ const processTtsRequest = async (req, res) => {
     logger.debug(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
 
     // --- Step 11: Return Success Response ---
-    logger.debug(`[${requestId}] Processing complete with ${mfaWordTimings ? 'MFA' : 'optimized'} timings.`);
+    logger.debug(`[${requestId}] Processing complete with ${alignmentSource} timings.`);
 
     const finalMp3Url = mp3Url;
 
@@ -1474,16 +1575,37 @@ const processTtsRequest = async (req, res) => {
       }));
 
       logger.debug(`✅ Using MFA timepoints - ${timepoints.length} words with acoustic alignment`);
+    } else if (groqWordTimings && groqWordTimings.length > 0) {
+      timepoints = groqWordTimings.map((timing, index) => ({
+        word: timing.word,
+        timeSeconds: timing.startTime,
+        endTimeSeconds: timing.endTime,
+        index: index,
+        hasRealTiming: !!timing.matched,
+        source: 'groq_whisper'
+      }));
+
+      logger.debug(`✅ Using Groq Whisper timepoints - ${timepoints.length} words with ASR word timestamps`);
     } else {
       // Fall back to TTS timepoints
       timepoints = matchWordsWithTimings(allOriginalWords, allWordTimings, totalRealDuration);
+      alignmentSource = 'tts';
+      alignmentAccuracy = 'estimated';
       logger.debug(`⚠️ Using TTS timepoints - ${timepoints.length} words with estimated timing`);
     }
 
     // DEBUG: Timepoints kontrolü
     logger.debug(`🔍 FINAL TIMEPOINTS DEBUG - Total words: ${words.length}, Timepoints: ${timepoints.length}`);
     logger.debug(`🔍 First 5 timepoints:`, timepoints.slice(0, 5));
-    logger.debug(`🔍 Timing source: ${mfaWordTimings ? 'MFA (acoustic)' : 'TTS (estimated)'}`);
+    logger.debug(`🔍 Timing source: ${alignmentSource}`);
+    const highlightType = alignmentSource === 'groq_whisper'
+      ? 'groq'
+      : (alignmentSource === 'mfa' ? 'MFA' : 'fallback');
+    logHighlightType(requestId, highlightType, {
+      alignmentSource,
+      alignmentAccuracy,
+      provider: alignmentProvider,
+    });
 
     // Post-process: check limits and deactivate subscription if exceeded
     try {
@@ -1775,6 +1897,27 @@ const processTtsRequest = async (req, res) => {
               metadata: { duration_seconds: audioDurationSeconds, entry_source: normalizedEntrySource },
             });
           }
+          // Log Groq Whisper alignment usage. Cost is optional because Groq pricing may vary by model/account.
+          if (alignmentSource === 'groq_whisper' && alignmentMetadata?.provider === 'groq') {
+            const groqCostPerHour = Number(process.env.GROQ_WHISPER_COST_PER_HOUR || 0);
+            const groqCostUsd = Number(((audioDurationSeconds / 3600) * (Number.isFinite(groqCostPerHour) ? groqCostPerHour : 0)).toFixed(6));
+            await logApiCost({
+              userId,
+              feature: 'audio_alignment',
+              provider: 'groq',
+              model: alignmentMetadata.model || process.env.GROQ_WHISPER_MODEL || 'whisper-large-v3',
+              inputQuantity: audioDurationSeconds,
+              outputQuantity: 0,
+              costUsd: groqCostUsd,
+              metadata: {
+                source: 'groq_whisper',
+                entry_source: normalizedEntrySource,
+                level,
+                latency_ms: alignmentMetadata.latencyMs,
+                metrics: alignmentMetadata.metrics,
+              },
+            });
+          }
         } catch (costLogErr) {
           logger.warn(`[${requestId}] Failed to log api_costs:`, costLogErr?.message);
         }
@@ -1830,8 +1973,9 @@ const processTtsRequest = async (req, res) => {
       drift_amount: analysisResult.driftAmount || 0,
       drift_percentage: analysisResult.driftPercentage || 0,
       // Timing Source Info
-      timing_source: mfaWordTimings ? 'MFA' : 'TTS',
-      timing_accuracy: mfaWordTimings ? 'high' : 'estimated',
+      timing_source: alignmentSource === 'groq_whisper' ? 'GROQ_WHISPER' : alignmentSource.toUpperCase(),
+      timing_accuracy: alignmentAccuracy,
+      alignment_metadata: alignmentMetadata,
       // Çeviri ve adaptasyon sonuçları (database kayıt için)
       translated_text: translatedText || translationResult || '',
       adapted_text: adaptedText,
@@ -1854,8 +1998,9 @@ const processTtsRequest = async (req, res) => {
         audio_segments: audioSegments.length,
         estimated_duration: totalRealDuration,
         real_duration: actualTotalDuration,
-        timing_source: mfaWordTimings ? 'MFA' : 'TTS',
-        timing_accuracy: mfaWordTimings ? 'high' : 'estimated',
+        timing_source: alignmentSource === 'groq_whisper' ? 'GROQ_WHISPER' : alignmentSource.toUpperCase(),
+        timing_accuracy: alignmentAccuracy,
+        alignment_metadata: alignmentMetadata,
         drift_corrected: analysisResult.driftDetected || false,
         drift_amount: analysisResult.driftAmount || 0,
         drift_percentage: analysisResult.driftPercentage || 0,

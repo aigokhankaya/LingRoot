@@ -79,6 +79,9 @@ export interface TTSResponse {
   drift_corrected?: boolean;
   drift_amount?: number;
   drift_percentage?: number;
+  dialogue_segments?: DialogueSegment[];
+  timing_source?: string;
+  timing_accuracy?: string;
 }
 
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -131,6 +134,9 @@ export interface AudioTrack {
   mp3_url?: string;
   timepoints?: Timepoint[];
   words?: string[];
+  dialogue_segments?: DialogueSegment[];
+  timing_source?: string;
+  timing_accuracy?: string;
   wordTimings?: Timepoint[]; // Word timing data for sync feedback
   // Hybrid Approach - Drift Correction
   real_duration?: number;
@@ -147,6 +153,14 @@ export interface Timepoint {
   index?: number;
   hasRealTiming?: boolean;
   source?: string;
+}
+
+export interface DialogueSegment {
+  speaker: string;
+  speakerLabel?: string;
+  content: string;
+  startTime?: number;
+  endTime?: number;
 }
 
 // Navigation Types

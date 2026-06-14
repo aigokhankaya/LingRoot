@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Replaced expo-av with our TrackPlayer-based service
 import { createSound } from '../services/audioService';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { AudioTrack, Timepoint } from '../types';
+import { AudioTrack, DialogueSegment, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
 import { lookupVocabularyWord } from '../services/vocabularyService';
 import { getUserContentById } from '../services/contentService';
@@ -34,6 +34,11 @@ import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 import { PodcastDialogueView } from './audio/PodcastDialogueView';
 import { WordPopupModal } from './audio/WordPopupModal';
 import { PlaybackControls } from './audio/PlaybackControls';
+import {
+  normalizeDialogueSegments,
+  normalizeTimepoints,
+  normalizeWords,
+} from '../utils/timepoints';
 
 const WalkthroughableView = walkthroughable(View);
 
@@ -52,8 +57,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   track,
   visible,
   onClose,
-  timepoints = [],
-  words = [],
+  timepoints: rawTimepoints = [],
+  words: rawWords = [],
   initialHighlightMode = 'word',
   asScreen = false,
   enableTour = false,
@@ -177,6 +182,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [manualSeconds, setManualSeconds] = useState('');
   const [manualMillis, setManualMillis] = useState('');
   const [isTestEnvironment, setIsTestEnvironment] = useState(false);
+  const timepoints = useMemo(
+    () => normalizeTimepoints(rawTimepoints.length > 0 ? rawTimepoints : track.timepoints),
+    [rawTimepoints, track.timepoints]
+  );
+  const words = useMemo(
+    () => normalizeWords(rawWords.length > 0 ? rawWords : track.words),
+    [rawWords, track.words]
+  );
+  const backendDialogueSegments = useMemo(
+    () => normalizeDialogueSegments(track.dialogue_segments),
+    [track.dialogue_segments]
+  );
 
   // Check if app is in test environment
   useEffect(() => {
@@ -199,6 +216,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       timepoints: timepoints?.length || 0,
       words: words?.length || 0,
       duration: track.real_duration || track.duration,
+      timingSource: track.timing_source,
+      timingAccuracy: track.timing_accuracy,
     });
 
     if (timepoints && timepoints.length > 0) {
@@ -389,7 +408,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   // Dialogue segments used for rendering (Speaker bubbles) + explicit timing from MFA word timepoints
   const dialogueSegments = useMemo(() => {
-    if (!isPodcastTranscript || dialogueLines.length === 0) {
+    if (!isPodcastTranscript) {
+      return [] as DialogueSegment[];
+    }
+
+    if (backendDialogueSegments.length > 0) {
+      return backendDialogueSegments;
+    }
+
+    if (dialogueLines.length === 0) {
       return [] as { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number }[];
     }
 
@@ -483,7 +510,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     });
 
     return segmentsWithTiming;
-  }, [isPodcastTranscript, dialogueLines, dialogueLineRanges, timepoints]);
+  }, [backendDialogueSegments, isPodcastTranscript, dialogueLines, dialogueLineRanges, timepoints]);
 
   const originalDialogueSegments = useMemo(() => {
     if (!isPodcastTranscript || dialogueSegments.length === 0 || originalDialogueLines.length === 0) {

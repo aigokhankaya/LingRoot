@@ -1,0 +1,406 @@
+# YouTube -> CEFR -> Seslendirme için Groq + Whisper Analizi
+
+Tarih: 2026-06-11  
+Durum: Analiz / uygulanabilirlik değerlendirmesi  
+Kapsam: YouTube videosundan içerik alıp CEFR seviyesine göre yeniden üretme ve seslendirme akışını Groq + Whisper ile iyileştirme
+
+## 1. Kısa Sonuç
+
+Evet, Groq + Whisper bu akışta anlamlı biçimde kullanılabilir. Ancak doğru çerçeve şu olmalı:
+
+- Groq + Whisper, YouTube'dan "altyazı çekme" çözümü değildir.
+- Groq + Whisper, video sesini transkribe etme ve TTS sonrası kelime zamanlamasını iyileştirme çözümüdür.
+- Bu yüzden sistem iki ayrı probleme ayrılmalıdır:
+  - Transcript acquisition: YouTube'dan metni nasıl alacağız?
+  - Audio/transcript alignment: Nihai ses ile metni nasıl doğru senkronlayacağız?
+
+Mevcut repo durumuna göre en doğru yaklaşım, Groq + Whisper'ı mevcut transcript alma yolunun yerine doğrudan koymak değil, kontrollü fallback ve kalite kapılarıyla yeni bir provider olarak eklemektir.
+
+## 2. Mevcut Durum
+
+Repo'da konuya temas eden mevcut parçalar:
+
+- `backend/utils/content/youtubeTranscriptServiceV2.js`
+  - Python `youtube-transcript-api` ile YouTube altyazısı çekiyor.
+- `backend/scripts/fetchYoutubeTranscript.py`
+  - Altyazıyı segmentlerden birleştirip düz metin döndürüyor.
+- `backend/routes/youtubeRoutesV2.js`
+  - `/api/youtube-v2/transcript` endpoint'i.
+- `frontend/pages/welcome.tsx`
+  - V2 transcript endpoint'ini çağırıyor.
+- `backend/controllers/contentController.js`
+  - `processYoutube` halen `501`, yani ürün akışı tam entegre değil.
+- `backend/controllers/ttsController.js`
+  - Ana CEFR -> TTS -> subtitle/highlight akışı burada.
+- `backend/utils/audio/groqWhisperAligner.js`
+- `backend/utils/audio/alignmentProvider.js`
+- `backend/utils/audio/wordAlignmentMapper.js`
+  - Groq tabanlı word alignment için ilk implementasyon zaten başlamış durumda.
+
+Bu tablo önemli: Groq tarafı repo'da zaten alignment problemi için düşünülmüş. Yani teknik olarak sıfırdan başlamıyoruz.
+
+## 3. Bugünkü Sorunlar
+
+Mevcut YouTube tabanlı akış birkaç nedenle yetersiz kalıyor:
+
+1. Transcript alma katmanı kırılgan
+
+- `youtube-transcript-api` yalnızca mevcut altyazı varsa iyi çalışır.
+- Altyazı kapalı videolarda sistem başarısız olur.
+- Bölgesel erişim, otomatik altyazı durumu ve rate limiting davranışı öngörülemez.
+
+2. Transcript kalitesi TTS için ham
+
+- Ham altyazı metni konuşma, tekrar, kırık cümle, timestamp izleri ve TTS uyumsuz parçalar içerebilir.
+- Frontend tarafında bir temizleme prompt'u var, ama bu ürünün omurgası olacak kadar güvenilir değil.
+
+3. CEFR adaptasyonu transcript yapısını bozuyor
+
+- Orijinal YouTube transcript'i ile CEFR'ye uyarlanmış nihai metin aynı değil.
+- Bu yüzden "orijinal transcript timestamps" doğrudan son ses ile eşleşmez.
+
+4. Highlight/subtitle senkronu zayıf kalabiliyor
+
+- TTS fallback zamanlamaları tahmine dayalı olduğunda özellikle uzun metinlerde drift artar.
+- MFA kaliteli ama operasyonel olarak daha ağır.
+
+## 4. Groq + Whisper Ne İşe Yarar?
+
+Groq + Whisper iki ayrı yerde ciddi değer üretir.
+
+### 4.1. YouTube'da altyazı yoksa transcript üretmek
+
+Akış:
+
+1. YouTube URL'den audio indir.
+2. Audio'yu Groq Whisper ile transkribe et.
+3. Çıkan transcript'i normalize et.
+4. CEFR adaptasyonuna gönder.
+5. Nihai metni TTS ile yeniden üret.
+
+Bu modelin artısı:
+
+- Altyazısız videolarda da çalışır.
+- Tek transcript provider'a bağımlılık azalır.
+- Otomatik altyazıdan daha temiz sonuç verme ihtimali vardır.
+
+Eksisi:
+
+- YouTube'dan audio çekmek için ayrıca indirme katmanı gerekir.
+- Maliyet ve latency altyazı çekmeye göre daha yüksektir.
+- Uzun videolarda işleme süresi büyür.
+
+### 4.2. Nihai TTS sesi için gerçek kelime zamanlaması üretmek
+
+Akış:
+
+1. CEFR uyarlanmış İngilizce metin TTS ile üretilir.
+2. Üretilen ses Groq Whisper'a gönderilir.
+3. Word timestamps alınır.
+4. `wordAlignmentMapper` ile nihai reference text'e eşlenir.
+5. Frontend/mobile mevcut `timepoints` formatını kullanır.
+
+Bu modelin artısı:
+
+- Gerçek üretilmiş sese göre timing elde edilir.
+- MFA kapalı olduğunda tahmine dayalı highlight'a göre daha kaliteli olur.
+- Mevcut repo'da bunun temeli zaten atılmış.
+
+Eksisi:
+
+- Whisper forced alignment değildir; transcript ile tam birebirlik garanti etmez.
+- Kalite kapısı şarttır.
+
+## 5. Kritik Mimari Karar
+
+En önemli karar şu:
+
+- Groq + Whisper transcript provider olarak ayrı ele alınmalı.
+- Groq + Whisper alignment provider olarak ayrı ele alınmalı.
+
+Bu ikisini tek başlık altında düşünmek tasarımı bulanıklaştırıyor.
+
+Önerilen provider ayrımı:
+
+### 5.1. Transcript provider
+
+Olası değerler:
+
+- `youtube_subtitle`
+- `groq_whisper_audio`
+- `third_party_api`
+
+Önerilen env:
+
+```env
+YOUTUBE_TRANSCRIPT_PROVIDER=auto
+YOUTUBE_AUDIO_TRANSCRIBE_PROVIDER=groq
+```
+
+Davranış:
+
+1. Önce YouTube native transcript dene.
+2. Başarısızsa audio transcribe fallback kullan.
+3. O da başarısızsa kullanıcıya transcript unavailable dön.
+
+### 5.2. Alignment provider
+
+Olası değerler:
+
+- `mfa`
+- `groq`
+- `tts`
+
+Bu kısım için repo'da zaten şu yapı oluşmuş durumda:
+
+```env
+USE_MFA_ALIGNMENT=false
+AUDIO_ALIGNMENT_PROVIDER=groq
+```
+
+Bu ayrım doğru. Korunmalı.
+
+## 6. Mevcut Koda Göre En Doğru Hedef Mimari
+
+Önerilen tam akış:
+
+### Yol A: Videoda kullanılabilir altyazı varsa
+
+1. `youtubeTranscriptServiceV2` ile transcript çek.
+2. Transcript'i backend tarafında temizle/normalize et.
+3. CEFR adaptasyonuna gönder.
+4. Adapted text'i TTS ile üret.
+5. TTS sonrası alignment için:
+   - MFA açıksa MFA
+   - MFA kapalıysa Groq Whisper
+   - O da başarısızsa estimated timing
+
+### Yol B: Videoda altyazı yoksa
+
+1. YouTube audio indir.
+2. Groq Whisper ile transcript üret.
+3. Transcript'i temizle/normalize et.
+4. CEFR adaptasyonuna gönder.
+5. Adapted text'i TTS ile üret.
+6. Yine TTS sonrası alignment provider zincirini çalıştır.
+
+Bu iki yolu birleştiren asıl nokta:
+
+- CEFR'den sonra oluşan final narration text, subtitle/highlight için tek source of truth olmalı.
+
+## 7. Neden Orijinal YouTube Timestamp'lerini Taşımak Yetersiz?
+
+Bu ürünün hedefi sadece transcript okutmak değil; CEFR seviyesine göre yeniden yazılmış bir anlatım üretmek.
+
+Bu nedenle:
+
+- Cümle uzunluğu değişiyor.
+- Kelime seçimi değişiyor.
+- Bazı cümleler sadeleşiyor veya genişliyor.
+- Bazen aynı anlam daha kısa veya daha uzun anlatılıyor.
+
+Sonuç:
+
+- YouTube transcript timestamp'leri nihai TTS sesine doğrudan uygulanamaz.
+- Doğru timing kaynağı, nihai sesin kendisidir.
+
+Bu yüzden Groq + Whisper'ın en güçlü kullanım alanı transcript alma değil, final audio alignment tarafıdır.
+
+## 8. Eksik Parçalar
+
+Bugün repo'da eksik veya tamamlanmamış görünen parçalar:
+
+### 8.1. YouTube product flow eksik
+
+- `backend/controllers/contentController.js` içindeki `processYoutube` halen uygulanmamış.
+- YouTube transcript çekme route'u var ama içerik pipeline'ına tam bağlı değil.
+
+### 8.2. Audio acquisition katmanı yok
+
+Groq ile altyazısız videoları desteklemek için gerekli:
+
+- YouTube URL -> audio download
+- Gerekirse audio trim/downmix
+- Temp file lifecycle
+- Boyut/süre limitleri
+
+Muhtemel yeni dosya:
+
+- `backend/utils/content/youtubeAudioExtractor.js`
+
+Önerilen sorumluluklar:
+
+- URL doğrulama
+- Ses stream'ini indirip geçici dosyaya yazma
+- Maksimum süre kontrolü
+- Gerekirse mono/16k dönüşüm
+
+### 8.3. Transcript normalization backend'de merkezileşmemiş
+
+Şu an transcript clean prompt'u frontend tarafında duruyor:
+
+- `frontend/src/services/cleanTranscriptService.ts`
+
+Bu yanlış katman. Transcript temizliği ürün davranışıdır; backend'e taşınmalı.
+
+Önerilen yeni helper:
+
+- `backend/utils/content/transcriptNormalizer.js`
+
+### 8.4. Provider orchestration eksik
+
+Transcript ve alignment kararları iki farklı helper ile yönetilmeli.
+
+Önerilen yeni helper:
+
+- `backend/utils/content/transcriptProvider.js`
+
+Örnek:
+
+```js
+function getTranscriptProvider(env = process.env) {
+  const provider = String(env.YOUTUBE_TRANSCRIPT_PROVIDER || 'auto').trim().toLowerCase();
+  return provider || 'auto';
+}
+```
+
+## 9. Teknik Uygulanabilirlik
+
+## 9.1. Yapılabilirlik
+
+Evet, yapılabilir. Sebepler:
+
+- Backend'de zaten FFmpeg/ffprobe altyapısı var.
+- Groq tabanlı alignment util'leri başlamış.
+- TTS sonrası timepoint üretimi zaten mevcut bir kavram.
+- CEFR adaptasyon pipeline'ı oturmuş durumda.
+
+## 9.2. Zorluk seviyesi
+
+Orta-yüksek.
+
+En zor kısım Groq API çağrısı değil. Zor kısımlar:
+
+- YouTube audio acquisition güvenilirliği
+- Uzun videolarda süre/maliyet kontrolü
+- Transcript normalize + CEFR + TTS + alignment zincirinde fallback tasarımı
+- Ürün seviyesinde doğru hata mesajları
+
+## 9.3. Operasyonel risk
+
+Groq transcript tarafı başarılı olsa bile YouTube audio extraction katmanı kırılgan olabilir. Bu yüzden ilk rollout'ta Groq transcript fallback, sadece belirli video süre limitleri içinde açılmalı.
+
+## 10. Önerilen Fazlar
+
+### Faz 1: Sadece final audio alignment'ı Groq ile iyileştir
+
+Kapsam:
+
+- `ttsController.js` içinde mevcut Groq alignment yolunu stabilize et.
+- `alignmentProvider.js`, `groqWhisperAligner.js`, `wordAlignmentMapper.js` testlerini tamamla.
+- `timing_source` ve `timing_accuracy` metadata'sını response/db tarafında netleştir.
+
+Beklenen fayda:
+
+- En düşük riskle highlight kalitesi artar.
+- YouTube dışındaki tüm TTS akışları da fayda görür.
+
+### Faz 2: YouTube transcript fallback olarak Groq ekle
+
+Kapsam:
+
+- Önce native transcript dene.
+- Başarısızsa video audio indirip Groq Whisper ile transcript üret.
+- Transcript temizliğini backend'e taşı.
+
+Beklenen fayda:
+
+- Altyazısız videolar desteklenir.
+- YouTube transcript başarısızlık oranı düşer.
+
+### Faz 3: Tek ürün akışı haline getir
+
+Kapsam:
+
+- `processYoutube` endpoint'ini gerçekten implemente et.
+- Transcript provider + CEFR adaptation + TTS + subtitle/highlight tek iş akışı olsun.
+- Job queue ve cache ile çalışsın.
+
+## 11. Önerilen Env Tasarımı
+
+```env
+YOUTUBE_TRANSCRIPT_PROVIDER=auto
+YOUTUBE_AUDIO_TRANSCRIBE_PROVIDER=groq
+YOUTUBE_TRANSCRIPT_MAX_DURATION_SECONDS=1800
+
+USE_MFA_ALIGNMENT=false
+AUDIO_ALIGNMENT_PROVIDER=groq
+
+GROQ_API_KEY=...
+GROQ_WHISPER_MODEL=whisper-large-v3
+GROQ_WHISPER_LANGUAGE=en
+GROQ_WHISPER_TIMEOUT_MS=60000
+GROQ_WHISPER_MIN_MATCH_RATIO=0.92
+GROQ_WHISPER_MAX_WORD_COUNT_DELTA_RATIO=0.12
+```
+
+Davranış önerisi:
+
+- `YOUTUBE_TRANSCRIPT_PROVIDER=auto`
+  - Önce native subtitle
+  - Sonra Groq audio transcription fallback
+
+## 12. Beklenen Kazanımlar
+
+### Ürün kalitesi
+
+- Daha fazla YouTube videosu işlenebilir hale gelir.
+- Word highlight daha doğal olur.
+- CEFR sonrası üretilen sesle subtitle/timepoint uyumu artar.
+
+### Teknik kalite
+
+- Provider sınırları netleşir.
+- Frontend demo-style transcript cleaning mantığı backend'e taşınır.
+- Gözlenebilirlik artar.
+
+### Ticari etkiler
+
+- "Video altyazısı yok, sistem çalışmıyor" oranı düşer.
+- Kullanıcı algısında ürün daha dayanıklı görünür.
+
+## 13. Riskler
+
+1. Groq transcript kalitesi her içerik türünde eşit olmayabilir.
+2. Çok uzun videolarda maliyet ve latency yükselebilir.
+3. YouTube audio indirme katmanı hukuki/operasyonel olarak ayrıca değerlendirilmelidir.
+4. Whisper transcript'i CEFR adaptation için yeterli olsa bile kelime bazında kusursuz olmayabilir.
+5. Provider zinciri karmaşıklaşırsa debugging zorlaşır.
+
+## 14. Net Tavsiye
+
+Net tavsiye:
+
+1. Önce Groq + Whisper'ı transcript alma çözümü olarak değil, alignment çözümü olarak üretime yaklaştırın.
+2. Ardından YouTube transcript fallback katmanına Groq ekleyin.
+3. `processYoutube` akışını backend'de gerçek bir orchestration endpoint'i haline getirin.
+
+Başka bir ifadeyle:
+
+- Evet, Groq + Whisper bu problem için uygundur.
+- Ama doğru ilk hedef "YouTube transcript yerine tamamen Groq'a geçmek" değildir.
+- Doğru ilk hedef "nihai TTS sesini daha iyi hizalamak", ikinci hedef ise "altyazısız YouTube videolarına fallback sağlamak" olmalıdır.
+
+## 15. Uygulama Kararı
+
+Bu analiz temelinde önerilen karar:
+
+- Onaylanan mimari:
+  - Native YouTube transcript + Groq fallback
+  - MFA + Groq + estimated timing alignment zinciri
+- İlk teslim:
+  - Faz 1
+- İkinci teslim:
+  - Faz 2
+
+Bu yaklaşım, mevcut repo yapısına en az kırılmayla oturur ve kullanıcıya en hızlı hissedilen kalite artışını verir.
