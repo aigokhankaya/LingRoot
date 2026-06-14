@@ -112,3 +112,4 @@ backend/tests/load/scripts/cleanup-test-data.sql
 
 # Temporary docs
 docs/temp/
+screenshots/

@@ -30,6 +30,7 @@ import { AudioTrack, Timepoint } from '../types';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 import { getUserSettings } from '../services/ttsService';
+import { normalizeTimepoints, normalizeWords } from '../utils/timepoints';
 
 interface AnimatedFeatureButtonProps {
   titleTr: string;
@@ -439,31 +440,6 @@ const LiroScreen: React.FC = () => {
       return url;
     }
     return `${apiUrl}${url.startsWith('/') ? '' : '/'}${url}`;
-  };
-
-  const normalizeWords = (raw: any): string[] => {
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .map((item: any) => {
-        if (typeof item === 'string') return item;
-        if (item && typeof item === 'object') {
-          return (
-            item.word ||
-            item.text ||
-            item.token ||
-            item.value ||
-            ''
-          );
-        }
-        return '';
-      })
-      .map((w: string) => String(w).trim())
-      .filter((w: string) => w.length > 0);
-  };
-
-  const normalizeTimepoints = (raw: any): Timepoint[] => {
-    if (!Array.isArray(raw)) return [];
-    return raw.filter(Boolean) as Timepoint[];
   };
 
   const openLiroAudioPlayer = () => {

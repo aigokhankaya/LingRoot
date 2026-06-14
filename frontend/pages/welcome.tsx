@@ -75,6 +75,7 @@ interface AudioResult {
   success?: boolean;
   message: string;
   dialogue?: string;
+  dialogue_segments?: any[];
   mp3_url: string;
   vtt_url: string;
   level: string;
@@ -87,6 +88,8 @@ interface AudioResult {
   topic?: string;
   adapted_text?: string;
   translated_text?: string;
+  timing_source?: string;
+  timing_accuracy?: string;
   contentId?: string;
 }
 
@@ -778,6 +781,7 @@ const Welcome: React.FC = () => {
         setAudioResult({
           message: transcriptText,
           dialogue: dialogueText,
+          dialogue_segments: result.dialogue_segments || [],
           mp3_url: result.podcast_url,
           vtt_url: vttUrl,
           level: englishLevel,
@@ -786,6 +790,8 @@ const Welcome: React.FC = () => {
           topic: topic,
           timepoints: result.timepoints || [],
           words: result.words || [],
+          timing_source: result.timing_source,
+          timing_accuracy: result.timing_accuracy,
         });
         console.log('🎙️ [PODCAST] Podcast created successfully:', {
           topic: topic,

@@ -95,6 +95,8 @@ export interface AdminAudioHistoryItem {
   timepoints?: string | any[];
   words_count?: number | null;
   timepoints_count?: number | null;
+  timing_source?: string | null;
+  timing_accuracy?: string | null;
   // cost fields
   openai_prompt_tokens?: number;
   openai_completion_tokens?: number;

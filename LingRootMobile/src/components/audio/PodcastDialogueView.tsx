@@ -6,14 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { COLORS } from '../../theme/colors';
-
-interface DialogueSegment {
-  speaker: string;
-  speakerLabel?: string;
-  content: string;
-  startTime?: number;
-  endTime?: number;
-}
+import { DialogueSegment } from '../../types';
 
 interface OriginalDialogueSegment {
   content: string;

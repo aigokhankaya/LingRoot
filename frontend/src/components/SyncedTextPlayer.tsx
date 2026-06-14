@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { addWordWithTranslation, lookupVocabularyWord } from '../lib/api';
 import { useListeningSession } from '@/hooks/useListeningSession';
-
-interface Timepoint {
-  timeSeconds: number;
-  endTimeSeconds?: number;
-  word?: string;
-}
-
-interface WordTimestamp {
-  word: string;
-  startTime: number;
-  endTime: number;
-}
+import {
+  Timepoint,
+  WordTimestamp,
+  createAlignedWordTimestamps,
+  createLinearWordTimestamps
+} from '../utils/timepoints';
 
 interface VttCue {
   startTime: number;
@@ -327,16 +321,6 @@ export default function SyncedTextPlayer({
     }
   }, [playbackRate, isAudioLoaded]);
 
-  // Optimized timing hesaplama fonksiyonu - backend'ten gelen timing'leri kullanır
-  const calculateOptimizedTimestamps = (timepoints: Timepoint[]): WordTimestamp[] => {
-    // Backend'ten gelen timepoints'ler zaten optimize edilmiş - direkt kullan
-    return timepoints.map((tp, index) => ({
-      word: tp.word || words[index] || `word_${index}`,
-      startTime: tp.timeSeconds || 0,
-      endTime: tp.endTimeSeconds || (tp.timeSeconds + 0.5)
-    }));
-  };
-
   // Adaptive timing hesaplama fonksiyonu (fallback için - konuşma hızını dikkate alır)
   const calculateAdaptiveTimestamps = (baseDuration: number, userHints: Array<{ wordIndex: number, timestamp: number }>) => {
     const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
@@ -418,7 +402,7 @@ export default function SyncedTextPlayer({
     if (timepoints && timepoints.length > 0) {
       // Backend'den gelen optimized timepoints (EN YÜKSEK ÖNCELİK)
       // Bu timing'ler SSML mark'ları ile optimize edilmiş ve noktalama temizliği yapılmış
-      calculatedTimestamps = calculateOptimizedTimestamps(timepoints);
+      calculatedTimestamps = createAlignedWordTimestamps(timepoints, textWords, 0);
       activeMethod = 'Backend';
     } else if (vttCues.length > 0) {
       // VTT tabanlı timing (ikinci öncelik)
@@ -444,13 +428,7 @@ export default function SyncedTextPlayer({
       activeMethod = 'Adaptive';
     } else {
       // Linear distribution (varsayılan)
-      const baseTimePerWord = audioDuration / textWords.length;
-
-      calculatedTimestamps = textWords.map((word, index) => ({
-        word,
-        startTime: index * baseTimePerWord,
-        endTime: (index + 1) * baseTimePerWord
-      }));
+      calculatedTimestamps = createLinearWordTimestamps(textWords, audioDuration);
       activeMethod = 'Linear';
     }
 

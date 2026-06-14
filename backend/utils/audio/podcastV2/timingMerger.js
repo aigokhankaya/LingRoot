@@ -19,12 +19,14 @@ function mergeTimingData(offsetData) {
       dialogueSegments: [],
       words: [],
       totalDuration: 0,
+      sourceCounts: {},
     };
   }
 
   const timepoints = [];
   const dialogueSegments = [];
   const words = [];
+  const sourceCounts = {};
   let globalWordIndex = 0;
 
   for (let lineIndex = 0; lineIndex < segmentsWithOffsets.length; lineIndex++) {
@@ -36,13 +38,16 @@ function mergeTimingData(offsetData) {
 
     // Process each word timing
     for (const wt of wordTimings) {
+      const timingSource = wt.fallback ? 'tts' : (wt.source || (wt.interpolated ? 'interpolated' : 'mfa'));
+      sourceCounts[timingSource] = (sourceCounts[timingSource] || 0) + 1;
+
       timepoints.push({
         word: wt.word,
         timeSeconds: wt.startTime,
         endTimeSeconds: wt.endTime,
         index: globalWordIndex,
         hasRealTiming: !wt.interpolated && !wt.fallback,
-        source: wt.fallback ? 'fallback' : (wt.interpolated ? 'interpolated' : 'mfa'),
+        source: timingSource,
       });
 
       words.push(wt.word);
@@ -72,6 +77,7 @@ function mergeTimingData(offsetData) {
     dialogueSegments,
     words,
     totalDuration,
+    sourceCounts,
   };
 }
 
