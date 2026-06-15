@@ -22,6 +22,8 @@ export interface Topic {
         mp3_url?: string;
         duration_seconds?: number;
         level?: string;
+        translated_text?: string | null;
+        adapted_text?: string | null;
         timepoints?: any;
         words?: string[];
         created_at?: string;

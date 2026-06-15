@@ -52,6 +52,7 @@ export interface TTSRequest {
   gender?: 'male' | 'female' | 'neutral';
   accent?: 'american' | 'british' | 'australian' | 'canadian' | 'indian' | 'international' | 'all';
   topic_id?: string;
+  original_turkish?: string;
   engine?: string;
 }
 

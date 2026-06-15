@@ -59,13 +59,15 @@ cd F:\Main\LingRootMobile\android
 
 # 1. Clean build
 .\gradlew.bat clean --no-daemon --console plain
+mac:./gradlew clean --no-daemon --console plain
 
 # 2. Release APK oluştur (billing permission dahil)
 .\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace
+mac:./gradlew assembleRelease --no-daemon --console plain --stacktrace
 
 # 3. Build hata alırsa logları kaydet
 .\\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace 2>&1 | Tee-Object -FilePath build-error.txt
-
+mac:./gradlew assembleRelease --no-daemon --console plain --stacktrace 2>&1 | Tee-Object -FilePath build-error.txt
 # APK konumu: F:\Main\LingRootMobile\android\app\build\outputs\apk\release\app-release.apk
 
 === GOOGLE PLAY STORE İÇİN AAB (Android App Bundle) ===
@@ -139,6 +141,7 @@ rm -rf Pods Podfile.lock
 pod install --repo-update
 ipconfig getifaddr en0
 
+
 ### Tünnel ve backend başladı kontrolleri
 
 # Tunnel Durumu
@@ -151,9 +154,8 @@ curl https://api.booklevel.store/api/health
 curl http://localhost:5001/api/health
 
 # Açık olan backendi kapatıyoruz:
-netstat -ano | findstr ":5001"
-    gelen çıktı:TCP    0.0.0.0:5001           0.0.0.0:0              LISTENING       34580
-Stop-Process -Id 33808
+lsof -nP -iTCP:5001 -sTCP:LISTEN
+kill -9 5566
 
 
 
