@@ -1682,6 +1682,9 @@ const processTtsRequest = async (req, res) => {
     if (req.body.topic_id) {
       try {
         const topicId = req.body.topic_id;
+        const topicOriginalText = typeof req.body.original_turkish === 'string' && req.body.original_turkish.trim()
+          ? req.body.original_turkish.trim()
+          : null;
 
         logger.debug(`[${requestId}] Saving topic audio for topic_id=${topicId} to topic_contents`);
 
@@ -1690,7 +1693,7 @@ const processTtsRequest = async (req, res) => {
           mp3_url: finalMp3Url,
           vtt_url: vttUrl,
           text_content: cleanTextForDisplay || null,
-          translated_text: translatedText || translationResult || null,
+          translated_text: topicOriginalText || translatedText || translationResult || null,
           adapted_text: adaptedText || null,
           level: level || null,
           voice_model: selectedVoice || null,
@@ -1761,15 +1764,23 @@ const processTtsRequest = async (req, res) => {
         // Additional metadata for cost analytics
         const audioDurationSeconds = Math.round((actualTotalDuration || totalRealDuration || 0));
         const normalizedEntrySource = (req.body.entrySource || req.body.entry_source || req.body.section || req.body.source || req.body.type || inputType || 'unknown');
+        const normalizedInputType = req.body.topic_id
+          ? 'topic'
+          : (req.body.type || inputType || 'text');
+        const topicOriginalText = req.body.topic_id && typeof req.body.original_turkish === 'string' && req.body.original_turkish.trim()
+          ? req.body.original_turkish.trim()
+          : null;
 
         const insertData = {
           user_id: userId,
           level: level || 'B1',
           mp3_url: finalMp3Url,
-          input: inputType === 'file' ? (rawText || req.body.input || '') : (req.body.input || ''),
-          translated_text: translatedText || translationResult || '',
+          input: inputType === 'file'
+            ? (rawText || req.body.input || '')
+            : (topicOriginalText || req.body.input || ''),
+          translated_text: topicOriginalText || translatedText || translationResult || '',
           adapted_text: textToAdapt || '',
-          input_type: req.body.type || 'text',
+          input_type: normalizedInputType,
           created_at: new Date().toISOString(),
           words: words && words.length > 0 ? JSON.stringify(words) : null,
           timepoints: timepoints && timepoints.length > 0 ? JSON.stringify(timepoints) : null,

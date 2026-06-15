@@ -14,6 +14,7 @@ const config = {
   resolver: {
     assetExts: ['bin', 'txt', 'jpg', 'png', 'json', 'gif', 'webp', 'svg', 'ttf', 'otf'],
     nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
+    useWatchman: false,
   },
 };
 

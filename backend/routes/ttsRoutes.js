@@ -379,7 +379,7 @@ router.post(
                 mp3_url: result.mp3_url,
                 title: result.adapted_text?.substring(0, 50) || 'Audio',
                 level: requestBody.level,
-                input_type: 'text'
+                input_type: requestBody.topic_id ? 'topic' : 'text'
               }
             });
           } catch (notifError) {

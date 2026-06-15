@@ -549,6 +549,124 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
 
     logger.info(`Fetching audio history for user: ${userId} (page=${page}, limit=${limit}, search="${searchQuery}", level="${levelFilter}", input_type="${inputTypeFilter}")`);
 
+    // Topic tree audios are stored in topic_contents, not only in contenthistory.
+    // For explicit topic filtering, query the canonical topic source directly.
+    if (inputTypeFilter === 'topic') {
+      let topicQuery = supabase
+        .from('topic_contents')
+        .select(`
+          id,
+          topic_id,
+          mp3_url,
+          translated_text,
+          adapted_text,
+          level,
+          words,
+          timepoints,
+          created_at,
+          duration_seconds,
+          topics!inner(user_id)
+        `)
+        .eq('topics.user_id', userId)
+        .not('mp3_url', 'is', null);
+
+      if (searchQuery) {
+        topicQuery = topicQuery.or(`translated_text.ilike.%${searchQuery}%,adapted_text.ilike.%${searchQuery}%`);
+      }
+
+      if (levelFilter) {
+        topicQuery = topicQuery.eq('level', levelFilter);
+      }
+
+      const { data: topicHistory, error: topicError } = await topicQuery
+        .order('created_at', { ascending: false })
+        .range(rangeFrom, rangeTo);
+
+      if (topicError) {
+        logger.error('Error fetching topic audio history:', topicError);
+        return res.status(500).json({
+          success: false,
+          message: 'Error fetching topic audio history'
+        });
+      }
+
+      let topicCountQuery = supabase
+        .from('topic_contents')
+        .select('id, topics!inner(user_id)', { count: 'exact', head: true })
+        .eq('topics.user_id', userId)
+        .not('mp3_url', 'is', null);
+
+      if (searchQuery) {
+        topicCountQuery = topicCountQuery.or(`translated_text.ilike.%${searchQuery}%,adapted_text.ilike.%${searchQuery}%`);
+      }
+      if (levelFilter) {
+        topicCountQuery = topicCountQuery.eq('level', levelFilter);
+      }
+
+      const { count: topicTotalCount, error: topicCountError } = await topicCountQuery;
+      if (topicCountError) {
+        logger.warn('Count query error in topic audio-history:', topicCountError);
+      }
+
+      const transformedTopicHistory = (topicHistory || []).map(item => {
+        let words = [];
+        let timepoints = [];
+
+        try {
+          if (item.words && typeof item.words === 'string') {
+            words = JSON.parse(item.words);
+          } else if (Array.isArray(item.words)) {
+            words = item.words;
+          }
+          if (item.timepoints && typeof item.timepoints === 'string') {
+            timepoints = JSON.parse(item.timepoints);
+          } else if (Array.isArray(item.timepoints)) {
+            timepoints = item.timepoints;
+          }
+        } catch (parseError) {
+          logger.warn(`Error parsing topic words/timepoints for item ${item.id}:`, parseError);
+        }
+
+        let derivedDurationSec = typeof item.duration_seconds === 'number' && item.duration_seconds > 0
+          ? item.duration_seconds
+          : 180;
+        if (derivedDurationSec === 180 && Array.isArray(timepoints) && timepoints.length > 0) {
+          const maxEnd = Math.max(
+            ...timepoints.map(tp => (
+              typeof tp?.endTimeSeconds === 'number'
+                ? tp.endTimeSeconds
+                : (typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : 0)
+            ))
+          );
+          if (isFinite(maxEnd) && maxEnd > 0) {
+            derivedDurationSec = Math.round(maxEnd);
+          }
+        }
+
+        return {
+          id: item.id,
+          title: item.translated_text ? item.translated_text.substring(0, 100) + '...' : 'Untitled',
+          url: item.mp3_url,
+          level: item.level || 'A1',
+          duration: derivedDurationSec,
+          created_at: item.created_at,
+          input_type: 'topic',
+          translated_text: item.translated_text,
+          adapted_text: item.adapted_text,
+          input: item.translated_text || '',
+          words,
+          timepoints
+        };
+      });
+
+      return res.json({
+        success: true,
+        data: transformedTopicHistory,
+        total_count: typeof topicTotalCount === 'number' ? topicTotalCount : transformedTopicHistory.length,
+        total_duration_seconds: transformedTopicHistory.reduce((sum, item) => sum + (item.duration || 0), 0)
+      });
+    }
+
     // Build query with filters
     let query = supabase
       .from('contenthistory')
@@ -647,6 +765,29 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
       logger.warn('Total duration aggregation failed:', e);
     }
 
+    const audioUrls = (audioHistory || [])
+      .map(item => item.mp3_url)
+      .filter(Boolean);
+
+    let topicAudioUrlSet = new Set();
+    if (audioUrls.length > 0) {
+      try {
+        const { data: topicMatches, error: topicMatchError } = await supabase
+          .from('topic_contents')
+          .select('mp3_url, topics!inner(user_id)')
+          .in('mp3_url', audioUrls)
+          .eq('topics.user_id', userId);
+
+        if (topicMatchError) {
+          logger.warn('Error matching topic audio URLs in audio-history:', topicMatchError);
+        } else if (Array.isArray(topicMatches)) {
+          topicAudioUrlSet = new Set(topicMatches.map(row => row.mp3_url).filter(Boolean));
+        }
+      } catch (topicMatchErr) {
+        logger.warn('Unexpected topic audio URL matching error:', topicMatchErr);
+      }
+    }
+
     // Transform data to match mobile app expectations
     const transformedHistory = (audioHistory || []).map(item => {
       let words = [];
@@ -683,6 +824,8 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         logger.warn(`Duration derivation failed for item ${item.id}:`, e);
       }
 
+      const effectiveInputType = topicAudioUrlSet.has(item.mp3_url) ? 'topic' : item.input_type;
+
       return {
         id: item.id,
         title: item.input ? item.input.substring(0, 100) + '...' : 'Untitled',
@@ -690,7 +833,7 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         level: item.level || 'A1',
         duration: derivedDurationSec, // include duration so Home can sum quickly
         created_at: item.created_at,
-        input_type: item.input_type,
+        input_type: effectiveInputType,
         translated_text: item.translated_text,
         adapted_text: item.adapted_text,
         input: item.input || '',

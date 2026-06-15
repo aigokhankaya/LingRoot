@@ -300,8 +300,23 @@ const TopicTreeScreenContent: React.FC = () => {
     if (!c?.mp3_url) return null;
     let tp: any = c.timepoints;
     try { if (typeof tp === 'string') tp = JSON.parse(tp); } catch { }
+    const track: AudioTrack = {
+      id: c.id,
+      title: topic.title,
+      url: c.mp3_url,
+      mp3_url: c.mp3_url,
+      level: (c.level || topic.level || 'B1') as CEFRLevel,
+      duration: c.duration_seconds || 180,
+      created_at: c.created_at || '',
+      input_type: 'topic',
+      translated_text: c.translated_text || undefined,
+      adapted_text: c.adapted_text || undefined,
+      original_turkish: c.translated_text || '',
+      timepoints: Array.isArray(tp) ? tp : [],
+      words: Array.isArray(c.words) ? c.words : []
+    };
     return {
-      track: { id: c.id, title: topic.title, url: c.mp3_url, mp3_url: c.mp3_url, level: (c.level || topic.level || 'B1') as CEFRLevel, duration: c.duration_seconds || 180, created_at: c.created_at || '', input_type: 'topic' as const, timepoints: Array.isArray(tp) ? tp : [], words: Array.isArray(c.words) ? c.words : [] },
+      track,
       tps: Array.isArray(tp) ? tp : [],
       words: Array.isArray(c.words) ? c.words : [],
     };
@@ -397,6 +412,7 @@ const TopicTreeScreenContent: React.FC = () => {
       // adapted_text = English (for TTS), translated_text = Turkish (fallback only)
       const generatedText = (data as Record<string, unknown>)?.adapted_text as string ||
         (data as Record<string, unknown>)?.translated_text as string || '';
+      const generatedTurkishText = (data as Record<string, unknown>)?.translated_text as string || '';
 
       if (!generatedText) {
         showAlert(
@@ -423,6 +439,7 @@ const TopicTreeScreenContent: React.FC = () => {
         gender: voiceSelection.gender as 'male' | 'female' | 'neutral',
         accent: voiceSelection.accent as TTSRequest['accent'],
         topic_id: activeTopic.id,
+        original_turkish: generatedTurkishText,
         engine: voiceSelection.engine,
       };
 

@@ -1,0 +1,794 @@
+ FFmpeg started: ffmpeg -f concat -safe 0 -i /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-RLxgZt/mylist.txt -y -c:a libmp3lame -b:a 128k -ar 24000 -ac 1 -f mp3 /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-RLxgZt/merged_output.mp3
+]: Merge complete: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-MO9aBZ/merged_output.mp3
+]: Merged audio buffer created - Size: 2728749 bytes
+]: Merged audio duration: 170.47s
+]: Cleaned temp directory: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-MO9aBZ
+]: Merge complete: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-RLxgZt/merged_output.mp3
+]: Merged audio buffer created - Size: 3119277 bytes
+]: Merged audio duration: 194.88s
+]: Cleaned temp directory: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-RLxgZt
+]: GET /job/job_1781178209437_5jtc0qg9u 304 1ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 3ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 2ms
+]: GET /job/active 304 1ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 2ms
+]: GET /job/active 304 1ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 2ms
+]: [GROQ-WHISPER] Transcription complete: words=383, latencyMs=14455, model=whisper-large-v3
+]: [GROQ-WHISPER] Alignment quality passed=true reasons=none matchRatio=0.972 wordDelta=0.008 nonMonotonic=11/30 model=whisper-large-v3 latencyMs=14455
+]: [PODCAST-V2] groq returned 386 word timings for Host
+]: GET /job/job_1781178209437_5jtc0qg9u 304 1ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 2ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 3ms
+]: [GROQ-WHISPER] Transcription complete: words=426, latencyMs=22180, model=whisper-large-v3
+]: [GROQ-WHISPER] Alignment quality passed=true reasons=none matchRatio=0.995 wordDelta=0.000 nonMonotonic=18/34 model=whisper-large-v3 latencyMs=22180
+]: [PODCAST-V2] groq returned 426 word timings for Guest
+]: [PODCAST-V2] Host MFA: success=false, segments=36
+]: [PODCAST-V2] Guest MFA: success=false, segments=36
+]: [PODCAST-V2] Step 5: Interleaving segments...
+]: [PODCAST-V2] Interleaving 36 Host + 36 Guest segments
+]: [PODCAST-V2] Interleaved 72 segments in original order
+]: [PODCAST-V2] Step 6: Calculating timing offsets...
+]: [PODCAST-V2] Calculated offsets for 72 segments, total duration: 365.35s
+]: [PODCAST-V2] Step 7: Merging audio buffers...
+]: Starting merge of 72 segments to Buffer
+]: Created temp dir: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp
+]: Segment 1 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_0.mp3
+]: Segment 2 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_1.mp3
+]: Segment 3 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_2.mp3
+]: Segment 4 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_3.mp3
+]: Segment 5 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_4.mp3
+]: Segment 6 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_5.mp3
+]: Segment 7 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_6.mp3
+]: Segment 8 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_7.mp3
+]: Segment 9 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_8.mp3
+]: Segment 10 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_9.mp3
+]: Segment 11 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_10.mp3
+]: Segment 12 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_11.mp3
+]: Segment 13 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_12.mp3
+]: Segment 14 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_13.mp3
+]: Segment 15 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_14.mp3
+]: Segment 16 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_15.mp3
+]: Segment 17 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_16.mp3
+]: Segment 18 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_17.mp3
+]: Segment 19 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_18.mp3
+]: Segment 20 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_19.mp3
+]: Segment 21 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_20.mp3
+]: Segment 22 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_21.mp3
+]: Segment 23 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_22.mp3
+]: Segment 24 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_23.mp3
+]: Segment 25 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_24.mp3
+]: Segment 26 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_25.mp3
+]: Segment 27 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_26.mp3
+]: Segment 28 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_27.mp3
+]: Segment 29 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_28.mp3
+]: Segment 30 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_29.mp3
+]: Segment 31 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_30.mp3
+]: Segment 32 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_31.mp3
+]: Segment 33 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_32.mp3
+]: Segment 34 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_33.mp3
+]: Segment 35 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_34.mp3
+]: Segment 36 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_35.mp3
+]: Segment 37 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_36.mp3
+]: Segment 38 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_37.mp3
+]: Segment 39 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_38.mp3
+]: Segment 40 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_39.mp3
+]: Segment 41 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_40.mp3
+]: Segment 42 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_41.mp3
+]: Segment 43 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_42.mp3
+]: Segment 44 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_43.mp3
+]: Segment 45 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_44.mp3
+]: Segment 46 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_45.mp3
+]: Segment 47 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_46.mp3
+]: Segment 48 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_47.mp3
+]: Segment 49 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_48.mp3
+]: Segment 50 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_49.mp3
+]: Segment 51 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_50.mp3
+]: Segment 52 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_51.mp3
+]: Segment 53 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_52.mp3
+]: Segment 54 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_53.mp3
+]: Segment 55 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_54.mp3
+]: Segment 56 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_55.mp3
+]: Segment 57 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_56.mp3
+]: Segment 58 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_57.mp3
+]: Segment 59 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_58.mp3
+]: Segment 60 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_59.mp3
+]: Segment 61 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_60.mp3
+]: Segment 62 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_61.mp3
+]: Segment 63 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_62.mp3
+]: Segment 64 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_63.mp3
+]: Segment 65 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_64.mp3
+]: Segment 66 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_65.mp3
+]: Segment 67 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_66.mp3
+]: Segment 68 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_67.mp3
+]: Segment 69 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_68.mp3
+]: Segment 70 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_69.mp3
+]: Segment 71 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_70.mp3
+]: Segment 72 written: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/segment_71.mp3
+]: FFmpeg list file created: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/mylist.txt
+]: FFmpeg started: ffmpeg -f concat -safe 0 -i /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/mylist.txt -y -c:a libmp3lame -b:a 128k -ar 24000 -ac 1 -f mp3 /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/merged_output.mp3
+]: GET /job/active 304 1ms
+]: Merge complete: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp/merged_output.mp3
+]: Merged audio buffer created - Size: 5846829 bytes
+]: Merged audio duration: 365.35s
+]: Cleaned temp directory: /var/folders/8v/jxh9kygs3z940cd6h2d6zkjr0000gp/T/lingroot-audio-TIlRqp
+]: [PODCAST-V2] Merged audio: 5846829 bytes, 365.35s
+]: [PODCAST-V2] Step 8: Merging timing data...
+]: [PODCAST-V2] Merged timing data: 812 words, 72 segments, 365.35s total
+]: [PODCAST-V2] HIGHLIGHT_TYPE=groq
+]: [PODCAST-V2] Merged data validation found 9 issues
+]: [PODCAST-V2] Timing validation issues: [{"type":"timepoint_overlap","index":38,"prevEnd":17.06,"currStart":16.740000000000002},{"type":"timepoint_overlap","index":126,"prevEnd":55.908,"currStart":55.276},{"type":"timepoint_overlap","index":213,"prevEnd":94.50000000000001,"currStart":94.368},...
+]: [PODCAST-V2] Step 9: Generating VTT subtitles...
+]: [PODCAST-V2] Step 10: Uploading to storage...
+]: Attempting to upload Buffer (5846829 bytes) to storage at path 'audio/podcast_v2_5444dd9e-f88b-4d1a-acff-01ea004ab19e.mp3'
+]: Uploading with content type: audio/mpeg
+]: GET / 304 578ms
+]: GET /notifications/unread 304 135ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 1ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 584ms
+]: GET /job/active 304 3ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 2ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 1ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 2ms
+]: GET /job/job_1781178209437_5jtc0qg9u 304 2ms
+]: GET /job/active 304 2ms
+]: File uploaded to Cloudflare R2 path: audio/podcast_v2_5444dd9e-f88b-4d1a-acff-01ea004ab19e.mp3
+]: Attempting to upload Buffer (25123 bytes) to storage at path 'audio/podcast_v2_9577125f-7f27-4b26-a03c-6f0bb60ab073.vtt'
+]: Uploading with content type: text/vtt
+]: File uploaded to Cloudflare R2 path: audio/podcast_v2_9577125f-7f27-4b26-a03c-6f0bb60ab073.vtt
+]: [PODCAST-V2] Uploaded: https://cdn.lingroot2.online/audio/podcast_v2_5444dd9e-f88b-4d1a-acff-01ea004ab19e.mp3
+]: [PODCAST-V2] Step 11: Saving to database...
+]: GET /job/job_1781178209437_5jtc0qg9u 304 2ms
+]: [PODCAST-V2] Saved to contenthistory: 0ebfa7be-252b-4d91-8704-06881e59c908
+]: [COST] Logged: podcast_script_v2 | openai | $0.000000
+]: [COST] Logged: podcast_tts_v2 | google_tts | $0.075504
+]: [PODCAST-V2] Podcast creation completed in 524.46s
+]: [PODCAST-LOG] PRIMARY_SAVE_SUCCESS
+]: [PushNotification] Sending notification to user 673acdf8-a70c-4735-8d8f-826b6bc484af:
+]: [PushNotification] Notification stored successfully:
+]: [PushNotification] 📱 Found 1 device tokens for user 673acdf8-a70c-4735-8d8f-826b6bc484af
+]: [PushNotification] 📱 Token 1: platform=ios, active=true, token=******
+]: [PushNotification] 🚀 Sending FCM to 1 token(s)
+]: [PushNotification] 🔢 Badge count: 39 (filtered from 39 unread)
+]: [PushNotification] 🔢 Final badge count for APNS: 39
+]: [PushNotification] Sending FCM message payload: {
+  "tokens": [
+    "ddL_WkzJRU8blBec3QAQOd:APA91bGNmFdX3ARs7t02XfGGlVsNjJTuoorVc_9N3G-3djEofvZYUVx---NNFsmEwgTn63fxW3CIoZCTsFCRbqyCxnVIgNGcH1o4Htu3ytJsDLxFtMx2Eq4"
+  ],
+  "notification": {
+    ...
+]: [PushNotification] FCM send result: {"successCount":1,"failureCount":0}
+]: [PushNotification] FCM raw result: {"responses":[{"success":true,"messageId":"projects/lingroot-98021/messages/1781178734524119"}],"successCount":1,"failureCount":0}
+]: [AsyncPodcast] Job job_1781178209437_5jtc0qg9u completed successfully
+]: 🔓 [Podcast] Slot released: 0/20
+]: GET /job/active 200 2ms
+]: GET /job/active 304 1ms
+]: GET /job/active 304 1ms
+]: GET /job/active 304 1ms
+]: GET /job/active 304 1ms
+]: GET /job/job_1781178209437_5jtc0qg9u 200 4ms
+]: GET /job/active 304 2ms
+]: GET / 200 258ms
+]: GET /notifications/unread 200 166ms
+]: User authenticated
+]: User authenticated
+]: Fetching audio history for user: 673acdf8-a70c-4735-8d8f-826b6bc484af (page=1, limit=10, search="", level="", input_type="")
+]: User authenticated
+]: Fetching audio history for user: 673acdf8-a70c-4735-8d8f-826b6bc484af (page=1, limit=10, search="", level="", input_type="")
+]: GET / 304 178ms
+]: User authenticated
+]: Fetching audio history for user: 673acdf8-a70c-4735-8d8f-826b6bc484af (page=1, limit=10, search="", level="", input_type="")
+]: GET /users/content/0ebfa7be-252b-4d91-8704-06881e59c908 200 347ms
+]: PUT /1fe53822-420e-4214-b6f8-fb4b82a6bc41/read 200 183ms
+]: GET / 200 308ms
+]: User authenticated
+]: [PATTERN] findPatternsInText called - level: B1, text length: 5258
+]: GET /notifications/unread 200 257ms
+]: [PATTERN] Total patterns from pattern_library: 500
+]: [PATTERN] First 5 patterns: ["Burning the midnight oil","Barking up the wrong tree","A blessing in disguise","Costs an arm and a leg","Don't count your chickens before they hatch"]
+]: [PATTERN] Text preview (first 200 chars): Host: Hello, everyone! Welcome to our podcast. Today, we're going to talk about something really interesting: 'Kuvayi milliye'.
+Guest: Hi there! Yes, that's right! 'Kuvayi milliye' is an important mov
+]: [PATTERN] Unique matches: 0
+]: [PatternController] Found 0 matching patterns in text from pattern_library
+]: POST /find 200 524ms
+]: [PerfLogs] Appended 2 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 566ms
+]: Found 10 audio files (paged) for user: 673acdf8-a70c-4735-8d8f-826b6bc484af, totalCount: 66, page=1, limit=10
+]: GET /users/673acdf8-a70c-4735-8d8f-826b6bc484af/audio-history 200 4356ms
+]: Found 10 audio files (paged) for user: 673acdf8-a70c-4735-8d8f-826b6bc484af, totalCount: 66, page=1, limit=10
+]: GET /users/673acdf8-a70c-4735-8d8f-826b6bc484af/audio-history 200 4698ms
+]: Found 10 audio files (paged) for user: 673acdf8-a70c-4735-8d8f-826b6bc484af, totalCount: 66, page=1, limit=10
+]: GET /users/673acdf8-a70c-4735-8d8f-826b6bc484af/audio-history 200 5198ms
+]: GET / 200 336ms
+]: GET /notifications/unread 304 90ms
+]: GET / 304 549ms
+]: GET /notifications/unread 304 318ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 607ms
+]: GET / 304 271ms
+]: GET /notifications/unread 304 85ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 427ms
+]: GET / 304 394ms
+]: GET /notifications/unread 304 106ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 402ms
+]: [L1-CACHE] Stats:
+]: GET / 304 666ms
+]: GET /notifications/unread 304 249ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 516ms
+]: GET / 304 287ms
+]: GET /notifications/unread 304 95ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 462ms
+]: GET / 304 391ms
+]: GET /notifications/unread 304 110ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 477ms
+]: GET / 304 275ms
+]: GET /notifications/unread 304 211ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 495ms
+]: GET / 304 278ms
+]: GET /notifications/unread 304 198ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 456ms
+]: GET / 304 2461ms
+]: GET /notifications/unread 304 200ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 695ms
+]: GET / 304 293ms
+]: GET /notifications/unread 304 96ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 472ms
+]: GET / 304 487ms
+]: GET /notifications/unread 304 96ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 545ms
+]: GET / 304 294ms
+]: GET /notifications/unread 304 237ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 449ms
+]: GET / 304 276ms
+]: GET /notifications/unread 304 101ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 611ms
+]: [L1-CACHE] Stats:
+]: Cleanup completed - Audio files: 1, VTT files: 1
+]: GET / 304 289ms
+]: GET /notifications/unread 304 118ms
+]: GET / 304 376ms
+]: GET /notifications/unread 304 96ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-11
+]: POST / 200 513ms
+^C^C^C^C^Z
+zsh: suspended  npm start
+enesyuzak@192 backend % npm start
+
+> lingroot-backend@1.0.0 start
+> node server.js
+
+[OTel] Instrumentation active → https://otel.lingroot.com
+]: Logger initialized with level: debug
+]: Supabase client initialized successfully.
+]: Supabase URL: https://ffqfcmmbeeieouoghrac.supabase.co
+]: Supabase Key length: 219
+]: Testing Supabase connection...
+]: ⚠️ [SECURITY_WARN] JWT_REFRESH_SECRET not set, using insecure dev default.
+]: JWT_SECRET exists:
+]: [AI_ERROR_NOTIFIER] AI error notifications are ENABLED
+{"database":"postgres","host":"aws-0-eu-central-***","isPooler":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":5432,"ssl":true,"timestamp":"2026-06-15T20:11:01.168Z","user":"postgres.*****"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-06-15T20:11:01.169Z"}
+]: 🚦 ConcurrencyLimiter initialized:
+]:    TTS: max=50, queue=200
+]:    Podcast: max=20, queue=100
+]:    OpenAI: max=50, queue=300
+]: OpenAI client initialized for English-to-target-language translation.
+]: [TranslateAndAdapt] OpenAI client initialized.
+]: [ENV CHECK] OpenAI key suffix: tmGrsA (len=164)
+]: OpenAI client initialized for input extraction (topic generation).
+]: [ENV CHECK] OpenAI key suffix: tmGrsA (len=164)
+]: OpenAI client initialized successfully.
+]: Google TTS client initialized successfully
+]: Azure Speech SDK initialized successfully
+]: Amazon Polly client initialized successfully
+]: ✅ FFmpeg path set: /Volumes/MacSSD/DevData/GitHub/LingRoot/Main/backend/node_modules/@ffmpeg-installer/darwin-arm64/ffmpeg
+]: Cloudflare R2 client initialized successfully.
+]: ✅ ffprobe path set: /opt/homebrew/bin/ffprobe
+]: 🔌 MFA Client initialized. Target Service: https://mfa.lingroot.com
+]: Google TTS Multi-Speaker client initialized successfully
+]: OpenAI client initialized for word translation service.
+]: [LiroPromptGenerator] Resources loaded successfully
+]: moduleRoutes not loaded (may be empty or missing)
+]: Error: listen EADDRINUSE: address already in use :::5001
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Object.<anonymous> (/Volumes/MacSSD/DevData/GitHub/LingRoot/Main/backend/server.js:272:...
+enesyuzak@192 backend % lsof -nP -iTCP:5001 -sTCP:LISTEN
+COMMAND   PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    36545 enesyuzak   16u  IPv6 0x3fcf7967b4d16f2e      0t0  TCP *:5001 (LISTEN)
+enesyuzak@192 backend % kill -9 36545
+enesyuzak@192 backend % npm start                       
+
+> lingroot-backend@1.0.0 start
+> node server.js
+
+[OTel] Instrumentation active → https://otel.lingroot.com
+]: Logger initialized with level: debug
+]: Supabase client initialized successfully.
+]: Supabase URL: https://ffqfcmmbeeieouoghrac.supabase.co
+]: Supabase Key length: 219
+]: Testing Supabase connection...
+]: ⚠️ [SECURITY_WARN] JWT_REFRESH_SECRET not set, using insecure dev default.
+]: JWT_SECRET exists:
+]: [AI_ERROR_NOTIFIER] AI error notifications are ENABLED
+{"database":"postgres","host":"aws-0-eu-central-***","isPooler":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":5432,"ssl":true,"timestamp":"2026-06-15T20:11:58.926Z","user":"postgres.*****"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-06-15T20:11:58.927Z"}
+]: 🚦 ConcurrencyLimiter initialized:
+]:    TTS: max=50, queue=200
+]:    Podcast: max=20, queue=100
+]:    OpenAI: max=50, queue=300
+]: OpenAI client initialized for English-to-target-language translation.
+]: [TranslateAndAdapt] OpenAI client initialized.
+]: [ENV CHECK] OpenAI key suffix: tmGrsA (len=164)
+]: OpenAI client initialized for input extraction (topic generation).
+]: [ENV CHECK] OpenAI key suffix: tmGrsA (len=164)
+]: OpenAI client initialized successfully.
+]: Google TTS client initialized successfully
+]: Azure Speech SDK initialized successfully
+]: Amazon Polly client initialized successfully
+]: ✅ FFmpeg path set: /Volumes/MacSSD/DevData/GitHub/LingRoot/Main/backend/node_modules/@ffmpeg-installer/darwin-arm64/ffmpeg
+]: Cloudflare R2 client initialized successfully.
+]: ✅ ffprobe path set: /opt/homebrew/bin/ffprobe
+]: 🔌 MFA Client initialized. Target Service: https://mfa.lingroot.com
+]: Google TTS Multi-Speaker client initialized successfully
+]: OpenAI client initialized for word translation service.
+]: [LiroPromptGenerator] Resources loaded successfully
+]: moduleRoutes not loaded (may be empty or missing)
+]: 🚀 LingRoot Backend server running on port 5001
+]: 📦 Environment: development
+]: 📋 [TTS] Async TTS processing uses in-memory jobQueue (BullMQ worker disabled)
+]: Supabase connection test successful.
+]: Cleanup completed - Audio files: 0, VTT files: 0
+enesyuzak@192 backend % npm start
+
+> lingroot-backend@1.0.0 start
+> node server.js
+
+[OTel] Instrumentation active → https://otel.lingroot.com
+]: Logger initialized with level: debug
+]: Supabase client initialized successfully.
+]: Supabase URL: https://ffqfcmmbeeieouoghrac.supabase.co
+]: Supabase Key length: 219
+]: Testing Supabase connection...
+]: ⚠️ [SECURITY_WARN] JWT_REFRESH_SECRET not set, using insecure dev default.
+]: JWT_SECRET exists:
+]: [AI_ERROR_NOTIFIER] AI error notifications are ENABLED
+{"database":"postgres","host":"aws-0-eu-central-***","isPooler":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":5432,"ssl":true,"timestamp":"2026-06-15T20:33:11.270Z","user":"postgres.*****"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2026-06-15T20:33:11.272Z"}
+]: 🚦 ConcurrencyLimiter initialized:
+]:    TTS: max=50, queue=200
+]:    Podcast: max=20, queue=100
+]:    OpenAI: max=50, queue=300
+]: OpenAI client initialized for English-to-target-language translation.
+]: [TranslateAndAdapt] OpenAI client initialized.
+]: [ENV CHECK] OpenAI key suffix: tmGrsA (len=164)
+]: OpenAI client initialized for input extraction (topic generation).
+]: [ENV CHECK] OpenAI key suffix: tmGrsA (len=164)
+]: OpenAI client initialized successfully.
+]: Google TTS client initialized successfully
+]: Azure Speech SDK initialized successfully
+]: Amazon Polly client initialized successfully
+]: ✅ FFmpeg path set: /Volumes/MacSSD/DevData/GitHub/LingRoot/Main/backend/node_modules/@ffmpeg-installer/darwin-arm64/ffmpeg
+]: Cloudflare R2 client initialized successfully.
+]: ✅ ffprobe path set: /opt/homebrew/bin/ffprobe
+]: 🔌 MFA Client initialized. Target Service: https://mfa.lingroot.com
+]: Google TTS Multi-Speaker client initialized successfully
+]: OpenAI client initialized for word translation service.
+]: [LiroPromptGenerator] Resources loaded successfully
+]: moduleRoutes not loaded (may be empty or missing)
+]: 🚀 LingRoot Backend server running on port 5001
+]: 📦 Environment: development
+]: 📋 [TTS] Async TTS processing uses in-memory jobQueue (BullMQ worker disabled)
+]: Supabase connection test successful.
+]: [AUTH_FAIL] No token or invalid format. Path: /api/tts/job/active. Header: MISSING
+]: GET /job/active 401 8ms
+]: [AUTH_FAIL] No token or invalid format. Path: /api/tts/job/active. Header: MISSING
+]: GET /job/active 401 2ms
+]: Authentication failed: No authorization header
+]: GET /reminder-settings 401 3ms
+]: Authentication failed: No authorization header
+]: GET /reminder-settings 401 2ms
+]: [AUTH_FAIL] No token or invalid format. Path: /api/notifications/vocabulary-reminders/scheduled. Header: MISSING
+]: DELETE /vocabulary-reminders/scheduled 401 3ms
+]: [AUTH_FAIL] No token or invalid format. Path: /api/notifications/unread-count. Header: MISSING
+]: GET /unread-count 401 3ms
+]: Authentication failed: No authorization header
+]: GET /reminder-settings 401 2ms
+]: Authentication failed: No authorization header
+]: GET / 401 2ms
+]: [AUTH_FAIL] No token or invalid format. Path: /api/notifications/unread-count. Header: MISSING
+]: GET /unread-count 401 2ms
+]: GET / 200 2ms
+]: [AUTH_FAIL] No token or invalid format. Path: /api/tts/job/active. Header: MISSING
+]: GET /job/active 401 1ms
+]: Authentication failed: No authorization header
+]: GET /reminder-settings 401 1ms
+]: [AUTH_FAIL] No token or invalid format. Path: /api/notifications/vocabulary-reminders/scheduled. Header: MISSING
+]: DELETE /vocabulary-reminders/scheduled 401 1ms
+]: Authentication failed: No authorization header
+]: GET /reminder-settings 401 1ms
+]: Authentication failed: No authorization header
+]: GET / 401 2ms
+]: [AUTH_FAIL] No token or invalid format. Path: /api/notifications/unread-count. Header: MISSING
+]: GET /unread-count 401 2ms
+]: [GOOGLE_LOGIN_SERVICE] Credential analysis
+]: [GOOGLE_LOGIN_SERVICE] Verifying JWT credential with Google
+]: [GOOGLE_LOGIN_SERVICE] JWT verification successful
+]: google_login_success
+]: [LOGIN_HISTORY] Insert ok
+]: POST /google-login 200 1323ms
+]: User authenticated
+]: User authenticated
+]: PUT /user-settings/notification-permission 200 245ms
+]: POST /device-tokens 200 444ms
+]: User authenticated
+]: GET /user-settings/start-progress 200 209ms
+]: User authenticated
+]: User authenticated
+]: [getMyPlanFeatures] ENTRY - request received
+]: [getMyPlanFeatures] userId from req.user: 673acdf8-a70c-4735-8d8f-826b6bc484af
+]: User authenticated
+]: User authenticated
+]: GET / 200 344ms
+]: [getMyPlanFeatures] ENTRY - request received
+]: [getMyPlanFeatures] userId from req.user: 673acdf8-a70c-4735-8d8f-826b6bc484af
+]: [getMyPlanFeatures] User 673acdf8-a70c-4735-8d8f-826b6bc484af subscription data: stripepriceid=db32b3e3-f4a8-42da-a01e-a1c2f45e5b43, plantype=Gold Plan
+]: [getMyPlanFeatures] User 673acdf8-a70c-4735-8d8f-826b6bc484af subscription data: stripepriceid=db32b3e3-f4a8-42da-a01e-a1c2f45e5b43, plantype=Gold Plan
+]: [getMyPlanFeatures] Stage 1 match: stripepriceid as UUID=db32b3e3-f4a8-42da-a01e-a1c2f45e5b43 -> plan=Gold Plan
+]: [getMyPlanFeatures] FINAL RESPONSE for user 673acdf8-a70c-4735-8d8f-826b6bc484af: plan=Gold Plan, homepage_features={"book":true,"liro":false,"podcast":true,"youtube":false,"text_input":true,"file_upload":true,"topic_suggestions":false,"daily_usage_patterns":false}
+]: GET /my-features 200 360ms
+]: [getMyPlanFeatures] Stage 1 match: stripepriceid as UUID=db32b3e3-f4a8-42da-a01e-a1c2f45e5b43 -> plan=Gold Plan
+]: [getMyPlanFeatures] FINAL RESPONSE for user 673acdf8-a70c-4735-8d8f-826b6bc484af: plan=Gold Plan, homepage_features={"book":true,"liro":false,"podcast":true,"youtube":false,"text_input":true,"file_upload":true,"topic_suggestions":false,"daily_usage_patterns":false}
+]: GET /my-features 200 309ms
+]: GET /notifications/unread 200 98ms
+]: GET /job/active 200 2ms
+]: GET /job/active 200 2ms
+]: GET /job/active 200 2ms
+]: [PerfLogs] Appended 2 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-15
+]: POST / 200 1233ms
+]: GET /count 200 4362ms
+]: GET /count 200 4513ms
+]: GET /job/active 304 3ms
+]: GET /history 200 5419ms
+]: GET /history 200 5407ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-15
+]: POST / 200 450ms
+]: GET / 304 239ms
+]: GET /notifications/unread 304 234ms
+]: [PerfLogs] Appended 1 lines for user 673acdf8-a70c-4735-8d8f-826b6bc484af date 2026-06-15
+]: POST / 200 464ms
+]: [JobQueue] Created job job_1781555803951_p3b4hrafd for user 673acdf8-a70c-4735-8d8f-826b6bc484af, queuePosition: 1
+2026-06-15 23:36:43 [B2]: [AsyncPodcast] Job job_1781555803951_p3b4hrafd created for user 673acdf8-a70c-4735-8d8f-826b6bc484af, queuePosition: 1
+]: POST /create-podcast-async 200 5ms
+]: 🔒 [Podcast] Slot acquired: 1/20
+]: [AsyncPodcast] Job job_1781555803951_p3b4hrafd got slot, processing (waited: 0ms, podcastType: new)
+]: [PODCAST] Using Podcast V2 (separated speaker processing)
+]: [PODCAST-V2] Starting podcast creation for topic: "Tayland gezilecek yerler"
+]: [PODCAST-V2] Config: level=B2, duration=10min, host=Kore, guest=Puck
+]: [PODCAST-V2] Step 1: Generating script...
+]: [GOOGLE-PODCAST] Using voices - A: Kore (female), B: Puck (male)
+]: [GOOGLE-PODCAST] Speaker validation disabled; preserving GPT speaker assignments as-is
+]: [GOOGLE-PODCAST] Long podcast (10 min) - splitting into 2 segments
+]: GET /job/active 200 1ms
+]: GET /job/active 200 1ms
+]: GET /job/active 200 0ms
+]: GET /job/active 200 0ms
+]: GET /job/job_1781555803951_p3b4hrafd 200 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 200 1ms
+]: GET /job/active 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 3ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET / 304 280ms
+]: GET /notifications/unread 304 112ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 111ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [GOOGLE-PODCAST] Segment 1/2: 22 turns generated
+]: [GOOGLE-PODCAST] Waiting 2 seconds before next segment to avoid rate limiting...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET / 304 287ms
+]: GET /notifications/unread 304 77ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 85ms
+]: [GOOGLE-PODCAST] Segment 2/2: 22 turns generated
+]: [GOOGLE-PODCAST] Generated total 44 turns for 10-minute podcast
+]: [PODCAST-V2] Script generated: 44 turns, title: "Tayland gezilecek yerler"
+]: [PODCAST-V2] Step 2: Grouping turns by speaker...
+]: [PODCAST-V2] Grouped 44 turns: 22 Host, 22 Guest
+]: [PODCAST-V2] Grouped: 22 Host turns, 22 Guest turns
+]: [PODCAST-V2] Step 3: Synthesizing audio (parallel)...
+]: [PODCAST-V2] Synthesizing 22 turns for Host (Kore)
+]: [PODCAST-V2] Synthesizing 22 turns for Guest (Puck)
+]: GET /job/job_1781555803951_p3b4hrafd 304 0ms
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/active 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 1ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 3ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET / 304 290ms
+]: GET /notifications/unread 304 91ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/active 304 1ms
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 91ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":2,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: [L1-CACHE] Stats:
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 3ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET / 304 204ms
+]: GET /notifications/unread 304 88ms
+]: [PODCAST-V2] Host progress: 5/22 turns synthesized
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 114ms
+]: [PODCAST-V2] Guest progress: 5/22 turns synthesized
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 3ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET / 304 244ms
+]: GET /notifications/unread 304 90ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 3ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/active 304 136ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/active 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":2,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: GET /job/active 304 3ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET / 304 265ms
+]: GET /notifications/unread 304 102ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 3ms
+]: [PODCAST-V2] Host progress: 10/22 turns synthesized
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/job_1781555803951_p3b4hrafd 304 133ms
+]: [PODCAST-V2] Guest progress: 10/22 turns synthesized
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":2,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET / 304 246ms
+]: GET /notifications/unread 304 88ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 112ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [PODCAST-V2] Host progress: 15/22 turns synthesized
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [PODCAST-V2] Guest progress: 15/22 turns synthesized
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET / 304 238ms
+]: GET /notifications/unread 304 88ms
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/job_1781555803951_p3b4hrafd 304 3ms
+]: GET /job/active 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 124ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] cooldown {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":1781556055524,"cooldownMs":10000,"consecutive429Count":1}
+]: [PODCAST-V2] TTS attempt 1/3 failed: Quota exceeded for aiplatform.googleapis.com/global_generate_content_requests_per_minute_per_project_per_base_model with base model: gemini-2.5-flash-tts. Please submit a quota increase request. https://cloud.google.com/vertex-ai/docs/generative-ai/quotas...
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":0,"cooldownUntil":1781556055524,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":1781556055524,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":2,"running":0,"cooldownUntil":1781556055524,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: GET /job/active 304 2ms
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":1781556055524,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET / 304 189ms
+]: GET /notifications/unread 304 81ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/active 304 1ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":2,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b4...
+]: GET /job/active 304 2ms
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2...
+]: GET /job/job_1781555803951_p3b4hrafd 304 1ms
+]: [MODEL-RATE-LIMITER] completed_slot {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":0,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis"}
+]: [MODEL-RATE-LIMITER] started {"model":"vertex:gemini-2.5-flash-tts","queueLength":0,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Kore","speakerAlias":"Host","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: [MODEL-RATE-LIMITER] queued {"model":"vertex:gemini-2.5-flash-tts","queueLength":1,"running":1,"cooldownUntil":null,"taskName":"podcast-v2-turn-synthesis","metadata":{"speakerId":"Puck","speakerAlias":"Guest","userId":"673acdf8-a70c-4735-8d8f-826b6bc484af","jobId":"f15aa846-dc39-4ec1-b3fa-2b...
+]: GET /job/active 304 2ms
+]: GET /job/job_1781555803951_p3b4hrafd 304 2ms
