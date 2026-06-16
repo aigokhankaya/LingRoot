@@ -13,6 +13,7 @@ const { runWithModelRateLimit } = require('../../infra/modelRateLimiter.js');
 const GEMINI_TTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 const MAX_INPUT_BYTES = 3000;
 const DEFAULT_MODEL = 'gemini-2.5-flash-tts';
+const DEFAULT_DURATION_PROBE_CONCURRENCY = 3;
 
 /**
  * Get UTF-8 byte length of a string
@@ -32,6 +33,44 @@ async function getAccessToken() {
 
   const tokenResult = await auth.getAccessToken();
   return typeof tokenResult === 'string' ? tokenResult : tokenResult?.token;
+}
+
+function isRateLimitError(error) {
+  const status = error?.response?.status || error?.status;
+  const message = String(error?.response?.data?.error?.message || error?.message || '').toLowerCase();
+  return status === 429 || message.includes('quota exceeded') || message.includes('rate limit');
+}
+
+function isTransientTtsError(error) {
+  const status = error?.response?.status || error?.status;
+  return status >= 500 || status === 408 || status === 429 || !status;
+}
+
+function estimateDurationFromWordCount(wordCount) {
+  return (wordCount / 150) * 60;
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const resolvedConcurrency = Math.max(1, Number(concurrency) || 1);
+  const results = new Array(items.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (true) {
+      const currentIndex = cursor;
+      cursor += 1;
+
+      if (currentIndex >= items.length) {
+        return;
+      }
+
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+
+  const workerCount = Math.min(resolvedConcurrency, items.length || 1);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
 }
 
 /**
@@ -134,7 +173,7 @@ async function synthesizeSingleTurn(text, speakerId, speakerAlias, options = {})
         continue; // Retry immediately without prompt
       }
 
-      if (attempt < 3) {
+      if (attempt < 3 && isTransientTtsError(error) && !isRateLimitError(error)) {
         const delay = Math.pow(2, attempt) * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -218,10 +257,6 @@ async function synthesizeSpeakerTurns(speakerTurns, speakerId, speakerAlias, opt
         logger.info(`[PODCAST-V2] ${speakerAlias} progress: ${i + 1}/${speakerTurns.length} turns synthesized`);
       }
 
-      // Small delay to avoid rate limiting
-      if (i < speakerTurns.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
     } catch (error) {
       logger.error(`[PODCAST-V2] Failed to synthesize turn ${turn.originalIndex} for ${speakerAlias}: ${error.message}`);
 
@@ -305,29 +340,36 @@ async function getAudioDuration(audioBuffer) {
  * @param {Array} segments - Array of synthesized segments
  * @returns {Array} Segments with duration populated
  */
-async function calculateSegmentDurations(segments) {
-  const segmentsWithDuration = [];
+async function calculateSegmentDurations(segments, options = {}) {
+  const skipFfprobe = options.skipFfprobe === true;
+  const concurrency = options.concurrency
+    || parseInt(process.env.PODCAST_V2_DURATION_PROBE_CONCURRENCY || '', 10)
+    || DEFAULT_DURATION_PROBE_CONCURRENCY;
 
-  for (const segment of segments) {
-    try {
-      const duration = await getAudioDuration(segment.audioBuffer);
-      segmentsWithDuration.push({
-        ...segment,
-        duration,
-      });
-    } catch (error) {
-      logger.warn(`[PODCAST-V2] Failed to get duration for segment ${segment.originalIndex}: ${error.message}`);
-      // Estimate duration based on word count (roughly 150 words per minute)
-      const estimatedDuration = (segment.wordCount / 150) * 60;
-      segmentsWithDuration.push({
-        ...segment,
-        duration: estimatedDuration,
-        durationEstimated: true,
-      });
-    }
+  if (skipFfprobe) {
+    return segments.map((segment) => ({
+      ...segment,
+      duration: segment.duration || estimateDurationFromWordCount(segment.wordCount),
+      durationEstimated: segment.duration ? Boolean(segment.durationEstimated) : true,
+    }));
   }
 
-  return segmentsWithDuration;
+  return mapWithConcurrency(segments, concurrency, async (segment) => {
+    try {
+      const duration = await getAudioDuration(segment.audioBuffer);
+      return {
+        ...segment,
+        duration,
+      };
+    } catch (error) {
+      logger.warn(`[PODCAST-V2] Failed to get duration for segment ${segment.originalIndex}: ${error.message}`);
+      return {
+        ...segment,
+        duration: estimateDurationFromWordCount(segment.wordCount),
+        durationEstimated: true,
+      };
+    }
+  });
 }
 
 module.exports = {

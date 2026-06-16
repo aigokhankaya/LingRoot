@@ -20,9 +20,9 @@ const { mergeAudioSegmentsToBuffer } = require('../audioMerger.js');
  * @param {string} locale - Language locale (e.g., 'en-US')
  * @returns {Object} Aligned segments with word timings
  */
-async function alignSpeakerSegments(speakerData, locale = 'en-US') {
+async function alignSpeakerSegments(speakerData, locale = 'en-US', options = {}) {
   const { segments, speakerAlias } = speakerData;
-  const alignmentProvider = getAlignmentProvider();
+  const alignmentProvider = options.forceProvider || getAlignmentProvider();
 
   if (!segments || segments.length === 0) {
     logger.info(`[PODCAST-V2] No segments to align for ${speakerAlias}`);

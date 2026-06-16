@@ -27,6 +27,7 @@ const { generatePodcastScript } = require('../googleTTSMultiSpeaker.js');
 // Default speaker IDs
 const DEFAULT_HOST_SPEAKER = 'Kore';
 const DEFAULT_GUEST_SPEAKER = 'Charon';
+const DEFAULT_LONG_PODCAST_THRESHOLD_MINUTES = 6;
 const TIMING_ACCURACY_BY_PROVIDER = {
   mfa: 'forced_alignment_word_timestamp',
   groq: 'asr_word_timestamp',
@@ -56,6 +57,10 @@ function logPodcastHighlightType(highlightType, details = {}) {
   logger.info(`[PODCAST-V2] HIGHLIGHT_TYPE=${highlightType}`, details);
 }
 
+function logStepElapsed(stepLabel, stepStartedAt) {
+  logger.info(`[PODCAST-V2] ${stepLabel} completed in ${Date.now() - stepStartedAt}ms`);
+}
+
 /**
  * Main entry point for Podcast V2
  * @param {Object} options - Podcast creation options
@@ -82,13 +87,23 @@ async function createPodcastV2(options) {
   // Normalize legacy voice names (e.g., "Achilles" -> "Achird")
   const normalizedHostId = normalizeSpeakerId(hostSpeakerId);
   const normalizedGuestId = normalizeSpeakerId(guestSpeakerId);
+  const longPodcastThresholdMinutes = Number.parseInt(
+    process.env.PODCAST_V2_LONG_THRESHOLD_MINUTES || '',
+    10
+  ) || DEFAULT_LONG_PODCAST_THRESHOLD_MINUTES;
+  const isLongPodcast = duration >= longPodcastThresholdMinutes;
+  const skipMfaForLongPodcasts = isLongPodcast || process.env.PODCAST_V2_SKIP_MFA_FOR_LONG === 'true';
+  const skipDurationProbe = isLongPodcast || process.env.PODCAST_V2_SKIP_FFPROBE_DURATIONS === 'true';
+  const alignmentProviderOverride = skipMfaForLongPodcasts ? 'groq' : undefined;
 
   logger.info(`[PODCAST-V2] Starting podcast creation for topic: "${topic}"`);
   logger.info(`[PODCAST-V2] Config: level=${level}, duration=${duration}min, host=${normalizedHostId}, guest=${normalizedGuestId}`);
+  logger.info(`[PODCAST-V2] Runtime optimizations: longThreshold=${longPodcastThresholdMinutes}, isLongPodcast=${isLongPodcast}, skipDurationProbe=${skipDurationProbe}, alignmentProviderOverride=${alignmentProviderOverride || 'default'}`);
 
   try {
     // ========== Step 1: Generate Script ==========
     logger.info('[PODCAST-V2] Step 1: Generating script...');
+    let stepStartedAt = Date.now();
     const scriptResult = await generatePodcastScript({
       topic,
       level,
@@ -105,6 +120,7 @@ async function createPodcastV2(options) {
     if (!scriptResult.turns || scriptResult.turns.length === 0) {
       throw new Error('Script generation returned no turns');
     }
+    logStepElapsed('Step 1', stepStartedAt);
 
     logger.info(`[PODCAST-V2] Script generated: ${scriptResult.turns.length} turns, title: "${scriptResult.title}"`);
 
@@ -114,12 +130,15 @@ async function createPodcastV2(options) {
 
     // ========== Step 2: Group Turns by Speaker ==========
     logger.info('[PODCAST-V2] Step 2: Grouping turns by speaker...');
+    stepStartedAt = Date.now();
     const grouped = groupTurnsBySpeaker(turns);
+    logStepElapsed('Step 2', stepStartedAt);
 
     logger.info(`[PODCAST-V2] Grouped: ${grouped.hostTurns.length} Host turns, ${grouped.guestTurns.length} Guest turns`);
 
     // ========== Step 3: Parallel TTS Synthesis ==========
     logger.info('[PODCAST-V2] Step 3: Synthesizing audio (parallel)...');
+    stepStartedAt = Date.now();
     const stylePrompt = STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat'];
 
     const [hostSynthResult, guestSynthResult] = await Promise.all([
@@ -136,16 +155,19 @@ async function createPodcastV2(options) {
         jobId: limiterJobId,
       }),
     ]);
+    logStepElapsed('Step 3', stepStartedAt);
 
     logger.info(`[PODCAST-V2] Host synthesis: ${hostSynthResult.segments.length} segments, ${hostSynthResult.totalCharacters} chars`);
     logger.info(`[PODCAST-V2] Guest synthesis: ${guestSynthResult.segments.length} segments, ${guestSynthResult.totalCharacters} chars`);
 
     // Calculate durations for all segments
     logger.info('[PODCAST-V2] Calculating segment durations...');
+    stepStartedAt = Date.now();
     const [hostSegmentsWithDuration, guestSegmentsWithDuration] = await Promise.all([
-      calculateSegmentDurations(hostSynthResult.segments),
-      calculateSegmentDurations(guestSynthResult.segments),
+      calculateSegmentDurations(hostSynthResult.segments, { skipFfprobe: skipDurationProbe }),
+      calculateSegmentDurations(guestSynthResult.segments, { skipFfprobe: skipDurationProbe }),
     ]);
+    logStepElapsed('Step 3b', stepStartedAt);
 
     // Update synth results with durations
     hostSynthResult.segments = hostSegmentsWithDuration;
@@ -153,23 +175,27 @@ async function createPodcastV2(options) {
 
     // ========== Step 4: Parallel MFA Alignment ==========
     logger.info('[PODCAST-V2] Step 4: Running MFA alignment (parallel)...');
+    stepStartedAt = Date.now();
 
     const [hostAligned, guestAligned] = await Promise.all([
-      alignSpeakerSegments(hostSynthResult, 'en-US'),
-      alignSpeakerSegments(guestSynthResult, 'en-US'),
+      alignSpeakerSegments(hostSynthResult, 'en-US', { forceProvider: alignmentProviderOverride }),
+      alignSpeakerSegments(guestSynthResult, 'en-US', { forceProvider: alignmentProviderOverride }),
     ]);
+    logStepElapsed('Step 4', stepStartedAt);
 
     logger.info(`[PODCAST-V2] Host MFA: success=${hostAligned.mfaSuccess}, segments=${hostAligned.alignedSegments?.length || 0}`);
     logger.info(`[PODCAST-V2] Guest MFA: success=${guestAligned.mfaSuccess}, segments=${guestAligned.alignedSegments?.length || 0}`);
 
     // ========== Step 5: Interleave by Turn Order ==========
     logger.info('[PODCAST-V2] Step 5: Interleaving segments...');
+    stepStartedAt = Date.now();
     const interleaved = interleaveByTurnOrder(
       hostAligned,
       guestAligned,
       grouped.turnOrder,
       grouped.turnSpeakerMap
     );
+    logStepElapsed('Step 5', stepStartedAt);
 
     const validation = validateInterleavedSegments(interleaved.orderedSegments);
     if (!validation.valid) {
@@ -178,6 +204,7 @@ async function createPodcastV2(options) {
 
     // ========== Step 6: Calculate Offsets ==========
     logger.info('[PODCAST-V2] Step 6: Calculating timing offsets...');
+    stepStartedAt = Date.now();
     let offsetData = calculateOffsets(interleaved.orderedSegments);
 
     const offsetValidation = validateOffsetMonotonicity(offsetData.segmentsWithOffsets);
@@ -185,18 +212,22 @@ async function createPodcastV2(options) {
       logger.warn('[PODCAST-V2] Fixing minor timing overlaps...');
       offsetData.segmentsWithOffsets = fixMinorOverlaps(offsetData.segmentsWithOffsets);
     }
+    logStepElapsed('Step 6', stepStartedAt);
 
     // ========== Step 7: Merge Audio ==========
     logger.info('[PODCAST-V2] Step 7: Merging audio buffers...');
+    stepStartedAt = Date.now();
     const audioBuffers = offsetData.segmentsWithOffsets.map(s => s.audioBuffer);
     const mergedAudioResult = await mergeAudioSegmentsToBuffer(audioBuffers, { includeDuration: true });
     const mergedAudioBuffer = mergedAudioResult?.buffer || mergedAudioResult;
     const mergedDuration = mergedAudioResult?.duration || offsetData.totalDuration;
+    logStepElapsed('Step 7', stepStartedAt);
 
     logger.info(`[PODCAST-V2] Merged audio: ${mergedAudioBuffer.length} bytes, ${mergedDuration?.toFixed(2) || 'unknown'}s`);
 
     // ========== Step 8: Merge Timing Data ==========
     logger.info('[PODCAST-V2] Step 8: Merging timing data...');
+    stepStartedAt = Date.now();
     const timingData = mergeTimingData(offsetData);
     const dominantTimingSource = Object.entries(timingData.sourceCounts || {}).sort((left, right) => right[1] - left[1])[0]?.[0] || 'tts';
     const timingSource = dominantTimingSource === 'groq_whisper' ? 'GROQ_WHISPER' : dominantTimingSource.toUpperCase();
@@ -218,13 +249,17 @@ async function createPodcastV2(options) {
     if (!timingValidation.valid) {
       logger.warn(`[PODCAST-V2] Timing validation issues: ${JSON.stringify(timingValidation.issues.slice(0, 5))}`);
     }
+    logStepElapsed('Step 8', stepStartedAt);
 
     // ========== Step 9: Generate VTT ==========
     logger.info('[PODCAST-V2] Step 9: Generating VTT subtitles...');
+    stepStartedAt = Date.now();
     const vttContent = createWordLevelVTT(timingData.timepoints);
+    logStepElapsed('Step 9', stepStartedAt);
 
     // ========== Step 10: Upload Audio and VTT ==========
     logger.info('[PODCAST-V2] Step 10: Uploading to storage...');
+    stepStartedAt = Date.now();
     const { uploadToSupabase } = require('../../storage/storageUploader.js');
 
     const fileName = `podcast_v2_${uuidv4()}.mp3`;
@@ -232,6 +267,7 @@ async function createPodcastV2(options) {
 
     const audioUrl = await uploadToSupabase(mergedAudioBuffer, fileName, 'audio/mpeg');
     const vttUrl = await uploadToSupabase(Buffer.from(vttContent, 'utf-8'), vttFileName, 'text/vtt');
+    logStepElapsed('Step 10', stepStartedAt);
 
     logger.info(`[PODCAST-V2] Uploaded: ${audioUrl}`);
 
@@ -243,6 +279,7 @@ async function createPodcastV2(options) {
     let contentHistoryId = null;
     if (userId && supabase) {
       logger.info('[PODCAST-V2] Step 11: Saving to database...');
+      stepStartedAt = Date.now();
 
       try {
         const { calculateOpenAiCost, calculateTtsCost, logApiCost } = require('../../infra/costTracker.js');
@@ -327,6 +364,7 @@ async function createPodcastV2(options) {
           costUsd: ttsCostUsd,
           metadata: { duration_seconds: Math.round(mergedDuration || 0), version: 'v2' },
         });
+        logStepElapsed('Step 11', stepStartedAt);
       } catch (dbErr) {
         logger.error(`[PODCAST-V2] Database save failed: ${dbErr.message}`);
       }

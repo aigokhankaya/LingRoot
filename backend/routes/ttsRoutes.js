@@ -75,6 +75,23 @@ async function createPodcastWithOptionalFallback(params) {
     podcastType,
   } = params;
 
+  if (podcastType === 'v3') {
+    logger.info('[PODCAST] Using Podcast V3 (chunk-based orchestration)');
+    return createPodcastV3({
+      topic,
+      level,
+      duration,
+      styleType: body.styleType,
+      personalityA: body.personalityA,
+      personalityB: body.personalityB,
+      hostSpeakerId: body.hostSpeakerId,
+      guestSpeakerId: body.guestSpeakerId,
+      includeHumor: body.includeHumor,
+      includeFiller: body.includeFiller,
+      userId,
+    });
+  }
+
   if (podcastType === 'new') {
     try {
       logger.info('[PODCAST] Using Podcast V2 (separated speaker processing)');
@@ -550,6 +567,9 @@ const { createGoogleTTSPodcast } = require('../utils/audio/googleTTSMultiSpeaker
 
 // Podcast V2 - Separated Speaker Processing (PODCAST_TYPE=new)
 const { createPodcastV2 } = require('../utils/audio/podcastV2/index.js');
+
+// Podcast V3 - Chunk-based orchestration (PODCAST_TYPE=v3)
+const { createPodcastV3 } = require('../utils/audio/podcastV3/index.js');
 
 // Environment variable for podcast system selection
 const PODCAST_TYPE = process.env.PODCAST_TYPE || 'old';

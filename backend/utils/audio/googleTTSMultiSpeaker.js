@@ -348,6 +348,19 @@ const GEMINI_TO_NEURAL2_FALLBACK = {
   Achird: 'en-US-Neural2-D',
 };
 
+function deriveLanguageCodeFromVoiceName(voiceName, fallback = 'en-US') {
+  if (!voiceName || typeof voiceName !== 'string') {
+    return fallback;
+  }
+
+  const parts = voiceName.split('-');
+  if (parts.length >= 2) {
+    return `${parts[0]}-${parts[1]}`;
+  }
+
+  return fallback;
+}
+
 const ALLOWED_GEMINI_TTS_MODELS = new Set([
   'gemini-2.5-flash-tts',
   'gemini-2.5-pro-tts',
@@ -675,10 +688,13 @@ OUTPUT FORMAT (JSON):
 
         logger.info(`[GOOGLE-PODCAST] Segment ${seg + 1}/${segmentCount}: ${segData.turns?.length || 0} turns generated`);
 
-        // Add delay between segments to avoid rate limiting
+        // Keep a short pause between segment requests to avoid burst throttling.
         if (seg < segmentCount - 1) {
-          logger.info(`[GOOGLE-PODCAST] Waiting 2 seconds before next segment to avoid rate limiting...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          const delayMs = Number.parseInt(process.env.PODCAST_SCRIPT_SEGMENT_DELAY_MS || '250', 10);
+          if (delayMs > 0) {
+            logger.info(`[GOOGLE-PODCAST] Waiting ${delayMs}ms before next segment to avoid rate limiting...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
         }
       }
 
@@ -1307,12 +1323,13 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId, options 
     const voiceName = turn.speaker === 'A'
       ? resolveNeural2FallbackVoice(speakerAId, 'A')
       : resolveNeural2FallbackVoice(speakerBId, 'B');
+    const languageCode = deriveLanguageCodeFromVoiceName(voiceName, 'en-US');
 
     try {
       const result = await synthesizeWithGoogle({
         text: turn.text,
         voiceName: voiceName,
-        languageCode: 'en-US',
+        languageCode,
         speakingRate: 1.0,
       });
 
