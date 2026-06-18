@@ -5,6 +5,19 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const logger = require('../utils/common/logger.js');
 
+function resolveJwtSecret() {
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    return 'lingroot-test-jwt-secret';
+  }
+
+  logger.error('[SECURITY_CRITICAL] JWT_SECRET is not set. Refusing to resolve environment route auth.');
+  throw new Error('JWT_SECRET must be set');
+}
+
 // Public endpoint - optional authentication
 // Returns environment configuration for mobile app
 // If user is authenticated and is_test_user=true, returns test environment when global setting is test
@@ -37,7 +50,7 @@ router.get('/environment', async (req, res) => {
     
     try {
       const token = authHeader.split(' ')[1];
-      const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
+      const JWT_SECRET = resolveJwtSecret();
       const decoded = jwt.verify(token, JWT_SECRET);
       const userId = decoded.id;
       

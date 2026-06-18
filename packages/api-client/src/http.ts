@@ -41,6 +41,7 @@ export function createHttpClient(config: ApiClientConfig): {
     const api = axios.create({
         baseURL: mergedConfig.baseUrl,
         timeout: mergedConfig.timeout,
+        withCredentials: true,
         headers: {
             'Content-Type': 'application/json',
         },
@@ -50,6 +51,7 @@ export function createHttpClient(config: ApiClientConfig): {
     const mfaApi = axios.create({
         baseURL: mergedConfig.mfaBaseUrl,
         timeout: mergedConfig.timeout,
+        withCredentials: true,
         headers: {
             'Content-Type': 'application/json',
         },
@@ -67,16 +69,15 @@ export function createHttpClient(config: ApiClientConfig): {
         refreshPromise = (async () => {
             try {
                 const refreshToken = await mergedConfig.getRefreshToken();
-                if (!refreshToken) {
-                    throw new Error('No refresh token available');
-                }
+                const refreshPayload = refreshToken ? { refreshToken } : {};
 
                 const response = await axios.post<RefreshTokenResponse>(
                     `${mergedConfig.baseUrl}/api/auth/refresh`,
-                    { refreshToken },
+                    refreshPayload,
                     {
                         headers: { 'Content-Type': 'application/json' },
                         timeout: 30000,
+                        withCredentials: true,
                     }
                 );
 

@@ -15,36 +15,100 @@ const { getInitialFreeTrialEndDate } = require('../utils/subscription/freeTrial.
 // Dummy hash for constant-time comparison when user is not found (timing attack prevention)
 const DUMMY_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
-const _JWT_SECRET = process.env.JWT_SECRET;
-const _JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+function resolveRequiredSecret(name, testFallback) {
+  if (process.env[name]) {
+    return process.env[name];
+  }
 
-// CRITICAL SECURITY CHECK
-if (process.env.NODE_ENV === 'production') {
-  if (!_JWT_SECRET || _JWT_SECRET === "lingroot-secret-key-for-development") {
-    logger.error('🚨 [SECURITY_CRITICAL] JWT_SECRET is not set or using default insecure key in PRODUCTION! Exiting...');
-    process.exit(1);
+  if (process.env.NODE_ENV === 'test') {
+    return testFallback;
   }
-  if (!_JWT_REFRESH_SECRET || _JWT_REFRESH_SECRET === "lingroot-refresh-secret-key") {
-    logger.error('🚨 [SECURITY_CRITICAL] JWT_REFRESH_SECRET is not set or using default insecure key in PRODUCTION! Exiting...');
-    process.exit(1);
-  }
-} else {
-  // Development fallbacks
-  if (!_JWT_SECRET) logger.warn('⚠️ [SECURITY_WARN] JWT_SECRET not set, using insecure dev default.');
-  if (!_JWT_REFRESH_SECRET) logger.warn('⚠️ [SECURITY_WARN] JWT_REFRESH_SECRET not set, using insecure dev default.');
+
+  logger.error(`🚨 [SECURITY_CRITICAL] ${name} is not set. Refusing to start auth controller.`);
+  throw new Error(`${name} must be set`);
 }
 
-const JWT_SECRET = _JWT_SECRET || "lingroot-secret-key-for-development";
-const JWT_REFRESH_SECRET = _JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
+const JWT_SECRET = resolveRequiredSecret('JWT_SECRET', 'lingroot-test-jwt-secret');
+const JWT_REFRESH_SECRET = resolveRequiredSecret('JWT_REFRESH_SECRET', 'lingroot-test-refresh-secret');
 
 // Token expiration defaults
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";  // 15 minutes
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d"; // 7 days
+const ACCESS_COOKIE_NAME = process.env.AUTH_ACCESS_COOKIE_NAME || 'lingroot_access_token';
+const REFRESH_COOKIE_NAME = process.env.AUTH_REFRESH_COOKIE_NAME || 'lingroot_refresh_token';
 
 // Email verification token expiry (48 hours for international timezone support)
 const VERIFICATION_TOKEN_EXPIRY_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
+
+function parseCookieHeader(headerValue) {
+  if (!headerValue) return {};
+
+  return headerValue.split(';').reduce((cookies, part) => {
+    const [rawName, ...rawValueParts] = part.trim().split('=');
+    if (!rawName) return cookies;
+
+    cookies[rawName] = decodeURIComponent(rawValueParts.join('=') || '');
+    return cookies;
+  }, {});
+}
+
+function parseDurationToMs(duration, fallbackMs) {
+  if (!duration || typeof duration !== 'string') return fallbackMs;
+
+  const match = duration.trim().match(/^(\d+)(ms|s|m|h|d)$/i);
+  if (!match) return fallbackMs;
+
+  const value = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const multipliers = {
+    ms: 1,
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  };
+
+  return value * multipliers[unit];
+}
+
+function getCookieOptions(maxAgeMs) {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: maxAgeMs,
+  };
+}
+
+function setAuthCookies(res, accessToken, refreshToken) {
+  res.cookie(ACCESS_COOKIE_NAME, accessToken, getCookieOptions(parseDurationToMs(JWT_EXPIRES_IN, 15 * 60 * 1000)));
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, getCookieOptions(parseDurationToMs(JWT_REFRESH_EXPIRES_IN, 7 * 24 * 60 * 60 * 1000)));
+}
+
+function clearAuthCookies(res) {
+  const baseOptions = getCookieOptions(0);
+  res.clearCookie(ACCESS_COOKIE_NAME, baseOptions);
+  res.clearCookie(REFRESH_COOKIE_NAME, baseOptions);
+}
+
+function getRefreshTokenFromRequest(req) {
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1];
+  }
+
+  if (req.body && (req.body.refreshToken || req.body.refresh_token)) {
+    return req.body.refreshToken || req.body.refresh_token;
+  }
+
+  const cookies = parseCookieHeader(req.headers.cookie);
+  return cookies[REFRESH_COOKIE_NAME] || null;
+}
 
 // Always issue a long-lived token based on env config
 const generateToken = (id, email, role, _rememberMe = false) => {
@@ -54,15 +118,7 @@ const generateToken = (id, email, role, _rememberMe = false) => {
 // Exchange a valid refresh token for a new access token (and rotate refresh token)
 exports.refreshToken = async (req, res) => {
   try {
-    // Accept refresh token from Authorization header or request body for flexibility
-    let refreshToken = null;
-    const authHeader = req.headers.authorization || '';
-    if (authHeader.startsWith('Bearer ')) {
-      refreshToken = authHeader.split(' ')[1];
-    }
-    if (!refreshToken) {
-      refreshToken = (req.body && (req.body.refreshToken || req.body.refresh_token)) || null;
-    }
+    const refreshToken = getRefreshTokenFromRequest(req);
 
     if (!refreshToken) {
       return res.status(400).json({ success: false, code: 'TOKEN_REQUIRED', message: 'Refresh token gerekli' });
@@ -95,6 +151,7 @@ exports.refreshToken = async (req, res) => {
 
     const accessToken = generateToken(user.id, user.email, user.role, true);
     const newRefreshToken = generateRefreshToken(user.id);
+    setAuthCookies(res, accessToken, newRefreshToken);
 
     return res.json({
       success: true,
@@ -478,6 +535,7 @@ exports.login = async (req, res) => {
 
     const token = generateToken(user.id, user.email, user.role, rememberMe);
     const refreshToken = generateRefreshToken(user.id);
+    setAuthCookies(res, token, refreshToken);
 
     // Remove sensitive data before sending response
     delete user.password;
@@ -545,6 +603,7 @@ exports.facebookLogin = async (req, res) => {
     const { credential, rememberMe } = req.body;
 
     const result = await facebookLoginService(credential, rememberMe);
+    setAuthCookies(res, result.token, result.refreshToken);
 
     // Record successful login
     try {
@@ -586,6 +645,7 @@ exports.googleLogin = async (req, res) => {
     const { credential, rememberMe } = req.body;
 
     const result = await googleLoginService(credential, rememberMe);
+    setAuthCookies(res, result.token, result.refreshToken);
 
     // Record successful login
     try {
@@ -628,6 +688,7 @@ exports.appleLogin = async (req, res) => {
     const { credential, rememberMe, email: providedEmail, name: providedName } = req.body;
 
     const result = await appleLoginService(credential, rememberMe, providedEmail, providedName);
+    setAuthCookies(res, result.token, result.refreshToken);
 
     // Record successful login
     try {
@@ -820,7 +881,7 @@ exports.updateLevel = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = req.authToken || req.headers.authorization?.split(' ')[1] || parseCookieHeader(req.headers.cookie)[ACCESS_COOKIE_NAME];
     if (token) {
       try {
         const { getConnection, checkRedisAvailability } = require('../utils/storage/redisClient');
@@ -837,6 +898,7 @@ exports.logout = async (req, res) => {
         logger.warn('[LOGOUT] Token blacklist failed (non-blocking):', blErr.message);
       }
     }
+    clearAuthCookies(res);
     return res.status(200).json({ success: true, message: "Çıkış yapıldı" });
   } catch (error) {
     logger.error("Logout error", error);

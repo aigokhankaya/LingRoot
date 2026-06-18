@@ -15,7 +15,8 @@ const {
   getAudioFile,
   getVttFile,
   getFilteredVoices,
-  testVoices
+  testVoices,
+  previewTextToSpeech,
 } = require("../controllers/ttsController");
 const {
   logSyncFeedback,
@@ -1124,6 +1125,8 @@ router.post("/translate-and-speak", async (req, res) => {
     });
   }
 });
+
+router.post("/preview", ttsLimiter, authenticate, previewTextToSpeech);
 
 // Generate topic narration text (used by Topic Tree screen before navigating to Create)
 router.post("/generate-topic-narration", authenticate, async (req, res) => {

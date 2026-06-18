@@ -7,16 +7,51 @@ const logger = require('../utils/common/logger.js'); // Import logger
 
 // Supabase client comes from shared client; if missing, middleware will respond 500 on protected routes
 
-// JWT secret key — production requires env variable
-if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'lingroot-secret-key-for-development')) {
-  logger.error('[SECURITY_CRITICAL] JWT_SECRET is not set or using default insecure key in PRODUCTION! Exiting...');
-  process.exit(1);
+function resolveJwtSecret() {
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    return 'lingroot-test-jwt-secret';
+  }
+
+  logger.error('[SECURITY_CRITICAL] JWT_SECRET is not set. Refusing to start auth middleware.');
+  throw new Error('JWT_SECRET must be set');
 }
-const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
+
+const JWT_SECRET = resolveJwtSecret();
 
 // Redis token blacklist check helper
 const { getConnection, checkRedisAvailability } = require('../utils/storage/redisClient');
 const memoryCache = require('../utils/cache/memoryCache');
+const ACCESS_COOKIE_NAME = process.env.AUTH_ACCESS_COOKIE_NAME || 'lingroot_access_token';
+
+function parseCookieHeader(headerValue) {
+  if (!headerValue) return {};
+
+  return headerValue.split(';').reduce((cookies, part) => {
+    const [rawName, ...rawValueParts] = part.trim().split('=');
+    if (!rawName) return cookies;
+
+    cookies[rawName] = decodeURIComponent(rawValueParts.join('=') || '');
+    return cookies;
+  }, {});
+}
+
+function extractAuthToken(req) {
+  const cookies = parseCookieHeader(req.headers.cookie);
+  if (cookies[ACCESS_COOKIE_NAME]) {
+    return cookies[ACCESS_COOKIE_NAME];
+  }
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.split(" ")[1];
+  }
+  
+  return null;
+}
 
 /**
  * Optimized token blacklist check
@@ -66,19 +101,17 @@ exports.authenticate = async (req, res, next) => {
   const path = req.originalUrl;
 
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
+    const token = extractAuthToken(req);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      logger.warn(`[AUTH_FAIL] No token or invalid format. Path: ${path}. Header: ${authHeader || 'MISSING'}`);
+    if (!token) {
+      logger.warn(`[AUTH_FAIL] No token or invalid format. Path: ${path}. Header: ${req.headers.authorization || 'MISSING'}`);
       return res.status(401).json({
         success: false,
         message: "Authentication failed. No token provided or invalid format.",
         code: "NO_TOKEN"
       });
     }
-
-    const token = authHeader.split(" ")[1];
+    req.authToken = token;
 
     // Check token blacklist (logout invalidation)
     if (await isTokenBlacklisted(token)) {
@@ -195,17 +228,15 @@ exports.optionalAuth = async (req, res, next) => {
   const path = req.originalUrl;
   logger.debug(`Optional authentication middleware triggered for path: ${path}`);
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
+    const token = extractAuthToken(req);
 
     // If no token, continue without user info
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!token) {
       logger.debug(`No token found for optional auth on path: ${path}. Proceeding without user.`);
       req.user = null;
       return next();
     }
-
-    const token = authHeader.split(" ")[1];
+    req.authToken = token;
     logger.debug(`Token extracted for optional auth on path: ${path}`);
 
     // Check blacklist
@@ -312,4 +343,3 @@ exports.authorizeAdmin = (req, res, next) => {
   logger.info(`Admin authorization successful for user ID: ${userId}, path: ${path}`);
   next();
 };
-

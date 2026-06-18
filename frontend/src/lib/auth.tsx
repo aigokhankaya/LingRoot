@@ -24,6 +24,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const COOKIE_SESSION_SENTINEL = 'cookie-session';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -35,25 +36,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     const checkToken = async () => {
       setIsLoading(true);
       try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-
-        // Token yoksa /auth/me isteği yapma
-        if (!token) {
-          console.log('[AUTH] Token bulunamadı, oturum kontrolü atlanıyor');
-          setUser(null);
-          setIsAuthenticated(false);
-          setIsLoading(false);
-          return;
-        }
-
-        // Token varsa /auth/me isteğini yap
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        };
         const response = await fetch(getApiUrl('auth/me'), {
           method: 'GET',
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+          },
           credentials: 'include'
         });
 
@@ -73,6 +60,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           console.log('[AUTH] Oturum doğrulandı:', loadedUser);
           setUser(loadedUser);
           setIsAuthenticated(true);
+          localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
 
           // Analytics
           AnalyticsHelper.setUserId(loadedUser.id);
@@ -80,11 +68,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
             user_type: loadedUser.membershipStatus,
             user_role: loadedUser.role
           });
-
-          // Token yenileme
-          if (data.data?.token) {
-            localStorage.setItem('lingroot_token', data.data.token);
-          }
         } else {
           console.log('[AUTH] Oturum geçersiz, response:', response.status, data);
           // Mock kullanıcı oluştur (development için)
@@ -98,7 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
             };
             setUser(mockUser);
             setIsAuthenticated(true);
-            localStorage.setItem('lingroot_token', 'mock-token-for-development');
+            localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
           } else {
             setUser(null);
             setIsAuthenticated(false);
@@ -119,10 +102,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           };
           setUser(mockUser);
           setIsAuthenticated(true);
-          localStorage.setItem('lingroot_token', 'mock-token-for-development');
+          localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
         } else {
           setUser(null);
           setIsAuthenticated(false);
+          localStorage.removeItem('lingroot_token');
         }
       } finally {
         setIsLoading(false);
@@ -133,9 +117,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   }, []);
 
   const logout = useCallback(() => {
+    void fetch(getApiUrl('auth/logout'), {
+      method: 'POST',
+      credentials: 'include',
+    }).catch((error) => {
+      console.log('[AUTH] logout request failed', error);
+    });
+
     // Tüm kullanıcıya özel localStorage verilerini temizle
     localStorage.removeItem('lingroot_token');
-    localStorage.removeItem('lingroot_remember_me');
     localStorage.removeItem('lingroot_firstName');
     localStorage.removeItem('lingroot_lastName');
     localStorage.removeItem('lingroot_loginCount');
@@ -150,50 +140,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     AnalyticsHelper.logEvent('logout');
     AnalyticsHelper.setUserId(null);
   }, []);
-
-  // Token süresini kontrol et ve gerekirse logout yap
-  const checkTokenExpiry = useCallback(() => {
-    const token = localStorage.getItem('lingroot_token');
-    const rememberMe = localStorage.getItem('lingroot_remember_me') === 'true';
-
-    if (!token) return;
-
-    try {
-      // JWT token'ı decode et (basit bir şekilde)
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Date.now() / 1000;
-
-      // Token süresi dolmuşsa logout yap
-      if (payload.exp < currentTime) {
-        console.log('[AUTH] Token süresi doldu, logout yapılıyor');
-        logout();
-        return;
-      }
-
-      // Beni hatırla seçili değilse ve 1 saatten fazla geçmişse logout yap
-      if (!rememberMe) {
-        const tokenAge = currentTime - payload.iat;
-        const oneHour = 60 * 60; // 1 saat saniye cinsinden
-
-        if (tokenAge > oneHour) {
-          console.log('[AUTH] Idle timeout, logout yapılıyor');
-          logout();
-        }
-      }
-    } catch (error) {
-      console.error('[AUTH] Token decode hatası:', error);
-      logout();
-    }
-  }, [logout]);
-
-  // Token süresini düzenli olarak kontrol et
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkTokenExpiry();
-    }, 60000); // Her dakika kontrol et
-
-    return () => clearInterval(interval);
-  }, [checkTokenExpiry]);
   const login = useCallback(async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string; code?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
@@ -249,6 +195,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
+        localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
 
         // Analytics
         AnalyticsHelper.logEvent('login', { method: 'email', platform: 'web' });
@@ -258,12 +205,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           user_role: user.role
         });
         // Eğer backend token döndürüyorsa localStorage'a kaydet
-        if (data.data.token) {
-          localStorage.setItem('lingroot_token', data.data.token);
-          // Beni hatırla seçeneği için flag kaydet
-          localStorage.setItem('lingroot_remember_me', rememberMe.toString());
-          console.log('[AUTH] Token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
-        }
         // Giriş istatistiklerini güncelle
         try {
           const now = Date.now();
@@ -306,7 +247,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           };
           setUser(mockUser);
           setIsAuthenticated(true);
-          localStorage.setItem('lingroot_token', 'mock-token-for-development');
+          localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
           return { success: true };
         }
 
@@ -376,16 +317,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
+        localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
 
         // Analytics
         AnalyticsHelper.logEvent('login', { method: 'google', platform: 'web' });
         AnalyticsHelper.setUserId(user.id);
 
-        if (data.data.token) {
-          localStorage.setItem('lingroot_token', data.data.token);
-          localStorage.setItem('lingroot_remember_me', rememberMe.toString());
-          console.log('[AUTH] Google token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
-        }
         // Kullanıcının arayüz dilini backend'den oku ve i18n ile senkronize et (Non-blocking)
         (async () => {
           try {

@@ -12,9 +12,22 @@ const { sendMail } = require('../utils/notifications/mailer.js');
 // Google OAuth client for JWT verification
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+function resolveRequiredSecret(name, testFallback) {
+  if (process.env[name]) {
+    return process.env[name];
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    return testFallback;
+  }
+
+  logger.error(`[SECURITY_CRITICAL] ${name} is not set. Refusing to start OAuth service.`);
+  throw new Error(`${name} must be set`);
+}
+
 // JWT secret keys
-const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
+const JWT_SECRET = resolveRequiredSecret('JWT_SECRET', 'lingroot-test-jwt-secret');
+const JWT_REFRESH_SECRET = resolveRequiredSecret('JWT_REFRESH_SECRET', 'lingroot-test-refresh-secret');
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
 
