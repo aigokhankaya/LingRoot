@@ -1,11 +1,11 @@
 const logger = require('../common/logger.js');
 
 const DEFAULTS = {
-  maxConcurrency: 2,
-  minSpacingMs: 1500,
+  maxConcurrency: 1,
+  minSpacingMs: 800,
   maxWaitMs: 120000,
   maxExecutionMs: 180000,
-  cooldownBaseMs: 10000,
+  cooldownBaseMs: 15000,
 };
 
 const modelStates = new Map();
