@@ -56,10 +56,11 @@ describe('VoiceModel Service', () => {
         }));
 
         // Create mock functions for lingrootVoices
+        // Voices must include `active: true` — voiceModelService filters on `v.active`.
         mockGetLingrootVoices = jest.fn().mockReturnValue([
-            { id: 'emma', label: 'Emma', gender: 'female', accent: 'british', quality: 'premium' },
-            { id: 'james', label: 'James', gender: 'male', accent: 'american', quality: 'basic' },
-            { id: 'sophia', label: 'Sophia', gender: 'female', accent: 'american', quality: 'gold' },
+            { id: 'emma', label: 'Emma', gender: 'female', accent: 'british', quality: 'premium', active: true },
+            { id: 'james', label: 'James', gender: 'male', accent: 'american', quality: 'basic', active: true },
+            { id: 'sophia', label: 'Sophia', gender: 'female', accent: 'american', quality: 'gold', active: true },
         ]);
         mockMapLingrootToProviderVoice = jest.fn().mockReturnValue({ name: 'en-US-Standard-A', languageCode: 'en-US' });
         mockGetDefaultLingrootVoiceId = jest.fn().mockReturnValue('emma');
