@@ -241,6 +241,9 @@ app.use('/api/perf-logs', perfLogsRoutes);
 app.use('/api/client-errors', clientErrorRoutes);
 app.use('/api/admin/jobs', require('./routes/jobRoutes.js'));
 
+// Internal service-to-service endpoints (Bearer API-key protected, not under /api)
+app.use('/internal', require('./routes/internalRoutes.js'));
+
 // Try to load optional routes (may not exist)
 try {
     const sectorRoutes = require('./routes/sectorRoutes.js');

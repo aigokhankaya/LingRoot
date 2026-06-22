@@ -33,6 +33,13 @@ module.exports = defineConfig([
     },
   },
   {
+    // k6 load-test scenarios are ES modules run by the k6 runtime, not Node CommonJS.
+    files: ['tests/load/scenarios/**/*.js'],
+    languageOptions: {
+      sourceType: 'module',
+    },
+  },
+  {
     ignores: [
       'scripts/**',
       'node_modules/**',

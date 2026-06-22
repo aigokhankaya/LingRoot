@@ -1061,9 +1061,22 @@ GET /sectors/position-templates/:sectorId
 }
 ```
 
+## Internal Endpoints (service-to-service)
+
+Bunlar `/api` altında değildir ve Bearer API-key ile korunur (kullanıcı JWT'si değil).
+
+### Video Factory — Seviye Paketi
+```http
+POST /internal/video-level-package
+Authorization: Bearer <VIDEO_FACTORY_API_KEY>
+```
+Tek bir CEFR seviyesi için scene-aware script + TTS sesi + SRT altyazı üretir.
+Detay: [Video Factory Seviye Paketi API'si](./video-level-package.md).
+
 ## Related Documentation
 
 - [API Architecture](../architecture/api-architecture.md)
 - [Error Codes](./errors.md)
 - [Request Examples](./request-examples.md)
+- [Video Level Package API](./video-level-package.md)
 
