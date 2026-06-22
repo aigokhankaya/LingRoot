@@ -52,3 +52,8 @@ services:
         value: info
       - key: DATABASE_URL
         sync: false
+      # Video Factory internal API (POST /internal/video-level-package)
+      - key: VIDEO_FACTORY_API_KEY
+        sync: false
+      - key: OPENAI_VIDEO_FACTORY_MODEL
+        value: gpt-4o
