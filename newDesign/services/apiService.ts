@@ -42,6 +42,40 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     return response.json();
 };
 
+export interface TtsPreviewResponse {
+    audioBase64: string;
+    mimeType: string;
+    durationSeconds?: number | null;
+    voiceName?: string;
+}
+
+export const generateTtsPreview = async (
+    text: string,
+    voiceName = 'en-US-Neural2-F',
+    speakingRate = 1
+): Promise<TtsPreviewResponse | null> => {
+    try {
+        const response = await apiRequest('/api/tts/preview', {
+            method: 'POST',
+            body: JSON.stringify({ text, voiceName, speakingRate })
+        });
+
+        if (response.success && response.audioBase64) {
+            return {
+                audioBase64: response.audioBase64,
+                mimeType: response.mimeType || 'audio/mpeg',
+                durationSeconds: response.durationSeconds,
+                voiceName: response.voiceName,
+            };
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error generating TTS preview:', error);
+        return null;
+    }
+};
+
 // ==================== VOCABULARY API ====================
 
 export interface VocabularyWord {

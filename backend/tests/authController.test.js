@@ -231,15 +231,15 @@ describe('Auth Controller - Security Checks', () => {
     describe('Production JWT Secret Validation', () => {
         test('should detect insecure default JWT secret', () => {
             const insecureDefaults = [
-                'lingroot-secret-key-for-development',
-                'lingroot-refresh-secret-key',
+                'lingroot-test-jwt-secret',
+                'lingroot-test-refresh-secret',
                 ''
             ];
 
             insecureDefaults.forEach(secret => {
                 const isInsecure = !secret ||
-                    secret === 'lingroot-secret-key-for-development' ||
-                    secret === 'lingroot-refresh-secret-key';
+                    secret === 'lingroot-test-jwt-secret' ||
+                    secret === 'lingroot-test-refresh-secret';
                 expect(isInsecure).toBe(true);
             });
         });
@@ -252,8 +252,8 @@ describe('Auth Controller - Security Checks', () => {
 
             secureSecrets.forEach(secret => {
                 const isInsecure = !secret ||
-                    secret === 'lingroot-secret-key-for-development' ||
-                    secret === 'lingroot-refresh-secret-key';
+                    secret === 'lingroot-test-jwt-secret' ||
+                    secret === 'lingroot-test-refresh-secret';
                 expect(isInsecure).toBe(false);
             });
         });

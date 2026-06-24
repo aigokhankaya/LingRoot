@@ -2450,6 +2450,71 @@ const testVoices = async (req, res) => {
   }
 };
 
+const previewTextToSpeech = async (req, res) => {
+  const requestId = uuidv4();
+  try {
+    const rawText = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+    const voiceName = typeof req.body?.voiceName === 'string' && req.body.voiceName.trim()
+      ? req.body.voiceName.trim()
+      : 'en-US-Neural2-F';
+    const speakingRate = Number.parseFloat(req.body?.speakingRate || '1');
+
+    if (!rawText) {
+      return res.status(400).json({ success: false, message: 'text is required' });
+    }
+
+    if (rawText.length > 500) {
+      return res.status(400).json({ success: false, message: 'text must be 500 characters or fewer' });
+    }
+
+    const languageCode = voiceName.includes('en-GB')
+      ? 'en-GB'
+      : voiceName.includes('en-AU')
+        ? 'en-AU'
+        : voiceName.includes('en-CA')
+          ? 'en-CA'
+          : voiceName.includes('en-IN')
+            ? 'en-IN'
+            : 'en-US';
+
+    logStep({
+      requestId,
+      stepName: 'tts:preview',
+      inputData: {
+        textLength: rawText.length,
+        voiceName,
+        speakingRate,
+      }
+    });
+
+    const result = await synthesizeWithGoogle({
+      text: rawText,
+      voiceName,
+      languageCode,
+      speakingRate: Number.isFinite(speakingRate) ? speakingRate : 1.0,
+      userId: req.user?.id || null,
+    });
+
+    const audioBase64 = Buffer.isBuffer(result.audioContent)
+      ? result.audioContent.toString('base64')
+      : Buffer.from(result.audioContent).toString('base64');
+
+    return res.json({
+      success: true,
+      audioBase64,
+      mimeType: 'audio/mpeg',
+      durationSeconds: result.totalDuration || null,
+      voiceName: result.voiceName || voiceName,
+    });
+  } catch (error) {
+    logger.error(`[${requestId}] previewTextToSpeech failed: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to generate preview audio',
+    });
+  }
+};
+
 // Word timing helpers moved to services/subtitleService.js
 
 // Helper function to create optimized timepoints for frontend (legacy)
@@ -2475,4 +2540,5 @@ module.exports = {
   getVttFile, // New endpoint to serve VTT files
   getFilteredVoices,
   testVoices, // New test endpoint
+  previewTextToSpeech,
 };

@@ -2,7 +2,7 @@
  * Web API Client Wrapper
  * 
  * Wrapper for @lingroot/api-client that configures it for Next.js/React.
- * Uses localStorage for token persistence.
+ * Uses cookie-backed sessions for web auth.
  * 
  * Created: 2026-01-16
  * Updated: 2026-01-24
@@ -14,14 +14,12 @@ import { createApiClient, setAxios, LingRootApiClient } from '@lingroot/api-clie
 // Initialize axios for the shared client (cast to any to avoid version mismatch)
 setAxios(axios as any);
 
-// Storage keys
-const TOKEN_KEY = 'lingroot_token';
-const REFRESH_TOKEN_KEY = 'lingroot_refresh_token';
-
 /**
  * Check if we're running in browser environment
  */
 const isBrowser = typeof window !== 'undefined';
+let inMemoryAccessToken: string | null = null;
+let inMemoryRefreshToken: string | null = null;
 
 /**
  * Get base URL based on environment
@@ -47,31 +45,21 @@ export function getApiClient(): LingRootApiClient {
         baseUrl: getBaseUrl(),
         timeout: 1200000, // 20 minutes
 
-        getToken: () => {
-            if (!isBrowser) return null;
-            return localStorage.getItem(TOKEN_KEY);
-        },
+        getToken: () => inMemoryAccessToken,
 
         setToken: (token: string) => {
-            if (!isBrowser) return;
-            localStorage.setItem(TOKEN_KEY, token);
+            inMemoryAccessToken = token;
         },
 
-        getRefreshToken: () => {
-            if (!isBrowser) return null;
-            return localStorage.getItem(REFRESH_TOKEN_KEY);
-        },
+        getRefreshToken: () => inMemoryRefreshToken,
 
         setRefreshToken: (token: string) => {
-            if (!isBrowser) return;
-            localStorage.setItem(REFRESH_TOKEN_KEY, token);
+            inMemoryRefreshToken = token;
         },
 
         clearTokens: () => {
-            if (!isBrowser) return;
-            localStorage.removeItem(TOKEN_KEY);
-            localStorage.removeItem(REFRESH_TOKEN_KEY);
-            localStorage.removeItem('lingroot_user');
+            inMemoryAccessToken = null;
+            inMemoryRefreshToken = null;
         },
 
         onUnauthorized: () => {
@@ -112,4 +100,3 @@ export type { LingRootApiClient } from '@lingroot/api-client';
 export * from '@lingroot/api-client';
 
 export default apiClient;
-

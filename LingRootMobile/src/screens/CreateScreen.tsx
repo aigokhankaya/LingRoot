@@ -807,6 +807,8 @@ const CreateScreenContent: React.FC = () => {
         timing_accuracy?: string;
         topic?: string;
         transcript?: string;
+        dialogue?: string;
+        turns_original?: Array<{ speaker?: string; text?: string }>;
         duration_seconds?: number | string;
         duration?: number | string;
         contenthistory_id?: number;
@@ -836,6 +838,11 @@ const CreateScreenContent: React.FC = () => {
         resp?.transcript ||
         resp?.message ||
         config.topic.trim();
+      const originalPodcastText = Array.isArray(resp?.turns_original) && resp.turns_original.length > 0
+        ? resp.turns_original
+          .map((turn) => `${turn?.speaker === 'A' ? 'Host' : 'Guest'}: ${turn?.text || ''}`)
+          .join('\n')
+        : '';
       const safeTimepoints = normalizeTimepoints(resp?.timepoints);
       const safeWords = normalizeWords(resp?.words);
       const safeDialogueSegments = normalizeDialogueSegments(resp?.dialogue_segments);
@@ -850,7 +857,7 @@ const CreateScreenContent: React.FC = () => {
           input_type: 'podcast',
           level: selectedLevel,
           mp3_url: audioUrl,
-          translated_text: transcriptText,
+          translated_text: originalPodcastText || transcriptText,
           adapted_text: transcriptText,
           timepoints: safeTimepoints,
           words: safeWords
@@ -887,9 +894,9 @@ const CreateScreenContent: React.FC = () => {
         duration: durationSeconds,
         created_at: new Date().toISOString(),
         input_type: 'podcast',
-        translated_text: transcriptForTrack,
+        translated_text: originalPodcastText || transcriptForTrack,
         adapted_text: transcriptForTrack,
-        original_turkish: topicForTrack,
+        original_turkish: originalPodcastText || topicForTrack,
         mp3_url: audioUrl,
         timepoints: safeTimepoints,
         words: safeWords,

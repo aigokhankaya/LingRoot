@@ -105,4 +105,3 @@ router.get('/audit-logs', auditLogController.getAuditLogs);
 router.get('/audit-logs/actions', auditLogController.getAuditLogActions);
 
 module.exports = router;
-

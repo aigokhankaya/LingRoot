@@ -15,7 +15,8 @@ const {
   getAudioFile,
   getVttFile,
   getFilteredVoices,
-  testVoices
+  testVoices,
+  previewTextToSpeech,
 } = require("../controllers/ttsController");
 const {
   logSyncFeedback,
@@ -135,6 +136,26 @@ async function createPodcastWithOptionalFallback(params) {
     disableSpeakerValidation: podcastType === 'new',
     forceNeural2Fallback: podcastType === 'new',
   });
+}
+
+function getAsyncTtsNotificationInputType(requestBody, startGenerationType) {
+  if (startGenerationType === 'topic') {
+    return 'topic';
+  }
+
+  if (requestBody?.topic_id) {
+    return 'topic';
+  }
+
+  return 'text';
+}
+
+function getAsyncTtsNotificationOriginalText(requestBody, result, startGenerationType) {
+  if (startGenerationType === 'topic') {
+    return result?.translated_text || requestBody?.input || '';
+  }
+
+  return requestBody?.input || result?.translated_text || '';
 }
 
 async function prepareStartGenerationPayload(userId, requestBody, kind) {
@@ -396,7 +417,8 @@ router.post(
                 mp3_url: result.mp3_url,
                 title: result.adapted_text?.substring(0, 50) || 'Audio',
                 level: requestBody.level,
-                input_type: requestBody.topic_id ? 'topic' : 'text'
+                input_type: getAsyncTtsNotificationInputType(requestBody, prepared.startGenerationType),
+                original_turkish: getAsyncTtsNotificationOriginalText(requestBody, result, prepared.startGenerationType),
               }
             });
           } catch (notifError) {
@@ -1124,6 +1146,8 @@ router.post("/translate-and-speak", async (req, res) => {
     });
   }
 });
+
+router.post("/preview", ttsLimiter, authenticate, previewTextToSpeech);
 
 // Generate topic narration text (used by Topic Tree screen before navigating to Create)
 router.post("/generate-topic-narration", authenticate, async (req, res) => {

@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, DeviceEventEmitter, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import HomeScreen from './HomeScreen';
 import StartScreen from './StartScreen';
 import { COLORS } from '../theme/colors';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getStartGenerationProgress, StartGenerationProgress } from '../services/startOnboardingService';
+import {
+  getStartGenerationProgress,
+  START_ONBOARDING_PROGRESS_EVENT,
+  StartGenerationProgress,
+} from '../services/startOnboardingService';
 
 const HomeGateScreen: React.FC = () => {
   const { language } = useLanguage();
@@ -18,6 +22,7 @@ const HomeGateScreen: React.FC = () => {
   const refreshProgress = useCallback(async () => {
     const nextProgress = await getStartGenerationProgress();
     setProgress(nextProgress);
+    DeviceEventEmitter.emit(START_ONBOARDING_PROGRESS_EVENT, nextProgress);
 
     if (lastCountRef.current != null && lastCountRef.current < 3 && nextProgress.count >= 3) {
       setShowCompletion(true);

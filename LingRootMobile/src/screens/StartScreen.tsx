@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -11,25 +14,33 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { CEFRLevel } from '../types';
+import { AudioTrack, CEFRLevel } from '../types';
 import { COLORS } from '../theme/colors';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTtsJob } from '../contexts/TtsJobContext';
-import { getEnvironmentConfig } from '../services/environmentConfig';
+import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/api';
 import {
   createStartPodcastAudio,
   createStartTextAudio,
   createStartTopicAudio,
   getStartGenerationActiveJob,
-  getStartGenerationJobStatus,
   StartGenerationProgress,
   StartGenerationType,
 } from '../services/startOnboardingService';
+import {
+  normalizeDialogueSegments,
+  normalizeTimepoints,
+  normalizeWords,
+} from '../utils/timepoints';
 
 const LEVELS: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const STEP_ORDER: StartGenerationType[] = ['podcast', 'topic', 'text'];
+const KEYBOARD_INPUT_GAP = 5;
 
 type Props = {
   progress: StartGenerationProgress;
@@ -44,24 +55,23 @@ type CardCopy = {
   cta: string;
   icon: string;
   visualLabel: string;
-  microGuide: string;
   completedTitle: string;
 };
 
 type Copy = {
   heroTitle: string;
   heroSubtitle: string;
-  benefits: string[];
-  progressSuffix: string;
-  progressStates: Record<'0' | '1' | '2', string>;
   choose: string;
-  startSelect: string;
-  completeStep: string;
   completed: string;
   waiting: string;
   levelTitle: string;
   levelRequired: string;
   create: string;
+  listen: string;
+  next: string;
+  previous: string;
+  progressLabel: string;
+  step: string;
   textTooShort: string;
   genericIncomplete: string;
   text: CardCopy;
@@ -69,89 +79,99 @@ type Copy = {
   topic: CardCopy;
 };
 
+function getStepIndex(type: StartGenerationType) {
+  return STEP_ORDER.indexOf(type);
+}
+
 function getFirstIncomplete(progress: StartGenerationProgress): StartGenerationType | null {
-  if (!progress.text_completed) return 'text';
   if (!progress.podcast_completed) return 'podcast';
   if (!progress.topic_completed) return 'topic';
+  if (!progress.text_completed) return 'text';
   return null;
 }
 
 function isStepCompleted(progress: StartGenerationProgress, type: StartGenerationType) {
-  if (type === 'text') return progress.text_completed;
   if (type === 'podcast') return progress.podcast_completed;
-  return progress.topic_completed;
+  if (type === 'topic') return progress.topic_completed;
+  return progress.text_completed;
 }
 
-function getProgressMessage(progress: StartGenerationProgress, copy: Copy) {
-  if (progress.count >= 2) return copy.progressStates['2'];
-  if (progress.count === 1) return copy.progressStates['1'];
-  return copy.progressStates['0'];
+function buildTrackFromHistoryItem(item: any): AudioTrack {
+  return {
+    id: String(item.id),
+    title: item.adapted_text || item.translated_text || item.input || 'Untitled',
+    url: item.mp3_url || item.url || '',
+    level: (item.level || 'B1') as CEFRLevel,
+    duration: typeof item?.duration === 'number' ? item.duration : 180,
+    created_at: item.created_at,
+    input_type: item.input_type,
+    translated_text: item.translated_text,
+    adapted_text: item.adapted_text,
+    original_turkish: item.original_turkish || item.input || item.translated_text || '',
+    mp3_url: item.mp3_url || item.url || '',
+    timepoints: normalizeTimepoints(item.timepoints),
+    words: normalizeWords(item.words),
+    dialogue_segments: normalizeDialogueSegments(item.dialogue_segments),
+    timing_source: item.timing_source,
+    timing_accuracy: item.timing_accuracy,
+  };
 }
 
 const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
+  const navigation = useNavigation<any>();
   const { language, t } = useLanguage();
+  const { user } = useAuth();
   const { lockTtsJob, unlockTtsJob } = useTtsJob();
   const headerHeight = useHeaderHeight();
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const scrollOffsetRef = useRef(0);
+  const nextPulseAnim = useRef(new Animated.Value(1)).current;
+  const inputRefs = useRef<Record<StartGenerationType, TextInput | null>>({
+    podcast: null,
+    topic: null,
+    text: null,
+  });
+  const prevCompletedCountRef = useRef(progress.count);
 
-  const [expandedCard, setExpandedCard] = useState<StartGenerationType | null>(null);
+  const [currentStep, setCurrentStep] = useState<StartGenerationType>(getFirstIncomplete(progress) || 'podcast');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWaitingForCompletion, setIsWaitingForCompletion] = useState(false);
   const [activeJobType, setActiveJobType] = useState<StartGenerationType | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [successAlertEstimatedTime, setSuccessAlertEstimatedTime] = useState('10-15 dk');
-  const [debugJobId, setDebugJobId] = useState<string | null>(null);
-  const [debugJobSnapshot, setDebugJobSnapshot] = useState<any>(null);
-  const [isTestEnv, setIsTestEnv] = useState(false);
-  const [focusedCard, setFocusedCard] = useState<StartGenerationType | null>(null);
+  const [successAlertEstimatedTime, setSuccessAlertEstimatedTime] = useState('1 dakika');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [focusedStep, setFocusedStep] = useState<StartGenerationType | null>(null);
   const [levelByStep, setLevelByStep] = useState<Record<StartGenerationType, CEFRLevel | null>>({
-    text: null,
     podcast: null,
     topic: null,
+    text: null,
   });
   const [inputByStep, setInputByStep] = useState<Record<StartGenerationType, string>>({
-    text: '',
     podcast: '',
     topic: '',
+    text: '',
   });
+  const [tracksByStep, setTracksByStep] = useState<Partial<Record<StartGenerationType, AudioTrack>>>({});
 
   const copy: Copy = useMemo(() => ({
     heroTitle: t('startOnboarding.heroTitle'),
     heroSubtitle: t('startOnboarding.heroSubtitle'),
-    benefits: [
-      t('startOnboarding.benefits.levelBased'),
-      t('startOnboarding.benefits.naturalVoice'),
-      t('startOnboarding.benefits.learnByListening'),
-    ],
-    progressSuffix: t('startOnboarding.progressSuffix'),
-    progressStates: {
-      '0': t('startOnboarding.progressStates.zero'),
-      '1': t('startOnboarding.progressStates.one'),
-      '2': t('startOnboarding.progressStates.two'),
-    },
-    choose: t('startOnboarding.choose'),
-    startSelect: t('startOnboarding.startSelect'),
-    completeStep: t('startOnboarding.completeStep'),
+    choose: language === 'tr' ? 'Adım adım ilerle' : 'Complete the steps in order',
     completed: t('startOnboarding.completed'),
     waiting: t('startOnboarding.waiting'),
     levelTitle: t('startOnboarding.levelTitle'),
     levelRequired: t('startOnboarding.levelRequired'),
     create: t('startOnboarding.create'),
+    listen: language === 'tr' ? 'Sesi Dinle' : 'Listen to Audio',
+    next: language === 'tr' ? 'Sonraki Adım' : 'Next Step',
+    previous: language === 'tr' ? 'Önceki Adım' : 'Previous Step',
+    progressLabel: language === 'tr' ? 'Başlangıç Yolculuğu' : 'Getting Started',
+    step: language === 'tr' ? 'Adım' : 'Step',
     textTooShort: language === 'tr' ? 'Metin en az 10 karakter olmalı.' : 'Text must be at least 10 characters.',
     genericIncomplete: language === 'tr' ? 'İşlem tamamlanamadı. Lütfen tekrar deneyin.' : 'The audio was not completed. Please try again.',
-    text: {
-      title: t('startOnboarding.text.title'),
-      description: t('startOnboarding.text.description'),
-      placeholder: t('startOnboarding.text.placeholder'),
-      helper: t('startOnboarding.text.helper'),
-      cta: t('startOnboarding.text.cta'),
-      icon: '📝',
-      visualLabel: t('startOnboarding.text.visualLabel'),
-      microGuide: t('startOnboarding.text.microGuide'),
-      completedTitle: t('startOnboarding.text.completedTitle'),
-    },
     podcast: {
       title: t('startOnboarding.podcast.title'),
       description: t('startOnboarding.podcast.description'),
@@ -160,7 +180,6 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
       cta: t('startOnboarding.podcast.cta'),
       icon: '👥',
       visualLabel: t('startOnboarding.podcast.visualLabel'),
-      microGuide: t('startOnboarding.podcast.microGuide'),
       completedTitle: t('startOnboarding.podcast.completedTitle'),
     },
     topic: {
@@ -171,79 +190,112 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
       cta: t('startOnboarding.topic.cta'),
       icon: '🧍',
       visualLabel: t('startOnboarding.topic.visualLabel'),
-      microGuide: t('startOnboarding.topic.microGuide'),
       completedTitle: t('startOnboarding.topic.completedTitle'),
+    },
+    text: {
+      title: t('startOnboarding.text.title'),
+      description: t('startOnboarding.text.description'),
+      placeholder: t('startOnboarding.text.placeholder'),
+      helper: t('startOnboarding.text.helper'),
+      cta: t('startOnboarding.text.cta'),
+      icon: '📝',
+      visualLabel: t('startOnboarding.text.visualLabel'),
+      completedTitle: t('startOnboarding.text.completedTitle'),
     },
   }), [language, t]);
 
-  const firstIncomplete = useMemo(() => getFirstIncomplete(progress), [progress]);
-  const progressMessage = useMemo(() => getProgressMessage(progress, copy), [copy, progress]);
-  const progressLabel = `${progress.count}/3 ${copy.progressSuffix}`;
+  const currentStepIndex = getStepIndex(currentStep);
+  const maxAccessibleIndex = progress.count >= STEP_ORDER.length ? STEP_ORDER.length - 1 : progress.count;
+  const currentCardCopy = copy[currentStep];
+  const currentCompleted = isStepCompleted(progress, currentStep);
+  const currentTrack = tracksByStep[currentStep];
+
+  const fetchLatestTracks = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+
+    try {
+      const response = await apiService.getUserAudioHistory(user.id, 1, 30, '', 'all', 'all');
+      if (!response.success || !Array.isArray(response.data)) {
+        return;
+      }
+
+      const latest: Partial<Record<StartGenerationType, AudioTrack>> = {};
+      for (const item of response.data) {
+        const type = String(item?.input_type || '').toLowerCase();
+        if ((type === 'podcast' || type === 'topic' || type === 'text') && !latest[type as StartGenerationType]) {
+          latest[type as StartGenerationType] = buildTrackFromHistoryItem(item);
+        }
+      }
+      setTracksByStep(latest);
+    } catch {
+      // Silent in production.
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    getEnvironmentConfig().then((config) => {
-      setIsTestEnv(config.environment === 'test');
-    }).catch(() => { });
+    fetchLatestTracks();
+  }, [fetchLatestTracks]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   useEffect(() => {
-    if (!firstIncomplete) {
+    const previousCount = prevCompletedCountRef.current;
+    if (progress.count > previousCount) {
+      fetchLatestTracks();
+    }
+
+    if (currentStepIndex > maxAccessibleIndex) {
+      setCurrentStep(STEP_ORDER[maxAccessibleIndex]);
+    }
+
+    prevCompletedCountRef.current = progress.count;
+  }, [currentStepIndex, fetchLatestTracks, maxAccessibleIndex, progress]);
+
+  useEffect(() => {
+    if (!(currentCompleted && canGoNext)) {
+      nextPulseAnim.stopAnimation();
+      nextPulseAnim.setValue(1);
       return;
     }
 
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1100, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 1100, useNativeDriver: true }),
+        Animated.timing(nextPulseAnim, {
+          toValue: 1.04,
+          duration: 850,
+          useNativeDriver: true,
+        }),
+        Animated.timing(nextPulseAnim, {
+          toValue: 1,
+          duration: 850,
+          useNativeDriver: true,
+        }),
       ])
     );
+
     animation.start();
-    return () => animation.stop();
-  }, [firstIncomplete, pulseAnim]);
-
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    const fetchDebugJob = async (jobId: string) => {
-      try {
-        const res = await getStartGenerationJobStatus(jobId);
-        const job = res?.job;
-        if (!job) {
-          return;
-        }
-        setDebugJobSnapshot(job);
-        if (job.status === 'completed' || job.status === 'failed') {
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
-        }
-      } catch (error: any) {
-        setDebugJobSnapshot({
-          id: jobId,
-          status: 'debug_fetch_failed',
-          error: error?.message || 'Debug job fetch failed',
-        });
-        if (intervalId) {
-          clearInterval(intervalId);
-          intervalId = null;
-        }
-      }
-    };
-
-    if (debugJobId) {
-      fetchDebugJob(debugJobId);
-      intervalId = setInterval(() => {
-        fetchDebugJob(debugJobId);
-      }, 3000);
-    }
-
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      animation.stop();
+      nextPulseAnim.setValue(1);
     };
-  }, [debugJobId]);
+  }, [canGoNext, currentCompleted, nextPulseAnim]);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -258,6 +310,7 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
             setIsSubmitting(false);
             setStatusMessage(copy.waiting);
             setErrorMessage(null);
+            fetchLatestTracks();
             return;
           }
 
@@ -267,8 +320,6 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
             setIsWaitingForCompletion(false);
             setIsSubmitting(false);
             setErrorMessage(copy.genericIncomplete);
-          } else if (activeJob.job?.id) {
-            setDebugJobId(activeJob.job.id);
           }
         } catch {
           // Continue polling.
@@ -281,22 +332,41 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
         clearInterval(intervalId);
       }
     };
-  }, [activeJobType, copy, isWaitingForCompletion, onProgressRefresh, unlockTtsJob]);
+  }, [activeJobType, copy.genericIncomplete, copy.waiting, fetchLatestTracks, isWaitingForCompletion, onProgressRefresh, unlockTtsJob]);
 
-  const handleExpandCard = (type: StartGenerationType) => {
-    if (isStepCompleted(progress, type)) {
+  const alignInputToKeyboard = useCallback((type: StartGenerationType) => {
+    if (keyboardHeight <= 0) {
       return;
     }
-    setExpandedCard((prev) => (prev === type ? null : type));
-    setStatusMessage(null);
-    setErrorMessage(null);
-  };
 
-  const handleCreate = async (type: StartGenerationType) => {
-    const currentLevel = levelByStep[type];
-    const currentInput = inputByStep[type];
-    const minLength = type === 'text' ? 10 : 5;
-    const cardCopy = copy[type];
+    setTimeout(() => {
+      const inputRef = inputRefs.current[type];
+      const scrollView = scrollViewRef.current;
+
+      if (!inputRef || !scrollView) {
+        return;
+      }
+
+      inputRef.measureInWindow((_x, y, _width, height) => {
+        const screenHeight = Dimensions.get('window').height;
+        const keyboardTop = screenHeight - keyboardHeight;
+        const inputBottom = y + height;
+        const delta = inputBottom + KEYBOARD_INPUT_GAP - keyboardTop;
+
+        if (Math.abs(delta) < 2) {
+          return;
+        }
+
+        const nextOffset = Math.max(0, scrollOffsetRef.current + delta);
+        scrollView.scrollTo({ y: nextOffset, animated: true });
+      });
+    }, 80);
+  }, [keyboardHeight]);
+
+  const handleCreate = async () => {
+    const currentLevel = levelByStep[currentStep];
+    const currentInput = inputByStep[currentStep];
+    const minLength = currentStep === 'text' ? 10 : 5;
 
     setErrorMessage(null);
 
@@ -306,7 +376,7 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
     }
 
     if (!currentInput.trim() || currentInput.trim().length < minLength) {
-      setErrorMessage(type === 'text' ? copy.textTooShort : cardCopy.helper);
+      setErrorMessage(currentStep === 'text' ? copy.textTooShort : currentCardCopy.helper);
       return;
     }
 
@@ -317,22 +387,19 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
     try {
       setIsSubmitting(true);
       setStatusMessage(null);
-      setActiveJobType(type);
+      setActiveJobType(currentStep);
       lockTtsJob(lockMessage);
 
       let response;
-      if (type === 'text') {
+      if (currentStep === 'text') {
         response = await createStartTextAudio(currentInput.trim(), currentLevel);
-      } else if (type === 'podcast') {
+      } else if (currentStep === 'podcast') {
         response = await createStartPodcastAudio(currentInput.trim(), currentLevel);
       } else {
         response = await createStartTopicAudio(currentInput.trim(), currentLevel);
       }
 
-      if (response.jobId) {
-        setDebugJobId(response.jobId);
-      }
-      setSuccessAlertEstimatedTime(language === 'tr' ? '10-15 dk' : '10-15 minutes');
+      setSuccessAlertEstimatedTime(language === 'tr' ? '1 dakika' : '1 minute');
       setShowSuccessAlert(true);
       setStatusMessage(response.message || copy.waiting);
       setIsWaitingForCompletion(true);
@@ -344,183 +411,255 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
     }
   };
 
+  const handleListen = () => {
+    if (!currentTrack) {
+      return;
+    }
+
+    navigation.navigate('AudioPlayer', {
+      track: currentTrack,
+      highlightMode: 'word',
+      returnTo: 'onboardingHome',
+    });
+  };
+
+  const canGoPrevious = currentStepIndex > 0;
+  const canGoNext = currentStepIndex < maxAccessibleIndex;
+
+  const bottomPadding = keyboardHeight > 0
+    ? insets.bottom + 32
+    : Math.max(140, insets.bottom + 104);
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'android' ? 'height' : undefined}
+      enabled={Platform.OS === 'android'}
+    >
       <LinearGradient colors={['#f7fffd', '#eff6ff']} style={StyleSheet.absoluteFillObject} />
+
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: Math.max(28, headerHeight + 20) }]}
+        ref={scrollViewRef}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(24, headerHeight + 18),
+            paddingBottom: bottomPadding,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        onScroll={(event) => {
+          scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
       >
-        <LinearGradient colors={['rgba(255,255,255,0.96)', 'rgba(241,250,255,0.96)']} style={styles.hero}>
+        <View style={styles.hero}>
+          <Text style={styles.heroEyebrow}>{copy.progressLabel}</Text>
           <Text style={styles.heroTitle}>{copy.heroTitle}</Text>
           <Text style={styles.heroSubtitle}>{copy.heroSubtitle}</Text>
 
-          <View style={styles.benefitRow}>
-            {copy.benefits.map((benefit) => (
-              <View key={benefit} style={styles.benefitChip}>
-                <Text style={styles.benefitChipText}>{benefit}</Text>
-              </View>
-            ))}
+          <View style={styles.stepRail}>
+            {STEP_ORDER.map((type, index) => {
+              const done = isStepCompleted(progress, type);
+              const active = currentStep === type;
+              const accessible = index <= maxAccessibleIndex || done;
+
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.stepRailItem}
+                  onPress={() => {
+                    if (accessible) {
+                      setCurrentStep(type);
+                    }
+                  }}
+                  disabled={!accessible}
+                  activeOpacity={0.85}
+                >
+                  {index > 0 ? (
+                    <View
+                      style={[
+                        styles.stepSegment,
+                        styles.stepSegmentLeft,
+                        index - 1 < progress.count - 1 && styles.stepSegmentDone,
+                      ]}
+                    />
+                  ) : null}
+                  {index < STEP_ORDER.length - 1 ? (
+                    <View
+                      style={[
+                        styles.stepSegment,
+                        styles.stepSegmentRight,
+                        index < progress.count - 1 && styles.stepSegmentDone,
+                      ]}
+                    />
+                  ) : null}
+                  <View
+                    style={[
+                      styles.stepDot,
+                      done && styles.stepDotDone,
+                      active && styles.stepDotActive,
+                      !accessible && styles.stepDotMuted,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.stepDotText,
+                        done && styles.stepDotTextDone,
+                        active && styles.stepDotTextActive,
+                      ]}
+                    >
+                      {done ? '✓' : index + 1}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.stepLabel,
+                      active && styles.stepLabelActive,
+                      done && styles.stepLabelDone,
+                      !accessible && styles.stepLabelMuted,
+                    ]}
+                  >
+                    {copy[type].title}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
+        </View>
 
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressLabel}>{progressLabel}</Text>
-            <Text style={styles.progressCount}>{Math.min(progress.count + 1, 3)}/3</Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${(progress.count / 3) * 100}%` }]} />
-          </View>
-          <Text style={styles.progressMessage}>{progressMessage}</Text>
-        </LinearGradient>
+        <Text style={styles.sectionTitle}>
+          {copy.step} {currentStepIndex + 1}/3
+        </Text>
+        <Text style={styles.sectionSubtitle}>{copy.choose}</Text>
 
-        <Text style={styles.sectionTitle}>{copy.choose}</Text>
-
-        {STEP_ORDER.map((type) => {
-          const cardCopy = copy[type];
-          const completed = isStepCompleted(progress, type);
-          const expanded = expandedCard === type && !completed;
-          const isFirstAvailable = firstIncomplete === type && !completed;
-          const isBusyCard = activeJobType === type && (isSubmitting || isWaitingForCompletion);
-          const animatedStyle = isFirstAvailable
-            ? {
-              transform: [{
-                scale: pulseAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 1.015],
-                }),
-              }],
-            }
-            : null;
-
-          return (
-            <Animated.View key={type} style={[styles.cardWrapper, animatedStyle || undefined]}>
-              <TouchableOpacity
-                activeOpacity={0.92}
-                onPress={() => handleExpandCard(type)}
-                disabled={completed || isWaitingForCompletion}
+        <View style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={styles.iconBadge}>
+              <Text style={styles.iconText}>{currentCardCopy.icon}</Text>
+            </View>
+            <View
+              style={[
+                styles.statePill,
+                currentCompleted ? styles.stateCompleted : styles.statePending,
+              ]}
+            >
+              <Text
                 style={[
-                  styles.card,
-                  completed && styles.cardCompleted,
-                  isFirstAvailable && styles.cardHighlighted,
-                  expanded && styles.cardExpanded,
+                  styles.statePillText,
+                  currentCompleted ? styles.stateCompletedText : styles.statePendingText,
                 ]}
               >
-                <View style={styles.cardTop}>
-                  <View style={styles.iconBadge}>
-                    <Text style={styles.iconText}>{cardCopy.icon}</Text>
-                  </View>
-                  <Text style={[styles.statePill, completed ? styles.stateCompleted : styles.stateAction]}>
-                    {completed ? copy.completed : isFirstAvailable ? copy.startSelect : copy.completeStep}
-                  </Text>
-                </View>
-
-                <Text style={styles.cardTitle}>{cardCopy.title}</Text>
-                <Text style={styles.cardDescription}>{cardCopy.description}</Text>
-
-                <View style={styles.visualRow}>
-                  <View style={styles.visualChip}>
-                    <Text style={styles.visualChipText}>{cardCopy.visualLabel}</Text>
-                  </View>
-                </View>
-
-                {completed ? (
-                  <View style={styles.completedBox}>
-                    <Text style={styles.completedText}>{cardCopy.completedTitle}</Text>
-                  </View>
-                ) : (
-                  <>
-                    {!expanded ? (
-                      <TouchableOpacity
-                        style={styles.primaryCta}
-                        onPress={() => handleExpandCard(type)}
-                        disabled={isWaitingForCompletion}
-                      >
-                        <Text style={styles.primaryCtaText}>{cardCopy.cta}</Text>
-                      </TouchableOpacity>
-                    ) : null}
-
-                    {expanded ? (
-                      <View style={styles.inlineForm}>
-                        <View style={styles.inlineDivider} />
-                        <TextInput
-                          multiline
-                          value={inputByStep[type]}
-                          onChangeText={(value) => setInputByStep((prev) => ({ ...prev, [type]: value }))}
-                          placeholder={focusedCard === type ? '' : cardCopy.placeholder}
-                          placeholderTextColor={COLORS.slate400}
-                          style={[styles.input, type === 'text' ? styles.inputLarge : styles.inputMedium]}
-                          editable={!isWaitingForCompletion}
-                          onFocus={() => setFocusedCard(type)}
-                          onBlur={() => setFocusedCard((prev) => (prev === type ? null : prev))}
-                        />
-                        {focusedCard !== type ? (
-                          <Text style={styles.inputHint}>{cardCopy.helper}</Text>
-                        ) : null}
-
-                        <Text style={styles.levelTitle}>{copy.levelTitle}</Text>
-                        <View style={styles.levelRow}>
-                          {LEVELS.map((level) => {
-                            const selected = levelByStep[type] === level;
-                            return (
-                              <TouchableOpacity
-                                key={`${type}-${level}`}
-                                style={[styles.levelChip, selected && styles.levelChipSelected]}
-                                onPress={() => setLevelByStep((prev) => ({ ...prev, [type]: level }))}
-                                disabled={isWaitingForCompletion}
-                              >
-                                <Text style={[styles.levelChipText, selected && styles.levelChipTextSelected]}>{level}</Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-
-                        {statusMessage && activeJobType === type ? <Text style={styles.infoText}>{statusMessage}</Text> : null}
-                        {errorMessage && expanded ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-
-                        <TouchableOpacity
-                          style={[styles.createButton, isBusyCard && styles.createButtonDisabled]}
-                          onPress={() => handleCreate(type)}
-                          disabled={isBusyCard}
-                        >
-                          {isBusyCard ? (
-                            <ActivityIndicator color="#fff" />
-                          ) : (
-                            <Text style={styles.createButtonText}>{copy.create}</Text>
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                    ) : null}
-                  </>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
-          );
-        })}
-
-        {isTestEnv && debugJobSnapshot ? (
-          <View style={styles.debugCard}>
-            <Text style={styles.debugTitle}>Start Debug Job</Text>
-            <Text style={styles.debugMeta}>jobId: {debugJobId || debugJobSnapshot.id || '-'}</Text>
-            <Text style={styles.debugMeta}>status: {debugJobSnapshot.status || '-'}</Text>
-            {debugJobSnapshot.error ? <Text style={styles.debugError}>error: {String(debugJobSnapshot.error)}</Text> : null}
-            <ScrollView style={styles.debugScroll} nestedScrollEnabled>
-              <Text selectable style={styles.debugText}>
-                {JSON.stringify(
-                  {
-                    progress: debugJobSnapshot.progress,
-                    queuePosition: debugJobSnapshot.queuePosition,
-                    resultDebug: debugJobSnapshot.result?.debug_info || null,
-                    resultMessage: debugJobSnapshot.result?.message || null,
-                    debugLogs: debugJobSnapshot.debugLogs || [],
-                    fullError: debugJobSnapshot.error || null,
-                  },
-                  null,
-                  2
-                )}
+                {currentCompleted ? copy.completed : currentCardCopy.visualLabel}
               </Text>
-            </ScrollView>
+            </View>
           </View>
-        ) : null}
+
+          <Text style={styles.cardTitle}>{currentCardCopy.title}</Text>
+          <Text style={styles.cardDescription}>{currentCardCopy.description}</Text>
+
+          <TextInput
+            ref={(ref) => {
+              inputRefs.current[currentStep] = ref;
+            }}
+            multiline
+            value={inputByStep[currentStep]}
+            onChangeText={(value) => setInputByStep((prev) => ({ ...prev, [currentStep]: value }))}
+            placeholder={currentCardCopy.placeholder}
+            placeholderTextColor={COLORS.slate400}
+            style={[
+              styles.input,
+              currentStep === 'text' ? styles.inputLarge : styles.inputMedium,
+            ]}
+            editable={!isWaitingForCompletion}
+            onFocus={() => {
+              setFocusedStep(currentStep);
+              alignInputToKeyboard(currentStep);
+            }}
+            onBlur={() => setFocusedStep((prev) => (prev === currentStep ? null : prev))}
+            onContentSizeChange={() => {
+              if (focusedStep === currentStep) {
+                alignInputToKeyboard(currentStep);
+              }
+            }}
+          />
+
+          <Text style={styles.inputHint}>{currentCardCopy.helper}</Text>
+
+          <Text style={styles.levelTitle}>{copy.levelTitle}</Text>
+          <View style={styles.levelRow}>
+            {LEVELS.map((level) => {
+              const selected = levelByStep[currentStep] === level;
+              return (
+                <TouchableOpacity
+                  key={`${currentStep}-${level}`}
+                  style={[styles.levelChip, selected && styles.levelChipSelected]}
+                  onPress={() => setLevelByStep((prev) => ({ ...prev, [currentStep]: level }))}
+                  disabled={isWaitingForCompletion}
+                >
+                  <Text style={[styles.levelChipText, selected && styles.levelChipTextSelected]}>
+                    {level}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {statusMessage && activeJobType === currentStep ? (
+            <Text style={styles.infoText}>{statusMessage}</Text>
+          ) : null}
+          {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+          {!currentCompleted ? (
+            <TouchableOpacity
+              style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+              onPress={handleCreate}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>{currentCardCopy.cta}</Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
+
+          {currentCompleted && currentTrack ? (
+            <TouchableOpacity style={styles.listenButton} onPress={handleListen}>
+              <Text style={styles.listenButtonText}>{copy.listen}</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <View style={styles.navigationRow}>
+          <TouchableOpacity
+            style={[styles.secondaryButton, !canGoPrevious && styles.secondaryButtonDisabled]}
+            onPress={() => setCurrentStep(STEP_ORDER[currentStepIndex - 1])}
+            disabled={!canGoPrevious}
+          >
+            <Text style={[styles.secondaryButtonText, !canGoPrevious && styles.secondaryButtonTextDisabled]}>
+              {copy.previous}
+            </Text>
+          </TouchableOpacity>
+
+          <Animated.View
+            style={[
+              styles.secondaryButtonWrap,
+              currentCompleted && canGoNext ? { transform: [{ scale: nextPulseAnim }] } : null,
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.secondaryButton, !canGoNext && styles.secondaryButtonDisabled]}
+              onPress={() => setCurrentStep(STEP_ORDER[currentStepIndex + 1])}
+              disabled={!canGoNext}
+            >
+              <Text style={[styles.secondaryButtonText, !canGoNext && styles.secondaryButtonTextDisabled]}>
+                {copy.next}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       </ScrollView>
 
       <Modal
@@ -554,13 +693,6 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
                 : `Your audio is being created in the background.\nYou'll receive a notification in ${successAlertEstimatedTime}.`}
             </Text>
 
-            <View style={styles.successProgressRow}>
-              <Text style={styles.successProgressIcon}>🔔</Text>
-              <Text style={styles.successProgressText}>
-                {language === 'tr' ? 'Bildirim gönderilecek' : 'Notification will be sent'}
-              </Text>
-            </View>
-
             <TouchableOpacity
               style={styles.successModalButton}
               onPress={() => setShowSuccessAlert(false)}
@@ -573,7 +705,7 @@ const StartScreen: React.FC<Props> = ({ progress, onProgressRefresh }) => {
           </View>
         </TouchableOpacity>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -584,96 +716,146 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
-    paddingBottom: 128,
     gap: 18,
   },
   hero: {
-    padding: 24,
-    borderRadius: 30,
+    padding: 22,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     borderWidth: 1,
     borderColor: 'rgba(39, 190, 170, 0.18)',
     shadowColor: '#0f172a',
     shadowOpacity: 0.08,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 6,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
+  },
+  heroEyebrow: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: COLORS.brandTeal,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   heroTitle: {
-    fontSize: 32,
-    lineHeight: 38,
+    marginTop: 10,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: '900',
     color: COLORS.slate900,
-    letterSpacing: -0.7,
+    letterSpacing: -0.6,
   },
   heroSubtitle: {
     marginTop: 10,
-    fontSize: 17,
-    lineHeight: 25,
-    color: COLORS.slate700,
+    fontSize: 15,
+    lineHeight: 23,
+    color: COLORS.slate600,
     fontWeight: '600',
   },
-  benefitRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 18,
-  },
-  benefitChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 999,
-    backgroundColor: 'rgba(39, 190, 170, 0.1)',
-  },
-  benefitChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.brandTeal,
-  },
-  progressHeader: {
-    marginTop: 20,
+  stepRail: {
+    marginTop: 22,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    position: 'relative',
+    paddingHorizontal: 8,
   },
-  progressLabel: {
+  stepRailItem: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.brandTeal,
-    lineHeight: 20,
+    alignItems: 'center',
+    position: 'relative',
   },
-  progressCount: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.slate600,
-  },
-  progressTrack: {
-    height: 11,
-    marginTop: 12,
+  stepSegment: {
+    position: 'absolute',
+    top: 17,
+    width: '34%',
+    height: 6,
     borderRadius: 999,
-    backgroundColor: COLORS.slate200,
-    overflow: 'hidden',
+    backgroundColor: 'rgba(226, 232, 240, 0.9)',
+    zIndex: 0,
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: COLORS.brandOrange,
+  stepSegmentLeft: {
+    left: 0,
   },
-  progressMessage: {
-    marginTop: 14,
-    fontSize: 15,
-    fontWeight: '700',
+  stepSegmentRight: {
+    right: 0,
+  },
+  stepSegmentDone: {
+    backgroundColor: 'rgba(39, 190, 170, 0.32)',
+  },
+  stepDot: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(39, 190, 170, 0.18)',
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  stepDotDone: {
+    backgroundColor: COLORS.brandTeal,
+    borderColor: COLORS.brandTeal,
+  },
+  stepDotActive: {
+    borderColor: COLORS.brandOrange,
+    backgroundColor: 'rgba(255, 247, 237, 0.98)',
+    shadowColor: COLORS.brandOrange,
+    shadowOpacity: 0.14,
+  },
+  stepDotMuted: {
+    opacity: 0.45,
+  },
+  stepDotText: {
+    fontSize: 13,
+    fontWeight: '900',
     color: COLORS.slate700,
   },
+  stepDotTextDone: {
+    color: '#fff',
+  },
+  stepDotTextActive: {
+    color: COLORS.brandOrange,
+  },
+  stepLabel: {
+    marginTop: 12,
+    fontSize: 11,
+    lineHeight: 15,
+    textAlign: 'center',
+    color: COLORS.slate500,
+    fontWeight: '800',
+    paddingHorizontal: 6,
+  },
+  stepLabelActive: {
+    color: COLORS.slate900,
+  },
+  stepLabelDone: {
+    color: COLORS.brandTeal,
+  },
+  stepLabelMuted: {
+    opacity: 0.45,
+  },
   sectionTitle: {
-    marginTop: 8,
-    fontSize: 22,
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: '900',
+    color: COLORS.brandOrange,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  sectionSubtitle: {
+    marginTop: -8,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '900',
     color: COLORS.slate900,
-    letterSpacing: -0.4,
-  },
-  cardWrapper: {
-    borderRadius: 28,
+    letterSpacing: -0.6,
   },
   card: {
     padding: 22,
@@ -682,24 +864,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(39, 190, 170, 0.18)',
     shadowColor: '#0f172a',
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 4,
-  },
-  cardExpanded: {
-    borderColor: 'rgba(39, 190, 170, 0.34)',
-    shadowOpacity: 0.1,
-  },
-  cardHighlighted: {
-    shadowColor: COLORS.brandTeal,
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
-  },
-  cardCompleted: {
-    opacity: 0.74,
   },
   cardTop: {
     flexDirection: 'row',
@@ -708,88 +876,54 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconBadge: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: 'rgba(39, 190, 170, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconText: {
-    fontSize: 22,
+    fontSize: 24,
   },
   statePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  stateAction: {
-    color: COLORS.brandOrange,
-    backgroundColor: 'rgba(245, 165, 36, 0.1)',
-  },
-  stateCompleted: {
-    color: COLORS.brandTeal,
-    backgroundColor: 'rgba(39, 190, 170, 0.1)',
-  },
-  cardTitle: {
-    marginTop: 14,
-    fontSize: 27,
-    fontWeight: '900',
-    color: COLORS.slate900,
-    letterSpacing: -0.5,
-  },
-  cardDescription: {
-    marginTop: 8,
-    fontSize: 15,
-    lineHeight: 23,
-    color: COLORS.slate600,
-  },
-  visualRow: {
-    marginTop: 14,
-  },
-  visualChip: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(15, 23, 42, 0.05)',
   },
-  visualChipText: {
+  statePending: {
+    backgroundColor: 'rgba(245, 165, 36, 0.12)',
+  },
+  stateCompleted: {
+    backgroundColor: 'rgba(39, 190, 170, 0.12)',
+  },
+  statePillText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: COLORS.slate700,
-  },
-  primaryCta: {
-    marginTop: 18,
-    minHeight: 52,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.brandOrange,
-    shadowColor: COLORS.brandOrange,
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  primaryCtaText: {
-    color: '#fff',
-    fontSize: 15,
     fontWeight: '900',
   },
-  inlineForm: {
-    marginTop: 18,
-    paddingTop: 4,
+  statePendingText: {
+    color: COLORS.brandOrange,
   },
-  inlineDivider: {
-    height: 1,
-    backgroundColor: COLORS.slate200,
-    marginBottom: 18,
+  stateCompletedText: {
+    color: COLORS.brandTeal,
+  },
+  cardTitle: {
+    marginTop: 16,
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '900',
+    color: COLORS.slate900,
+    letterSpacing: -0.7,
+  },
+  cardDescription: {
+    marginTop: 8,
+    fontSize: 16,
+    lineHeight: 24,
+    color: COLORS.slate600,
   },
   input: {
-    borderRadius: 20,
+    marginTop: 20,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: COLORS.slate200,
     backgroundColor: COLORS.slate50,
@@ -800,21 +934,21 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputLarge: {
-    minHeight: 138,
+    minHeight: 160,
   },
   inputMedium: {
-    minHeight: 108,
+    minHeight: 116,
   },
   inputHint: {
     marginTop: 8,
     fontSize: 13,
-    color: COLORS.slate500,
     lineHeight: 18,
+    color: COLORS.slate500,
   },
   levelTitle: {
     marginTop: 18,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
     color: COLORS.slate900,
   },
   levelRow: {
@@ -829,17 +963,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: COLORS.slate300,
+    borderColor: 'rgba(148, 163, 184, 0.24)',
     backgroundColor: '#fff',
+    alignItems: 'center',
   },
   levelChipSelected: {
     borderColor: COLORS.brandTeal,
-    backgroundColor: 'rgba(39, 190, 170, 0.12)',
+    backgroundColor: 'rgba(39, 190, 170, 0.1)',
   },
   levelChipText: {
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '900',
     color: COLORS.slate700,
   },
   levelChipTextSelected: {
@@ -847,173 +981,139 @@ const styles = StyleSheet.create({
   },
   infoText: {
     marginTop: 16,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 19,
     color: COLORS.slate600,
   },
   errorText: {
-    marginTop: 16,
-    fontSize: 14,
-    lineHeight: 21,
-    color: COLORS.danger,
+    marginTop: 14,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#DC2626',
+    fontWeight: '700',
   },
-  createButton: {
-    marginTop: 18,
+  primaryButton: {
+    marginTop: 20,
     minHeight: 56,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.brandTeal,
-    shadowColor: COLORS.brandTeal,
+    backgroundColor: COLORS.brandOrange,
+    shadowColor: COLORS.brandOrange,
     shadowOpacity: 0.18,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,
   },
-  createButtonDisabled: {
-    opacity: 0.72,
+  primaryButtonDisabled: {
+    opacity: 0.7,
   },
-  createButtonText: {
+  primaryButtonText: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '900',
   },
-  completedBox: {
+  listenButton: {
     marginTop: 18,
-    padding: 15,
+    minHeight: 52,
     borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.brandTeal,
     backgroundColor: 'rgba(39, 190, 170, 0.08)',
   },
-  completedText: {
-    fontSize: 14,
-    fontWeight: '800',
+  listenButtonText: {
     color: COLORS.brandTeal,
+    fontSize: 15,
+    fontWeight: '900',
   },
-  debugCard: {
-    marginTop: 8,
-    marginBottom: 24,
-    padding: 16,
+  navigationRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 6,
+  },
+  secondaryButton: {
+    flex: 1,
+    minHeight: 52,
     borderRadius: 18,
-    backgroundColor: COLORS.slate900,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.22)',
   },
-  debugTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#fff',
+  secondaryButtonWrap: {
+    flex: 1,
   },
-  debugMeta: {
-    marginTop: 6,
-    fontSize: 12,
-    color: COLORS.slate300,
+  secondaryButtonDisabled: {
+    opacity: 0.45,
   },
-  debugError: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#fca5a5',
+  secondaryButtonText: {
+    color: COLORS.slate900,
+    fontSize: 14,
+    fontWeight: '900',
   },
-  debugScroll: {
-    maxHeight: 260,
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.72)',
-  },
-  debugText: {
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#dbeafe',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  secondaryButtonTextDisabled: {
+    color: COLORS.slate500,
   },
   successModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.38)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 24,
   },
   successModalContainer: {
     width: '100%',
-    maxWidth: 340,
-    backgroundColor: '#FFFFFF',
+    maxWidth: 360,
     borderRadius: 28,
+    backgroundColor: '#fff',
     padding: 28,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.2,
-    shadowRadius: 40,
-    elevation: 24,
   },
   successIconContainer: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   successIconGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.brandTeal,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
   },
   successIconText: {
-    fontSize: 36,
+    color: '#fff',
+    fontSize: 30,
     fontWeight: '900',
-    color: '#FFFFFF',
   },
   successModalTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: COLORS.slate800,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '900',
+    color: COLORS.slate900,
     textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: -0.3,
   },
   successModalMessage: {
+    marginTop: 12,
     fontSize: 15,
-    color: COLORS.slate500,
+    lineHeight: 23,
+    color: COLORS.slate600,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 20,
-    fontWeight: '500',
-  },
-  successProgressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.brandTeal + '10',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginBottom: 24,
-    gap: 8,
-  },
-  successProgressIcon: {
-    fontSize: 15,
-  },
-  successProgressText: {
-    fontSize: 13,
-    color: COLORS.brandTeal,
-    fontWeight: '600',
   },
   successModalButton: {
+    marginTop: 22,
     width: '100%',
+    minHeight: 52,
+    borderRadius: 18,
     backgroundColor: COLORS.brandTeal,
-    paddingVertical: 16,
-    borderRadius: 16,
     alignItems: 'center',
-    shadowColor: COLORS.brandTeal,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
+    justifyContent: 'center',
   },
   successModalButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '900',
   },
 });
 

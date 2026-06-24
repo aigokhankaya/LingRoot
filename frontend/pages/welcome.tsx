@@ -15,7 +15,6 @@ import {
   Network,
   Radio,
   Lightbulb,
-  Youtube,
   FileText,
   Link2,
   GraduationCap,
@@ -327,7 +326,11 @@ const Welcome: React.FC = () => {
 
     // URL'den içerik türü (ör: ?contentType=book)
     if (typeof contentTypeFromQuery === 'string') {
-      setContentType(contentTypeFromQuery);
+      const nextContentType =
+        contentTypeFromQuery === 'youtube' || contentTypeFromQuery === 'youtube_v2'
+          ? 'topic_tree'
+          : contentTypeFromQuery;
+      setContentType(nextContentType);
     }
 
     // action: 'create' -> Konu sekmesi + topic yerleştir
@@ -477,14 +480,18 @@ const Welcome: React.FC = () => {
     { id: 'book', name: t('book'), icon: <BookOpen /> },
     { id: 'podcast', name: t('podcast'), icon: <Radio /> },
     { id: 'topic', name: t('content_type_hobbies'), icon: <Lightbulb /> },
-    { id: 'youtube', name: t('youtube'), icon: <Youtube /> },
-    { id: 'youtube_v2', name: 'YouTube Transcript YENİ Versiyon', icon: <Youtube /> },
     { id: 'document', name: t('document'), icon: <FileText /> },
     { id: 'text', name: t('text'), icon: <FileText /> },
     { id: 'sectors', name: t('web_link'), icon: <Briefcase /> },
     { id: 'subject', name: t('subject'), icon: <GraduationCap /> },
     { id: 'custom', name: t('content_type_custom'), icon: <Plus /> },
   ];
+
+  useEffect(() => {
+    if (contentType === 'youtube' || contentType === 'youtube_v2') {
+      setContentType('topic_tree');
+    }
+  }, [contentType]);
 
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
   useEffect(() => {
@@ -769,6 +776,11 @@ const Welcome: React.FC = () => {
         const topic = result.data?.metadata?.topic || podcastTopic;
         const transcriptText = result.transcript || result.message || topic;
         const dialogueText = result.dialogue || '';
+        const originalPodcastText = Array.isArray(result.turns_original) && result.turns_original.length > 0
+          ? result.turns_original
+            .map((turn: any) => `${turn?.speaker === 'A' ? 'Host' : 'Guest'}: ${turn?.text || ''}`)
+            .join('\n')
+          : '';
 
         console.log('🎙️ [PODCAST] Dialogue check:', {
           hasDialogue: !!result.dialogue,
@@ -790,6 +802,8 @@ const Welcome: React.FC = () => {
           topic: topic,
           timepoints: result.timepoints || [],
           words: result.words || [],
+          translated_text: originalPodcastText,
+          original_turkish: originalPodcastText,
           timing_source: result.timing_source,
           timing_accuracy: result.timing_accuracy,
         });
@@ -805,24 +819,30 @@ const Welcome: React.FC = () => {
         // Podcast'i contenthistory tablosuna kaydet (mevcut submitContent akışını kullanarak)
         // Podcast'i contenthistory tablosuna kaydet (mevcut submitContent akışını kullanarak)
         try {
-          const contentResponse = await submitContent(
-            topic,
-            'podcast',
-            englishLevel.toUpperCase(),
-            result.podcast_url,
-            (dialogueText && dialogueText.trim().length > 0) ? dialogueText : transcriptText,
-            transcriptText,
-            undefined,
-            result.timepoints,
-            result.words,
-            undefined,
-            Date.now() - startTime // processingDurationMs
-          );
-          console.log('🎙️ [PODCAST] Podcast submitted to contenthistory via submitContent', contentResponse);
+          const existingContentId = result.content_id || result.contenthistory_id;
 
-          // Update audioResult with the new content ID so quiz can work
-          if (contentResponse?.data?.id) {
-            setAudioResult((prev) => prev ? { ...prev, contentId: contentResponse.data.id } : null);
+          if (existingContentId) {
+            setAudioResult((prev) => prev ? { ...prev, contentId: existingContentId } : null);
+          } else {
+            const contentResponse = await submitContent(
+              topic,
+              'podcast',
+              englishLevel.toUpperCase(),
+              result.podcast_url,
+              originalPodcastText,
+              transcriptText,
+              undefined,
+              result.timepoints,
+              result.words,
+              undefined,
+              Date.now() - startTime // processingDurationMs
+            );
+            console.log('🎙️ [PODCAST] Podcast submitted to contenthistory via submitContent', contentResponse);
+
+            // Update audioResult with the new content ID so quiz can work
+            if (contentResponse?.data?.id) {
+              setAudioResult((prev) => prev ? { ...prev, contentId: contentResponse.data.id } : null);
+            }
           }
         } catch (submitErr) {
           console.error('🎙️ [PODCAST] submitContent failed for podcast:', submitErr);
@@ -4124,13 +4144,23 @@ const Welcome: React.FC = () => {
           return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
         };
 
+        const originalHistoryText = (() => {
+          if ((selectedHistoryItem.input_type || '').toLowerCase() !== 'podcast') {
+            return selectedHistoryItem.translated_text || selectedHistoryItem.input;
+          }
+
+          return looksLikeDialogueTranscript(selectedHistoryItem.input)
+            ? selectedHistoryItem.input
+            : (selectedHistoryItem.translated_text || selectedHistoryItem.input);
+        })();
+
         const historyAudioResult = {
           message: selectedHistoryItem.adapted_text || selectedHistoryItem.input,
           mp3_url: selectedHistoryItem.mp3_url,
           vtt_url: selectedHistoryItem.mp3_url.replace('.mp3', '.vtt'),
           level: selectedHistoryItem.level,
           adapted_text: selectedHistoryItem.adapted_text || selectedHistoryItem.input,
-          translated_text: selectedHistoryItem.translated_text || selectedHistoryItem.input,
+          translated_text: originalHistoryText,
           dialogue: looksLikeDialogueTranscript(selectedHistoryItem.translated_text) ? selectedHistoryItem.translated_text : undefined,
           topic: getHistoryTypeLabel(selectedHistoryItem.input_type),
           input_type: selectedHistoryItem.input_type,
@@ -4161,7 +4191,7 @@ const Welcome: React.FC = () => {
               return (selectedHistoryItem.adapted_text || selectedHistoryItem.input).split(/\s+/).filter((word: string) => word.length > 0);
             }
           })(),
-          original_turkish: selectedHistoryItem.input,
+          original_turkish: originalHistoryText,
           speaking_rate: 1.0
         };
 

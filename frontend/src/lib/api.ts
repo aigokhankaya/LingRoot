@@ -41,10 +41,6 @@ export const createHeaders = (contentType: string = 'application/json'): Headers
         'Content-Type': contentType,
     };
     if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('lingroot_token');
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
         const lang = localStorage.getItem('lingroot_interfaceLanguage');
         if (lang) {
             headers['Accept-Language'] = lang;
@@ -54,9 +50,6 @@ export const createHeaders = (contentType: string = 'application/json'): Headers
 };
 
 export const getToken = (): string | null => {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem('lingroot_token');
-    }
     return null;
 };
 

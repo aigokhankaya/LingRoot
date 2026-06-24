@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { GoogleGenAI, Modality } from "@google/genai";
+import { generateTtsPreview } from '../services/apiService';
 
 interface TTSOverlayProps {
   onClose: () => void;
@@ -16,47 +15,15 @@ const TTSOverlay: React.FC<TTSOverlayProps> = ({ onClose }) => {
 
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `Read this clearly: ${text}` }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' },
-            },
-          },
-        },
-      });
-
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const preview = await generateTtsPreview(text.trim(), 'en-US-Neural2-F', 1);
+      const base64Audio = preview?.audioBase64;
       if (base64Audio) {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        const binaryString = atob(base64Audio);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        const dataInt16 = new Int16Array(bytes.buffer);
-        const numChannels = 1;
-        const frameCount = dataInt16.length / numChannels;
-        const buffer = audioContext.createBuffer(numChannels, frameCount, 24000);
-
-        for (let channel = 0; channel < numChannels; channel++) {
-          const channelData = buffer.getChannelData(channel);
-          for (let i = 0; i < frameCount; i++) {
-            channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-          }
-        }
-
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioContext.destination);
-        source.onended = () => setPlaying(false);
+        const audio = new Audio(`data:${preview?.mimeType || 'audio/mpeg'};base64,${base64Audio}`);
+        audio.onended = () => setPlaying(false);
         setPlaying(true);
-        source.start();
+        await audio.play();
+      } else {
+        alert("Failed to generate speech. Please try again.");
       }
     } catch (error) {
       console.error("TTS Generation Error:", error);

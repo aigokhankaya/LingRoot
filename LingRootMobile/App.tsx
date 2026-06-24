@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AuthProvider } from './src/contexts/AuthContext';
@@ -92,17 +93,19 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <LanguageProvider>
-        <AuthProvider>
-          <TtsJobProvider>
-            <AudioProvider>
-              <AlertProvider>
-                <AppNavigator />
-              </AlertProvider>
-            </AudioProvider>
-          </TtsJobProvider>
-        </AuthProvider>
-      </LanguageProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <LanguageProvider>
+          <AuthProvider>
+            <TtsJobProvider>
+              <AudioProvider>
+                <AlertProvider>
+                  <AppNavigator />
+                </AlertProvider>
+              </AudioProvider>
+            </TtsJobProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

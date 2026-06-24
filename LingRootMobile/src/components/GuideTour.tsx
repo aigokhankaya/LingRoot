@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform, StatusBar, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CopilotProvider, useCopilot, TooltipProps } from 'react-native-copilot';
 import { COLORS } from '../theme/colors';
+import {
+  getStartGenerationProgress,
+  isStartOnboardingLocked,
+  START_ONBOARDING_PROGRESS_EVENT,
+} from '../services/startOnboardingService';
 
 // ---- Storage Keys ----
 const HOME_TOUR_KEY = 'guide_tour_completed';
@@ -636,9 +641,39 @@ export function useTourAutoStart(
   storageKey: string,
   delay: number = 1000,
   scrollViewRef?: React.RefObject<ScrollView | null>,
+  disabled: boolean = false,
 ) {
   const { start, copilotEvents } = useCopilot();
   const { shouldShow, markCompleted } = useGuideTour(storageKey);
+  const [isOnboardingLocked, setIsOnboardingLocked] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    getStartGenerationProgress()
+      .then((progress) => {
+        if (active) {
+          setIsOnboardingLocked(isStartOnboardingLocked(progress));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setIsOnboardingLocked(false);
+        }
+      });
+
+    const subscription = DeviceEventEmitter.addListener(
+      START_ONBOARDING_PROGRESS_EVENT,
+      (progress: any) => {
+        setIsOnboardingLocked(isStartOnboardingLocked(progress));
+      }
+    );
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const handler = () => {
@@ -651,7 +686,7 @@ export function useTourAutoStart(
   }, [copilotEvents, shouldShow, markCompleted]);
 
   useEffect(() => {
-    if (shouldShow) {
+    if (shouldShow && !isOnboardingLocked && !disabled) {
       const timer = setTimeout(() => {
         // Scroll to top before starting tour so first steps are visible
         if (scrollViewRef?.current) {
@@ -666,5 +701,5 @@ export function useTourAutoStart(
     }
     // start reference changes on each provider re-render; only shouldShow should trigger this
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldShow]);
+  }, [disabled, isOnboardingLocked, shouldShow]);
 }
