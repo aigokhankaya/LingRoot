@@ -35,6 +35,10 @@ import {
   normalizeTimepoints,
   normalizeWords,
 } from '../utils/timepoints';
+import {
+  getStartGenerationProgress,
+  isStartOnboardingLocked,
+} from '../services/startOnboardingService';
 
 const WalkthroughableView = walkthroughable(View);
 
@@ -67,9 +71,10 @@ const LibraryScreenContent: React.FC = () => {
   const pageRef = useRef<number>(1);
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word');
   const lang = language === 'tr' ? 'tr' : 'en';
+  const disableTourFromRoute = !!route.params?.disableTour || !!route.params?.notificationAudio;
 
   // Guide tour auto-start
-  useTourAutoStart(LIBRARY_TOUR_KEY, 800);
+  useTourAutoStart(LIBRARY_TOUR_KEY, 800, undefined, disableTourFromRoute);
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -160,8 +165,8 @@ const LibraryScreenContent: React.FC = () => {
                 ),
                 original_turkish:
                   backendData.original_turkish ||
-                  backendData.input ||
                   audioData.original_turkish ||
+                  backendData.input ||
                   '',
                 mp3_url: backendData.mp3_url || audioData.mp3_url || audioData.url,
                 timing_source: backendData.timing_source || audioData.timing_source,
@@ -229,17 +234,27 @@ const LibraryScreenContent: React.FC = () => {
           setAudioTracks(merged);
         }
 
+        let returnTo: 'goBack' | 'onboardingHome' | undefined;
+        try {
+          const onboardingProgress = await getStartGenerationProgress();
+          returnTo = isStartOnboardingLocked(onboardingProgress) ? 'onboardingHome' : undefined;
+        } catch {
+          returnTo = undefined;
+        }
+
         // Navigate to AudioPlayer screen instead of showing modal
         navigation.navigate('AudioPlayer', {
           track: track,
-          highlightMode: highlightMode
+          highlightMode: highlightMode,
+          disableTour: true,
+          returnTo,
         });
       } catch (e) {
         // Silent error - player will not open if something goes wrong
       } finally {
         // Clear param so it doesn't trigger again on re-render
         try {
-          navigation.setParams({ notificationAudio: undefined });
+          navigation.setParams({ notificationAudio: undefined, disableTour: undefined });
         } catch {
           // ignore
         }
@@ -265,7 +280,8 @@ const LibraryScreenContent: React.FC = () => {
       // Navigate to AudioPlayer screen instead of showing modal
       navigation.navigate('AudioPlayer', {
         track: playTrack,
-        highlightMode: highlightMode
+        highlightMode: highlightMode,
+        disableTour: !!route.params?.disableTour,
       });
 
       // Clear param so it doesn't trigger again
@@ -322,7 +338,7 @@ const LibraryScreenContent: React.FC = () => {
             input_type: item.input_type,
             translated_text: item.translated_text,
             adapted_text: item.adapted_text,
-            original_turkish: item.input || '',
+            original_turkish: item.original_turkish || item.input || item.translated_text || '',
             mp3_url: item.mp3_url,
             timepoints: normalizeTimepoints(item.timepoints),
             words: normalizeWords(item.words),

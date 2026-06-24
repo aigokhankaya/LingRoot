@@ -241,7 +241,7 @@ const HomeScreenContent: React.FC = () => {
           input_type: item.input_type,
           translated_text: item.translated_text,
           adapted_text: item.adapted_text,
-          original_turkish: item.input || '',
+          original_turkish: item.original_turkish || item.input || item.translated_text || '',
           mp3_url: item.mp3_url,
           timepoints: item.timepoints ?? [],
           words: item.words ?? [],

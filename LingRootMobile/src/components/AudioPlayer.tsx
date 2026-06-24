@@ -249,8 +249,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       try {
         setOriginalLoading(true);
         const res = await getUserContentById(track.id);
-        if ((res as any)?.success && (res as any)?.data?.input) {
-          setOriginalText((res as any).data.input);
+        const payload = (res as any)?.data;
+        const fetchedOriginalText =
+          payload?.original_turkish ||
+          payload?.input ||
+          payload?.translated_text ||
+          '';
+        if ((res as any)?.success && fetchedOriginalText) {
+          setOriginalText(fetchedOriginalText);
         }
       } catch (err) {
         // silent in production

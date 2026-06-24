@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, Suspense } from 'react';
+import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react';
 import { NavigationContainer, NavigationContainerRef, CommonActions } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { View, TouchableOpacity, Text, StyleSheet, Animated, ActivityIndicator, Modal, Linking } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Animated, ActivityIndicator, Modal, Linking, DeviceEventEmitter } from 'react-native';
 import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
@@ -23,6 +23,11 @@ import { setupFirebaseMessagingListeners, checkInitialNotification, consumeStore
 import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
 import { logScreenView } from '../services/analytics';
+import {
+  getStartGenerationProgress,
+  isStartOnboardingLocked,
+  START_ONBOARDING_PROGRESS_EVENT,
+} from '../services/startOnboardingService';
 
 // Critical screens (eager loading)
 import LoginScreen from '../screens/LoginScreen';
@@ -156,12 +161,23 @@ const AuthStack = () => {
 const MainTabsContent = () => {
   const { t } = useLanguage();
   const [isTestEnv, setIsTestEnv] = useState(false);
+  const [isOnboardingLocked, setIsOnboardingLocked] = useState(false);
   const isPollingRef = useRef(false);
+
+  const refreshOnboardingLock = useCallback(async () => {
+    try {
+      const progress = await getStartGenerationProgress();
+      setIsOnboardingLocked(isStartOnboardingLocked(progress));
+    } catch {
+      setIsOnboardingLocked(false);
+    }
+  }, []);
 
   useEffect(() => {
     getEnvironmentConfig().then(config => {
       setIsTestEnv(config.environment === 'test');
     });
+    refreshOnboardingLock();
 
     // Flush any accumulated perf logs from previous sessions
     perfLog.flush();
@@ -211,7 +227,7 @@ const MainTabsContent = () => {
                         routes: [
                           {
                             name: 'Library',
-                            params: { notificationAudio: latestNotification.data },
+                            params: { notificationAudio: latestNotification.data, disableTour: true },
                           },
                         ],
                       },
@@ -248,11 +264,18 @@ const MainTabsContent = () => {
     // Poll immediately and then every 30 seconds
     pollNotifications();
     const pollInterval = setInterval(pollNotifications, 30000);
+    const onboardingProgressSubscription = DeviceEventEmitter.addListener(
+      START_ONBOARDING_PROGRESS_EVENT,
+      (progress: any) => {
+        setIsOnboardingLocked(isStartOnboardingLocked(progress));
+      }
+    );
 
     return () => {
       clearInterval(pollInterval);
+      onboardingProgressSubscription.remove();
     };
-  }, []);
+  }, [refreshOnboardingLock]);
 
   const TestBadge = () => (
     isTestEnv ? (
@@ -290,6 +313,7 @@ const MainTabsContent = () => {
         tabBarActiveTintColor: COLORS.brandOrange,
         tabBarInactiveTintColor: COLORS.slate400,
         tabBarShowLabel: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           position: 'absolute',
           bottom: 24,
@@ -339,6 +363,30 @@ const MainTabsContent = () => {
         options={{
           tabBarLabel: t('library.title'),
           headerShown: false,
+          ...(isOnboardingLocked
+            ? {
+              tabBarButton: ({ style, children, accessibilityState, testID, accessibilityLabel, accessibilityRole }) => (
+                <TouchableOpacity
+                  style={[style, { opacity: 0.3 }]}
+                  disabled={true}
+                  activeOpacity={1}
+                  accessibilityState={accessibilityState}
+                  accessibilityLabel={accessibilityLabel}
+                  accessibilityRole={accessibilityRole}
+                  testID={testID}
+                >
+                  {children}
+                </TouchableOpacity>
+              ),
+            }
+            : {}),
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (isOnboardingLocked) {
+              e.preventDefault();
+            }
+          },
         }}
       />
       <Tab.Screen
@@ -762,10 +810,10 @@ const AppNavigator = () => {
                     name: 'Main',
                     state: {
                       routes: [
-                        {
-                          name: 'Library',
-                          params: { notificationAudio: audioData },
-                        },
+                          {
+                            name: 'Library',
+                            params: { notificationAudio: audioData, disableTour: true },
+                          },
                       ],
                     },
                   },

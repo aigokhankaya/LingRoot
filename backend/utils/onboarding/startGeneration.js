@@ -1,7 +1,7 @@
 const { supabase } = require('../storage/supabaseClient.js');
 
 const START_GENERATION_KEY = 'start_generation_progress';
-const START_GENERATION_ORDER = ['text', 'podcast', 'topic'];
+const START_GENERATION_ORDER = ['podcast', 'topic', 'text'];
 const TOPIC_TYPES = new Set(['topic', 'subject']);
 
 const DEFAULT_PROGRESS = Object.freeze({

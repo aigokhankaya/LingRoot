@@ -13,6 +13,8 @@ import {
 interface AudioPlayerScreenParams {
   track: AudioTrack;
   highlightMode?: 'word' | 'sentence';
+  returnTo?: 'goBack' | 'onboardingHome';
+  disableTour?: boolean;
 }
 
 const AudioPlayerScreenContent: React.FC = () => {
@@ -20,9 +22,14 @@ const AudioPlayerScreenContent: React.FC = () => {
   const navigation = useNavigation();
   const params = route.params as AudioPlayerScreenParams;
 
-  useTourAutoStart(AUDIOPLAYER_TOUR_KEY, 2000);
+  useTourAutoStart(AUDIOPLAYER_TOUR_KEY, 2000, undefined, !!params?.disableTour);
 
   const handleClose = () => {
+    if (params?.returnTo === 'onboardingHome') {
+      navigation.navigate('Main' as never, { screen: 'Home' } as never);
+      return;
+    }
+
     navigation.goBack();
   };
 
@@ -40,7 +47,7 @@ const AudioPlayerScreenContent: React.FC = () => {
       words={params.track.words || []}
       initialHighlightMode={params.highlightMode || 'word'}
       asScreen={true}
-      enableTour={true}
+      enableTour={!params?.disableTour}
     />
   );
 };

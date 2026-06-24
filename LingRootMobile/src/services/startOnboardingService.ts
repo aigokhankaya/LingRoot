@@ -3,6 +3,7 @@ import { CEFRLevel } from '../types';
 import { createPodcastAsync, getActiveTtsJob, getJobStatus, processTextToSpeechAsync } from './ttsService';
 
 export type StartGenerationType = 'text' | 'podcast' | 'topic';
+export const START_ONBOARDING_PROGRESS_EVENT = 'LingRootStartOnboardingProgressChanged';
 
 export interface StartGenerationProgress {
   text_completed: boolean;
@@ -18,6 +19,10 @@ export async function getStartGenerationProgress(): Promise<StartGenerationProgr
   const client = await getApiClientAsync();
   const response = await client.http.get('/api/user-settings/start-progress');
   return response.data?.data;
+}
+
+export function isStartOnboardingLocked(progress: StartGenerationProgress | null | undefined): boolean {
+  return !!progress && progress.count < 3;
 }
 
 export async function createStartTextAudio(input: string, level: CEFRLevel) {

@@ -193,12 +193,23 @@ export type RootStackParamList = {
     type: string;
     link?: string;
   };
-  AudioPlayer: { track: AudioTrack; highlightMode?: 'word' | 'sentence' };
+  AudioPlayer: {
+    track: AudioTrack;
+    highlightMode?: 'word' | 'sentence';
+    returnTo?: 'goBack' | 'onboardingHome';
+    disableTour?: boolean;
+  };
 };
 
 export type MainTabParamList = {
   Home: undefined;
-  Library: undefined;
+  Library:
+  | {
+    notificationAudio?: any;
+    disableTour?: boolean;
+    playTrack?: AudioTrack;
+  }
+  | undefined;
   Create:
   | {
     mode?: string;

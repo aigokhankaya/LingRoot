@@ -138,6 +138,26 @@ async function createPodcastWithOptionalFallback(params) {
   });
 }
 
+function getAsyncTtsNotificationInputType(requestBody, startGenerationType) {
+  if (startGenerationType === 'topic') {
+    return 'topic';
+  }
+
+  if (requestBody?.topic_id) {
+    return 'topic';
+  }
+
+  return 'text';
+}
+
+function getAsyncTtsNotificationOriginalText(requestBody, result, startGenerationType) {
+  if (startGenerationType === 'topic') {
+    return result?.translated_text || requestBody?.input || '';
+  }
+
+  return requestBody?.input || result?.translated_text || '';
+}
+
 async function prepareStartGenerationPayload(userId, requestBody, kind) {
   const requestedType = requestBody?.startGenerationType;
   if (!requestedType) {
@@ -397,7 +417,8 @@ router.post(
                 mp3_url: result.mp3_url,
                 title: result.adapted_text?.substring(0, 50) || 'Audio',
                 level: requestBody.level,
-                input_type: requestBody.topic_id ? 'topic' : 'text'
+                input_type: getAsyncTtsNotificationInputType(requestBody, prepared.startGenerationType),
+                original_turkish: getAsyncTtsNotificationOriginalText(requestBody, result, prepared.startGenerationType),
               }
             });
           } catch (notifError) {

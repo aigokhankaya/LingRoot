@@ -7,6 +7,25 @@ const { getStartGenerationState } = require('../utils/onboarding/startGeneration
 
 const router = express.Router();
 
+function getOriginalTurkishForContent(item) {
+  const inputType = String(item?.input_type || '').toLowerCase();
+  const isGeneratedFromTopic = inputType === 'topic' || inputType === 'subject';
+  const podcastInput = typeof item?.input === 'string' ? item.input : '';
+  const looksLikePodcastDialogue = /^(Speaker\s+[AB]|Host|Guest):/im.test(podcastInput);
+
+  if (isGeneratedFromTopic) {
+    return item?.translated_text || item?.input || '';
+  }
+
+  if (inputType === 'podcast') {
+    return looksLikePodcastDialogue
+      ? podcastInput
+      : (item?.translated_text || podcastInput || '');
+  }
+
+  return item?.input || item?.translated_text || '';
+}
+
 // User settings: get default voice
 router.get('/user-settings', authenticate, async (req, res) => {
   try {
@@ -837,6 +856,7 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         translated_text: item.translated_text,
         adapted_text: item.adapted_text,
         input: item.input || '',
+        original_turkish: getOriginalTurkishForContent({ ...item, input_type: effectiveInputType }),
         words: words,
         timepoints: timepoints
       };
@@ -1217,7 +1237,7 @@ router.get('/users/content/:id', authenticate, async (req, res) => {
     }
 
     // Provide original text in a stable field name for mobile: original_turkish
-    const payload = { ...data, original_turkish: data.input };
+    const payload = { ...data, original_turkish: getOriginalTurkishForContent(data) };
     return res.json({ success: true, data: payload });
   } catch (e) {
     logger.error('Error fetching user content by id:', e);
