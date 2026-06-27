@@ -233,7 +233,7 @@ Doğrulanmış örnek farklılaşma (4 sahne): A1 → 17 kelime / 0.80 rate; C2 
 
 ```
 LINGROOT_CORE_PROVIDER=http
-LINGROOT_CORE_API_URL=https://api.lingroot.com         # Core backend kök adresi (Cloudflare Tunnel)
+LINGROOT_CORE_API_URL=https://www.lingroot.com         # Core backend kök adresi (Cloudflare Tunnel)
 LINGROOT_CORE_API_KEY=<güvenli kanaldan iletilir>       # repoya yazılmaz
 LINGROOT_CORE_LEVEL_ENDPOINT=/internal/video-level-package
 LINGROOT_CORE_TIMEOUT_MS=30000
@@ -241,7 +241,7 @@ LINGROOT_CORE_MAX_ATTEMPTS=3
 LINGROOT_CORE_VOICE_PROFILE=english_female
 ```
 
-İstek tam olarak şuraya gider: `https://api.lingroot.com/internal/video-level-package`
+İstek tam olarak şuraya gider: `https://www.lingroot.com/internal/video-level-package`
 
 > **API anahtarı** güvenli bir kanaldan (parola yöneticisi vb.) ayrıca paylaşılır;
 > bu dokümana veya repoya yazılmaz.
@@ -253,11 +253,11 @@ LINGROOT_CORE_VOICE_PROFILE=english_female
 ```bash
 # 1) Yol/auth erişilebilir mi (auth'suz → 401 beklenir):
 curl -s -o /dev/null -w "%{http_code}\n" -X POST \
-  https://api.lingroot.com/internal/video-level-package
+  https://www.lingroot.com/internal/video-level-package
 
 # 2) Uçtan uca (gerçek paket):
 KEY="<LINGROOT_CORE_API_KEY>"
-curl -s -X POST https://api.lingroot.com/internal/video-level-package \
+curl -s -X POST https://www.lingroot.com/internal/video-level-package \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"schema_version":1,"topic_id":"test","topic":"Test","core_message":"Smoke test.","target_level":"A1","target_duration_seconds":30,"language":"en","voice_profile":"english_female","subtitle_format":"srt","content_style":"short_listening_video","brand":"LingRoot","scene_ids":["scene-1","scene-2"]}'
 
@@ -290,11 +290,11 @@ ardından 6 seviyeli tam üretime geçilebilir.
    bir adres olduğunu doğrula. Çözülmüyorsa custom domain'i Cloudflare R2 bucket'ına
    bağla ya da base URL'i çalışan public adrese çevir. (§5'teki render-erişilebilirliği
    bu adımla sağlanır.)
-4. **Host/tunnel:** `https://api.lingroot.com/internal/...` çözülüyor ve backend'e
+4. **Host/tunnel:** `https://www.lingroot.com/internal/...` çözülüyor ve backend'e
    iletiliyor mu — auth'suz POST → `401` (deploy + yol erişimi kanıtı):
    ```bash
    curl -s -o /dev/null -w "%{http_code}\n" -X POST \
-     https://api.lingroot.com/internal/video-level-package
+     https://www.lingroot.com/internal/video-level-package
    ```
 
 ### İlgili LingRoot kaynak dosyaları
