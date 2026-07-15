@@ -417,8 +417,8 @@ exports.getTopicSuggestions = async (req, res) => {
   try {
     logger.info(`[${requestId}] Generating topic suggestions for: "${topic}"`);
 
-    const promptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
-    logger.info(`[${requestId}] [TOPIC-PIPELINE] Using prompt file: topic_detail_suggestions.txt`);
+    const promptPath = path.join(__dirname, '../prompts/legacy/topic_detail_suggestions.txt');
+    logger.info(`[${requestId}] [TOPIC-PIPELINE] Using prompt file: legacy/topic_detail_suggestions.txt`);
 
     const promptTemplate = fs.readFileSync(promptPath, 'utf8');
 

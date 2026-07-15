@@ -23,8 +23,8 @@ exports.getTopicDetailSuggestions = async (req, res) => {
 
   try {
     // Prompt dosyasını oku
-    const promptFile = 'topic_detail_suggestions.txt';
-    const promptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
+    const promptFile = 'legacy/topic_detail_suggestions.txt';
+    const promptPath = path.join(__dirname, '../prompts/legacy/topic_detail_suggestions.txt');
     logger.info(`[TOPIC-DETAIL] Selected prompt file: ${promptFile} for topic: "${topic}" level: ${level || 'A1'}`);
     let promptTemplate = fs.readFileSync(promptPath, 'utf8');
 

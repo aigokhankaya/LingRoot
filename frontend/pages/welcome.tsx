@@ -22,7 +22,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { MessageSquare } from 'lucide-react';
-import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails, createDocumentFromText, DocumentRecord, DocumentSection } from '../src/lib/api';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails, createDocumentFromText, DocumentRecord, DocumentSection, getMyPlanFeatures, PlanFeatures } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
@@ -153,13 +153,13 @@ interface ExistingAudio {
 
 const Welcome: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
-  const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
+  const { badge, dailyLimit, remaining, currentPlanName, currentPlanEndDate, isExpired, isExceeded, hasPlan } = useMembership();
   const { t } = useTranslation();
   const router = useRouter();
   const audioPlayer = useAudioPlayerSafe();
 
   const getHistoryTypeLabel = (inputType: string): string => {
-    const key = (inputType || '').toLowerCase();
+    const key = normalizeHistoryType(inputType);
     const labels: Record<string, string> = {
       text: t('text'),
       subject: t('subject'),
@@ -174,6 +174,24 @@ const Welcome: React.FC = () => {
     return labels[key] || (inputType ? inputType.toUpperCase() : 'DİĞER');
   };
 
+  const normalizeHistoryType = (inputType: string): string => {
+    const key = (inputType || '').toLowerCase();
+
+    const aliases: Record<string, string> = {
+      topic_tree: 'topic',
+      topic: 'topic',
+      web_link: 'weblink',
+      weblink: 'weblink',
+      sectors: 'weblink',
+      text_input: 'text',
+      text: 'text',
+      file: 'document',
+      document: 'document',
+    };
+
+    return aliases[key] || key;
+  };
+
   const historyTypeOptions = [
     { id: 'topic', label: t('content_type_topic_tree') },
     { id: 'book', label: t('book') },
@@ -186,8 +204,18 @@ const Welcome: React.FC = () => {
   ];
 
   const normalizedPlanName = (currentPlanName || '').toLowerCase();
-  const isPlatinumPlan =
-    normalizedPlanName.includes('platin') || normalizedPlanName.includes('platinum');
+  const planStatusMessages = [
+    isExpired ? t('welcome_plan_status_expired') : null,
+    isExceeded ? t('welcome_plan_status_exceeded') : null,
+  ].filter(Boolean) as string[];
+  const hasPlanProblem = planStatusMessages.length > 0;
+  const formattedPlanEndDate = currentPlanEndDate && !Number.isNaN(new Date(currentPlanEndDate).getTime())
+    ? new Date(currentPlanEndDate).toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    : null;
 
   const getDisplayName = () => {
     try {
@@ -467,6 +495,7 @@ const Welcome: React.FC = () => {
   const [isCheckingExistingAudio, setIsCheckingExistingAudio] = useState<boolean>(false);
   const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
   const [favoriteBookIds, setFavoriteBookIds] = useState<number[]>([]);
+  const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
 
   // Content history expanded view state
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
@@ -487,11 +516,55 @@ const Welcome: React.FC = () => {
     { id: 'custom', name: t('content_type_custom'), icon: <Plus /> },
   ];
 
+  const homepageFeatures = planFeatures?.homepage_features;
+  const isContentTypeVisible = (optionId: string) => {
+    if (!homepageFeatures) return true;
+
+    const featureMap: Record<string, string> = {
+      topic_tree: 'topic_tree',
+      book: 'book',
+      podcast: 'podcast',
+      topic: 'topic',
+      document: 'document',
+      text: 'text_input',
+      sectors: 'sectors',
+      subject: 'subject',
+      custom: 'custom',
+    };
+
+    const featureKey = featureMap[optionId];
+    if (!featureKey) return true;
+    return homepageFeatures[featureKey] !== false;
+  };
+
+  const visibleContentTypeOptions = contentTypeOptions.filter((option) => isContentTypeVisible(option.id));
+
   useEffect(() => {
     if (contentType === 'youtube' || contentType === 'youtube_v2') {
       setContentType('topic_tree');
     }
   }, [contentType]);
+
+  useEffect(() => {
+    const fetchPlanFeatureFlags = async () => {
+      try {
+        const result = await getMyPlanFeatures();
+        const features = result?.data?.features || (result as any)?.features || null;
+        setPlanFeatures(features);
+      } catch (error) {
+        console.error('Plan features could not be loaded on welcome page:', error);
+      }
+    };
+
+    fetchPlanFeatureFlags();
+  }, []);
+
+  useEffect(() => {
+    if (visibleContentTypeOptions.length === 0) return;
+    if (!visibleContentTypeOptions.some((option) => option.id === contentType)) {
+      setContentType(visibleContentTypeOptions[0].id);
+    }
+  }, [contentType, visibleContentTypeOptions]);
 
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
   useEffect(() => {
@@ -837,6 +910,9 @@ const Welcome: React.FC = () => {
               undefined,
               Date.now() - startTime // processingDurationMs
             );
+            if (!contentResponse?.success) {
+              throw new Error(contentResponse?.message || 'Podcast kaydı başarısız oldu');
+            }
             console.log('🎙️ [PODCAST] Podcast submitted to contenthistory via submitContent', contentResponse);
 
             // Update audioResult with the new content ID so quiz can work
@@ -1093,29 +1169,16 @@ const Welcome: React.FC = () => {
 
     const key = (item.id || item.url || '').toString();
 
-    // Google News aggregator URL'leri için backend'e gitmeden özet metni kullan
-    try {
-      const hostname = new URL(item.url).hostname.toLowerCase();
-      if (hostname.includes('news.google.com')) {
-        const fallbackText = `${item.title || ''}\n\n${(item.summary || '').trim()}`.trim();
-        if (fallbackText) {
-          setArticleDetails((prev) => ({
-            ...prev,
-            [key]: fallbackText,
-          }));
-          setArticleDetailError(null);
-          return;
-        }
-      }
-    } catch {
-      // URL parse error - normal akışa devam et
-    }
-
     setLoadingArticleId(key);
     setArticleDetailError(null);
 
     try {
-      const response = await fetchArticleDetails(item.url);
+      const response = await fetchArticleDetails(item.url, {
+        title: item.title,
+        summary: item.summary,
+        sourceName: item.sourceName,
+        source: item.source,
+      });
       if (!response.success || !response.data || !response.data.text) {
         throw new Error(response.message || 'Haber detayı alınamadı');
       }
@@ -1963,7 +2026,7 @@ const Welcome: React.FC = () => {
         const chapterIdForSubmit = inputData.chapter_id || selectedChapter?.id;
 
         try {
-          await submitContent(
+          const saveResult = await submitContent(
             input || 'Unknown input',
             processInput.type,
             inputData.level,
@@ -1976,6 +2039,9 @@ const Welcome: React.FC = () => {
             undefined, // detectedMood
             Date.now() - startTime // processingDurationMs
           );
+          if (!saveResult?.success) {
+            throw new Error(saveResult?.message || 'İçerik kaydı başarısız oldu');
+          }
           console.log('İçerik başarıyla kaydedildi');
           // Content history'yi yeniden yükle
           fetchContentHistory();
@@ -2278,7 +2344,7 @@ const Welcome: React.FC = () => {
   };
 
   const filteredHistory = contentHistory.filter((item) => {
-    const typeKey = (item.input_type || '').toLowerCase();
+    const typeKey = normalizeHistoryType(item.input_type || '');
     if (!activeHistoryTypes || activeHistoryTypes.length === 0) return true;
     if (!typeKey) return true;
     return activeHistoryTypes.includes(typeKey);
@@ -2418,7 +2484,7 @@ const Welcome: React.FC = () => {
               <div className="mb-8">
                 <h3 className="text-lg font-medium text-gray-700 mb-3">{t('welcome_content_type_label')}</h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                  {contentTypeOptions.map((option) => (
+                  {visibleContentTypeOptions.map((option) => (
                     <div
                       key={option.id}
                       onClick={() => {
@@ -3858,56 +3924,60 @@ const Welcome: React.FC = () => {
                           </Badge>
                         </div>
                         <div className="text-sm">
-                          {isPlatinumPlan ? (
-                            <>
-                              <p className="mb-3 text-xs text-gray-600">
-                                {t('welcome_plan_info_message')}
-                              </p>
-                              <div className="flex items-center mt-3">
-                                <Link
-                                  href="/fiyatlandirma"
-                                  className="text-primary hover:text-primary/80 text-sm"
-                                >
-                                  {t('welcome_compare_all_plans')}
-                                </Link>
-                              </div>
-                            </>
-                          ) : (
-                            <div className={remaining <= 0 ? "text-sm text-red-600" : "text-sm text-primary"}>
-                              {remaining <= 0 ? (
-                                <>
-                                  <p className="mb-2 font-semibold">
-                                    <i className="fas fa-exclamation-triangle mr-2"></i>
-                                    {t('welcome_audio_limit_exceeded')}
+                          <div className={hasPlanProblem ? "text-sm text-red-600" : "text-sm text-primary"}>
+                            {hasPlanProblem ? (
+                              <>
+                                <p className="mb-2 font-semibold">
+                                  <i className="fas fa-exclamation-triangle mr-2"></i>
+                                  {planStatusMessages.join(' ')}
+                                </p>
+                                {formattedPlanEndDate && (
+                                  <p className="mb-2 text-xs">
+                                    {t('welcome_plan_status_end_date').replace('{date}', formattedPlanEndDate)}
                                   </p>
-                                  <p className="mb-3 text-xs">
-                                    {t('welcome_audio_upgrade_message')}
-                                  </p>
-                                </>
-                              ) : (
+                                )}
+                                <p className="mb-3 text-xs">
+                                  {t('welcome_audio_upgrade_message')}
+                                </p>
+                              </>
+                            ) : hasPlan ? (
+                              <>
                                 <p className="mb-2">
                                   <i className="fas fa-info-circle mr-2"></i>
                                   {t('welcome_audio_remaining').replace('{remaining}', String(remaining)).replace('{limit}', String(dailyLimit))}
                                 </p>
-                              )}
-                              <div className="flex items-center mt-3">
-                                <Button
-                                  variant="outline"
-                                  className="mr-3 !rounded-button whitespace-nowrap cursor-pointer"
-                                  onClick={() => router.push('/fiyatlandirma')}
-                                >
-                                  <i className="fas fa-crown text-yellow-500 mr-2"></i>
-                                  {t('welcome_upgrade_to_premium')}
-                                </Button>
-                                <Link
-                                  href="/fiyatlandirma"
-                                  className="text-primary hover:text-primary/80 text-sm"
-                                >
-                                  {t('welcome_compare_all_plans')}
-                                </Link>
-                              </div>
+                                <p className="mb-3 text-xs text-gray-600">
+                                  {t('welcome_plan_info_message')}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="mb-2 font-semibold">
+                                  <i className="fas fa-info-circle mr-2"></i>
+                                  {t('welcome_free_plan')}
+                                </p>
+                                <p className="mb-3 text-xs text-gray-600">
+                                  {t('welcome_plan_info_message')}
+                                </p>
+                              </>
+                            )}
+                            <div className="flex items-center mt-3">
+                              <Button
+                                variant="outline"
+                                className="mr-3 !rounded-button whitespace-nowrap cursor-pointer"
+                                onClick={() => router.push('/fiyatlandirma')}
+                              >
+                                <i className="fas fa-crown text-yellow-500 mr-2"></i>
+                                {t('welcome_upgrade_to_premium')}
+                              </Button>
+                              <Link
+                                href="/fiyatlandirma"
+                                className="text-primary hover:text-primary/80 text-sm"
+                              >
+                                {t('welcome_compare_all_plans')}
+                              </Link>
                             </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     </div>

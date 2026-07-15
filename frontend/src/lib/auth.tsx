@@ -26,6 +26,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const COOKIE_SESSION_SENTINEL = 'cookie-session';
 
+const persistAccessToken = (token?: string | null) => {
+  if (typeof window === 'undefined') return;
+  if (token && token.trim().length > 0) {
+    localStorage.setItem('lingroot_token', token);
+    return;
+  }
+  localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -60,7 +69,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           console.log('[AUTH] Oturum doğrulandı:', loadedUser);
           setUser(loadedUser);
           setIsAuthenticated(true);
-          localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
+          if (!localStorage.getItem('lingroot_token')) {
+            persistAccessToken(null);
+          }
 
           // Analytics
           AnalyticsHelper.setUserId(loadedUser.id);
@@ -81,7 +92,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
             };
             setUser(mockUser);
             setIsAuthenticated(true);
-            localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
+            persistAccessToken('mock-token-for-development');
           } else {
             setUser(null);
             setIsAuthenticated(false);
@@ -102,7 +113,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           };
           setUser(mockUser);
           setIsAuthenticated(true);
-          localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
+          persistAccessToken('mock-token-for-development');
         } else {
           setUser(null);
           setIsAuthenticated(false);
@@ -175,7 +186,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           };
           setUser(mockUser);
           setIsAuthenticated(true);
-          localStorage.setItem('lingroot_token', 'mock-token-for-development');
+          persistAccessToken('mock-token-for-development');
           return { success: true };
         }
 
@@ -195,7 +206,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
-        localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
+        persistAccessToken(data?.data?.token);
 
         // Analytics
         AnalyticsHelper.logEvent('login', { method: 'email', platform: 'web' });
@@ -247,7 +258,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           };
           setUser(mockUser);
           setIsAuthenticated(true);
-          localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
+          persistAccessToken('mock-token-for-development');
           return { success: true };
         }
 
@@ -270,7 +281,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(mockUser);
         setIsAuthenticated(true);
-        localStorage.setItem('lingroot_token', 'mock-token-for-development');
+        persistAccessToken('mock-token-for-development');
         return { success: true };
       }
 
@@ -317,7 +328,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
-        localStorage.setItem('lingroot_token', COOKIE_SESSION_SENTINEL);
+        persistAccessToken(data?.data?.token);
 
         // Analytics
         AnalyticsHelper.logEvent('login', { method: 'google', platform: 'web' });

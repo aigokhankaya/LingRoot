@@ -8,19 +8,13 @@
 export default async function handler(req, res) {
   // CORS için OPTIONS isteğini işle
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.status(200).end();
   }
 
-  // Token kontrolü
   const token = req.headers.authorization || null;
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: 'Yetkilendirme başarısız: Token bulunamadı'
-    });
-  }
+  const cookie = req.headers.cookie || null;
 
   // Backend URL'ini belirle
   const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
@@ -30,13 +24,20 @@ export default async function handler(req, res) {
     const fetchOptions = {
       method: req.method,
       headers: {
-        'Authorization': token,
         'Content-Type': 'application/json'
       }
     };
 
-    // PUT isteği için body ekle
-    if (req.method === 'PUT' && req.body) {
+    if (token) {
+      fetchOptions.headers.Authorization = token;
+    }
+
+    if (cookie) {
+      fetchOptions.headers.Cookie = cookie;
+    }
+
+    // Gövde taşıyan istekler için body ekle
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
       fetchOptions.body = JSON.stringify(req.body);
     }
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft } from 'lucide-react';
 
 interface Plan {
   id: string;
@@ -81,9 +82,20 @@ export default function PackagesPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
+          <div className="flex items-start gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/admin/dashboard')}
+              className="mt-1"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Geri
+            </Button>
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Paket Yönetimi</h1>
             <p className="text-gray-600 mt-2">Abonelik paketlerini yönetin ve özelliklerini düzenleyin</p>
+          </div>
           </div>
           <Button onClick={handleCreatePlan} className="bg-indigo-600 hover:bg-indigo-700">
             <i className="fas fa-plus mr-2"></i>

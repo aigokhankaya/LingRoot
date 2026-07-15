@@ -21,7 +21,13 @@ interface PlanFeatures {
     podcast?: boolean;
     topic_suggestions?: boolean;
     topic_tree?: boolean;
+    topic?: boolean;
     book?: boolean;
+    document?: boolean;
+    subject?: boolean;
+    weblink?: boolean;
+    sectors?: boolean;
+    custom?: boolean;
     liro?: boolean;
     daily_usage_patterns?: boolean;
   };
@@ -69,6 +75,57 @@ interface Plan {
   updated_at: string;
 }
 
+const defaultPlanFeatures: PlanFeatures = {
+  homepage_features: {
+    text_input: true,
+    youtube: true,
+    file_upload: true,
+    podcast: true,
+    topic_suggestions: true,
+    topic_tree: true,
+    topic: true,
+    book: true,
+    document: true,
+    subject: true,
+    weblink: true,
+    sectors: true,
+    custom: true,
+    liro: true,
+    daily_usage_patterns: true,
+  },
+  voice_categories: {
+    standard: true,
+    wavenet: false,
+    neural2: false,
+    studio: false,
+    chirp3d: false,
+    amazon_standard: false,
+    amazon_neural: false,
+    amazon_generative: false,
+  },
+  sentence_patterns: {
+    enabled: false,
+    max_patterns: 0,
+  },
+};
+
+function mergePlanFeatures(features?: PlanFeatures | null): PlanFeatures {
+  return {
+    homepage_features: {
+      ...defaultPlanFeatures.homepage_features,
+      ...(features?.homepage_features || {}),
+    },
+    voice_categories: {
+      ...defaultPlanFeatures.voice_categories,
+      ...(features?.voice_categories || {}),
+    },
+    sentence_patterns: {
+      ...defaultPlanFeatures.sentence_patterns,
+      ...(features?.sentence_patterns || {}),
+    },
+  };
+}
+
 export default function PackageDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -105,33 +162,7 @@ export default function PackageDetailPage() {
     promotion_description: '',
   });
 
-  const [planFeatures, setPlanFeatures] = useState<PlanFeatures>({
-    homepage_features: {
-      text_input: true,
-      youtube: true,
-      file_upload: true,
-      podcast: true,
-      topic_suggestions: true,
-      topic_tree: true,
-      book: true,
-      liro: true,
-      daily_usage_patterns: true,
-    },
-    voice_categories: {
-      standard: true,
-      wavenet: false,
-      neural2: false,
-      studio: false,
-      chirp3d: false,
-      amazon_standard: false,
-      amazon_neural: false,
-      amazon_generative: false,
-    },
-    sentence_patterns: {
-      enabled: false,
-      max_patterns: 0,
-    },
-  });
+  const [planFeatures, setPlanFeatures] = useState<PlanFeatures>(defaultPlanFeatures);
 
   useEffect(() => {
     if (planId && planId !== 'new') {
@@ -183,9 +214,7 @@ export default function PackageDetailPage() {
         });
 
         // Populate plan features
-        if (planData.plan_features) {
-          setPlanFeatures(planData.plan_features);
-        }
+        setPlanFeatures(mergePlanFeatures(planData.plan_features));
       } else {
         setError(data.message || 'Paket yüklenemedi');
       }
@@ -436,7 +465,7 @@ export default function PackageDetailPage() {
             <CardHeader>
               <CardTitle>Anasayfa Özellikleri</CardTitle>
               <CardDescription>
-                Kullanıcının anasayfasında hangi butonların görüneceğini belirleyin
+                Mobil ve web anasayfasında hangi giriş kartlarının görüneceğini belirleyin
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -515,6 +544,18 @@ export default function PackageDetailPage() {
 
                 <div className="flex items-center space-x-2">
                   <Checkbox
+                    id="topic"
+                    checked={planFeatures.homepage_features?.topic ?? true}
+                    onChange={(e) => handleHomepageFeatureChange('topic', e.target.checked)}
+                  />
+                  <Label htmlFor="topic" className="cursor-pointer">
+                    <i className="fas fa-heart mr-2 text-pink-600"></i>
+                    Hobiler
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
                     id="book"
                     checked={planFeatures.homepage_features?.book ?? false}
                     onChange={(e) => handleHomepageFeatureChange('book', e.target.checked)}
@@ -522,6 +563,66 @@ export default function PackageDetailPage() {
                   <Label htmlFor="book" className="cursor-pointer">
                     <i className="fas fa-book mr-2 text-primary"></i>
                     Kitap
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="document"
+                    checked={planFeatures.homepage_features?.document ?? true}
+                    onChange={(e) => handleHomepageFeatureChange('document', e.target.checked)}
+                  />
+                  <Label htmlFor="document" className="cursor-pointer">
+                    <i className="fas fa-file-lines mr-2 text-sky-600"></i>
+                    Doküman
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="subject"
+                    checked={planFeatures.homepage_features?.subject ?? true}
+                    onChange={(e) => handleHomepageFeatureChange('subject', e.target.checked)}
+                  />
+                  <Label htmlFor="subject" className="cursor-pointer">
+                    <i className="fas fa-graduation-cap mr-2 text-emerald-600"></i>
+                    Subject
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="weblink"
+                    checked={planFeatures.homepage_features?.weblink ?? true}
+                    onChange={(e) => handleHomepageFeatureChange('weblink', e.target.checked)}
+                  />
+                  <Label htmlFor="weblink" className="cursor-pointer">
+                    <i className="fas fa-briefcase mr-2 text-amber-600"></i>
+                    Web Link / Sektörler
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="sectors"
+                    checked={planFeatures.homepage_features?.sectors ?? true}
+                    onChange={(e) => handleHomepageFeatureChange('sectors', e.target.checked)}
+                  />
+                  <Label htmlFor="sectors" className="cursor-pointer">
+                    <i className="fas fa-briefcase mr-2 text-cyan-600"></i>
+                    Sektör İngilizcesi
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="custom"
+                    checked={planFeatures.homepage_features?.custom ?? true}
+                    onChange={(e) => handleHomepageFeatureChange('custom', e.target.checked)}
+                  />
+                  <Label htmlFor="custom" className="cursor-pointer">
+                    <i className="fas fa-plus mr-2 text-violet-600"></i>
+                    Custom
                   </Label>
                 </div>
 

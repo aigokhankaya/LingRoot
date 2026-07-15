@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { processTopicToEnglishText, getTopicSuggestions } = require('../controllers/topicPipelineController');
-const { authenticate } = require('../middleware/authMiddleware');
+const { authenticate } = require('../middleware/auth');
 
 /**
  * Complete pipeline: Topic → Leveled English Text

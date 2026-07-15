@@ -13,7 +13,13 @@ function getDefaultPremiumFeatures() {
       podcast: true,
       topic_suggestions: true,
       topic_tree: true,
+      topic: true,
       book: true,
+      document: true,
+      subject: true,
+      weblink: true,
+      sectors: true,
+      custom: true,
       liro: true,
       daily_usage_patterns: true,
     },
@@ -41,7 +47,13 @@ function getDefaultFreeFeatures() {
       podcast: true,
       topic_suggestions: false,
       topic_tree: true,
+      topic: true,
       book: true,
+      document: true,
+      subject: true,
+      weblink: true,
+      sectors: true,
+      custom: true,
       liro: false,
       daily_usage_patterns: false,
     },
@@ -579,5 +591,3 @@ exports.getMyPlanFeatures = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
-

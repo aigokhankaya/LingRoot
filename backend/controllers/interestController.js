@@ -1,6 +1,12 @@
 const { supabase } = require('../utils/storage/supabaseClient.js');
 const logger = require('../utils/common/logger.js');
 
+const normalizeInterestRows = (rows = []) =>
+  rows
+    .map((row) => row?.interest_keyword || row?.interest)
+    .filter((value) => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => ({ interest_keyword: value }));
+
 const getUserInterests = async (req, res) => {
   try {
     // Gelen isteği logla - debug için daha detaylı
@@ -32,7 +38,7 @@ const getUserInterests = async (req, res) => {
 
       const { data, error } = await supabase
         .from('user_interests')
-        .select('interest_keyword')
+        .select('*')
         .eq('user_id', userId);
 
       // Hata kontrolü
@@ -52,9 +58,11 @@ const getUserInterests = async (req, res) => {
         });
       }
 
+      const normalizedData = normalizeInterestRows(data);
+
       // Başarılı yanıt
-      logger.info(`Successfully retrieved ${data.length} interests for user ${userId}`);
-      return res.status(200).json(data);
+      logger.info(`Successfully retrieved ${normalizedData.length} interests for user ${userId}`);
+      return res.status(200).json(normalizedData);
     } catch (dbError) {
       logger.error(`Database operation error: ${dbError.message}`, { userId, error: dbError });
       return res.status(500).json({ success: false, error: 'Database operation failed' });
@@ -115,16 +123,43 @@ const updateUserInterests = async (req, res) => {
     }
 
     // Yeni ilgi alanlarını ekle
-    const interestsToInsert = interests.map(interest => ({
+    const baseInterestsToInsert = interests.map(interest => ({
       user_id: userId,
-      interest_keyword: interest,
       created_at: new Date().toISOString()
     }));
 
-    const { data, error: insertError } = await supabase
+    let insertedData = null;
+    let insertError = null;
+
+    const keywordPayload = baseInterestsToInsert.map((row, index) => ({
+      ...row,
+      interest_keyword: interests[index]
+    }));
+
+    const keywordResult = await supabase
       .from('user_interests')
-      .insert(interestsToInsert)
+      .insert(keywordPayload)
       .select();
+
+    insertedData = keywordResult.data;
+    insertError = keywordResult.error;
+
+    if (insertError && /interest_keyword/i.test(insertError.message || '')) {
+      logger.warn(`interest_keyword column unavailable, retrying with interest column`, { userId });
+
+      const legacyPayload = baseInterestsToInsert.map((row, index) => ({
+        ...row,
+        interest: interests[index]
+      }));
+
+      const legacyResult = await supabase
+        .from('user_interests')
+        .insert(legacyPayload)
+        .select();
+
+      insertedData = legacyResult.data;
+      insertError = legacyResult.error;
+    }
 
     if (insertError) {
       logger.error(`Error inserting new interests: ${insertError.message}`, { userId });
@@ -135,7 +170,7 @@ const updateUserInterests = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'Interests updated successfully',
-      data: data
+      data: normalizeInterestRows(insertedData)
     });
   } catch (err) {
     logger.error(`Unexpected error in updateUserInterests: ${err.message}`, { userId: req.user?.id, error: err });

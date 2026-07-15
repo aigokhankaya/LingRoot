@@ -56,8 +56,8 @@ export const ListeningQualityCard: React.FC = () => {
 
       // Parallel fetch
       const [statsRes, trendRes] = await Promise.all([
-        apiClient.http.get('/listening/stats'),
-        apiClient.http.get(`/listening/quality-trend?days=${trendDays}`)
+        apiClient.http.get('/api/listening/stats'),
+        apiClient.http.get(`/api/listening/quality-trend?days=${trendDays}`)
       ]);
 
       if (statsRes.data?.success) {
