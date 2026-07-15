@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Package, Settings, History, Heart, Globe, HelpCircle, LogOut, Home, ChevronDown } from 'lucide-react';
+import { User, Package, Settings, History, Heart, Globe, HelpCircle, LogOut, Home, ChevronDown, Shield } from 'lucide-react';
 import { useTranslation } from '../../lib/i18n';
 
 interface ProfileDropdownMenuProps {
@@ -60,6 +60,7 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
   const displayName = (user as any)?.name || user?.email || t('profile_menu_user_default');
   const avatarUrl = (user as any)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const initials = displayName.charAt(0).toUpperCase();
+  const isAdmin = user?.role === 'admin';
 
   const avatarSizeClass = {
     sm: 'h-8 w-8',
@@ -122,6 +123,12 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
       label: t('profile_menu_help'),
       iconClass: 'fas fa-question-circle',
     },
+    ...(isAdmin ? [{
+      href: '/admin/dashboard',
+      icon: <Shield className="h-4 w-4" />,
+      label: 'Admin Ana Sayfası',
+      iconClass: 'fas fa-shield-alt',
+    }] : []),
   ];
 
   // Konumlandırma: Her zaman tetikleyicinin sağ kenarına hizala,

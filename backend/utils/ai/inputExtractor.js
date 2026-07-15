@@ -13,6 +13,7 @@ const fetch = require('node-fetch');
 const { JSDOM } = require('jsdom');
 const { fetchYoutubeTranscript } = require('../content/youtubeTranscriptService.js');
 const { logApiCost, calculateOpenAiCost } = require('../infra/costTracker.js');
+const { isGoogleNewsUrl, resolveGoogleNewsUrl } = require('../content/googleNewsResolver.js');
 
 // Initialize OpenAI client (similar to cefrAdapter, consider refactoring to a shared client)
 let openai;
@@ -105,12 +106,176 @@ async function translateToEnglishWithOpenAI(text, level = 'A1', requestLogger, u
     return { text: textJoined, usage, model };
 }
 
+function looksLikeScriptPayload(text = '') {
+    if (!text) return true;
+
+    const sample = text.slice(0, 4000);
+    const suspiciousPatterns = [
+        'function(',
+        'var ',
+        'google_tag_data',
+        'window.',
+        'document.',
+        'createElement(',
+        'prototype.',
+        'addEventListener(',
+        'Math.',
+        'JSON.',
+        '__ccd_',
+        '["require",',
+        '[50,"',
+        '[46,"',
+        '[52,"',
+    ];
+
+    const hitCount = suspiciousPatterns.reduce((count, pattern) => (
+        sample.includes(pattern) ? count + 1 : count
+    ), 0);
+
+    const punctuationCount = (sample.match(/[{};=<>]/g) || []).length;
+    const wordCount = (sample.match(/[A-Za-zÀ-ÿ0-9]+/g) || []).length;
+    const bracketCommaCount = (sample.match(/[\[\],]/g) || []).length;
+    const whitespaceCount = (sample.match(/\s/g) || []).length;
+    const sentenceLikeCount = (sample.match(/[.!?]\s+[A-ZÀ-Ý0-9]/g) || []).length;
+    const quoteColonCount = (sample.match(/":|',|",|"\]/g) || []).length;
+
+    if (hitCount >= 3) return true;
+    if (punctuationCount > 120 && wordCount < 250) return true;
+    if (bracketCommaCount > 180 && whitespaceCount < 180) return true;
+    if (quoteColonCount > 40 && sentenceLikeCount === 0) return true;
+
+    return false;
+}
+
+function normalizeWhitespace(text = '') {
+    return text
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+}
+
+function extractArticleBodyFromJsonLd(doc) {
+    const scripts = Array.from(doc.window.document.querySelectorAll('script[type="application/ld+json"]'));
+
+    for (const script of scripts) {
+        const raw = script.textContent || '';
+        if (!raw.trim()) continue;
+
+        try {
+            const parsed = JSON.parse(raw);
+            const queue = Array.isArray(parsed) ? [...parsed] : [parsed];
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+                if (!current || typeof current !== 'object') continue;
+
+                if (Array.isArray(current)) {
+                    queue.push(...current);
+                    continue;
+                }
+
+                if (current['@graph'] && Array.isArray(current['@graph'])) {
+                    queue.push(...current['@graph']);
+                }
+
+                if (typeof current.articleBody === 'string' && current.articleBody.trim().length >= 200) {
+                    return current.articleBody.trim();
+                }
+            }
+        } catch {
+            // ignore malformed json-ld blocks
+        }
+    }
+
+    return '';
+}
+
+function extractArticleBodyFromSelectors(doc) {
+    const selectors = [
+        '[itemprop="articleBody"]',
+        'article',
+        'main article',
+        '.article-content',
+        '.article-body',
+        '.news-content',
+        '.entry-content',
+        '.post-content',
+        '.content-text',
+        '.article__body',
+        '.article-detail',
+        '.haberMetni',
+        '.news-detail',
+    ];
+
+    for (const selector of selectors) {
+        const node = doc.window.document.querySelector(selector);
+        const text = normalizeWhitespace(node?.textContent || '');
+        if (text.length >= 200 && !looksLikeScriptPayload(text)) {
+            return text;
+        }
+    }
+
+    return '';
+}
+
+function extractArticleBodyFromParagraphs(doc) {
+    const paragraphs = Array.from(doc.window.document.querySelectorAll('article p, main p, p'));
+    if (paragraphs.length === 0) return '';
+
+    const text = paragraphs
+        .map((node) => normalizeWhitespace(node.textContent || ''))
+        .filter((paragraph) => paragraph.length >= 40 && !looksLikeScriptPayload(paragraph))
+        .join('\n\n')
+        .trim();
+
+    return text.length >= 200 ? text : '';
+}
+
+function extractArticleText(doc, finalUrl) {
+    const jsonLdText = normalizeWhitespace(extractArticleBodyFromJsonLd(doc));
+    if (jsonLdText.length >= 200 && !looksLikeScriptPayload(jsonLdText)) {
+        logger.info(`Successfully extracted article text from JSON-LD for ${finalUrl} (len=${jsonLdText.length})`);
+        return jsonLdText;
+    }
+
+    const selectorText = normalizeWhitespace(extractArticleBodyFromSelectors(doc));
+    if (selectorText.length >= 200 && !looksLikeScriptPayload(selectorText)) {
+        logger.info(`Successfully extracted article text from selectors for ${finalUrl} (len=${selectorText.length})`);
+        return selectorText;
+    }
+
+    const paragraphText = normalizeWhitespace(extractArticleBodyFromParagraphs(doc));
+    if (paragraphText.length >= 200 && !looksLikeScriptPayload(paragraphText)) {
+        logger.info(`Successfully extracted article text from paragraph blocks for ${finalUrl} (len=${paragraphText.length})`);
+        return paragraphText;
+    }
+
+    const reader = new Readability(doc.window.document);
+    const article = reader.parse();
+    const readabilityText = normalizeWhitespace(article?.textContent || '');
+    if (readabilityText.length >= 200 && !looksLikeScriptPayload(readabilityText)) {
+        logger.info(`Successfully extracted article text from Readability for ${finalUrl} (len=${readabilityText.length})`);
+        return readabilityText;
+    }
+
+    logger.warn(`Readability/selectors could not extract main content from ${finalUrl}. Falling back to body text.`);
+    const bodyText = normalizeWhitespace(doc.window.document.body?.textContent || '');
+    if (bodyText.length >= 200 && !looksLikeScriptPayload(bodyText)) {
+        logger.info(`Successfully extracted article text from body fallback for ${finalUrl} (len=${bodyText.length})`);
+        return bodyText;
+    }
+
+    return '';
+}
+
 /**
  * Fetches and extracts article content from a web link.
  * @param {string} url The URL of the web page.
  * @returns {Promise<string|null>} The extracted article text or null on error.
  */
-async function extractFromWebLinkInternal(url, depth = 0) {
+async function extractFromWebLinkInternal(url, options = {}, depth = 0) {
     try {
         if (depth > 2) {
             logger.warn(`extractFromWebLinkInternal max depth reached for URL: ${url}`);
@@ -118,69 +283,48 @@ async function extractFromWebLinkInternal(url, depth = 0) {
         }
 
         logger.info(`Fetching content from URL: ${url}`);
-        const response = await fetch(url);
+        let requestUrl = url;
+        if (isGoogleNewsUrl(requestUrl)) {
+            requestUrl = await resolveGoogleNewsUrl(requestUrl, {
+                requestId: `extractor-preflight-${depth}`,
+                title: options.title,
+                sourceName: options.sourceName,
+            });
+        }
+
+        const response = await fetch(requestUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+            },
+            redirect: 'follow',
+        });
         if (!response.ok) {
-            logger.error(`Failed to fetch URL ${url}. Status: ${response.status}`);
+            logger.error(`Failed to fetch URL ${requestUrl}. Status: ${response.status}`);
             return null;
         }
 
-        const finalUrl = response.url || url;
+        const finalUrl = response.url || requestUrl;
         const html = await response.text();
         const doc = new JSDOM(html, { url: finalUrl });
-        const reader = new Readability(doc.window.document);
-        const article = reader.parse();
 
-        let text = '';
-        if (article && article.textContent) {
-            text = article.textContent;
-        } else {
-            logger.warn(`Readability could not extract main content from ${finalUrl}. Falling back to body text.`);
-            const bodyText = doc.window.document.body && doc.window.document.body.textContent;
-            text = bodyText || '';
+        if (isGoogleNewsUrl(finalUrl)) {
+            const publisherUrl = await resolveGoogleNewsUrl(finalUrl, {
+                requestId: `extractor-postfetch-${depth}`,
+                title: options.title,
+                sourceName: options.sourceName,
+            });
+            if (publisherUrl && publisherUrl !== finalUrl) {
+                logger.info(`extractFromWebLinkInternal resolved Google News URL to publisher URL: ${publisherUrl}`);
+                return extractFromWebLinkInternal(publisherUrl, options, depth + 1);
+            }
         }
 
-        let trimmed = (text || '').trim();
+        const trimmed = extractArticleText(doc, finalUrl);
         if (trimmed.length >= 200) {
-            logger.info(`Successfully extracted article text from ${finalUrl} (len=${trimmed.length})`);
-            return trimmed;
-        }
-
-        let hostname = '';
-        try {
-            hostname = new URL(finalUrl).hostname.toLowerCase();
-        } catch {
-            hostname = '';
-        }
-
-        if (hostname.includes('news.google.com')) {
-            const metaRefresh = doc.window.document.querySelector('meta[http-equiv="refresh"]');
-            if (metaRefresh) {
-                const content = metaRefresh.getAttribute('content') || '';
-                const match = content.match(/url=(.+)$/i);
-                if (match && match[1]) {
-                    let redirectUrl = match[1].trim();
-                    if (redirectUrl.startsWith('/')) {
-                        redirectUrl = new URL(redirectUrl, finalUrl).href;
-                    }
-                    logger.info(`extractFromWebLinkInternal following Google News meta redirect to ${redirectUrl}`);
-                    return extractFromWebLinkInternal(redirectUrl, depth + 1);
-                }
-            }
-
-            const anchor = doc.window.document.querySelector('a[href^="http"]');
-            if (anchor) {
-                let href = anchor.getAttribute('href') || '';
-                if (href && !href.includes('news.google.com')) {
-                    if (href.startsWith('/')) {
-                        href = new URL(href, finalUrl).href;
-                    }
-                    logger.info(`extractFromWebLinkInternal following Google News anchor redirect to ${href}`);
-                    return extractFromWebLinkInternal(href, depth + 1);
-                }
-            }
-        }
-
-        if (trimmed.length > 0) {
             return trimmed;
         }
 
@@ -191,8 +335,8 @@ async function extractFromWebLinkInternal(url, depth = 0) {
     }
 }
 
-async function extractFromWebLink(url) {
-    return extractFromWebLinkInternal(url, 0);
+async function extractFromWebLink(url, options = {}) {
+    return extractFromWebLinkInternal(url, options, 0);
 }
 
 /**

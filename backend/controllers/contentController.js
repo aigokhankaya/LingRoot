@@ -12,6 +12,21 @@ const { invalidateCache } = require('../middleware/redisCache');
 const contentHistoryService = require('../services/contentHistoryService');
 const quizGenerationService = require('../services/quizGenerationService');
 
+function looksInvalidArticleText(text = '') {
+  const sample = String(text || '').slice(0, 5000);
+  if (!sample.trim()) return true;
+
+  if (/Permission is hereby granted, free of charge/i.test(sample)) return true;
+  if (/Copyright \(c\).{0,120}(Google|Angular)/i.test(sample)) return true;
+  if (/__ccd_|google_tag_data|\[50,"|\[46,"|\[52,"|\["require",/i.test(sample)) return true;
+
+  const bracketCommaCount = (sample.match(/[\[\],]/g) || []).length;
+  const sentenceCount = (sample.match(/[.!?](\s|$)/g) || []).length;
+  if (bracketCommaCount > 200 && sentenceCount < 3) return true;
+
+  return false;
+}
+
 function tryParseJson(value) {
   if (value == null) return value;
   if (typeof value !== 'string') return value;
@@ -75,7 +90,7 @@ exports.processLink = async (req, res) => {
 exports.fetchArticleDetails = async (req, res) => {
   const requestId = uuidv4();
   try {
-    const { url } = req.body || {};
+    const { url, title, sourceName } = req.body || {};
     if (!url || typeof url !== 'string' || !url.trim()) {
       return res.status(400).json({
         success: false,
@@ -84,8 +99,13 @@ exports.fetchArticleDetails = async (req, res) => {
     }
 
     logger.info(`[${requestId}] fetchArticleDetails called`, { url });
-    const text = await extractFromWebLink(url);
-    if (!text || !text.trim()) {
+    const text = await extractFromWebLink(url, {
+      title,
+      sourceName,
+    });
+    if (!text || !text.trim() || looksInvalidArticleText(text)) {
+      logger.warn(`[${requestId}] Article extraction failed without valid content`, { url });
+
       return res.status(502).json({
         success: false,
         message: 'Haber metni kaynaktan çıkarılamadı.',
@@ -1035,4 +1055,3 @@ exports.submitQuiz = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-

@@ -1724,12 +1724,13 @@ const processTtsRequest = async (req, res) => {
     try {
       logger.debug(`[${requestId}] 💾 Saving to contenthistory table...`);
 
-      // Get user ID from JWT token
       const authHeader = req.headers.authorization;
       logger.debug(`[${requestId}] 🔑 Auth header present: ${!!authHeader}`);
-      let userId = null;
+      let userId = req.user?.id || null;
 
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (userId) {
+        logger.debug(`[${requestId}] 👤 User ID from req.user: ${userId}`);
+      } else if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         logger.debug(`[${requestId}] 🎫 Token extracted: ${token.substring(0, 20)}...`);
         const jwt = require('jsonwebtoken');
@@ -1741,7 +1742,7 @@ const processTtsRequest = async (req, res) => {
           logger.warn(`[${requestId}] ❌ Could not decode JWT token: ${jwtError.message}`);
         }
       } else {
-        logger.warn(`[${requestId}] ❌ No valid auth header found`);
+        logger.warn(`[${requestId}] ❌ No valid auth header found and req.user is empty`);
       }
       if (userId) {
         // Calculate costs

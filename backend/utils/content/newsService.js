@@ -6,6 +6,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../common/logger.js');
+const { isGoogleNewsUrl, resolveGoogleNewsUrl } = require('./googleNewsResolver.js');
 
 // Environment-driven configuration
 const NEWS_API_PROVIDER = process.env.NEWS_API_PROVIDER || 'none'; // e.g. 'newsapi'
@@ -184,7 +185,11 @@ async function fetchGoogleNewsRSS(topic, limit, language = 'en') {
           $desc('a[href]').each((_, a) => {
             const href = $desc(a).attr('href');
             if (href && !href.includes('news.google.com')) {
-              resolvedLink = href;
+              try {
+                resolvedLink = new URL(href, link || rssUrl).href;
+              } catch {
+                resolvedLink = href;
+              }
               return false; // break
             }
             return undefined;
@@ -218,7 +223,28 @@ async function fetchGoogleNewsRSS(topic, limit, language = 'en') {
       });
     });
 
-    return items;
+    const resolvedItems = await Promise.all(items.map(async (item, index) => {
+      if (!item.url || !isGoogleNewsUrl(item.url)) {
+        return item;
+      }
+
+      const resolvedUrl = await resolveGoogleNewsUrl(item.url, {
+        requestId: `news-rss-${topic}-${index}`,
+        title: item.title,
+        sourceName: item.sourceName,
+      });
+
+      if (resolvedUrl && resolvedUrl !== item.url) {
+        return {
+          ...item,
+          url: resolvedUrl,
+        };
+      }
+
+      return item;
+    }));
+
+    return resolvedItems;
   } catch (err) {
     logger.error('[newsService] Google News RSS fetch failed', { error: err.message });
     return [];

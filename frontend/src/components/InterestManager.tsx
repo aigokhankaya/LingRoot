@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUserInterests, updateUserInterests } from '../lib/api';
-import { Plus, Trash2, Pencil, Save, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, X } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
 
 interface InterestManagerProps {
@@ -79,54 +79,25 @@ const InterestManager: React.FC<InterestManagerProps> = ({
     loadInterests();
   }, []);
 
-  // İlgi alanı ekle
-  const addInterest = () => {
-    if (!newInterest.trim()) return;
-
-    // Zaten var mı kontrol et
-    if (interests.includes(newInterest.trim())) {
-      setError(t('interest_manager_error_already_exists'));
-      return;
-    }
-
-    setInterests([...interests, newInterest.trim()]);
-    setNewInterest('');
-    setError(null);
-  };
-
-  // İlgi alanı kaldır
-  const removeInterest = (index: number) => {
-    const updatedInterests = [...interests];
-    updatedInterests.splice(index, 1);
-    setInterests(updatedInterests);
-  };
-
-  // Değişiklikleri kaydet
-  const saveChanges = async () => {
+  const persistInterests = async (updatedInterests: string[]) => {
     setIsLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      console.log("Kaydedilecek ilgi alanları:", interests);
-
-      // Doğrudan boş dizileri engelle
-      if (!interests || interests.length === 0) {
-        setError(t('interest_manager_error_min_one'));
-        setIsLoading(false);
-        return;
-      }
-
-      const result = await updateUserInterests(interests);
+      const result = await updateUserInterests(updatedInterests);
       console.log("Kayıt yanıtı:", result);
 
+      if (!result?.success) {
+        throw new Error(result?.message || result?.error || t('interest_manager_error_save'));
+      }
+
+      setInterests(updatedInterests);
       setSuccess(t('interest_manager_success_updated'));
-      setIsEditing(false);
       if (onUpdate) onUpdate();
     } catch (err: any) {
       console.error('İlgi alanları güncelleme hatası:', err);
 
-      // Yetkilendirme hatası kontrolü
       if (err.message && err.message.includes("Unauthorized")) {
         setError(t('interest_manager_error_unauthorized'));
       } else if (err.message && err.message.includes("NetworkError")) {
@@ -137,6 +108,34 @@ const InterestManager: React.FC<InterestManagerProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // İlgi alanı ekle
+  const addInterest = async () => {
+    const trimmedInterest = newInterest.trim();
+    if (!trimmedInterest) return;
+
+    // Zaten var mı kontrol et
+    if (interests.includes(trimmedInterest)) {
+      setError(t('interest_manager_error_already_exists'));
+      return;
+    }
+
+    const updatedInterests = [...interests, trimmedInterest];
+    setNewInterest('');
+    await persistInterests(updatedInterests);
+  };
+
+  // İlgi alanı kaldır
+  const removeInterest = async (index: number) => {
+    const updatedInterests = [...interests];
+    updatedInterests.splice(index, 1);
+    if (updatedInterests.length === 0) {
+      setError(t('interest_manager_error_min_one'));
+      return;
+    }
+
+    await persistInterests(updatedInterests);
   };
 
   // Düzenleme modunu iptal et
@@ -164,14 +163,6 @@ const InterestManager: React.FC<InterestManagerProps> = ({
             </button>
           ) : (
             <div className="flex space-x-2">
-              <button
-                onClick={saveChanges}
-                className="text-green-600 hover:text-green-800 flex items-center"
-                disabled={isLoading}
-              >
-                <Save className="mr-1" size={14} />
-                <span>{t('common_button_save')}</span>
-              </button>
               <button
                 onClick={cancelEditing}
                 className="text-red-600 hover:text-red-800 flex items-center"
@@ -239,12 +230,19 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                   type="text"
                   value={newInterest}
                   onChange={(e) => setNewInterest(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void addInterest();
+                    }
+                  }}
                   placeholder={t('interest_manager_placeholder')}
                   className="flex-1 border border-gray-300 rounded-l p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
                 <button
-                  onClick={addInterest}
+                  onClick={() => void addInterest()}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-r flex items-center"
+                  disabled={isLoading}
                 >
                   <Plus className="mr-1" size={14} />
                   <span>{t('interest_manager_button_add')}</span>

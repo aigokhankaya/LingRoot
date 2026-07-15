@@ -45,12 +45,27 @@ export const createHeaders = (contentType: string = 'application/json'): Headers
         if (lang) {
             headers['Accept-Language'] = lang;
         }
+
+        const token = getToken();
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
     }
     return headers;
 };
 
 export const getToken = (): string | null => {
-    return null;
+    if (typeof window === 'undefined') return null;
+
+    const token = localStorage.getItem('lingroot_token')
+        || localStorage.getItem('auth_token')
+        || localStorage.getItem('userToken');
+
+    if (!token || token === 'cookie-session') {
+        return null;
+    }
+
+    return token;
 };
 
 // --- Helper for standardized fetch calls (kept for functions not yet migrated) ---
@@ -230,9 +245,19 @@ export const deleteTopicAndChildren = async (id: string): Promise<any> => {
 
 export const getTopicDetailSuggestions = async (topicTitle: string, language: string): Promise<any> => {
     try {
-        return await apiClient.topic.getSuggestions(topicTitle, language);
+        return await fetchApi('topic-details/suggestions', {
+            method: 'POST',
+            body: JSON.stringify({
+                topic: topicTitle,
+                level: language
+            })
+        });
     } catch (error: any) {
-        return { success: false, suggestions: [] };
+        return {
+            success: false,
+            data: { suggestions: [] },
+            message: error?.message || 'Konu önerileri alınamadı'
+        };
     }
 };
 
@@ -288,7 +313,22 @@ export const submitContent = async (
                 processing_duration_ms
             };
         }
-        return await apiClient.content.submit(payload);
+
+        const requestPayload = {
+            input: payload.input,
+            inputType: payload.inputType ?? payload.input_type,
+            level: payload.level,
+            mp3Url: payload.mp3Url ?? payload.mp3_url,
+            translatedText: payload.translatedText ?? payload.translated_text,
+            adaptedText: payload.adaptedText ?? payload.adapted_text,
+            chapterId: payload.chapterId ?? payload.chapter_id ?? null,
+            timepoints: payload.timepoints,
+            words: payload.words,
+            detectedMood: payload.detectedMood ?? payload.detected_mood,
+            processingDurationMs: payload.processingDurationMs ?? payload.processing_duration_ms,
+        };
+
+        return await apiClient.content.submit(requestPayload);
     } catch (error: any) {
         return { success: false, message: error.message };
     }
@@ -335,9 +375,29 @@ export const getListeningProgress = async (id: string): Promise<any> => {
 
 export const getContentHistory = async (userId: string, page = 1): Promise<any> => {
     try {
-        const result = await apiClient.content.getHistory(page, 20);
-        // Dashboard beklentisi: { success: boolean, data: ContentHistoryItem[] }
-        return { success: true, data: result.data || [] };
+        const result: any = await apiClient.content.getHistory(page, 20);
+        const responseData: any = result?.data;
+        const historyItems =
+            Array.isArray(result) ? result :
+                Array.isArray(responseData) ? responseData :
+                    Array.isArray(result?.items) ? result.items :
+                        Array.isArray(result?.data) ? result.data :
+                            Array.isArray(responseData?.items) ? responseData.items :
+                                Array.isArray(responseData?.data) ? responseData.data :
+                                    [];
+
+        const success =
+            typeof result?.success === 'boolean' ? result.success :
+                typeof responseData?.success === 'boolean' ? responseData.success :
+                    true;
+
+        return {
+            success,
+            data: historyItems,
+            page: result?.page ?? responseData?.page,
+            total: result?.total ?? responseData?.total,
+            hasMore: result?.hasMore ?? responseData?.hasMore,
+        };
     } catch (error: any) {
         return { success: false, data: [], message: error.message };
     }
@@ -373,10 +433,13 @@ export const createDocumentFromText = async (text: string, title?: string) =>
         body: JSON.stringify({ text, title })
     });
 
-export const fetchArticleDetails = async (url: string) =>
-    fetchApi('external-services/fetch-article', {
+export const fetchArticleDetails = async (
+    url: string,
+    fallback?: { title?: string; summary?: string; sourceName?: string; source?: string }
+) =>
+    fetchApi('content/article-details', {
         method: 'POST',
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url, ...fallback })
     });
 
 export const getHashtagNews = async (hashtag: string, limit = 10, language = 'en') =>
@@ -390,10 +453,10 @@ export const getHashtagNews = async (hashtag: string, limit = 10, language = 'en
 export const getUserStats = async (_userId?: string) => fetchApi('stats/dashboard');
 export const getUsageSummary = async () => fetchApi('subscription/usage-summary');
 
-export const getUserInterests = async () => fetchApi('user-sectors/interests'); // user-sectorRoutes usually handles this or userRoutes
+export const getUserInterests = async () => fetchApi('user-interests');
 export const updateUserInterests = async (interests: string[]) =>
-    fetchApi('user-sectors/interests', {
-        method: 'PUT',
+    fetchApi('user-interests', {
+        method: 'POST',
         body: JSON.stringify({ interests })
     });
 
@@ -775,11 +838,45 @@ export const getGeneratedSuggestions = async (prompt?: string, language: string 
     });
 
 export interface PlanFeatures {
-    planName: string;
-    maxCharacters: number;
-    audioCreationLimit: number;
-    canDownload: boolean;
-    prioritySupport: boolean;
+    planName?: string;
+    maxCharacters?: number;
+    audioCreationLimit?: number;
+    canDownload?: boolean;
+    prioritySupport?: boolean;
+    homepage_features?: {
+        text_input?: boolean;
+        youtube?: boolean;
+        file_upload?: boolean;
+        podcast?: boolean;
+        topic_suggestions?: boolean;
+        topic_tree?: boolean;
+        topic?: boolean;
+        book?: boolean;
+        document?: boolean;
+        subject?: boolean;
+        weblink?: boolean;
+        sectors?: boolean;
+        custom?: boolean;
+        liro?: boolean;
+        daily_usage_patterns?: boolean;
+        [key: string]: any;
+    };
+    voice_categories?: {
+        standard?: boolean;
+        wavenet?: boolean;
+        neural2?: boolean;
+        studio?: boolean;
+        chirp3d?: boolean;
+        amazon_standard?: boolean;
+        amazon_neural?: boolean;
+        amazon_generative?: boolean;
+        [key: string]: any;
+    };
+    sentence_patterns?: {
+        enabled?: boolean;
+        max_patterns?: number;
+        [key: string]: any;
+    };
     [key: string]: any;
 }
 

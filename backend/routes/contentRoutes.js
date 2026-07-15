@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const contentController = require('../controllers/contentController');
-const { authenticate } = require('../middleware/authMiddleware');
+const { authenticate } = require('../middleware/auth');
 const { contentLimiter } = require('../middleware/security');
 const { redisCache } = require('../middleware/redisCache');
 const logger = require('../utils/common/logger.js');

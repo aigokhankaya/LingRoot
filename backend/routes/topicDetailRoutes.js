@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getTopicDetailSuggestions, getGeneratedSuggestions } = require('../controllers/topicDetailController');
-const { authenticate } = require('../middleware/authMiddleware');
+const { authenticate } = require('../middleware/auth');
 
 // Giriş yapmış kullanıcılar için detaylı konu önerileri al
 router.post('/suggestions', authenticate, getTopicDetailSuggestions);
