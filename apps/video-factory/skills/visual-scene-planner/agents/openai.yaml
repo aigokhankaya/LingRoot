@@ -1,0 +1,4 @@
+interface:
+  display_name: "Visual Scene Planner"
+  short_description: "Plan one shared visual flow per topic"
+  default_prompt: "Plan the shared vertical visual scenes for this topic."
