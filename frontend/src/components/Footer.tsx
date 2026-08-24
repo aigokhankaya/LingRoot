@@ -155,9 +155,33 @@ export default function Footer() {
 
         {/* Alt kısım - Copyright ve Ödeme Yöntemleri */}
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-gray-400 text-sm mb-4 md:mb-0">
-            &copy; {new Date().getFullYear()} LingRoot. {t('all_rights_reserved')}
-          </p>
+          <div className="flex flex-col items-center gap-1 mb-4 md:mb-0 md:flex-row md:gap-5">
+            <p className="text-gray-400 text-sm">
+              &copy; {new Date().getFullYear()} LingRoot. {t('all_rights_reserved')}
+            </p>
+            {/* Ajans imzası: LingRoot markasından baskın olmamalı — footer'ın
+                soluk tonunda kalır, vurgu yalnızca hover'da artar. */}
+            <p className="flex shrink-0 items-center gap-1.5 text-gray-400 text-xs">
+              {t('footer_credit')}
+              <a
+                href="https://tuvalsoft.com"
+                target="_blank"
+                rel="noopener"
+                aria-label="TuvalSoft"
+                className="group inline-flex items-center gap-1.5 font-medium transition-colors duration-200 hover:text-white"
+              >
+                <Image
+                  src="/tuvalsoft-icon.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width={14}
+                  height={14}
+                  className="opacity-75 transition-opacity duration-200 group-hover:opacity-100"
+                />
+                TuvalSoft
+              </a>
+            </p>
+          </div>
           <div className="flex space-x-4">
             <i className="fab fa-cc-visa text-2xl text-gray-400"></i>
             <i className="fab fa-cc-mastercard text-2xl text-gray-400"></i>
