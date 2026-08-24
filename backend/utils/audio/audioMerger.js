@@ -171,10 +171,17 @@ async function mergeAudioSegments(audioSegments, outputFilePath) {
  * @param {Buffer[]} audioSegments Array of audio Buffers.
  * @param {Object} [options] Options object.
  * @param {boolean} [options.includeDuration=false] If true, returns {buffer, duration} instead of just buffer.
+ * @param {number} [options.bitrateKbps=128] Output MP3 bitrate.
+ * @param {number} [options.sampleRateHertz=24000] Output sample rate.
  * @returns {Promise<Buffer|{buffer: Buffer, duration: number}|null>} Merged audio Buffer (or object with duration) or null if failed.
  */
 async function mergeAudioSegmentsToBuffer(audioSegments, options = {}) {
-    const { includeDuration = false } = options;
+    const {
+        includeDuration = false,
+        normalize = false,
+        bitrateKbps = 128,
+        sampleRateHertz = 24000,
+    } = options;
 
     if (!audioSegments || audioSegments.length === 0) {
         logger.warn("No audio segments provided for merging.");
@@ -188,8 +195,9 @@ async function mergeAudioSegmentsToBuffer(audioSegments, options = {}) {
         return Buffer.concat(audioSegments.filter(Boolean));
     }
 
-    // If single segment, return directly (with optional duration)
-    if (audioSegments.length === 1) {
+    // Standard single-segment output can be returned unchanged. High-quality
+    // output still passes through FFmpeg so mastering and encode settings apply.
+    if (audioSegments.length === 1 && !normalize && bitrateKbps === 128 && sampleRateHertz === 24000) {
         logger.info("Single audio segment, returning as-is");
         if (includeDuration) {
             try {
@@ -251,13 +259,17 @@ async function mergeAudioSegmentsToBuffer(audioSegments, options = {}) {
 
         // Run FFmpeg to merge files with proper encoding
         const success = await new Promise((resolve, reject) => {
-            ffmpeg()
+            const command = ffmpeg()
                 .input(listFilePath)
-                .inputOptions(["-f concat", "-safe 0"])
+                .inputOptions(["-f concat", "-safe 0"]);
+            if (normalize) {
+                command.audioFilters('loudnorm=I=-16:TP=-1.5:LRA=11');
+            }
+            command
                 .outputOptions([
                     "-c:a libmp3lame",  // Force MP3 encoding
-                    "-b:a 128k",        // Set bitrate
-                    "-ar 24000",        // Set sample rate to match Google TTS
+                    `-b:a ${bitrateKbps}k`,
+                    `-ar ${sampleRateHertz}`,
                     "-ac 1",            // Mono channel
                     "-f mp3"            // Force MP3 format
                 ])

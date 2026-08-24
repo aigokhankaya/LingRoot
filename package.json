@@ -8,7 +8,15 @@
     "start": "cd frontend && npm run start",
     "lint": "cd frontend && npm run lint",
     "generate-pdf": "node scripts/generate_pdf.js",
-    "sync-books": "npx ts-node scripts/syncBooksFromGutendex.ts"
+    "sync-books": "npx ts-node scripts/syncBooksFromGutendex.ts",
+    "video:install": "npm --prefix apps/video-factory install",
+    "video:check": "npm --prefix apps/video-factory run validate:schemas && npm --prefix apps/video-factory run typecheck && npm --prefix apps/video-factory test",
+    "video:preflight": "npm --prefix apps/video-factory run preflight -- --render-only",
+    "video:produce": "npm --prefix apps/video-factory run produce --",
+    "media:worker": "npm --prefix apps/video-factory run worker --",
+    "media:worker:once": "npm --prefix apps/video-factory run worker:once --",
+    "media:quality-worker": "npm --prefix apps/video-factory run quality-worker --",
+    "media:quality-worker:once": "npm --prefix apps/video-factory run quality-worker:once --"
   },
   "dependencies": {
     "@aws-sdk/client-polly": "^3.806.0",

@@ -1,0 +1,26 @@
+Create a concise English-learning video topic brief.
+
+Requested topic: {{topic}}
+Language code: {{language}}
+Scene count: {{scene_count}}
+
+Return one JSON object with exactly these keys:
+{
+  "title": "clear English title",
+  "coreMessage": "one-sentence factual learning promise",
+  "category": "short category label",
+  "visualOutline": [
+    {
+      "narrativeBeat": "what this scene communicates",
+      "altText": "specific, factual visual description for image generation"
+    }
+  ]
+}
+
+Rules:
+- Write title, coreMessage, narrativeBeat and altText in English when language is en.
+- Keep the requested subject factual; do not invent unsupported claims.
+- Return exactly {{scene_count}} visualOutline items in narrative order.
+- Visual descriptions must be reusable for A1 through C2 narration.
+- Do not include text, captions, logos or CEFR levels in the visual descriptions.
+- Return JSON only.

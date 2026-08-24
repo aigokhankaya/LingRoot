@@ -1,0 +1,4 @@
+interface:
+  display_name: "CEFR Level Editor"
+  short_description: "Review A1-C2 script differentiation"
+  default_prompt: "Review these scripts for correct CEFR differentiation."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "YouTube Packaging"
+  short_description: "Prepare review-first YouTube Shorts metadata"
+  default_prompt: "Prepare YouTube Shorts metadata for this topic and level."

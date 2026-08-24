@@ -4,7 +4,7 @@
  * 
  * Models:
  * - tts-1: Standard quality, faster, cheaper ($15/1M chars)
- * - tts-1-hd: High definition, better quality ($30/1M chars)
+ * - gpt-4o-mini-tts: Promptable, natural speech for narration
  * 
  * Voices: alloy, echo, fable, onyx, nova, shimmer
  */
@@ -23,6 +23,13 @@ const OPENAI_VOICES = {
     'onyx': { gender: 'male', style: 'deep, authoritative' },
     'nova': { gender: 'female', style: 'friendly, upbeat' },
     'shimmer': { gender: 'female', style: 'soft, calm' },
+    'ash': { gender: 'neutral', style: 'clear, conversational' },
+    'ballad': { gender: 'neutral', style: 'expressive, narrative' },
+    'coral': { gender: 'female', style: 'warm, engaging' },
+    'sage': { gender: 'neutral', style: 'calm, thoughtful' },
+    'verse': { gender: 'neutral', style: 'natural, articulate' },
+    'marin': { gender: 'female', style: 'high-fidelity, natural narration' },
+    'cedar': { gender: 'male', style: 'high-fidelity, natural narration' },
 };
 
 // Default settings
@@ -59,10 +66,12 @@ function listOpenAIVoices() {
  * @param {Object} options - Synthesis options
  * @param {string} options.text - Text to synthesize
  * @param {string} [options.voice='nova'] - Voice name (alloy, echo, fable, onyx, nova, shimmer)
- * @param {string} [options.model='tts-1'] - Model (tts-1 or tts-1-hd)
+ * @param {string} [options.model='tts-1'] - Supported OpenAI speech model
  * @param {number} [options.speed=1.0] - Speed (0.25 to 4.0)
  * @param {string} [options.responseFormat='mp3'] - Output format (mp3, opus, aac, flac)
  * @param {number} [options.maxRetries=3] - Maximum retry attempts
+ * @param {number} [options.timeoutMs=120000] - Per-request timeout in milliseconds
+ * @param {string} [options.instructions] - Promptable delivery direction for GPT speech models
  * @returns {Promise<Object>} Audio buffer and metadata
  */
 async function synthesizeWithOpenAI(options) {
@@ -79,10 +88,15 @@ async function synthesizeWithOpenAI(options) {
         speed = DEFAULT_SPEED,
         responseFormat = DEFAULT_FORMAT,
         maxRetries = 3,
+        timeoutMs = Number(process.env.OPENAI_TTS_TIMEOUT_MS || 120000),
+        instructions,
     } = options;
 
     if (!text || text.trim().length === 0) {
         throw new Error('Text is required for speech synthesis');
+    }
+    if (text.length > 4096) {
+        throw new Error('Text exceeds the OpenAI speech limit of 4096 characters');
     }
 
     // Validate voice
@@ -92,7 +106,8 @@ async function synthesizeWithOpenAI(options) {
     const validSpeed = Math.max(0.25, Math.min(4.0, speed));
 
     // Validate model
-    const validModel = ['tts-1', 'tts-1-hd'].includes(model) ? model : DEFAULT_MODEL;
+    const validModels = ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'];
+    const validModel = validModels.includes(model) ? model : DEFAULT_MODEL;
 
     logger.info(`🎙️ OpenAI TTS synthesis - Voice: ${validVoice}, Model: ${validModel}, Speed: ${validSpeed}x, Length: ${text.length} chars`);
 
@@ -103,6 +118,9 @@ async function synthesizeWithOpenAI(options) {
         speed: validSpeed,
         response_format: responseFormat,
     };
+    if (instructions && validModel.startsWith('gpt-4o-mini-tts')) {
+        requestBody.instructions = instructions;
+    }
 
     let lastError;
 
@@ -116,6 +134,7 @@ async function synthesizeWithOpenAI(options) {
                     'Authorization': `Bearer ${apiKey}`,
                 },
                 body: JSON.stringify(requestBody),
+                signal: AbortSignal.timeout(timeoutMs),
             });
 
             if (!response.ok) {
@@ -174,6 +193,10 @@ async function synthesizeWithOpenAI(options) {
         } catch (error) {
             lastError = error;
             const isNetworkError = error.message.includes('fetch failed') ||
+                error.name === 'AbortError' ||
+                error.name === 'TimeoutError' ||
+                error.message.toLowerCase().includes('aborted') ||
+                error.message.toLowerCase().includes('timeout') ||
                 error.message.includes('ENOTFOUND') ||
                 error.message.includes('ECONNRESET') ||
                 error.message.includes('ETIMEDOUT') ||
