@@ -164,7 +164,7 @@ export default function Footer() {
             <p className="flex shrink-0 items-center gap-1.5 text-gray-400 text-xs">
               {t('footer_credit')}
               <a
-                href="https://tuvalsoft.com"
+                href="https://tuvalsoft.com.tr"
                 target="_blank"
                 rel="noopener"
                 aria-label="TuvalSoft"
