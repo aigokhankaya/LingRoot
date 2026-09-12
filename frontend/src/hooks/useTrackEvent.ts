@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { trackEvent } from '../lib/analytics';
+import { analyticsAllowed } from '../lib/consent';
 
 /**
  * React Hook for easier event tracking
@@ -9,19 +10,9 @@ import { trackEvent } from '../lib/analytics';
  */
 export const useTrackEvent = () => {
     const track = useCallback((eventName: string, params?: Record<string, any>) => {
-        // Check for consent locally if needed, but trackEvent handles the basics via gtag checking window.gtag
-        // If we want stricter control:
-        const stored = localStorage.getItem('lingroot_cookie_consent');
-        if (stored) {
-            try {
-                const prefs = JSON.parse(stored);
-                if (prefs.analytics) {
-                    trackEvent(eventName, params);
-                }
-            } catch (e) {
-                // If parse fails, do nothing or log
-            }
-        }
+        // İzin okuması `lib/consent.ts` üzerinden; anahtarı elle parse eden üç
+        // ayrı kopya vardı ve biri bant kapalıyken de geçebiliyordu.
+        if (analyticsAllowed()) trackEvent(eventName, params);
     }, []);
 
     return track;

@@ -26,6 +26,13 @@ export default function ClientLayout({
       errorRetryCount: 2,
     }}>
       <AuthProvider>
+        {/* App Router ağacında çerez bandı hiç render edilmiyordu (`_app.tsx`
+            yalnız Pages Router'ı kapsar), ama `AnalyticsTracker` her rota
+            değişiminde Firebase'e `page_view` gönderiyordu. Yani bu yüzeyde
+            ziyaretçiye hiç sorulmadan izleme yapılıyordu.
+
+            Şimdi kapı `AnalyticsHelper` ve `getFirebaseAnalytics` içinde:
+            izin yokken bileşen render edilse de hiçbir olay gitmiyor. */}
         <AnalyticsTracker />
         <MembershipProvider>
           <RTLProvider>

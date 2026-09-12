@@ -10,6 +10,7 @@ import { CookieConsent } from '../src/components/CookieConsent';
 import { useRouter } from 'next/router';
 import Script from 'next/script';
 import * as gtag from '../src/lib/gtag';
+import { BANT_GORUNSUN, analyticsAllowed } from '../src/lib/consent';
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -17,16 +18,9 @@ function MyApp({ Component, pageProps }: AppProps) {
   // Route change tracking (PageView)
   useEffect(() => {
     const handleRouteChange = (url: string) => {
-      // Check if analytics consent is given
-      const stored = localStorage.getItem('lingroot_cookie_consent');
-      if (stored) {
-        try {
-          const prefs = JSON.parse(stored);
-          if (prefs.analytics) {
-            gtag.pageview(url);
-          }
-        } catch (e) { }
-      }
+      // İzin okuması `lib/consent.ts` üzerinden: bant, gtag, Firebase ve OTel
+      // aynı kaydı aynı şekilde yorumlasın.
+      if (analyticsAllowed()) gtag.pageview(url);
     };
 
     router.events.on('routeChangeComplete', handleRouteChange);
@@ -43,13 +37,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     const handleConsentUpdate = () => {
       // Consent güncellendiğinde (ör: kullanıcı banner'dan kabul ettiğinde)
       // o anki sayfa görüntülemesini gönderelim (ilk açılışta kaçmasın diye)
-      const stored = localStorage.getItem('lingroot_cookie_consent');
-      if (stored) {
-        const prefs = JSON.parse(stored);
-        if (prefs.analytics) {
-          gtag.pageview(window.location.pathname);
-        }
-      }
+      if (analyticsAllowed()) gtag.pageview(window.location.pathname);
     };
     window.addEventListener('cookie-consent-updated', handleConsentUpdate);
     return () => window.removeEventListener('cookie-consent-updated', handleConsentUpdate);
@@ -88,18 +76,22 @@ function MyApp({ Component, pageProps }: AppProps) {
           <AudioPlayerProvider>
             <Component {...pageProps} />
             <GlobalAudioContainer />
-            <CookieConsent />
+            {/* Bant şimdilik hiçbir sayfada gösterilmiyor; onay alınamadığı için
+                gtag, Firebase Analytics ve OTel de yüklenmiyor. Bkz. src/lib/consent.ts */}
+            {BANT_GORUNSUN ? <CookieConsent /> : null}
           </AudioPlayerProvider>
         </MembershipProvider>
       </AuthProvider>
 
 
-      {/* Google Analytics Script - Only loads if ID is present */}
-      {/* Not: Gerçek consent mode implementasyonunda script her zaman yüklenir ama
-          veriler 'denied' olarak gider. Basitlik için burada da yüklüyoruz,
-          ama event'leri sadece consent varsa gönderiyoruz. */}
+      {/* Google Analytics — yalnız analitik izni varken yüklenir.
+          Eskiden buradaki yorum "Consent Mode" diyordu ve script'i koşulsuz
+          yüklüyordu; ama `gtag('consent', ...)` hiç çağrılmadığı için "denied"
+          sinyali de gitmiyordu, yani etiket tam yetkiyle çalışıyordu. Etiketi
+          yükleyip sonra bayrak set etmek yine Google'a veri gönderir; bu yüzden
+          "izin yoksa hiç yükleme" yolu seçildi. */}
       {
-        process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+        analyticsAllowed() && process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <>
             <Script
               strategy="afterInteractive"
