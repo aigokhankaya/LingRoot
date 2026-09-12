@@ -1,8 +1,17 @@
 import { logEvent as firebaseLogEvent, setUserProperties as firebaseSetUserProperties, setUserId as firebaseSetUserId } from "firebase/analytics";
 import { getFirebaseAnalytics } from "../lib/firebase";
+import { analyticsAllowed } from "../lib/consent";
 
 const DEBUG_MODE = process.env.NODE_ENV === 'development';
 
+/**
+ * Rıza kapısı burada da açıkça duruyor.
+ *
+ * `getFirebaseAnalytics()` izin yokken zaten null dönüyor, yani bu kontrol
+ * olmasa da olay gönderilmezdi. Ama o zaman geliştirme konsolu her çağrıda
+ * "Analytics not initialized" uyarısı basardı ve gerçek bir yapılandırma
+ * hatasıyla karışırdı. Erken dönüş sessiz ve niyeti okunur kılıyor.
+ */
 export const AnalyticsHelper = {
     /**
      * Log a standard event to Firebase Analytics
@@ -10,6 +19,7 @@ export const AnalyticsHelper = {
      * @param params Optional parameters for the event
      */
     logEvent: async (eventName: string, params: Record<string, unknown> = {}) => {
+        if (!analyticsAllowed()) return;
         if (typeof window !== 'undefined') {
             const analyticsInstance = await getFirebaseAnalytics();
 
@@ -35,6 +45,7 @@ export const AnalyticsHelper = {
      * @param props Key-value pairs of user properties
      */
     setUserProps: async (props: Record<string, unknown>) => {
+        if (!analyticsAllowed()) return;
         if (typeof window !== 'undefined') {
             const analyticsInstance = await getFirebaseAnalytics();
             if (analyticsInstance) {
@@ -55,6 +66,7 @@ export const AnalyticsHelper = {
      * @param userId Unique user identifier
      */
     setUserId: async (userId: string | null) => {
+        if (!analyticsAllowed()) return;
         if (typeof window !== 'undefined') {
             const analyticsInstance = await getFirebaseAnalytics();
             if (analyticsInstance) {
@@ -76,6 +88,7 @@ export const AnalyticsHelper = {
      * @param screenClass The class/component name of the screen
      */
     logScreenView: async (screenName: string, screenClass: string) => {
+        if (!analyticsAllowed()) return;
         if (typeof window !== 'undefined') {
             const analyticsInstance = await getFirebaseAnalytics();
             if (analyticsInstance) {

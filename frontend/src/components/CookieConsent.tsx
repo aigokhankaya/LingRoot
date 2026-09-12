@@ -17,6 +17,16 @@ interface CookiePreferences {
     timestamp?: string;
 }
 
+/**
+ * Çerez onay bandı — ŞU AN KAPALI.
+ *
+ * `src/lib/consent.ts` içindeki `BANT_GORUNSUN` false olduğu için `_app.tsx`
+ * bu bileşeni hiç render etmiyor. Onay alınamadığından gtag, Firebase Analytics
+ * ve OpenTelemetry de yüklenmiyor.
+ *
+ * Bandı açmadan önce `pages/cookies.tsx` boş stub'ını ("Cookie Policy Page (Boş)")
+ * doldur ya da `cookie-policy`'ye yönlendir; bant politika sayfasına link verir.
+ */
 export const CookieConsent: React.FC = () => {
     const { t } = useTranslation();
     const [isVisible, setIsVisible] = useState(false);

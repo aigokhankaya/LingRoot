@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import type { Analytics } from "firebase/analytics";
+import { analyticsAllowed } from "./consent";
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -41,7 +42,16 @@ export const getFirebaseApp = (): FirebaseApp | null => {
     return firebaseApp;
 };
 
+/**
+ * Firebase Analytics — onay kapısının arkasında.
+ *
+ * Eskiden yalnızca config anahtarlarına bakıyordu, yani `lingroot_cookie_consent`
+ * ne yazarsa yazsın GA4'e olay gönderiliyordu. Artık izin yoksa SDK hiç
+ * yüklenmiyor: dinamik `import("firebase/analytics")` de çalışmıyor, dolayısıyla
+ * Google'a tek istek gitmiyor.
+ */
 export const getFirebaseAnalytics = async (): Promise<Analytics | null> => {
+    if (!analyticsAllowed()) return null;
     if (analyticsInstance) return analyticsInstance;
     if (typeof window === "undefined") return null;
 
