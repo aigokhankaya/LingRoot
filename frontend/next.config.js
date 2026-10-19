@@ -74,6 +74,13 @@ const nextConfig = {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`,
       },
+      // Internal service-to-service endpoints (Bearer API-key protected).
+      // Lets external integrators (e.g. Video Factory) reach /internal/* via the
+      // public domain through the same backend proxy used for /api/*.
+      {
+        source: '/internal/:path*',
+        destination: `${backendUrl}/internal/:path*`,
+      },
     ];
   },
 };

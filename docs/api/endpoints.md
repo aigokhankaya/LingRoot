@@ -1071,12 +1071,12 @@ POST /internal/video-level-package
 Authorization: Bearer <VIDEO_FACTORY_API_KEY>
 ```
 Tek bir CEFR seviyesi için scene-aware script + TTS sesi + SRT altyazı üretir.
-Detay: [Video Factory Seviye Paketi API'si](./video-level-package.md).
+Detay: [Video Factory Entegrasyon Dokümanı](./video-factory-integration.md).
 
 ## Related Documentation
 
 - [API Architecture](../architecture/api-architecture.md)
 - [Error Codes](./errors.md)
 - [Request Examples](./request-examples.md)
-- [Video Level Package API](./video-level-package.md)
+- [Video Factory Integration](./video-factory-integration.md)
 
