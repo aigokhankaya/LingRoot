@@ -1,0 +1,4 @@
+interface:
+  display_name: "Instagram Reels Packaging"
+  short_description: "Prepare staggered Instagram Reels metadata"
+  default_prompt: "Prepare Instagram Reels metadata and release timing."

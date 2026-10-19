@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# generated artifacts
+outputs/
+production-runs/
+logs/
+
+# os / editor noise
+.DS_Store

@@ -7,6 +7,7 @@ const auditLogController = require('../controllers/auditLogController');
 const { getTtsProviderSetting, setTtsProviderSetting } = require('../controllers/adminController');
 const adminBookController = require('../controllers/adminBookController');
 const notificationController = require('../controllers/notificationController');
+const adminMediaController = require('../controllers/adminMediaController');
 const multer = require('multer');
 
 // Sub-routers
@@ -86,6 +87,22 @@ router.get('/content/:id', adminController.getContentById);
 // Content management
 router.get('/content', adminController.getAllContent);
 router.delete('/content/:id', adminController.deleteContent);
+
+// LingRoot Media campaign and review management
+router.get('/media/campaigns', adminMediaController.listCampaigns);
+router.post('/media/campaigns', adminMediaController.createCampaign);
+router.get('/media/campaigns/:id', adminMediaController.getCampaign);
+router.put('/media/campaigns/:id', adminMediaController.updateCampaign);
+router.delete('/media/campaigns/:id', adminMediaController.deleteCampaign);
+router.post('/media/campaigns/:id/generate', adminMediaController.generateCampaign);
+router.post('/media/campaigns/:id/retry', adminMediaController.retryCampaign);
+router.post('/media/campaigns/:id/cancel', adminMediaController.cancelCampaign);
+router.post('/media/campaigns/:id/approve', adminMediaController.approveCampaign);
+router.post('/media/campaigns/:id/publish', adminMediaController.publishCampaign);
+router.post('/media/campaigns/:id/request-revision', adminMediaController.requestRevision);
+router.post('/media/campaigns/:id/duplicate', adminMediaController.duplicateCampaign);
+router.post('/media/campaigns/:id/quality/rerun', adminMediaController.rerunQuality);
+router.post('/media/campaigns/:id/quality/:runId/feedback', adminMediaController.submitQualityFeedback);
 
 // Subscription management
 router.get('/subscriptions', adminController.getAllSubscriptions);

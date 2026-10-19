@@ -1,0 +1,4 @@
+interface:
+  display_name: "Local Scheduler"
+  short_description: "Prepare and test the local macOS scheduler"
+  default_prompt: "Prepare or validate the local Video Factory scheduler."

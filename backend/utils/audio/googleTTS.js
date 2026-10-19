@@ -181,29 +181,29 @@ async function listGoogleVoices(languageCode = 'en-US') {
       const ssmlSupport = !ssmlUnsupportedVoices.some(unsupported => voice.name.includes(unsupported));
       
       // Kategorileri belirle
-      let package, emotion, accent;
+      let voicePackage, emotion, accent;
       
       // Paket belirleme
       if (voice.name.includes('Journey')) {
-        package = 'Premium';
+        voicePackage = 'Premium';
         emotion = 'Natural';
       } else if (voice.name.includes('Chirp')) {
-        package = 'Gold';
+        voicePackage = 'Gold';
         emotion = 'Advanced';
       } else if (voice.name.includes('Studio')) {
-        package = 'Platinum';
+        voicePackage = 'Platinum';
         emotion = 'Professional';
       } else if (voice.name.includes('Wavenet')) {
-        package = 'Premium';
+        voicePackage = 'Premium';
         emotion = 'Natural';
       } else if (voice.name.includes('Neural2')) {
-        package = 'Premium';
+        voicePackage = 'Premium';
         emotion = 'Advanced';
       } else if (voice.name.includes('Standard')) {
-        package = 'Basic';
+        voicePackage = 'Basic';
         emotion = 'Standard';
       } else {
-        package = 'Basic';
+        voicePackage = 'Basic';
         emotion = 'Standard';
       }
       
@@ -224,7 +224,7 @@ async function listGoogleVoices(languageCode = 'en-US') {
         gender: voice.ssmlGender,
         ssmlGender: voice.ssmlGender,
         ssmlSupport: ssmlSupport,
-        package: package,
+        package: voicePackage,
         emotion: emotion,
         accent: accent,
         naturalSampleRateHertz: voice.naturalSampleRateHertz
@@ -327,7 +327,16 @@ async function synthesizeWithGoogle(options) {
     throw new Error('Google TTS client not initialized');
   }
 
-  const { text, voiceName = 'en-US-Standard-C', languageCode = 'en-US', speakingRate = 1.0, ssmlGender = 'NEUTRAL', userId = null } = options;
+  const {
+    text,
+    voiceName = 'en-US-Standard-C',
+    languageCode = 'en-US',
+    speakingRate = 1.0,
+    ssmlGender = 'NEUTRAL',
+    userId = null,
+    audioQuality = 'standard',
+  } = options;
+  const highQuality = audioQuality === 'high';
   const safePlainText = sanitizePlainText(text);
   
   logger.info(`🎯 Google TTS synthesis - Voice: ${voiceName}, Rate: ${speakingRate}x, Length: ${text.length} chars`);
@@ -365,8 +374,8 @@ async function synthesizeWithGoogle(options) {
         speakingRate: speakingRate || 1.0,
         pitch: 0.0,
         volumeGainDb: 0.0,
-        sampleRateHertz: 24000, // Yeterli kalite için 24kHz
-        effectsProfileId: ['telephony-class-application']
+        sampleRateHertz: 24000,
+        ...(highQuality ? {} : { effectsProfileId: ['telephony-class-application'] })
       },
       enableTimePointing: ['SSML_MARK']
     };
@@ -627,4 +636,4 @@ module.exports = {
   listGoogleVoices,
   getVoiceGender,
   generateSSMLWithOptimizedMarks
-}; 
+};

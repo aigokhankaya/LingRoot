@@ -22,13 +22,15 @@ function safeEqual(a, b) {
 /**
  * Express middleware factory. Validates `Authorization: Bearer <key>` against
  * the configured environment variable.
- * @param {string} envVarName - name of the env var holding the expected key.
+ * @param {string|string[]} envVarName - env var name(s), in priority order.
  */
 function internalApiAuth(envVarName = 'VIDEO_FACTORY_API_KEY') {
   return (req, res, next) => {
-    const expected = process.env[envVarName];
+    const envVarNames = Array.isArray(envVarName) ? envVarName : [envVarName];
+    const configuredName = envVarNames.find((name) => process.env[name]);
+    const expected = configuredName ? process.env[configuredName] : undefined;
     if (!expected) {
-      logger.error(`[InternalAuth] ${envVarName} is not configured; rejecting request to ${req.originalUrl}`);
+      logger.error(`[InternalAuth] ${envVarNames.join(' or ')} is not configured; rejecting request to ${req.originalUrl}`);
       return res.status(500).json({ error: 'Internal API key not configured on server.' });
     }
 

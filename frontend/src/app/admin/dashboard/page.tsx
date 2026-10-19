@@ -32,6 +32,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import { Clapperboard } from 'lucide-react';
 import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } from '@/services/userService';
 // Paket Bilgilerim kullanıcı dashboard'ına taşındı
 import TtsProviderSelector from '@/components/admin/TtsProviderSelector';
@@ -802,6 +803,10 @@ const AppContent: React.FC = () => {
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("icerik-yonetimi")}>
                 <i className="fas fa-file-alt mr-3 text-lg"></i>
                 <span>İçerik Yönetimi</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/lingroot-media')}>
+                <Clapperboard className="mr-3 h-5 w-5" />
+                <span>LingRoot Media</span>
               </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/vocabulary')}>
                 <i className="fas fa-language mr-3 text-lg"></i>
@@ -2093,4 +2098,3 @@ export default function App() {
     </Suspense>
   );
 }
-

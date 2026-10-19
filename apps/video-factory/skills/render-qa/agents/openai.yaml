@@ -1,0 +1,4 @@
+interface:
+  display_name: "Render QA"
+  short_description: "Validate rendered LingRoot video artifacts"
+  default_prompt: "Run render QA on this generated topic package."

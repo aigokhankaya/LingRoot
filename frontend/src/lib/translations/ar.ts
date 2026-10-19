@@ -488,6 +488,7 @@ export const arTranslations = {
     'إذا كان لديك أي سؤال حول استخدامنا للكوكيز أو خصوصيتك، لا تتردد في التواصل معنا.',
   cookie_contact_button: 'تواصل معنا',
   all_rights_reserved: 'جميع الحقوق محفوظة.',
+  footer_credit: 'التصميم والتطوير:',
   footer_address_city: 'إسطنبول، تركيا',
 
   // === HEADER ===
