@@ -7,13 +7,13 @@ import * as gtag from './gtag';
 
 // Analytics'i başlatır (Consent verildiyse)
 export const initAnalytics = () => {
-    // GA4 zaten _document veya _app üzerinden script olarak yüklendiğinde,
-    // Google'ın kendi mekanizması "consent mode" ile çalışır.
-    // Ancak scripti tamamen inject etmemeyi tercih ediyorsak burayı kullanabiliriz.
-    // Şimdilik consent mode v2 mantığına uygun olarak;
-    // Script her zaman yüklü olabilir ama veriler 'denied' modunda gitmez.
-
-    // Basit implementasyonda: Kullanıcı kabul edince bu fonksiyon çağrılır.
+    // Buradaki eski yorum "script her zaman yüklü olabilir, veriler 'denied'
+    // modunda gitmez" diyordu. Bu yanlıştı: projede `gtag('consent', ...)` hiç
+    // çağrılmıyor, dolayısıyla Consent Mode diye bir şey çalışmıyordu.
+    //
+    // Seçilen yaklaşım daha katı: izin yoksa gtag script'i `pages/_app.tsx`
+    // içinde hiç render edilmiyor. Aşağıdaki `gtag.*` sarmalayıcıları da
+    // `window.gtag` tanımsız olduğu için sessizce no-op oluyor.
     if (typeof window !== 'undefined') {
         // Custom init logic if needed
         console.log('[Analytics] Initialized');

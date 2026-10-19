@@ -21,12 +21,22 @@ import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
+import { analyticsAllowed } from './consent';
 
 let initialized = false;
 
 export function initOtel(): void {
   if (initialized) return;
   if (typeof window === 'undefined') return;
+
+  // Rıza kapısı: fetch ve document-load enstrümantasyonu her isteğin zamanını,
+  // URL'ini ve sayfa performansını `otel.lingroot.com`'a gönderiyor. Sitenin
+  // çalışması için gerekli değil, dolayısıyla zorunlu sayılamaz.
+  //
+  // NOT: `recordError` bu kapının DIŞINDA -- hata ayıklama için tutulan bir
+  // istisna kaydı, ziyaretçi davranışı ölçümü değil. Ama provider hiç
+  // register edilmediğinde span'ler zaten hiçbir yere gitmez.
+  if (!analyticsAllowed()) return;
 
   const endpoint = process.env.NEXT_PUBLIC_OTEL_ENDPOINT;
   if (!endpoint) {
