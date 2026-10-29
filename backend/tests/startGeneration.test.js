@@ -55,7 +55,7 @@ describe('start generation onboarding helper', () => {
   });
 
   test('returns first incomplete step as next type', () => {
-    expect(getNextStartGenerationType(DEFAULT_PROGRESS)).toBe('text');
+    expect(getNextStartGenerationType(DEFAULT_PROGRESS)).toBe('podcast');
     expect(getNextStartGenerationType({
       text_completed: true,
       podcast_completed: false,
