@@ -40,17 +40,15 @@ function parseCookieHeader(headerValue) {
 }
 
 function extractAuthToken(req) {
-  const cookies = parseCookieHeader(req.headers.cookie);
-  if (cookies[ACCESS_COOKIE_NAME]) {
-    return cookies[ACCESS_COOKIE_NAME];
-  }
-
+  // Mobile clients send the active account explicitly. A cookie left over
+  // from another session must not override that account.
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.split(" ")[1];
   }
-  
-  return null;
+
+  const cookies = parseCookieHeader(req.headers.cookie);
+  return cookies[ACCESS_COOKIE_NAME] || null;
 }
 
 /**
